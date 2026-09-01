@@ -11,6 +11,9 @@ import {
 } from 'lucide-react';
 
 import { TimeClockPanel } from './components/TimeClockPanel';
+import { ScheduleCalendar } from './components/ScheduleCalendar';
+import { TipManagement } from './components/TipManagement';
+import { CashReconciliation } from './components/CashReconciliation';
 
 // Role icon mapping - Apple-style vector icons
 function getRoleIcon(roleName: string): React.ComponentType<any> {
@@ -638,7 +641,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
   const roleColor = getRoleColor(staff.role_name);
   const RoleIcon = getRoleIcon(staff.role_name);
   const isOnShift = staff.shift_status === 'active';
-  const [activeTab, setActiveTab] = useState<'overview' | 'timeclock' | 'performance' | 'shifts' | 'schedule' | 'attendance' | 'labor' | 'payroll' | 'approvals' | 'activity' | 'security' | 'permissions'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'timeclock' | 'schedule' | 'shifts' | 'tips' | 'cash' | 'attendance' | 'labor' | 'payroll' | 'approvals' | 'activity' | 'security' | 'permissions'>('overview');
   const [shifts, setShifts] = useState<any[]>([]);
   const [shiftsLoading, setShiftsLoading] = useState(false);
   const [schedule, setSchedule] = useState<any[]>([]);
@@ -657,9 +660,10 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'timeclock', label: 'Time Clock' },
-    { key: 'performance', label: 'Performance' },
-    { key: 'shifts', label: 'Shifts' },
     { key: 'schedule', label: 'Schedule' },
+    { key: 'shifts', label: 'Shifts' },
+    { key: 'tips', label: 'Tips' },
+    { key: 'cash', label: 'Cash' },
     { key: 'attendance', label: 'Attendance' },
     { key: 'labor', label: 'Labor' },
     { key: 'payroll', label: 'Payroll' },
@@ -897,16 +901,6 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             <TimeClockPanel staffId={staff.id} staffName={staff.full_name || staff.name} />
           )}
 
-          {activeTab === 'performance' && (
-            <div className="space-y-6">
-              <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
-                <Timer size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
-                <p className="text-sm text-[var(--theme-text-secondary)]">Performance analytics coming soon</p>
-                <p className="text-xs text-[var(--theme-text-muted)] mt-1">Historical trends, comparisons, and insights</p>
-              </div>
-            </div>
-          )}
-
           {activeTab === 'shifts' && (
             <div className="space-y-4">
               {shiftsLoading ? (
@@ -946,25 +940,27 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
           )}
 
           {activeTab === 'schedule' && (
-            <div className="space-y-4">
-              {scheduleLoading ? (
-                <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
-              ) : schedule.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><Clock size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No schedule found</p></div>
-              ) : (
-                <>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Upcoming Schedule</h3>
-                  <div className="space-y-2">
-                    {schedule.map((s: any) => (
-                      <div key={s.id} className="p-4 rounded-xl border flex items-center gap-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div className="min-w-[100px]"><p className="text-xs font-medium text-[var(--theme-text)]">{new Date(s.schedule_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p></div>
-                        <div className="min-w-[100px]"><p className="text-xs text-[var(--theme-text)]">{s.planned_start} - {s.planned_end}</p></div>
-                        {s.notes && <p className="text-xs text-[var(--theme-text-muted)]">{s.notes}</p>}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+            <ScheduleCalendar />
+          )}
+
+          {activeTab === 'tips' && (
+            <TipManagement staffId={staff.id} />
+          )}
+
+          {activeTab === 'cash' && staff.active_shift && (
+            <CashReconciliation
+              shiftId={staff.active_shift.id}
+              staffId={staff.id}
+              startingCash={staff.active_shift.starting_cash || 0}
+              expectedCash={staff.expected_cash || 0}
+            />
+          )}
+
+          {activeTab === 'cash' && !staff.active_shift && (
+            <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
+              <DollarSign size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
+              <p className="text-sm text-[var(--theme-text-secondary)]">No active shift</p>
+              <p className="text-xs text-[var(--theme-text-muted)] mt-1">Cash reconciliation is available during active shifts</p>
             </div>
           )}
 

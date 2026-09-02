@@ -4,12 +4,14 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, Users, Clock, ShoppingBag, DollarSign,
-  AlertTriangle, ChevronRight, MoreHorizontal, Edit, Timer,
-  LogOut, RotateCcw, Utensils, GlassWater, Component, Shield,
-  UserCheck, Activity, CreditCard, TrendingUp, Eye, ChefHat,
-  CheckCircle, XCircle, LogIn, Coffee, FileText, Download,
-  Trash2, Tag, Ban, RefreshCw
+  AlertTriangle, ChevronRight, Edit, Timer,
+  LogOut, RotateCcw, Component,
+  UserCheck, CreditCard, TrendingUp, ChefHat,
+  CheckCircle, XCircle, FileText, Download,
+  ShieldCheck, ConciergeBell, Receipt, Flame, Wine, DoorOpen, Info,
+  KeyRound, Briefcase, HandPlatter, Landmark, Martini, CalendarDays, Coffee
 } from 'lucide-react';
+import { DragTabSwitcher } from '@/components/ui/DragTabSwitcher';
 
 import { TimeClockPanel } from './components/TimeClockPanel';
 import { ScheduleCalendar } from './components/ScheduleCalendar';
@@ -27,15 +29,18 @@ import { AdvancedPermissions } from './components/AdvancedPermissions';
 import { SecurityTab } from './components/SecurityTab';
 import { ActivityTab } from './components/ActivityTab';
 
-// Role icon mapping - Apple-style vector icons
+// Role icon mapping - premium, accurate restaurant Lucide icons
 function getRoleIcon(roleName: string): React.ComponentType<any> {
   const icons: Record<string, React.ComponentType<any>> = {
-    waiter: Utensils,
-    bartender: GlassWater,
+    admin: KeyRound,
+    owner: KeyRound,
+    superadmin: KeyRound,
+    manager: Briefcase,
+    waiter: HandPlatter,
+    cashier: Landmark,
     kitchen: ChefHat,
-    cashier: Component,
-    manager: Shield,
-    host: UserCheck,
+    bartender: Martini,
+    host: CalendarDays,
   };
   return icons[roleName?.toLowerCase()] || UserCheck;
 }
@@ -69,6 +74,18 @@ function formatCurrencyShort(value: number | null | undefined): string {
   if (value >= 1000) return `₼${(value / 1000).toFixed(1)}k`;
   return `₼${value.toFixed(0)}`;
 }
+
+// Elapsed since an ISO timestamp, e.g. "12m" or "1h 05m"
+function formatElapsed(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const start = new Date(iso).getTime();
+  if (isNaN(start)) return '';
+  const diff = Math.max(0, Date.now() - start);
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
 import { useFirstLoad } from '@/hooks/useFirstLoad';
@@ -90,13 +107,33 @@ type Kpis = {
   splh: number;
 };
 
+type Lifecycle = {
+  staff_id: string;
+  phase: string;
+  scheduled_start?: string | null;
+  scheduled_end?: string | null;
+  has_schedule: boolean;
+  is_clocked_in: boolean;
+  shift_id?: string | null;
+  shift_opened_at?: string | null;
+  late_minutes: number;
+  is_late: boolean;
+  on_break: boolean;
+  break_started_at?: string | null;
+  break_used_minutes: number;
+  break_allowance_mins: number;
+  hours_worked_net: number;
+  is_unclosed: boolean;
+};
+
 export default function StaffPage() {
   const { t } = useLanguage();
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [lifecycle, setLifecycle] = useState<Record<string, Lifecycle>>({});
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'on_shift' | 'off_shift'>('all');
+  const [activeView, setActiveView] = useState<'all' | 'on_shift' | 'off_shift' | 'schedule'>('all');
   const [showCreateSheet, setShowCreateSheet] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
 
@@ -111,11 +148,6 @@ export default function StaffPage() {
         setKpis(data.kpis);
         setStaff(data.staff || []);
       }
-      const splhRes = await fetch('/api/labor/splh');
-      if (splhRes.ok) {
-        const splhData = await splhRes.json();
-        setKpis((prev) => prev ? { ...prev, splh: splhData.splh || 0 } : null);
-      }
     } catch {
       toast.error('Failed to load staff');
     } finally {
@@ -124,6 +156,20 @@ export default function StaffPage() {
   }, []);
 
   useEffect(() => { fetchDirectory(); }, [fetchDirectory]);
+
+  const fetchLifecycle = useCallback(async () => {
+    try {
+      const res = await fetch('/api/staff/lifecycle-status');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.lifecycle) setLifecycle(data.lifecycle);
+      }
+    } catch {
+      // non-fatal
+    }
+  }, []);
+
+  useEffect(() => { fetchLifecycle(); }, [fetchLifecycle]);
 
   const handleForceClockOut = async (member: StaffMember) => {
     if (!confirm(`Force clock out ${member.full_name || member.name}?`)) return;
@@ -173,20 +219,33 @@ export default function StaffPage() {
         m.role_name.toLowerCase().includes(s)
       );
     }
-    if (filter === 'on_shift') result = result.filter(m => m.shift_status === 'active');
-    if (filter === 'off_shift') result = result.filter(m => m.shift_status !== 'active');
+    if (activeView === 'on_shift') result = result.filter(m => onPhase(m, lifecycle));
+    if (activeView === 'off_shift') result = result.filter(m => !onPhase(m, lifecycle));
     return result;
-  }, [staff, search, filter]);
+  }, [staff, search, activeView, lifecycle]);
 
-  const onShiftCount = staff.filter(s => s.shift_status === 'active').length;
+  const onShiftCount = staff.filter(s => {
+    const lc = lifecycle[s.id];
+    if (lc) return lc.phase === 'on_shift' || lc.phase === 'on_break' || lc.phase === 'unclosed';
+    return s.shift_status === 'active';
+  }).length;
 
   return (
     <div className="h-full flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-black text-[var(--theme-text)] tracking-tight">
-            TEAM <span className="text-[var(--theme-text-muted)]">·</span> <span className="text-base font-medium text-[var(--theme-text-muted)]">{kpis?.total_staff ?? 0} Total Staff</span> <span className="text-[var(--theme-text-muted)]">|</span> <span className="text-base font-medium text-emerald-400">{onShiftCount} On Shift</span>
+          <h1 className="flex items-center gap-3">
+            <span className="text-2xl font-black text-[var(--theme-text)] tracking-tight">
+              TEAM <span className="text-[var(--theme-text-muted)]">·</span> <span className="text-base font-medium text-[var(--theme-text-muted)]">{kpis?.total_staff ?? staff.length} Total Staff</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 whitespace-nowrap">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+              </span>
+              <span className="text-[10px] font-bold tracking-widest text-emerald-300">LIVE · {onShiftCount} ON SHIFT</span>
+            </span>
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -227,79 +286,137 @@ export default function StaffPage() {
         </div>
       </div>
 
-      {/* Minimal KPI Strip with Tooltips */}
+      {/* Unified Metrics Strip (single monolith panel, Apple-clean typography) */}
       {kpis && (
         <div className="flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <MiniKpiWithTooltip label="Labor Cost" value={`₼${(kpis.labor_cost_today ?? 0).toFixed(0)}`} hint="Bu gün smenada olan heyətin iş saatlarına əsasən hesablanan ümumi əməkhaqqı xərci." />
-            <MiniKpiWithTooltip label="Avg Ticket" value={`₼${(kpis.avg_ticket_size ?? 0).toFixed(0)}`} hint="Bu gün qəbul edilən sifarişlərin orta məbləği." />
-            <MiniKpiWithTooltip label="High Risk Voids" value={kpis.high_risk_voids ?? 0} hint="Ödənişdən və ya mətbəxə verildikdən sonra ləğv edilən şübhəli sifarişlərin sayı." accent="rose" />
-            <MiniKpiWithTooltip label="SPLH" value={`₼${(kpis.splh ?? 0).toFixed(0)}`} hint="İşçilərin işlədiyi hər 1 saat üçün restorana qazandırdığı ümumi satış məbləği." accent="emerald" />
+          <div
+            className="flex items-stretch rounded-2xl overflow-hidden"
+            style={{
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              backdropFilter: 'blur(20px)',
+            }}
+          >
+            <MetricStripCell
+              label="Labor Cost"
+              value={`${(kpis.labor_cost_today ?? 0).toFixed(2)} ₼`}
+              hint="Bu gün smenada olan heyətin iş saatlarına əsasən hesablanan ümumi əməkhaqqı xərci."
+            />
+            <MetricStripCell
+              label="Avg Ticket"
+              value={`${(kpis.avg_ticket_size ?? 0).toFixed(2)} ₼`}
+              hint="Bu gün qəbul edilən sifarişlərin orta məbləği."
+            />
+            <MetricStripCell
+              label="High Risk Voids"
+              value={`${kpis.high_risk_voids ?? 0}`}
+              dot="rose"
+              hint="Ödənişdən və ya mətbəxə verildikdən sonra ləğv edilən şübhəli sifarişlərin sayı."
+            />
+            <MetricStripCell
+              label="SPLH"
+              value={`${(kpis.splh ?? 0).toFixed(2)} ₼/h`}
+              hint="İşçilərin işlədiyi hər 1 saat üçün restorana qazandırdığı ümumi satış məbləği."
+            />
           </div>
 
-          {/* Performance Alerts */}
+          {/* Minimal risk chips (inline, subtle - no heavy red banner) */}
           {(kpis.cash_variance && Math.abs(kpis.cash_variance) > 10) || (kpis.risk_alerts && kpis.risk_alerts > 0) ? (
-            <div className="flex gap-3 mt-3">
+            <div className="flex items-center gap-2 mt-2">
               {kpis.cash_variance && Math.abs(kpis.cash_variance) > 10 && (
-                <div className="flex-1 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
-                  <AlertTriangle size={16} className="text-amber-400" />
-                  <span className="text-xs text-amber-400">
-                    Cash variance: {kpis.cash_variance > 0 ? '+' : ''}₼{kpis.cash_variance.toFixed(2)}
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-70" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
                   </span>
-                </div>
+                  <span className="text-[10px] font-semibold text-amber-300">
+                    Cash variance {kpis.cash_variance > 0 ? '+' : ''}₼{kpis.cash_variance.toFixed(2)}
+                  </span>
+                </span>
               )}
               {kpis.risk_alerts && kpis.risk_alerts > 0 && (
-                <div className="flex-1 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-3">
-                  <AlertTriangle size={16} className="text-rose-400" />
-                  <span className="text-xs text-rose-400">
-                    {kpis.risk_alerts} staff member{kpis.risk_alerts > 1 ? 's' : ''} with risk alerts
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-70" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-400" />
                   </span>
-                </div>
+                  <span className="text-[10px] font-semibold text-rose-300">
+                    {kpis.risk_alerts} staff need review
+                  </span>
+                </span>
               )}
             </div>
           ) : null}
         </div>
       )}
 
-      {/* Control Header - Glass Effect */}
+      {/* Floating Pill Navbar (glass + DragTabSwitcher segmented control) */}
       <div
-        className="flex items-center gap-4 p-4 rounded-2xl flex-shrink-0"
+        className="flex items-center gap-2 pl-2 pr-1.5 py-1.5 rounded-full flex-shrink-0"
         style={{
-          background: 'rgba(255,255,255,0.02)',
+          background: 'rgba(12,12,12,0.45)',
           border: '1px solid rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(20px)',
+          backdropFilter: 'blur(24px)',
         }}
       >
         {/* Search */}
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
+        <div className="relative w-[220px] shrink-0">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search staff..."
-            className="w-full rounded-xl pl-10 pr-4 py-2.5 text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
-            style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.08)',
-            }}
+            className="w-full rounded-full pl-9 pr-4 py-2 text-xs text-white placeholder:text-zinc-500 outline-none transition-all bg-zinc-900/50 border border-white/5 focus:border-white/20"
           />
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
-          <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>
-            All ({staff.length})
-          </FilterPill>
-          <FilterPill active={filter === 'on_shift'} onClick={() => setFilter('on_shift')} count={onShiftCount} accent="emerald">
-            On Shift
-          </FilterPill>
-          <FilterPill active={filter === 'off_shift'} onClick={() => setFilter('off_shift')}>
-            Off Shift
-          </FilterPill>
+        {/* Divider */}
+        <div className="hidden sm:block h-6 w-px bg-white/10" />
+
+        {/* Segmented Drag Filter (same animation as reservations navbar, original pill color) */}
+        <div className="flex-1 min-w-0 flex justify-end">
+          <DragTabSwitcher
+            items={[
+              { id: 'all', label: `All (${staff.length})` },
+              { id: 'on_shift', label: `On Shift (${onShiftCount})` },
+              { id: 'off_shift', label: `Off Shift (${staff.length - onShiftCount})` },
+              { id: 'schedule', label: 'Schedule' },
+            ]}
+            value={activeView}
+            onChange={(v) => setActiveView(v as 'all' | 'on_shift' | 'off_shift' | 'schedule')}
+            activeStyle={{
+              pillBackground: '#383838',
+              pillBorder: '1px solid rgba(255,255,255,0.06)',
+              labelColor: '#ffffff',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 2px rgba(0,0,0,0.35)',
+            }}
+          />
         </div>
       </div>
 
-      {/* Horizontal Staff Cards */}
+      {activeView === 'schedule' ? (
+        /* Team Schedule (weekly shift plan) - full view */
+        <section
+          className="flex-1 min-h-0 overflow-y-auto rounded-2xl"
+          style={{
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
+            <div className="flex items-center gap-2">
+              <CalendarDays size={14} className="text-zinc-500" />
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Team Shift Schedule</h2>
+            </div>
+            <span className="text-[10px] text-zinc-600">Weekly plan</span>
+          </div>
+          <div className="px-4 pb-4">
+            <ScheduleCalendar />
+          </div>
+        </section>
+      ) : (
+      /* Horizontal Staff Cards */
       <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
         {isFirstLoad ? (
           <div className="space-y-3">
@@ -326,6 +443,7 @@ export default function StaffPage() {
                 key={member.id}
                 member={member}
                 index={idx}
+                lifecycle={lifecycle[member.id]}
                 onClick={() => setSelectedStaff(member)}
                 onForceClockOut={handleForceClockOut}
                 onResetPin={handleResetPin}
@@ -334,6 +452,7 @@ export default function StaffPage() {
           </AnimatePresence>
         )}
       </div>
+      )}
 
       {/* Add Staff Sheet */}
       <AnimatePresence>
@@ -352,67 +471,77 @@ export default function StaffPage() {
   );
 }
 
-function FilterPill({ children, active, onClick, count, accent }: {
-  children: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
-  count?: number;
-  accent?: 'emerald';
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-        active
-          ? 'bg-[var(--theme-text)] text-[var(--theme-surface)] shadow-md'
-          : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-white/5'
-      } ${accent && active ? '!bg-emerald-500 !text-white' : ''}`}
-    >
-      {children}
-      {count !== undefined && (
-        <span className={`ml-1.5 tabular-nums ${active ? 'opacity-80' : 'opacity-50'}`}>
-          {count}
-        </span>
-      )}
-    </button>
-  );
+function onPhase(m: StaffMember, lifecycle: Record<string, Lifecycle>): boolean {
+  const lc = lifecycle[m.id];
+  if (lc) return lc.phase === 'on_shift' || lc.phase === 'on_break' || lc.phase === 'unclosed';
+  return m.shift_status === 'active';
 }
 
-function StaffCard({ member, index, onClick, onForceClockOut, onResetPin }: {
+function StaffCard({ member, index, onClick, onForceClockOut, onResetPin, lifecycle }: {
   member: StaffMember;
   index: number;
   onClick: () => void;
   onForceClockOut: (member: StaffMember) => void;
   onResetPin: (member: StaffMember) => void;
+  lifecycle?: Lifecycle;
 }) {
-  const isOnShift = member.shift_status === 'active';
+  const lc = lifecycle;
+  const isOnShift = lc ? (lc.phase === 'on_shift' || lc.phase === 'on_break' || lc.phase === 'unclosed') : member.shift_status === 'active';
   const roleColor = getRoleColor(member.role_name);
-  const initials = (member.full_name || member.name).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   const RoleIcon = getRoleIcon(member.role_name);
+  const assignmentText = getAssignmentText(member);
 
-  // Calculate shift progress
-  const shiftProgress = calculateShiftProgress(member.shift);
-
-  // Live timer
+  // Live timer with sanity cap: never show absurd multi-day durations.
   const [liveDuration, setLiveDuration] = useState('');
+  const [shiftStale, setShiftStale] = useState(false);
 
   useEffect(() => {
     if (!isOnShift || !member.shift_opened_at) return;
 
     const updateTimer = () => {
       const start = new Date(member.shift_opened_at!);
-      const now = new Date();
-      const diff = now.getTime() - start.getTime();
+      const diff = Math.max(0, Date.now() - start.getTime());
       const hours = Math.floor(diff / 3600000);
       const minutes = Math.floor((diff % 3600000) / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-      setLiveDuration(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+      setShiftStale(hours > 14);
+      if (hours > 14) setLiveDuration('');
+      else if (hours > 0) setLiveDuration(`${hours}h ${minutes}m`);
+      else setLiveDuration(`${minutes}m`);
     };
 
     updateTimer();
-    const interval = setInterval(updateTimer, 1000);
+    const interval = setInterval(updateTimer, 60000);
     return () => clearInterval(interval);
   }, [isOnShift, member.shift_opened_at]);
+
+  const phase = lc?.phase;
+  const isLate = !!lc?.is_late;
+  const onBreak = !!lc?.on_break;
+  const isUnclosed = !!lc?.is_unclosed;
+
+  let phaseText: string;
+  if (phase === 'on_break') phaseText = onBreak && lc?.break_started_at ? `Fasilə: ${formatElapsed(lc.break_started_at)}` : 'Fasilə';
+  else if (phase === 'on_shift') phaseText = member.shift_opened_at ? `İşdədir: ${liveDuration}` : 'İşdə';
+  else if (phase === 'unclosed') phaseText = 'Shift Unclosed';
+  else if (phase === 'scheduled') {
+    phaseText = member.shift
+      ? `Smena: ${member.shift}`
+      : lc?.scheduled_start && lc?.scheduled_end
+        ? `Plan: ${lc.scheduled_start.slice(0,5)}–${lc.scheduled_end.slice(0,5)}`
+        : 'Planlı smena';
+  } else if (phase === 'completed') phaseText = 'Tamamlandı';
+  else phaseText = !member.is_active ? 'Off duty' : (member.shift ? `Smena: ${member.shift}` : 'Off duty');
+
+  const metric = (() => {
+    const r = (member.role_name || '').toLowerCase();
+    if (r === 'kitchen') return { value: member.avg_prep_time ? formatDurationShort(member.avg_prep_time) : '—', label: 'Avg Prep' };
+    if (r === 'waiter') return { value: `${member.guests_served ?? 0}`, label: 'Guests' };
+    if (r === 'cashier') return { value: `${formatCurrencyShort(member.cash_sales ?? 0)}`, label: 'Cash Sales' };
+    if (r === 'bartender') return { value: `${formatCurrencyShort(member.total_revenue ?? 0)}`, label: 'Sales' };
+    if (r === 'manager') return { value: `${member.approvals_count ?? 0}`, label: 'Approvals' };
+    if (r === 'host') return { value: `${member.seated_guests ?? 0}`, label: 'Seated' };
+    return { value: `${member.total_orders ?? 0}`, label: 'Orders' };
+  })();
 
   return (
     <motion.div
@@ -422,7 +551,7 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin }: {
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.35, delay: index * 0.04, ease: [0.25, 0.46, 0.45, 0.94] }}
       onClick={onClick}
-      className="group relative rounded-2xl p-4 cursor-pointer transition-all duration-200 hover:scale-[1.002]"
+      className="group relative rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:scale-[1.002]"
       style={{
         background: 'rgba(255,255,255,0.02)',
         border: '1px solid rgba(255,255,255,0.06)',
@@ -437,118 +566,107 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin }: {
         e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
       }}
     >
-      <div className="flex items-center gap-4">
-        {/* 1. Avatar + Name + Role */}
-        <div className="flex items-center gap-3 min-w-[200px]">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg flex-shrink-0"
-            style={{
-              background: `linear-gradient(135deg, ${roleColor.gradientFrom}, ${roleColor.gradientTo})`,
-              boxShadow: `0 4px 12px ${roleColor.gradientFrom}40`,
-            }}
-          >
-            <RoleIcon size={18} />
+      <div className="flex items-center gap-3">
+        {/* Col 1 — Avatar + Name + Role Badge */}
+        <div className="flex items-center gap-3 w-[228px] shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-white/5 flex items-center justify-center shrink-0" style={{ color: roleColor.color }}>
+            <RoleIcon size={16} />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-[var(--theme-text)] truncate">
+            <p className="text-sm font-semibold text-[var(--theme-text)] truncate leading-tight">
               {member.full_name || member.name}
             </p>
-            <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider font-medium">
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] uppercase tracking-widest font-bold mt-1.5"
+              style={{ color: roleColor.color, backgroundColor: `${roleColor.color}14` }}
+            >
               {member.role_name}
-            </p>
-          </div>
-        </div>
-
-        {/* 2. Status Badge */}
-        <div className="min-w-[100px]">
-          {isOnShift ? (
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                ON SHIFT
-              </span>
-            </div>
-          ) : member.is_active ? (
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-              OFF SHIFT
             </span>
-          ) : (
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          </div>
+          {!member.is_active && (
+            <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-bold tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20 mt-[-14px]">
               INACTIVE
             </span>
           )}
         </div>
 
-        {/* 3. Assignment Info (Role-aware) */}
-        <div className="flex-1 min-w-[140px]">
-          {member.role_name?.toLowerCase() === 'waiter' && (
-            <p className="text-xs text-[var(--theme-text-muted)] truncate">
-              {member.active_tables && member.active_tables > 0 ? `Baxdığı masalar: ${member.active_tables}` : 'Təyin olunmayıb'}
-            </p>
-          )}
-          {(member.role_name?.toLowerCase() === 'cashier' || member.role_name?.toLowerCase() === 'bartender') && (
-            <p className="text-xs text-[var(--theme-text-muted)] truncate">
-              {member.shift || 'Kassa təyini yoxdur'}
-            </p>
-          )}
-          {(member.role_name?.toLowerCase() === 'kitchen') && (
-            <p className="text-xs text-[var(--theme-text-muted)] truncate">
-              {member.active_tickets && member.active_tickets > 0 ? `Aktiv ticket: ${member.active_tickets}` : 'Mətbəx stansiyası'}
-            </p>
-          )}
-          {(member.role_name?.toLowerCase() === 'manager' || member.role_name?.toLowerCase() === 'host') && (
-            <p className="text-xs text-[var(--theme-text-muted)] truncate">
-              {member.shift || 'Zona təyini yoxdur'}
-            </p>
+        {/* Col 2 — Live Shift Context + Domain */}
+        <div className="flex-1 min-w-[170px]">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {isLate && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                <Clock size={10} /> LATE +{lc?.late_minutes ?? 0}m
+              </span>
+            )}
+            {onBreak && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide bg-sky-500/15 text-sky-300 border border-sky-500/25">
+                <Coffee size={10} /> BREAK
+              </span>
+            )}
+            {isUnclosed ? (
+              <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-400">
+                <AlertTriangle size={12} />
+                Shift Unclosed
+              </p>
+            ) : (
+              <p className={`text-xs font-medium tabular-nums truncate ${onBreak ? 'text-sky-300' : isOnShift ? 'text-emerald-300' : phase === 'scheduled' ? 'text-zinc-300' : 'text-zinc-400'}`}>
+                {phaseText}
+              </p>
+            )}
+          </div>
+          <p className="text-[10px] text-zinc-500 mt-0.5 truncate">
+            {shiftStale && member.shift_opened_at
+              ? `Açılış: ${new Date(member.shift_opened_at).toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit' })} ${new Date(member.shift_opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+              : onBreak && lc?.break_used_minutes != null
+                ? `Bu gün ${lc.break_used_minutes}m fasilə`
+                : assignmentText}
+          </p>
+        </div>
+
+        {/* Col 3 — Key Metric (role-aware, always aligned) */}
+        <div className="w-[104px] shrink-0 text-right hidden md:block">
+          <p className="text-sm font-semibold text-white tabular-nums">{metric.value}</p>
+          <p className="text-[10px] text-zinc-500 font-medium mt-0.5 uppercase tracking-wider">{metric.label}</p>
+        </div>
+
+        {/* Col 4 — Status badge (only when it adds info the left column already shows) */}
+        <div className="w-[150px] shrink-0 flex justify-end">
+          {!isOnShift && !member.is_active ? (
+            <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[9px] font-semibold tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20 whitespace-nowrap">
+              INACTIVE
+            </span>
+          ) : (
+            <span className="text-[10px] text-zinc-500 font-medium whitespace-nowrap">
+              {isOnShift
+                ? (shiftStale ? 'Unclosed' : 'On shift')
+                : member.is_active ? 'Off shift' : ''}
+            </span>
           )}
         </div>
 
-        {/* 4. Key Metric (single, role-aware) */}
-        <div className="min-w-[80px] text-right">
-          {member.role_name?.toLowerCase() === 'kitchen' && (
-            <p className="text-xs font-medium text-[var(--theme-text)]">{member.avg_prep_time ? formatDurationShort(member.avg_prep_time) : '—'}</p>
-          )}
-          {member.role_name?.toLowerCase() === 'waiter' && (
-            <p className="text-xs font-medium text-[var(--theme-text)]">{member.guests_served ?? 0} guests</p>
-          )}
-          {member.role_name?.toLowerCase() === 'cashier' && (
-            <p className="text-xs font-medium text-[var(--theme-text)]">{formatCurrencyShort(member.cash_sales ?? 0)}</p>
-          )}
-          {member.role_name?.toLowerCase() === 'bartender' && (
-            <p className="text-xs font-medium text-[var(--theme-text)]">{formatCurrencyShort(member.bar_sales ?? member.cash_sales ?? 0)}</p>
-          )}
-          {member.role_name?.toLowerCase() === 'manager' && (
-            <p className="text-xs font-medium text-[var(--theme-text)]">{member.approvals_count ?? 0} approvals</p>
-          )}
-          {member.role_name?.toLowerCase() === 'host' && (
-            <p className="text-xs font-medium text-[var(--theme-text)]">{member.seated_guests ?? 0} seated</p>
-          )}
-        </div>
-
-        {/* 5. Actions */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          {isOnShift && (
+        {/* Col 5 — Actions (hover) + Chevron */}
+        <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {isOnShift && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onForceClockOut(member); }}
+                title="Force Clock Out"
+                className="p-2 rounded-full text-zinc-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
+              >
+                <LogOut size={14} />
+              </button>
+            )}
             <button
-              onClick={(e) => { e.stopPropagation(); onForceClockOut(member); }}
-              title="Force Clock Out"
-              className="p-2 rounded-lg text-[var(--theme-text-muted)] hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
+              onClick={(e) => { e.stopPropagation(); onResetPin(member); }}
+              title="Reset PIN"
+              className="p-2 rounded-full text-zinc-500 hover:bg-white/5 hover:text-white transition-colors"
             >
-              <LogOut size={14} />
+              <RotateCcw size={14} />
             </button>
-          )}
-          <button
-            onClick={(e) => { e.stopPropagation(); onResetPin(member); }}
-            title="Reset PIN"
-            className="p-2 rounded-lg text-[var(--theme-text-muted)] hover:bg-white/5 hover:text-[var(--theme-text)] transition-colors"
-          >
-            <RotateCcw size={14} />
-          </button>
+          </div>
           <button
             onClick={(e) => { e.stopPropagation(); onClick(); }}
-            className="p-2 rounded-lg text-[var(--theme-text-muted)] hover:bg-white/5 hover:text-[var(--theme-text)] transition-colors"
+            className="p-2 rounded-full border border-white/10 bg-white/[0.04] text-zinc-500 hover:text-white hover:border-white/20 transition-all"
           >
             <ChevronRight size={14} />
           </button>
@@ -556,6 +674,47 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin }: {
       </div>
     </motion.div>
   );
+}
+
+// Role-aware live assignment / domain context for the middle of the row
+function getAssignmentText(member: StaffMember): string {
+  const r = (member.role_name || '').toLowerCase();
+  if (r === 'waiter') {
+    if (member.active_tables && member.active_tables > 0) {
+      return `${member.active_tables} masa · ${member.guests_served ?? 0} qonaq`;
+    }
+    return member.guests_served && member.guests_served > 0
+      ? `${member.guests_served} qonaq`
+      : 'No active tables';
+  }
+  if (r === 'kitchen') {
+    if (member.active_tickets && member.active_tickets > 0) {
+      return `${member.active_tickets} aktiv ticket · ${member.completed_tickets ?? 0} hazır`;
+    }
+    return member.completed_tickets && member.completed_tickets > 0
+      ? `${member.completed_tickets} ticket hazır · ${member.late_tickets ?? 0} gecikmiş`
+      : 'Kitchen station idle';
+  }
+  if (r === 'cashier') {
+    const v = Number(member.drawer_variance || 0);
+    const expected = member.expected_cash ? `Gözlənilən ₼${member.expected_cash.toFixed(0)}` : null;
+    if (v !== 0) return [expected, `Drawer fərqi ${v > 0 ? '+' : ''}₼${v.toFixed(0)}`].filter(Boolean).join(' · ');
+    return expected || 'Drawer synced ₼0';
+  }
+  if (r === 'bartender') {
+    return member.total_revenue
+      ? `Bu gün ${formatCurrencyShort(member.total_revenue)} satış`
+      : member.shift || 'Bar station idle';
+  }
+  if (r === 'manager') {
+    return `${member.approvals_count ?? 0} təsdiq gözləyir · ${member.exceptions_count ?? 0} müstəsna hal`;
+  }
+  if (r === 'host') {
+    return `${member.seated_guests ?? 0} oturdulan · ${member.no_shows ?? 0} gəlməyən`;
+  }
+  return member.total_orders && member.total_orders > 0
+    ? `${member.total_orders} sifariş · ${formatCurrencyShort(member.total_revenue ?? 0)} satış`
+    : 'Operations';
 }
 
 function MetricChip({ icon: Icon, value, label, accent }: {
@@ -590,6 +749,8 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
   const [form, setForm] = useState({ name: '', email: '', phone: '', role_id: '', shift: '', pin: '', hourly_rate: '', assignment: '' });
   const [creating, setCreating] = useState(false);
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
+  const [assignments, setAssignments] = useState<{ id: string; label: string; sublabel?: string; assigned?: boolean; assignedTo?: string | null }[]>([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
   useEffect(() => {
     fetch('/api/staff/roles')
@@ -597,6 +758,46 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
       .then(data => setRoles(data.roles || []))
       .catch(() => setRoles([]));
   }, []);
+
+  useEffect(() => {
+    const selectedRole = roles.find(r => r.id === form.role_id);
+    if (!selectedRole) {
+      setAssignments([]);
+      return;
+    }
+    const roleName = selectedRole.name.toLowerCase();
+    if (['waiter', 'cashier', 'bartender', 'kitchen', 'manager', 'host'].includes(roleName)) {
+      setAssignmentsLoading(true);
+      fetch(`/api/staff/assignments?role=${roleName}`)
+        .then(res => res.ok ? res.json() : { type: 'none', options: [] })
+        .then(data => {
+          let opts: any[] = [];
+          if (data.type === 'floors') {
+            opts = (data.options || []).flatMap((floor: any) =>
+              floor.tables.map((t: any) => ({
+                id: t.id,
+                label: t.label,
+                sublabel: floor.name,
+                assigned: t.assigned,
+                assignedTo: t.assignedTo,
+              }))
+            );
+          } else if (data.type === 'registers' || data.type === 'stations' || data.type === 'locations') {
+            opts = (data.options || []).map((o: any) => ({
+              id: o.id,
+              label: o.label,
+              sublabel: o.sublabel,
+              assigned: false,
+            }));
+          }
+          setAssignments(opts);
+        })
+        .catch(() => setAssignments([]))
+        .finally(() => setAssignmentsLoading(false));
+    } else {
+      setAssignments([]);
+    }
+  }, [form.role_id, roles]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -671,29 +872,57 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
           {selectedRole && (
             <div className="space-y-1.5">
               <label className="text-[10px] uppercase tracking-wider text-[var(--theme-text-secondary)] font-bold">
-                {selectedRole.name.toLowerCase() === 'waiter' ? 'Assigned Floors/Tables' :
-                 selectedRole.name.toLowerCase() === 'cashier' ? 'Assigned Cash Drawer/Terminal' :
+                {selectedRole.name.toLowerCase() === 'waiter' ? 'Assigned Tables/Floors' :
+                 selectedRole.name.toLowerCase() === 'cashier' ? 'Assigned Cash Register' :
                  selectedRole.name.toLowerCase() === 'bartender' ? 'Bar Station' :
                  selectedRole.name.toLowerCase() === 'kitchen' ? 'Kitchen Station' :
-                 'Zone/Area Assignment'}
+                 selectedRole.name.toLowerCase() === 'manager' ? 'Location / Zone' :
+                 selectedRole.name.toLowerCase() === 'host' ? 'Location / Zone' :
+                 'Assignment'}
               </label>
-              <input
-                type="text"
-                value={form.assignment}
-                onChange={e => setForm({ ...form, assignment: e.target.value })}
-                placeholder={
-                  selectedRole.name.toLowerCase() === 'waiter' ? 'e.g. Zal 1, Terras, VIP 2' :
-                  selectedRole.name.toLowerCase() === 'cashier' ? 'e.g. Main Drawer, Express POS' :
-                  selectedRole.name.toLowerCase() === 'bartender' ? 'e.g. Bar Main, Cocktail Station' :
-                  selectedRole.name.toLowerCase() === 'kitchen' ? 'e.g. Hot Kitchen, Cold Station' :
-                  'e.g. Zone A, Floor 2'
-                }
-                className="w-full rounded-xl px-4 py-3 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
-                style={{
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                }}
-              />
+              {assignmentsLoading ? (
+                <div className="w-full rounded-xl px-4 py-3 text-sm text-[var(--theme-text-muted)]"
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}>
+                  Loading assignments...
+                </div>
+              ) : assignments.length > 0 ? (
+                <select
+                  value={form.assignment}
+                  onChange={e => setForm({ ...form, assignment: e.target.value })}
+                  className="w-full rounded-xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none transition-all appearance-none cursor-pointer"
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <option value="">Select assignment</option>
+                  {assignments.map(opt => (
+                    <option key={opt.id} value={opt.id} disabled={opt.assigned}>
+                      {opt.label}{opt.sublabel ? ` · ${opt.sublabel}` : ''}{opt.assigned ? ` (assigned${opt.assignedTo ? ` to ${opt.assignedTo}` : ''})` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={form.assignment}
+                  onChange={e => setForm({ ...form, assignment: e.target.value })}
+                  placeholder="Enter assignment manually"
+                  className="w-full rounded-xl px-4 py-3 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                />
+              )}
+              {form.assignment && assignments.length > 0 && (
+                <p className="text-[10px] text-[var(--theme-text-muted)]">
+                  Selected: {assignments.find(a => a.id === form.assignment)?.label || form.assignment}
+                </p>
+              )}
             </div>
           )}
 
@@ -872,7 +1101,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               </div>
               <div>
                 <h2 className="text-lg font-bold text-[var(--theme-text)]">{staff.full_name || staff.name}</h2>
-                <p className={`text-xs font-medium ${roleColor.text} mt-0.5`}>{staff.role_name}</p>
+                <p className="text-xs font-medium mt-0.5" style={{ color: roleColor.color }}>{staff.role_name}</p>
                 <div className="flex items-center gap-2 mt-2">
                   {isOnShift ? (
                     <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -1349,15 +1578,15 @@ function formatCurrency(value: number | null | undefined): string {
 }
 
 // Utilities
-function getRoleColor(roleName: string): { text: string; gradientFrom: string; gradientTo: string } {
-  const colors: Record<string, { text: string; gradientFrom: string; gradientTo: string }> = {
-    cashier: { text: 'text-blue-400', gradientFrom: '#3b82f6', gradientTo: '#60a5fa' },
-    waiter: { text: 'text-emerald-400', gradientFrom: '#10b981', gradientTo: '#34d399' },
-    bartender: { text: 'text-amber-400', gradientFrom: '#f59e0b', gradientTo: '#fbbf24' },
-    kitchen: { text: 'text-rose-400', gradientFrom: '#f43f5e', gradientTo: '#fb7185' },
-    manager: { text: 'text-purple-400', gradientFrom: '#8b5cf6', gradientTo: '#a78bfa' },
-    host: { text: 'text-cyan-400', gradientFrom: '#06b6d4', gradientTo: '#22d3ee' },
-    default: { text: 'text-zinc-400', gradientFrom: '#71717a', gradientTo: '#a1a1aa' },
+function getRoleColor(roleName: string): { color: string; gradientFrom: string; gradientTo: string } {
+  const colors: Record<string, { color: string; gradientFrom: string; gradientTo: string }> = {
+    cashier: { color: '#60a5fa', gradientFrom: '#3b82f6', gradientTo: '#60a5fa' },
+    waiter: { color: '#34d399', gradientFrom: '#10b981', gradientTo: '#34d399' },
+    bartender: { color: '#fbbf24', gradientFrom: '#f59e0b', gradientTo: '#fbbf24' },
+    kitchen: { color: '#fb7185', gradientFrom: '#f43f5e', gradientTo: '#fb7185' },
+    manager: { color: '#a78bfa', gradientFrom: '#8b5cf6', gradientTo: '#a78bfa' },
+    host: { color: '#22d3ee', gradientFrom: '#06b6d4', gradientTo: '#22d3ee' },
+    default: { color: '#a1a1aa', gradientFrom: '#71717a', gradientTo: '#a1a1aa' },
   };
   return colors[roleName?.toLowerCase()] || colors.default;
 }
@@ -1394,28 +1623,27 @@ function calculateShiftProgress(shift: string | null | undefined): number | null
   }
 }
 
-function MiniKpiWithTooltip({ label, value, hint, accent = 'blue' }: {
+function MetricStripCell({ label, value, hint, dot }: {
   label: string;
-  value: string | number;
+  value: string;
   hint: string;
-  accent?: 'blue' | 'emerald' | 'rose';
+  dot?: 'rose';
 }) {
-  const colors = {
-    blue: { text: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-    emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-    rose: { text: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
-  };
-  const c = colors[accent];
-
   return (
-    <div className={`relative group flex items-center gap-3 px-4 py-2.5 rounded-xl border ${c.bg} ${c.border}`}>
-      <div>
-        <p className={`text-sm font-bold ${c.text}`}>{value}</p>
-        <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider">{label}</p>
-      </div>
-      <button className="text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors">
-        <span className="text-[10px] font-bold">ⓘ</span>
-      </button>
+    <div className="group relative flex-1 px-5 py-3.5 border-r border-white/[0.06] last:border-r-0 cursor-default">
+      <p className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">
+        {dot === 'rose' && (
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-70" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-400" />
+          </span>
+        )}
+        {label}
+        <button className="ml-auto text-zinc-600 hover:text-zinc-300 transition-colors">
+          <Info size={11} />
+        </button>
+      </p>
+      <p className="text-lg text-white font-medium tabular-nums mt-1 leading-none">{value}</p>
       <div className="absolute left-0 top-full mt-2 w-64 p-3 rounded-xl bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity z-50">
         <p className="text-xs text-[var(--theme-text)] leading-relaxed">{hint}</p>
       </div>

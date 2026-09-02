@@ -129,7 +129,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const { id: staffId } = await params;
     const body = await request.json();
-    const { name, role, role_id, shift, phone, pin, is_active } = body;
+    const { name, role, role_id, shift, phone, email, pin, is_active, hourly_rate, assignment } = body;
 
     const s = svc();
     const supabase = await createAuthClient();
@@ -162,6 +162,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (role !== undefined) updateData.role = role?.trim() || '';
     if (shift !== undefined) updateData.shift = shift?.trim() || null;
     if (phone !== undefined) updateData.phone = phone?.trim() || null;
+    if (email !== undefined) updateData.email = email?.trim() || null;
+    if (hourly_rate !== undefined) updateData.hourly_rate = hourly_rate != null ? parseFloat(hourly_rate) || null : null;
+    if (assignment !== undefined) updateData.assignment = assignment?.trim() || null;
     if (is_active !== undefined) updateData.is_active = is_active;
     if (finalRoleId) updateData.role_id = finalRoleId;
 
@@ -176,8 +179,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       body: JSON.stringify(updateData),
     });
 
-    const data = await res.json();
-    if (!res.ok) {
+    let data = await res.json();
+
+    if (!res.ok && assignment && JSON.stringify(data).includes('assignment')) {
+      const { assignment: _remove, ...retryData } = updateData;
+      const retryRes = await fetch(`${s.url}/rest/v1/staff?id=eq.${staffId}`, {
+        method: 'PATCH',
+        headers: { ...s.headers, 'Prefer': 'return=representation' },
+        body: JSON.stringify(retryData),
+      });
+      data = await retryRes.json();
+      if (!retryRes.ok) {
+        return NextResponse.json({ error: data?.error || 'Xəta baş verdi' }, { status: 400 });
+      }
+    }
+
+    if (!res.ok && !data?.success) {
       return NextResponse.json({ error: data?.error || 'Xəta baş verdi' }, { status: 400 });
     }
 

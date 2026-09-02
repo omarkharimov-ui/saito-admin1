@@ -137,8 +137,8 @@ BEGIN
     s.shift,
     sh.id AS shift_id,
     sh.opened_at AS shift_opened_at,
-    CASE WHEN sh.closed_at IS NULL THEN 'active' ELSE 'off' END AS shift_status,
-    CASE WHEN sh.closed_at IS NULL THEN
+    CASE WHEN sh.id IS NOT NULL THEN 'active' ELSE 'off' END AS shift_status,
+    CASE WHEN sh.id IS NOT NULL THEN
       jsonb_build_object(
         'id', sh.id,
         'opened_at', sh.opened_at,

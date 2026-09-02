@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     if (!auth.authenticated) return auth as any;
 
     const body = await request.json();
-    const { name, role, role_id, shift, phone, pin, is_active } = body;
+    const { name, role, role_id, shift, phone, email, pin, is_active, hourly_rate, assignment } = body;
 
     if (!name || (!role_id && !role)) {
       return NextResponse.json({ error: 'Ad və rol tələb olunur' }, { status: 400 });
@@ -161,6 +161,10 @@ export async function POST(request: NextRequest) {
       is_active: is_active ?? true,
     };
 
+    if (email) insertData.email = email.trim() || null;
+    if (hourly_rate != null) insertData.hourly_rate = parseFloat(hourly_rate) || null;
+    if (assignment) insertData.assignment = assignment.trim() || null;
+
     if (pin && pin.length === 4) {
       const hash = await import('@/lib/crypto').then(m => m.hashPin(pin));
       insertData.pin_hash = hash;
@@ -172,8 +176,22 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(insertData),
     });
 
-    const data = await res.json();
-    if (!res.ok) {
+    let data = await res.json();
+
+    if (!res.ok && assignment && (data?.message?.includes("assignment") || data?.details?.includes?.("assignment") || JSON.stringify(data).includes('assignment'))) {
+      const { assignment: _remove, ...retryData } = insertData;
+      const retryRes = await fetch(`${s.url}/rest/v1/staff`, {
+        method: 'POST',
+        headers: { ...s.headers, 'Prefer': 'return=representation' },
+        body: JSON.stringify(retryData),
+      });
+      data = await retryRes.json();
+      if (!retryRes.ok) {
+        return NextResponse.json({ error: data?.error || 'Xəta baş verdi' }, { status: 400 });
+      }
+    }
+
+    if (!res.ok && !data?.success) {
       return NextResponse.json({ error: data?.error || 'Xəta baş verdi' }, { status: 400 });
     }
 

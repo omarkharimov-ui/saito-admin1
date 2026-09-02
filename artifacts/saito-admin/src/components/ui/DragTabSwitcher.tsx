@@ -18,16 +18,27 @@ interface DragTabSwitcherProps {
   value: string;
   onChange: (id: string) => void;
   containerClassName?: string;
+  /** Override the sliding pill + active label colors (defaults to the solid inverted look). */
+  activeStyle?: {
+    pillBackground?: string;
+    pillBorder?: string;
+    labelColor?: string;
+    boxShadow?: string;
+  };
 }
 
 const HOLD_THRESHOLD = 120;
 const TRAVEL_SPRING = { stiffness: 420, damping: 28, mass: 0.38 };
 const SETTLE_SPRING = { stiffness: 480, damping: 24, mass: 0.36 };
 
-export function DragTabSwitcher({ items, value, onChange, containerClassName }: DragTabSwitcherProps) {
+export function DragTabSwitcher({ items, value, onChange, containerClassName, activeStyle }: DragTabSwitcherProps) {
   const { lightMode } = useTheme();
   const [isDragging, setIsDragging] = useState(false);
   const [previewTab, setPreviewTab] = useState<string | null>(null);
+
+  const pillBg = activeStyle?.pillBackground ?? (lightMode ? '#171717' : '#ffffff');
+  const pillBorder = activeStyle?.pillBorder ?? (lightMode ? '1px solid #171717' : '1px solid rgba(255,255,255,0.9)');
+  const activeLabelColor = activeStyle?.labelColor ?? (lightMode ? '#ffffff' : '#000000');
 
   const containerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -304,17 +315,17 @@ export function DragTabSwitcher({ items, value, onChange, containerClassName }: 
           scaleX: pillScaleX,
           scaleY: pillScaleY,
           y: pillY,
-          backgroundColor: lightMode ? '#171717' : '#ffffff',
+          backgroundColor: pillBg,
           backdropFilter: 'none',
           WebkitBackdropFilter: 'none',
-          border: lightMode ? '1px solid #171717' : '1px solid rgba(255,255,255,0.9)',
-          boxShadow: isDragging
+          border: pillBorder,
+          boxShadow: activeStyle?.boxShadow ?? (isDragging
             ? lightMode
               ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 8px 28px rgba(0,0,0,0.28)'
               : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 8px 28px rgba(0,0,0,0.22)'
             : lightMode
               ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.18)'
-              : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 3px rgba(0,0,0,0.08)',
+              : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 3px rgba(0,0,0,0.08)'),
         }}
         transition={{
           type: 'spring',
@@ -351,12 +362,12 @@ export function DragTabSwitcher({ items, value, onChange, containerClassName }: 
             <div
               key={id}
               className="relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider"
-              style={{ color: lightMode ? '#ffffff' : '#000000' }}
+              style={{ color: activeLabelColor }}
             >
               {dotColor !== undefined && (
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: dotColor || (lightMode ? '#34d399' : '#10b981') }} />
               )}
-              {Icon && <Icon size={14} style={{ color: lightMode ? '#ffffff' : '#000000' }} />}
+              {Icon && <Icon size={14} style={{ color: activeLabelColor }} />}
               <span>{label}</span>
               {badge != null && badge > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-500 text-white text-[9px] font-black shadow-sm">

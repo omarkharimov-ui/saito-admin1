@@ -8,7 +8,7 @@ function svc() {
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
-// GET /api/staff/directory -> list active staff (for shift swaps)
+// GET /api/staff/announcements -> visible, non-expired announcements
 export async function GET() {
   try {
     const auth = await validateAuth();
@@ -16,17 +16,28 @@ export async function GET() {
     const s = svc();
 
     const res = await fetch(
-      `${s.url}/rest/v1/staff?select=id,full_name,name,roles(name)&is_active=eq.true`,
+      `${s.url}/rest/v1/staff_announcements?select=*&is_visible=eq.true&order=created_at.desc&limit=20`,
       { headers: s.headers }
     );
     const rows = await res.json();
     const list = Array.isArray(rows) ? rows : [];
+    const now = new Date().toISOString();
+    const visible = list.filter((a: any) => {
+      if (a.expires_at && new Date(a.expires_at).getTime() < Date.now()) return false;
+      return (
+        a.audience === 'all' ||
+        (a.audience === 'role' && Array.isArray(a.role_ids) && a.role_ids.includes(a.staff_role?.id)) ||
+        (a.audience === 'staff' && Array.isArray(a.staff_ids) && a.staff_ids.includes(auth.user!.id))
+      );
+    });
 
     return NextResponse.json({
-      staff: list.map((r: any) => ({
-        id: r.id,
-        full_name: r.full_name || r.name || '',
-        role_name: r.roles?.name || null,
+      announcements: visible.map((a: any) => ({
+        id: a.id,
+        title: a.title,
+        body: a.body || null,
+        is_sticky: a.is_sticky || false,
+        created_at: a.created_at,
       })),
     });
   } catch (error: any) {

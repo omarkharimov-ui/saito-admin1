@@ -49,3 +49,9 @@ Thumbs.db
 .local/
 .env.local
 .next
+
+# Secrets & credentials (never commit)
+.credentials
+
+# Supabase local cache / temp
+supabase/.temp

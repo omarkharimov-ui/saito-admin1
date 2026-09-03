@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requirePermission } from '@/lib/api-auth';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -9,6 +10,9 @@ function svc() {
 
 export async function POST(req: Request) {
   try {
+    const auth = await requirePermission('timeclock.override');
+    if (auth instanceof NextResponse) return auth;
+
     const s = svc();
     const body = await req.json();
     const { staff_id, reason } = body;
@@ -23,7 +27,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         p_staff_id: staff_id,
         p_reason: reason || 'Forced by admin',
-        p_performed_by: null,
+        p_performed_by: auth.user?.id || null,
       }),
     });
 

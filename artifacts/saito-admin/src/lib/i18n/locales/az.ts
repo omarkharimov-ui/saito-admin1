@@ -441,6 +441,7 @@ export const az = {
   tab_kitchen: 'Mətbəx',
   tab_users: 'Hesablar',
   tab_floors: 'Zallar & Mərtəbələr',
+  tab_location: 'Yerləşmə',
   floor_plan_settings: 'Zal və Mərtəbə Planı',
 
   // General Tab

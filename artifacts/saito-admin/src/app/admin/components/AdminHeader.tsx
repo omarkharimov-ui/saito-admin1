@@ -9,12 +9,13 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
+import type { Role } from '@/lib/permissions';
 
 const AdminHeaderInner = ({
   role,
   onToggleSidebar,
 }: {
-  role: 'admin' | 'superadmin' | null;
+  role: Role | null;
   onToggleSidebar: () => void;
 }) => {
   const { notifications, markAsRead, markAllAsRead, clearNotifications } = useNotifications();

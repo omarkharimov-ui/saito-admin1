@@ -10,6 +10,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/lib/supabase';
 import { filterNavByRole, getAdminNavItems } from './layout/adminNavLinks';
 import { playHapticSound } from '@/lib/haptic';
+import type { Role } from '@/lib/permissions';
 
 // --- Apple System Sound Synthesizer ---
 const playSystemSound = (type: 'on' | 'off' | 'pop') => {
@@ -48,7 +49,7 @@ const Sidebar = ({
   isOpen,
   onClose,
 }: {
-  role: 'admin' | 'superadmin' | null;
+  role: Role | null;
   isOpen: boolean;
   onClose?: () => void;
 }) => {

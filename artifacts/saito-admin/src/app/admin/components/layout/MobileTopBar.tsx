@@ -7,8 +7,9 @@ import { Bell, ChevronDown } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import type { Role } from '@/lib/permissions';
 
-export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | null }) {
+export default function MobileTopBar({ role }: { role: Role | null }) {
   const { t, language, setLanguage } = useLanguage();
   const { lightMode } = useTheme();
   const { notifications, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
@@ -65,8 +66,8 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
       <div className="min-w-0 flex-1 pl-0.5">
         <p className="text-[9px] uppercase tracking-[0.22em] truncate max-w-[min(100%,14rem)] text-[var(--theme-text-muted)]">
           {t('welcome')},{' '}
-          <span className={role === 'superadmin' ? 'text-gold' : 'text-[var(--theme-text-secondary)]'}>
-            {role === 'superadmin' ? t('superadmin') : t('admin')}
+          <span className={role === 'superadmin' || role === 'owner' ? 'text-gold' : 'text-[var(--theme-text-secondary)]'}>
+            {role ? role.toUpperCase() : t('admin')}
           </span>
         </p>
         <Link href="/admin" className="text-base font-serif font-bold truncate block text-[var(--theme-text)]">

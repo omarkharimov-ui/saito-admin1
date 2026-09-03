@@ -14,9 +14,10 @@ import ReceiptTab from './tabs/ReceiptTab';
 import PrinterTab from './tabs/PrinterTab';
 import FloorsTab from './tabs/FloorsTab';
 import PayrollTab from './tabs/PayrollTab';
+import LocationTab from './tabs/LocationTab';
 
 
-type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'printer' | 'floors' | 'hours' | 'payroll';
+type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'printer' | 'floors' | 'hours' | 'payroll' | 'location';
 
 type TabDef = { key: Tab; labelKey: string; icon: React.ReactNode; superadminOnly?: boolean; desc?: string };
 
@@ -30,6 +31,7 @@ const TAB_DEFS: TabDef[] = [
   { key: 'printer',   labelKey: 'tab_printer',   icon: <Printer size={20} />,     desc: 'Printer ayarları' },
   { key: 'floors',    labelKey: 'tab_floors',    icon: <MapPin size={20} />,      desc: 'Zallar, mərtəbələr, masa planı' },
   { key: 'payroll',   labelKey: 'tab_payroll',   icon: <Wallet size={20} />,      desc: 'Payroll və webhook ayarları', superadminOnly: true },
+  { key: 'location',  labelKey: 'tab_location',  icon: <MapPin size={20} />,      desc: 'Wi-Fi və GPS geofence' },
 ];
 
 function getCookieRole(): string | null {
@@ -50,8 +52,8 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
       {tab === 'printer'   && <PrinterTab initialData={settingsData} />}
       {tab === 'floors'    && <FloorsTab />}
       {tab === 'payroll'   && <PayrollTab />}
-    </>
-  );
+      {tab === 'location'  && <LocationTab />}
+    </>  );
 }
 
 const SettingsPage = () => {

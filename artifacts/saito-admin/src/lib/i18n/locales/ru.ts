@@ -444,6 +444,7 @@ export const ru: TranslationMap = {
   tab_kitchen: 'Кухня',
   tab_users: 'Аккаунты',
   tab_floors: 'Залы & Этажи',
+  tab_location: 'Локация',
   floor_plan_settings: 'План залов и этажей',
 
   // General Tab

@@ -10,6 +10,16 @@ const PUBLIC_PATHS = [
   '/login',
   '/_next',
   '/favicon.ico',
+  '/about',
+  '/menu',
+  '/reservation',
+  '/unauthorized',
+  '/api/pwa',
+  '/manifest.webmanifest',
+  '/manifest-staff.json',
+  '/sw.js',
+  '/icon-192x192.png',
+  '/icon-512x512.png',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -19,9 +29,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Assets (images, fonts) always pass through
+  if (/\.(png|jpg|jpeg|svg|webp|ico|woff2?|css|js)$/.test(pathname)) {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get('saito_token')?.value;
   if (!token) {
-    const url = new URL('/staff/login', request.url);
+    // Public entrance points redirect to the staff login
+    const target = pathname.startsWith('/staff') ? '/staff/login' : '/staff/login';
+    const url = new URL(target, request.url);
     return NextResponse.redirect(url);
   }
 
@@ -32,7 +49,7 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${supabaseUrl}/rest/v1/sessions?select=expires_at&token=eq.${encodeURIComponent(token)}&limit=1`, {
+    const response = await fetch(`${supabaseUrl}/rest/v1/sessions?select=expires_at,role&token=eq.${encodeURIComponent(token)}&limit=1`, {
       headers: {
         'apikey': serviceRoleKey,
         'Authorization': `Bearer ${serviceRoleKey}`,
@@ -64,5 +81,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/kitchen/:path*', '/api/:path*', '/'],
+  matcher: ['/admin/:path*', '/kitchen/:path*', '/staff/:path*', '/api/:path*', '/'],
 };

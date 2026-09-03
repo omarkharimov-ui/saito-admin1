@@ -81,11 +81,11 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         )}
 
         {isMobile ? (
-          <AdminMobileShell role={auth.role as 'admin' | 'superadmin' | null} onLogout={auth.handleLogout}>
+          <AdminMobileShell role={auth.role} onLogout={auth.handleLogout}>
             {children}
           </AdminMobileShell>
         ) : (
-          <AdminDesktopShell role={auth.role as 'admin' | 'superadmin' | null}>{children}</AdminDesktopShell>
+          <AdminDesktopShell role={auth.role}>{children}</AdminDesktopShell>
         )}
       </NotificationProvider>
     </TableProvider>

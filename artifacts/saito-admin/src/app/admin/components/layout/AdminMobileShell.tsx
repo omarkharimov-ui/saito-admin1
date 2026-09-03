@@ -4,13 +4,14 @@ import MobileTopBar from './MobileTopBar';
 import ImmersiveNavigationDock from './ImmersiveNavigationDock';
 import MobilePageContent from './MobilePageContent';
 import SimpleToaster from './SimpleToaster';
+import type { Role } from '@/lib/permissions';
 
 export default function AdminMobileShell({
   role,
   onLogout,
   children,
 }: {
-  role: 'admin' | 'superadmin' | null;
+  role: Role | null;
   onLogout: () => void;
   children: React.ReactNode;
 }) {

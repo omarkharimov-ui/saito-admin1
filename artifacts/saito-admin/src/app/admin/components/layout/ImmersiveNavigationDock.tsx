@@ -8,6 +8,7 @@ import { Grid2x2, LogOut, MoreHorizontal } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { filterNavByRole, getAdminNavItems, getMobilePrimaryNavIds } from './adminNavLinks';
+import type { Role } from '@/lib/permissions';
 
 const playTick = () => {
   if (typeof window === 'undefined') return;
@@ -27,7 +28,7 @@ export default function ImmersiveNavigationDock({
   role,
   onLogout,
 }: {
-  role: 'admin' | 'superadmin' | null;
+  role: Role | null;
   onLogout: () => void;
 }) {
   const pathname = usePathname();

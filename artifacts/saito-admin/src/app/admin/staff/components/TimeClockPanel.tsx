@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, LogIn, LogOut, Coffee, Play, Square, AlertTriangle, Timer, TrendingUp } from 'lucide-react';
+import { Clock, LogIn, LogOut, Coffee, Play, Square, AlertTriangle, Timer, TrendingUp, UserX, History, ShieldAlert } from 'lucide-react';
 
 interface TimeClockStatus {
   is_clocked_in: boolean;
@@ -31,6 +31,10 @@ export function TimeClockPanel({ staffId, staffName }: TimeClockPanelProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [breakTime, setBreakTime] = useState<number>(0);
   const [breakEligibility, setBreakEligibility] = useState<{ eligible: boolean; reason?: string; hours_worked?: number } | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
+  const [forceOpen, setForceOpen] = useState(false);
+  const [auditEntries, setAuditEntries] = useState<any[] | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -44,11 +48,27 @@ export function TimeClockPanel({ staffId, staffName }: TimeClockPanelProps) {
     }
   }, [staffId]);
 
+  const loadAudit = useCallback(async () => {
+    setAuditLoading(true);
+    try {
+      const res = await fetch(`/api/time-clock/${staffId}/audit?limit=10`);
+      if (res.ok) {
+        const data = await res.json();
+        setAuditEntries(data.entries || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [staffId]);
+
   useEffect(() => {
     fetchStatus();
+    loadAudit();
     const interval = setInterval(fetchStatus, 30000);
     return () => clearInterval(interval);
-  }, [fetchStatus]);
+  }, [fetchStatus, loadAudit]);
 
   // Break timer
   useEffect(() => {
@@ -190,6 +210,36 @@ export function TimeClockPanel({ staffId, staffName }: TimeClockPanelProps) {
       }
     } catch {
       setError('Error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForceClockOut = async () => {
+    if (!overrideReason.trim()) {
+      setError('Reason is required for manager override');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/staff/force-clock-out', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staff_id: staffId, reason: overrideReason.trim() }),
+      });
+      const data = await res.json();
+      if (data.success || data.error === 'NO_ACTIVE_SHIFT') {
+        setSuccess(data.error === 'NO_ACTIVE_SHIFT' ? 'No active shift for this staff member' : 'Force clock out successful (override recorded)');
+        setOverrideReason('');
+        setForceOpen(false);
+        fetchStatus();
+        loadAudit();
+      } else {
+        setError(data.error || 'Force clock out failed');
+      }
+    } catch {
+      setError('Error forcibly clocking out');
     } finally {
       setLoading(false);
     }
@@ -364,6 +414,78 @@ export function TimeClockPanel({ staffId, staffName }: TimeClockPanelProps) {
             <Square size={16} />
             End Break
           </motion.button>
+        )}
+      </div>
+
+      {/* Manager Override */}
+      <div className="pt-2 border-t border-white/[0.06]">
+        {!forceOpen ? (
+          <button
+            onClick={() => setForceOpen(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/[0.03] border border-dashed border-white/[0.12] text-xs text-amber-400/90 font-semibold hover:border-amber-400/30 hover:bg-amber-500/5 transition-all"
+          >
+            <UserX size={14} /> Manager Override: Force Clock Out
+          </button>
+        ) : (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden">
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 space-y-3">
+              <div className="flex items-center gap-2 text-rose-400">
+                <ShieldAlert size={14} />
+                <p className="text-xs font-bold">Force Clock Out — override</p>
+              </div>
+              <input
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder="Səbəb (məcburi): məs. növbəni tərk etdi, xəstəlik..."
+                className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.08] text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] focus:outline-none focus:border-rose-400/40"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleForceClockOut}
+                  disabled={loading}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-rose-500 text-white text-xs font-bold disabled:opacity-50"
+                >
+                  <UserX size={13} /> Confirm Override
+                </button>
+                <button
+                  onClick={() => { setForceOpen(false); setOverrideReason(''); }}
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg bg-white/[0.06] text-xs text-[var(--theme-text-muted)] disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Audit Trail */}
+      <div className="pt-2 border-t border-white/[0.06]">
+        <div className="flex items-center gap-2 mb-2">
+          <History size={13} className="text-[var(--theme-text-muted)]" />
+          <p className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Son hərəkətlər</p>
+        </div>
+        {auditLoading ? (
+          <p className="text-[11px] text-[var(--theme-text-muted)]">Yüklənir...</p>
+        ) : auditEntries && auditEntries.length > 0 ? (
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {auditEntries.map((e) => (
+              <div key={e.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                <div className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full ${e.entry_type === 'clock_in' || e.entry_type === 'break_end' ? 'bg-emerald-400' : e.entry_type === 'break_start' ? 'bg-blue-400' : 'bg-rose-400'}`} />
+                  <span className="text-xs text-[var(--theme-text)] capitalize">{e.entry_type?.replace('_', ' ')}</span>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-[var(--theme-text-muted)]">
+                  <span>{e.timestamp ? new Date(e.timestamp).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                  {e.source && <span className="px-1.5 py-0.5 rounded bg-white/[0.05]">{e.source}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[11px] text-[var(--theme-text-muted)]">Hələ hərəkət yoxdur</p>
         )}
       </div>
 

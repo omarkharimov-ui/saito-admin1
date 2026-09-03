@@ -6,12 +6,13 @@ import Sidebar from '../Sidebar';
 import { AdminHeader } from '../AdminHeader';
 import SimpleToaster from './SimpleToaster';
 import { LayoutProvider } from '../../context/LayoutContext';
+import type { Role } from '@/lib/permissions';
 
 export default function AdminDesktopShell({
   role,
   children,
 }: {
-  role: 'admin' | 'superadmin' | null;
+  role: Role | null;
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);

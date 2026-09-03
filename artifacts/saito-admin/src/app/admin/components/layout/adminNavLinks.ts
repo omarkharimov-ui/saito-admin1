@@ -17,12 +17,14 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import { canAccessPage, type Role } from '@/lib/permissions';
+
 export type AdminNavItem = {
   id: string;
   name: string;
   href: string;
   icon: LucideIcon;
-  roles: ('admin' | 'superadmin')[];
+  roles: Role[];
   badge?: number;
   readyBadge?: number;
   blink?: boolean;
@@ -35,47 +37,45 @@ export function getAdminNavItems(
   counts: { pending: number; ready: number }
 ): AdminNavItem[] {
   return [
-    { id: 'dashboard', name: t('dashboard'), href: '/admin', icon: LayoutDashboard, roles: ['admin', 'superadmin'] },
+    { id: 'dashboard', name: t('dashboard'), href: '/admin', icon: LayoutDashboard, roles: ['admin', 'manager', 'superadmin', 'owner'] },
     {
       id: 'pos',
       name: 'POS',
       href: '/admin/pos',
       icon: Monitor,
-      roles: ['admin', 'superadmin'],
+      roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier'],
     },
     {
       id: 'reservations',
       name: t('reservations'),
       href: '/admin/reservations',
       icon: Calendar,
-      roles: ['admin', 'superadmin'],
+      roles: ['admin', 'manager', 'superadmin', 'owner', 'host'],
       badge: counts.pending,
     },
-    { id: 'products', name: t('products'), href: '/admin/products', icon: ShoppingBag, roles: ['superadmin'] },
-    { id: 'combos', name: t('combos'), href: '/admin/products', icon: PackagePlus, roles: ['superadmin'] },
-    { id: 'campaigns', name: t('campaigns'), href: '/admin/campaigns', icon: Percent, roles: ['admin', 'superadmin'] },
-    { id: 'staff', name: 'İşçilər', href: '/admin/staff', icon: Users, roles: ['admin', 'superadmin'] },
-    { id: 'roles', name: 'Rollar', href: '/admin/staff/roles', icon: Shield, roles: ['superadmin'] },
+    { id: 'products', name: t('products'), href: '/admin/products', icon: ShoppingBag, roles: ['superadmin', 'owner'] },
+    { id: 'combos', name: t('combos'), href: '/admin/products', icon: PackagePlus, roles: ['superadmin', 'owner'] },
+    { id: 'campaigns', name: t('campaigns'), href: '/admin/campaigns', icon: Percent, roles: ['admin', 'manager', 'superadmin', 'owner'] },
+    { id: 'staff', name: 'İşçilər', href: '/admin/staff', icon: Users, roles: ['admin', 'manager', 'superadmin', 'owner'] },
+    { id: 'roles', name: 'Rollar', href: '/admin/staff/roles', icon: Shield, roles: ['superadmin', 'owner'] },
+    { id: 'shifts', name: 'Növbələr', href: '/admin/shifts', icon: Timer, roles: ['admin', 'manager', 'superadmin', 'owner'] },
 
-    { id: 'stock', name: 'Stok', href: '/admin/stock', icon: Warehouse, roles: ['superadmin'] },
-    { id: 'purchase-orders', name: 'Alış Sifarişləri', href: '/admin/purchase-orders', icon: ShoppingCart, roles: ['superadmin'] },
-    { id: 'recipes', name: 'Reseptlər', href: '/admin/recipes', icon: ScrollText, roles: ['superadmin'] },
-    { id: 'audit', name: 'Audit', href: '/admin/audit', icon: ShieldAlert, roles: ['superadmin'] },
-    { id: 'loss-prevention', name: 'Loss Prevention', href: '/admin/loss-prevention', icon: ShieldAlert, roles: ['admin', 'superadmin'] },
-    { id: 'stats', name: t('statistics'), href: '/admin/stats', icon: BarChart3, roles: ['superadmin'] },
-    { id: 'settings', name: t('settings'), href: '/admin/settings', icon: Settings, roles: ['superadmin'] }
+    { id: 'stock', name: 'Stok', href: '/admin/stock', icon: Warehouse, roles: ['superadmin', 'owner', 'admin'] },
+    { id: 'purchase-orders', name: 'Alış Sifarişləri', href: '/admin/purchase-orders', icon: ShoppingCart, roles: ['superadmin', 'owner'] },
+    { id: 'recipes', name: 'Reseptlər', href: '/admin/recipes', icon: ScrollText, roles: ['superadmin', 'owner'] },
+    { id: 'audit', name: 'Audit', href: '/admin/audit', icon: ShieldAlert, roles: ['superadmin', 'owner', 'admin'] },
+    { id: 'loss-prevention', name: 'Loss Prevention', href: '/admin/loss-prevention', icon: ShieldAlert, roles: ['admin', 'manager', 'superadmin', 'owner'] },
+    { id: 'stats', name: t('statistics'), href: '/admin/stats', icon: BarChart3, roles: ['admin', 'manager', 'superadmin', 'owner'] },
+    { id: 'settings', name: t('settings'), href: '/admin/settings', icon: Settings, roles: ['admin', 'superadmin', 'owner'] }
   ];
 }
 
-export function filterNavByRole(items: AdminNavItem[], role: 'admin' | 'superadmin' | null): AdminNavItem[] {
+export function filterNavByRole(items: AdminNavItem[], role: Role | null): AdminNavItem[] {
   if (!role) return [];
   return items.filter((l) => l.roles.includes(role));
 }
 
 /** Mobil alt nav: 3 əsas tab — dashboard, stats, reservations. Qalanları "Daha çox" popup-ında. */
-export function getMobilePrimaryNavIds(role: 'admin' | 'superadmin' | null): Set<string> {
-  if (role === 'superadmin') {
-    return new Set(['dashboard', 'stats', 'reservations']);
-  }
+export function getMobilePrimaryNavIds(role: Role | null): Set<string> {
   return new Set(['dashboard', 'stats', 'reservations']);
 }

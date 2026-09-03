@@ -1,37 +1,21 @@
 'use client';
 
 export type PosRole = 'waiter' | 'cashier' | 'superadmin';
+export type Role = import('./permissions').Role;
 
-const hierarchy: Record<PosRole, number> = {
-  waiter: 0,
-  cashier: 1,
-  superadmin: 2,
-};
+export {
+  canonicalRole,
+  isAtLeast,
+  canManagePayment,
+  canManageDiscount,
+  canManageVoid,
+  canManageStaff,
+  requiresPin,
+} from './permissions';
 
-export function isAtLeast(role: string | null | undefined, min: PosRole): boolean {
-  if (!role) return false;
-  const r = role.toLowerCase() as PosRole;
-  const aliasMap: Record<string, PosRole> = {
-    admin: 'cashier',
-    manager: 'cashier',
-    cashier: 'cashier',
-    superadmin: 'superadmin',
-    waiter: 'waiter',
-    ofisiant: 'waiter',
-    kassir: 'cashier',
-  };
-  const normalized = aliasMap[r] || r;
-  const userLevel = hierarchy[normalized];
-  if (userLevel === undefined) return false;
-  return userLevel >= hierarchy[min];
-}
-
-export const canManagePayment = (r: string | null | undefined) => isAtLeast(r, 'cashier');
-export const canManageDiscount = (r: string | null | undefined) => isAtLeast(r, 'cashier');
-export const canManageVoid = (r: string | null | undefined) => isAtLeast(r, 'cashier');
-export const canManageLoss = (r: string | null | undefined) => isAtLeast(r, 'cashier');
-export const canManageDismiss = (r: string | null | undefined) => isAtLeast(r, 'cashier');
-export const canManageMergeTransfer = (r: string | null | undefined) => isAtLeast(r, 'cashier');
-export const canManageCashDrawer = (r: string | null | undefined) => isAtLeast(r, 'cashier');
-export const canManageStaff = (r: string | null | undefined) => isAtLeast(r, 'superadmin');
-export const requiresPin = (r: string | null | undefined) => r?.toLowerCase() === 'waiter';
+/**
+ * Backward-compatible re-export of the legacy POS role helpers.
+ * All logic now lives in the unified `./permissions` module which maps to
+ * the DB RBAC permission strings. Keeping these aliases ensures existing
+ * POS components keep working without changes.
+ */

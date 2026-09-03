@@ -3,11 +3,13 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { canonicalRole, type Role } from '@/lib/permissions';
 
 export function useAdminAuth() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [role, setRole] = useState<'admin' | 'superadmin' | 'kitchen' | 'cashier' | null>(null);
+  const [role, setRole] = useState<Role | null>(null);
+  const [rawRole, setRawRole] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -19,8 +21,10 @@ export function useAdminAuth() {
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const me = await res.json();
-          if (['admin', 'superadmin', 'kitchen', 'cashier'].includes(me.role)) {
-            setRole(me.role);
+          const canonical = canonicalRole(me.role);
+          if (canonical !== 'unknown') {
+            setRawRole(me.role);
+            setRole(canonical);
             setIsAuthenticated(true);
             setAuthChecked(true);
             return;
@@ -43,7 +47,7 @@ export function useAdminAuth() {
   }, []);
 
   return {
-    isAuthenticated, role, authChecked,
+    isAuthenticated, role, rawRole, authChecked,
     loading, errorMsg,
     showWelcome, setShowWelcome,
     handleLogout,

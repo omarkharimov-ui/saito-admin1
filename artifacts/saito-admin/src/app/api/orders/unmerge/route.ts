@@ -19,53 +19,28 @@ export async function POST(req: NextRequest) {
     }
 
     const s = svc();
-
-    const primaryHasOrderRes = await fetch(`${s.url}/rest/v1/orders?table_number=eq.${primary_table_number}&status=not.in.(paid,cancelled,closed)&select=id`, { headers: s.headers });
-    const primaryOrders = await primaryHasOrderRes.json();
-    const primaryHasOrder = (primaryOrders || []).length > 0;
-
-    const childTableNumbers = child_table_numbers.map((n: any) => Number(n));
-    const childWhere = `table_number=in.(${childTableNumbers.join(',')})`;
-
-    await fetch(`${s.url}/rest/v1/table_floors?${childWhere}`, {
-      method: 'PATCH',
+    const rpcRes = await fetch(`${s.url}/rest/v1/rpc/unmerge_tables_atomic`, {
+      method: 'POST',
       headers: s.headers,
       body: JSON.stringify({
-        status: 'empty',
-        guest_count: null,
-        total_amount: 0,
-        merged_into_table: null,
-        updated_at: new Date().toISOString(),
+        p_parent_table_number: Number(primary_table_number),
+        p_child_table_numbers: child_table_numbers.map(Number),
+        p_performed_by: auth.user?.id || null,
+        p_performed_by_terminal_id: null,
       }),
     });
 
-    if (!primaryHasOrder) {
-      await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${primary_table_number}`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({
-          status: 'empty',
-          guest_count: null,
-          total_amount: 0,
-          merged_into_table: null,
-          updated_at: new Date().toISOString(),
-        }),
-      });
-    } else {
-      await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${primary_table_number}`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({
-          merged_into_table: null,
-          updated_at: new Date().toISOString(),
-        }),
-      });
+    const rpcData = await rpcRes.json();
+    if (!rpcRes.ok || !rpcData?.success) {
+      const message = rpcData?.error || 'Unmerge failed';
+      console.error('[API /orders/unmerge] RPC error:', message);
+      return NextResponse.json({ error: message }, { status: rpcRes.ok ? 400 : rpcRes.status });
     }
 
     return NextResponse.json({
       success: true,
-      data: { primaryTable: primary_table_number, childTables: childTableNumbers },
-      undo: { primaryTable: primary_table_number, childTables: childTableNumbers },
+      data: { primaryTable: primary_table_number, childTables: child_table_numbers },
+      undo: { primaryTable: primary_table_number, childTables: child_table_numbers },
     });
   } catch (error: any) {
     console.error('[API /orders/unmerge] Error:', error);

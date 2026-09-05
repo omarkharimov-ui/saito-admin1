@@ -152,15 +152,20 @@ function StaffRow({ member, index, onClick }: StaffRowProps) {
             </span>
             <span className="text-xs text-emerald-400 font-medium">On shift</span>
           </>
-        ) : member.is_active ? (
+        ) : member.status === 'SUSPENDED' ? (
           <>
-            <span className="w-2 h-2 rounded-full bg-zinc-500" />
-            <span className="text-xs text-zinc-500">Off shift</span>
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className="text-xs text-amber-400">Suspended</span>
           </>
-        ) : (
+        ) : member.status === 'INACTIVE' || !member.is_active ? (
           <>
             <span className="w-2 h-2 rounded-full bg-rose-500" />
             <span className="text-xs text-rose-400">Inactive</span>
+          </>
+        ) : (
+          <>
+            <span className="w-2 h-2 rounded-full bg-zinc-500" />
+            <span className="text-xs text-zinc-500">Off shift</span>
           </>
         )}
       </div>

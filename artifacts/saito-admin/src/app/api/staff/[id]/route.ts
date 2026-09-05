@@ -1,218 +1,73 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requirePermission, sanitizeStaff } from '@/lib/api-auth';
-import { createAuthClient } from '@/lib/api-auth';
+import { NextResponse } from 'next/server';
+import { requirePermission } from '@/lib/api-auth';
 
-function svc() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) throw new Error('Missing Supabase configuration');
-  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
-}
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requirePermission('staff.view');
+  if (auth instanceof NextResponse) return auth;
 
-function dateRange(period: string) {
-  const now = new Date();
-  const start = new Date();
-  if (period === 'today') {
-    start.setHours(0, 0, 0, 0);
-  } else if (period === 'week') {
-    const day = now.getDay() || 7;
-    start.setDate(now.getDate() - day + 1);
-    start.setHours(0, 0, 0, 0);
-  } else if (period === 'month') {
-    start.setDate(1);
-    start.setHours(0, 0, 0, 0);
-  } else {
-    start.setFullYear(now.getFullYear() - 10);
+  const { id } = await params;
+  const { createAuthClient } = await import('@/lib/api-auth');
+  const supabase = await createAuthClient();
+
+  const { data, error } = await supabase
+    .from('staff')
+    .select(`
+      id, name, full_name, email, phone, is_active, status, role_id, organization_id,
+      hourly_rate, created_at, updated_at, last_login_at, failed_login_attempts, locked_until,
+      roles!staff_role_id_fkey (id, name),
+      staff_locations (location_id, is_primary, active, locations!staff_locations_location_id_fkey (id, name, code))
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error || !data) {
+    return NextResponse.json({ error: 'Staff not found' }, { status: 404 });
   }
-  return { start: start.toISOString(), end: now.toISOString() };
+
+  const { pin_hash, ...sanitized } = data as any;
+  return NextResponse.json(sanitized);
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const auth = await requirePermission('staff.view');
-    if (!auth.authenticated) return auth as any;
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requirePermission('staff.manage');
+  if (auth instanceof NextResponse) return auth;
 
-    const { id: staffId } = await params;
-    const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || 'today';
+  const { id } = await params;
+  const body = await req.json();
+  const { name, full_name, email, phone, role_id, hourly_rate, status } = body;
 
-    const s = svc();
+  const { createAuthClient } = await import('@/lib/api-auth');
+  const supabase = await createAuthClient();
 
-    const staffRes = await fetch(`${s.url}/rest/v1/staff?id=eq.${staffId}&select=*,roles(name)`, { headers: s.headers });
-    const staffList = await staffRes.json();
-    const staff = Array.isArray(staffList) ? sanitizeStaff(staffList[0]) : null;
-    console.log('DEBUG staff:', staff ? staff.name : 'NULL');
+  const updates: Record<string, any> = {};
+  if (name !== undefined) updates.name = name;
+  if (full_name !== undefined) updates.full_name = full_name;
+  if (email !== undefined) updates.email = email;
+  if (phone !== undefined) updates.phone = phone;
+  if (role_id !== undefined) updates.role_id = role_id;
+  if (hourly_rate !== undefined) updates.hourly_rate = hourly_rate;
+  if (status !== undefined) updates.status = status;
 
-    if (!staff) {
-      return NextResponse.json({ error: 'İşçi tapılmadı' }, { status: 404 });
-    }
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+  }
 
-    const shiftsRes = await fetch(`${s.url}/rest/v1/shifts?staff_id=eq.${staffId}&order=opened_at.desc&limit=50`, { headers: s.headers });
-    const shifts = await shiftsRes.json();
+  const { data, error } = await supabase
+    .from('staff')
+    .update(updates)
+    .eq('id', id)
+    .select('id, name, status, role_id')
+    .single();
 
-    const { start, end } = dateRange(period);
-
-    const logsRes = await fetch(
-      `${s.url}/rest/v1/operation_logs?performed_by=eq.${staffId}&created_at=gte.${start}&created_at=lte.${end}&order=created_at.desc&limit=200`,
-      { headers: s.headers }
-    );
-    const logs = await logsRes.json();
-
-    const orderActions = (logs || []).filter((l: any) =>
-      ['place_order', 'send_to_kitchen', 'complete_payment', 'create_order'].includes(l.action)
-    );
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString();
-
-    const allActions = (logs || []).filter((l: any) => l.created_at >= todayStr);
-
-    const todayOrders = allActions.filter((l: any) =>
-      ['place_order', 'send_to_kitchen', 'complete_payment', 'create_order'].includes(l.action)
-    ).length;
-
-    const todayVoids = allActions.filter((l: any) => l.action === 'void_order').length;
-    const todayWaste = allActions.filter((l: any) => l.action === 'waste').length;
-    const todayRefunds = allActions.filter((l: any) => l.action === 'refund').length;
-    const todayDiscounts = allActions.filter((l: any) => l.action === 'discount').length;
-
-    const totalRevenue = orderActions.reduce((sum: number, l: any) => {
-      const amount = l.new_values?.total_amount || l.new_values?.amount || 0;
-      return sum + Number(amount);
-    }, 0);
-
-    const avgCheck = orderActions.length > 0 ? totalRevenue / orderActions.length : 0;
-
-    const totalShifts = Array.isArray(shifts) ? shifts.length : 0;
-    const totalHours = (shifts || []).reduce((sum: number, sh: any) => {
-      if (!sh.opened_at || !sh.closed_at) return sum;
-      const diff = new Date(sh.closed_at).getTime() - new Date(sh.opened_at).getTime();
-      return sum + diff / (1000 * 60 * 60);
-    }, 0);
-
-    const activeShift = (shifts || []).find((sh: any) => !sh.closed_at);
-
-    const recentActions = (logs || []).slice(0, 20);
-
-    const lastAction = (logs || [])[0] || null;
-
-    return NextResponse.json({
-      staff,
-      stats: {
-        period,
-        totalOrders: orderActions.length,
-        totalRevenue,
-        avgCheck,
-        todayOrders,
-        todayVoids,
-        todayWaste,
-        todayRefunds,
-        todayDiscounts,
-        totalShifts,
-        totalHours: Math.round(totalHours * 10) / 10,
-      },
-      activeShift,
-      recentActions,
-      lastAction,
-      shifts: (shifts || []).slice(0, 10),
-    });
-  } catch (error: any) {
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const auth = await requirePermission('staff.manage');
-    if (!auth.authenticated) return auth as any;
-
-    const { id: staffId } = await params;
-    const body = await request.json();
-    const { name, role, role_id, shift, phone, email, pin, is_active, hourly_rate, assignment } = body;
-
-    const s = svc();
-    const supabase = await createAuthClient();
-
-    let finalRoleId = role_id;
-    if (finalRoleId) {
-      const { data: roleCheck } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('id', finalRoleId)
-        .maybeSingle();
-
-      if (!roleCheck) {
-        return NextResponse.json({ error: 'Yanlış role_id' }, { status: 400 });
-      }
-    } else if (role) {
-      const { data: matchedRole } = await supabase
-        .from('roles')
-        .select('id')
-        .ilike('name', role.trim())
-        .maybeSingle();
-
-      if (matchedRole) {
-        finalRoleId = matchedRole.id;
-      }
-    }
-
-    const updateData: any = {};
-    if (name) updateData.name = name.trim();
-    if (role !== undefined) updateData.role = role?.trim() || '';
-    if (shift !== undefined) updateData.shift = shift?.trim() || null;
-    if (phone !== undefined) updateData.phone = phone?.trim() || null;
-    if (email !== undefined) updateData.email = email?.trim() || null;
-    if (hourly_rate !== undefined) updateData.hourly_rate = hourly_rate != null ? parseFloat(hourly_rate) || null : null;
-    if (assignment !== undefined) updateData.assignment = assignment?.trim() || null;
-    if (is_active !== undefined) updateData.is_active = is_active;
-    if (finalRoleId) updateData.role_id = finalRoleId;
-
-    if (pin && pin.length === 4) {
-      const hash = await import('@/lib/crypto').then(m => m.hashPin(pin));
-      updateData.pin_hash = hash;
-    }
-
-    const res = await fetch(`${s.url}/rest/v1/staff?id=eq.${staffId}`, {
-      method: 'PATCH',
-      headers: { ...s.headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify(updateData),
-    });
-
-    let data = await res.json();
-
-    if (!res.ok && assignment && JSON.stringify(data).includes('assignment')) {
-      const { assignment: _remove, ...retryData } = updateData;
-      const retryRes = await fetch(`${s.url}/rest/v1/staff?id=eq.${staffId}`, {
-        method: 'PATCH',
-        headers: { ...s.headers, 'Prefer': 'return=representation' },
-        body: JSON.stringify(retryData),
-      });
-      data = await retryRes.json();
-      if (!retryRes.ok) {
-        return NextResponse.json({ error: data?.error || 'Xəta baş verdi' }, { status: 400 });
-      }
-    }
-
-    if (!res.ok && !data?.success) {
-      return NextResponse.json({ error: data?.error || 'Xəta baş verdi' }, { status: 400 });
-    }
-
-    const updated = Array.isArray(data) ? data[0] : data;
-
-    await fetch(`${s.url}/rest/v1/operation_logs`, {
-      method: 'POST',
-      headers: s.headers,
-      body: JSON.stringify({
-        action: 'update_staff',
-        old_values: { id: staffId },
-        new_values: updateData,
-        performed_by: auth.user?.id,
-      }),
-    });
-
-    return NextResponse.json({ success: true, data: sanitizeStaff(updated) });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  return NextResponse.json(data);
 }

@@ -7,6 +7,7 @@ import { Bell, ChevronDown } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { LocationSwitcher } from '@/components/location/LocationSwitcher';
 import type { Role } from '@/lib/permissions';
 
 export default function MobileTopBar({ role }: { role: Role | null }) {
@@ -76,6 +77,8 @@ export default function MobileTopBar({ role }: { role: Role | null }) {
       </div>
 
       <div className="relative flex items-center gap-2 shrink-0">
+        <LocationSwitcher compact />
+
         <div className="relative">
           <motion.button
             ref={langBtnRef}

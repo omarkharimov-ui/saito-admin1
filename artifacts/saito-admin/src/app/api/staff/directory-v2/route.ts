@@ -23,7 +23,7 @@ export async function GET() {
     // Pull LIVE data straight from the fixed RPCs (SSOT).
     const [kpisRes, dirRes, splhRes] = await Promise.all([
       rpc(s, 'get_staff_kpis'),
-      rpc(s, 'get_staff_directory_v2'),
+      rpc(s, 'get_staff_directory_v3'),
       rpc(s, 'get_splh_metrics'),
     ]);
 

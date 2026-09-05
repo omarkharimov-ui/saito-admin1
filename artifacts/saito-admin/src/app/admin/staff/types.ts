@@ -5,6 +5,8 @@ export type StaffMember = {
   email: string | null;
   phone: string | null;
   is_active: boolean;
+  status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  last_login_at?: string | null;
   hourly_rate?: number | null;
   overtime_rate?: number;
   shift: string | null;
@@ -82,6 +84,8 @@ export type StaffDetail = {
   email: string | null;
   phone: string | null;
   is_active: boolean;
+  status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  last_login_at?: string | null;
   hourly_rate?: number;
   overtime_rate?: number;
   shift: string | null;

@@ -22,6 +22,7 @@ type Permission = {
   key: string;
   description?: string;
   category: string;
+  scope?: 'GLOBAL' | 'ORGANIZATION' | 'LOCATION' | 'SELF';
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -34,6 +35,13 @@ const CATEGORY_LABELS: Record<string, string> = {
   inventory: 'Inventory',
   reservations: 'Reservations',
   kitchen: 'Kitchen',
+};
+
+const SCOPE_STYLES: Record<string, { label: string; cls: string }> = {
+  GLOBAL: { label: 'Global', cls: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
+  ORGANIZATION: { label: 'Org', cls: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
+  LOCATION: { label: 'Location', cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+  SELF: { label: 'Self', cls: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30' },
 };
 
 export default function RolesPage() {
@@ -484,7 +492,14 @@ export default function RolesPage() {
                                      {isSelected && <Check size={12} className="text-black" />}
                                    </div>
                                    <div className="flex-1 min-w-0">
-                                     <p className="text-xs font-bold text-[var(--theme-text)] truncate">{perm.key}</p>
+                                     <div className="flex items-center gap-2">
+                                       <p className="text-xs font-bold text-[var(--theme-text)] truncate">{perm.key}</p>
+                                       {perm.scope && (
+                                         <span className={`flex-shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide border ${SCOPE_STYLES[perm.scope]?.cls || ''}`}>
+                                           {SCOPE_STYLES[perm.scope]?.label || perm.scope}
+                                         </span>
+                                       )}
+                                     </div>
                                      {perm.description && (
                                        <p className="text-[10px] text-[var(--theme-text-muted)] truncate">{perm.description}</p>
                                      )}

@@ -746,9 +746,10 @@ function MetricChip({ icon: Icon, value, label, accent }: {
 }
 
 function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', role_id: '', shift: '', pin: '', hourly_rate: '', assignment: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', role_id: '', shift: '', pin: '', hourly_rate: '', assignment: '', location_id: '' });
   const [creating, setCreating] = useState(false);
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
+  const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
   const [assignments, setAssignments] = useState<{ id: string; label: string; sublabel?: string; assigned?: boolean; assignedTo?: string | null }[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
@@ -757,6 +758,16 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
       .then(res => res.ok ? res.json() : { roles: [] })
       .then(data => setRoles(data.roles || []))
       .catch(() => setRoles([]));
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/locations/context')
+      .then(res => res.ok ? res.json() : { accessible_locations: [] })
+      .then(data => {
+        const acc = data.accessible_locations || [];
+        setLocations(acc.map((l: any) => ({ id: l.location_id, name: l.location_name })));
+      })
+      .catch(() => setLocations([]));
   }, []);
 
   useEffect(() => {
@@ -815,6 +826,7 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
           hourly_rate: form.hourly_rate ? parseFloat(form.hourly_rate) : null,
           pin: form.pin || null,
           assignment: form.assignment || null,
+          location_id: form.location_id || null,
         }),
       });
       if (res.ok) {
@@ -918,13 +930,32 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
                   }}
                 />
               )}
-              {form.assignment && assignments.length > 0 && (
-                <p className="text-[10px] text-[var(--theme-text-muted)]">
-                  Selected: {assignments.find(a => a.id === form.assignment)?.label || form.assignment}
-                </p>
-              )}
-            </div>
+          {form.assignment && assignments.length > 0 && (
+            <p className="text-[10px] text-[var(--theme-text-muted)]">
+              Selected: {assignments.find(a => a.id === form.assignment)?.label || form.assignment}
+            </p>
           )}
+          </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] uppercase tracking-wider text-[var(--theme-text-secondary)] font-bold">Primary Location *</label>
+            <select
+              value={form.location_id}
+              onChange={e => setForm({ ...form, location_id: e.target.value })}
+              className="w-full rounded-xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none transition-all"
+              style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+              required
+            >
+              <option value="">Select location</option>
+              {locations.map(loc => (
+                <option key={loc.id} value={loc.id}>{loc.name}</option>
+              ))}
+            </select>
+          </div>
 
           <FormInput label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
           <FormInput label="Phone" value={form.phone} onChange={v => setForm({ ...form, phone: v })} />
@@ -1171,6 +1202,47 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'overview' && (
             <div className="space-y-6">
+              {/* Identity & Status (0.3 contract) */}
+              <div>
+                <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Identity & Status</h3>
+                <div className="bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl p-4 flex flex-wrap items-center gap-3">
+                  <StatusPill status={staff.status || (staff.is_active ? 'ACTIVE' : 'INACTIVE')} />
+                  {staff.role_name && (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-white/5 text-[var(--theme-text-muted)] border border-white/10">
+                      {staff.role_name}
+                    </span>
+                  )}
+                  <span className="text-xs text-[var(--theme-text)]">Last login: {staff.last_login_at ? new Date(staff.last_login_at).toLocaleString() : 'Never'}</span>
+                  <span className="flex-1" />
+                  <div className="flex items-center gap-2">
+                    {staff.status !== 'ACTIVE' && (
+                      <button
+                        onClick={() => { fetch(`/api/staff/${staff.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'ACTIVE' }) }).then(r => r.ok && window.location.reload()); }}
+                        className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors"
+                      >
+                        Activate
+                      </button>
+                    )}
+                    {staff.status === 'ACTIVE' && (
+                      <>
+                        <button
+                          onClick={() => { fetch(`/api/staff/${staff.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'SUSPENDED' }) }).then(r => r.ok && window.location.reload()); }}
+                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors"
+                        >
+                          Suspend
+                        </button>
+                        <button
+                          onClick={() => { fetch(`/api/staff/${staff.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'INACTIVE' }) }).then(r => r.ok && window.location.reload()); }}
+                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 transition-colors"
+                        >
+                          Deactivate
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Current Shift - if active */}
               {staff.active_shift && (
                 <div>
@@ -1529,6 +1601,21 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
           </button>
         </div>
       </motion.div>
+  );
+}
+
+function StatusPill({ status }: { status?: string }) {
+  const styles: Record<string, { dot: string; text: string; label: string }> = {
+    ACTIVE: { dot: 'bg-emerald-500', text: 'text-emerald-300', label: 'Active' },
+    INACTIVE: { dot: 'bg-rose-500', text: 'text-rose-300', label: 'Inactive' },
+    SUSPENDED: { dot: 'bg-amber-500', text: 'text-amber-300', label: 'Suspended' },
+  };
+  const s = styles[status || 'INACTIVE'] || styles.INACTIVE;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-white/5 border border-white/10 ${s.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+      {s.label}
+    </span>
   );
 }
 

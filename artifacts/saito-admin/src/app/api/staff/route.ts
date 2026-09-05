@@ -1,214 +1,95 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth, requirePermission, sanitizeStaff, sanitizeStaffArray } from '@/lib/api-auth';
-import { createAuthClient } from '@/lib/api-auth';
+import { NextResponse } from 'next/server';
+import { validateAuth, requirePermission } from '@/lib/api-auth';
 
-function svc() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) throw new Error('Missing Supabase configuration');
-  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
-}
+export async function GET(req: Request) {
+  const auth = await requirePermission('staff.view');
+  if (auth instanceof NextResponse) return auth;
 
-export async function GET(request: NextRequest) {
-  try {
-    const auth = await requirePermission('staff.view');
-    if (!auth.authenticated) return auth as any;
+  const { createAuthClient } = await import('@/lib/api-auth');
+  const supabase = await createAuthClient();
 
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || '';
-    const roleFilter = searchParams.get('role') || '';
-    const statusFilter = searchParams.get('status') || '';
+  const { data, error } = await supabase
+    .from('staff')
+    .select(`
+      id, name, full_name, email, phone, is_active, status, role_id, organization_id,
+      hourly_rate, created_at, updated_at, last_login_at,
+      roles!staff_role_id_fkey (id, name)
+    `)
+    .order('name');
 
-    const s = svc();
-
-    let query = `${s.url}/rest/v1/staff?select=*,roles(name)&order=name.asc`;
-
-    const filters: string[] = [];
-    if (roleFilter) {
-      if (roleFilter.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-        filters.push(`role_id=eq.${roleFilter}`);
-      } else {
-        const roleRes = await fetch(`${s.url}/rest/v1/roles?name=ilike.${encodeURIComponent(roleFilter)}&select=id`, { headers: s.headers });
-        const roleData = await roleRes.json();
-        const matchedRole = Array.isArray(roleData) && roleData.length > 0 ? roleData[0] : null;
-        if (matchedRole?.id) {
-          filters.push(`role_id=eq.${matchedRole.id}`);
-        }
-      }
-    }
-    if (statusFilter === 'active') filters.push('is_active=eq.true');
-    if (statusFilter === 'inactive') filters.push('is_active=eq.false');
-
-    if (filters.length > 0) {
-      query += '&' + filters.join('&');
-    }
-
-    const res = await fetch(query, { headers: s.headers });
-    const staffList = await res.json();
-
-    if (!Array.isArray(staffList)) {
-      return NextResponse.json([]);
-    }
-
-    let filtered = sanitizeStaffArray(staffList);
-
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter((s: any) =>
-        (s.name || '').toLowerCase().includes(q) ||
-        (s.roles?.name || '').toLowerCase().includes(q) ||
-        (s.phone || '').includes(q)
-      );
-    }
-
-    const staffIds = filtered.map((s: any) => s.id);
-
-    let shifts: any[] = [];
-    let activeShifts: any[] = [];
-    let orderStats: any[] = [];
-
-    if (staffIds.length > 0) {
-      const ids = staffIds.join(',');
-
-      const shiftsRes = await fetch(`${s.url}/rest/v1/shifts?staff_id=in.(${ids})&order=opened_at.desc&limit=100`, { headers: s.headers });
-      shifts = await shiftsRes.json();
-
-      activeShifts = (shifts || []).filter((sh: any) => !sh.closed_at);
-
-      const statsRes = await fetch(`${s.url}/rest/v1/operation_logs?performed_by=in.(${ids})&select=performed_by,action,created_at&order=created_at.desc&limit=500`, { headers: s.headers });
-      orderStats = await statsRes.json();
-    }
-
-    const staffWithMeta = filtered.map((member: any) => {
-      const memberShifts = (shifts || []).filter((sh: any) => sh.staff_id === member.id);
-      const activeShift = memberShifts.find((sh: any) => !sh.closed_at);
-      const memberActions = (orderStats || []).filter((a: any) => a.performed_by === member.id);
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString();
-
-      const todayActions = memberActions.filter((a: any) => a.created_at >= todayStr);
-      const todayOrders = todayActions.filter((a: any) => ['place_order', 'send_to_kitchen', 'complete_payment'].includes(a.action)).length;
-
-      const totalShifts = memberShifts.length;
-      const totalHours = memberShifts.reduce((sum: number, sh: any) => {
-        if (!sh.opened_at || !sh.closed_at) return sum;
-        const diff = new Date(sh.closed_at).getTime() - new Date(sh.opened_at).getTime();
-        return sum + diff / (1000 * 60 * 60);
-      }, 0);
-
-      return {
-        ...member,
-        activeShift,
-        todayOrders,
-        totalShifts,
-        totalHours: Math.round(totalHours * 10) / 10,
-        lastAction: memberActions[0]?.created_at || null,
-      };
-    });
-
-    return NextResponse.json(staffWithMeta);
-  } catch (error: any) {
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Sanitize: remove pin_hash
+  const sanitized = (data || []).map(({ pin_hash, ...rest }: any) => rest);
+
+  return NextResponse.json(sanitized);
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const auth = await requirePermission('staff.manage');
-    if (!auth.authenticated) return auth as any;
+export async function POST(req: Request) {
+  const auth = await requirePermission('staff.manage');
+  if (auth instanceof NextResponse) return auth;
 
-    const body = await request.json();
-    const { name, role, role_id, shift, phone, email, pin, is_active, hourly_rate, assignment } = body;
+  const body = await req.json();
+  const { name, full_name, email, phone, role_id, hourly_rate, pin, location_id } = body;
 
-    if (!name || (!role_id && !role)) {
-      return NextResponse.json({ error: 'Ad və rol tələb olunur' }, { status: 400 });
-    }
+  if (!name || !role_id) {
+    return NextResponse.json({ error: 'name and role_id are required' }, { status: 400 });
+  }
 
-    const s = svc();
-    const supabase = await createAuthClient();
+  const { createAuthClient } = await import('@/lib/api-auth');
+  const supabase = await createAuthClient();
 
-    let finalRoleId = role_id;
+  const { hashPin } = await import('@/lib/crypto');
 
-    if (finalRoleId) {
-      const { data: roleCheck } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('id', finalRoleId)
-        .maybeSingle();
+  // Resolve organization: use the acting user's org, fall back to default Saito org.
+  let organizationId = '00000000-0000-0000-0000-000000000001';
+  if (auth.user?.id) {
+    const { data: acting } = await supabase
+      .from('staff')
+      .select('organization_id')
+      .eq('id', auth.user.id)
+      .maybeSingle();
+    if (acting?.organization_id) organizationId = acting.organization_id;
+  }
 
-      if (!roleCheck) {
-        return NextResponse.json({ error: 'Yanlış role_id' }, { status: 400 });
-      }
-    } else if (role) {
-      const { data: matchedRole } = await supabase
-        .from('roles')
-        .select('id')
-        .ilike('name', role.trim())
-        .maybeSingle();
+  const { data: staff, error: staffError } = await supabase
+    .from('staff')
+    .insert({
+      name,
+      full_name: full_name || null,
+      email: email || null,
+      phone: phone || null,
+      role_id,
+      hourly_rate: hourly_rate || 5,
+      pin_hash: pin ? hashPin(pin) : null,
+      status: 'ACTIVE',
+      organization_id: organizationId,
+    })
+    .select('id, name, status, role_id, organization_id')
+    .single();
 
-      if (matchedRole) {
-        finalRoleId = matchedRole.id;
-      }
-    }
+  if (staffError) {
+    return NextResponse.json({ error: staffError.message }, { status: 500 });
+  }
 
-    const insertData: any = {
-      name: name.trim(),
-      role_id: finalRoleId || null,
-      shift: shift?.trim() || null,
-      phone: phone?.trim() || null,
-      is_active: is_active ?? true,
-    };
+  const orgId = (staff as any).organization_id;
 
-    if (email) insertData.email = email.trim() || null;
-    if (hourly_rate != null) insertData.hourly_rate = parseFloat(hourly_rate) || null;
-    if (assignment) insertData.assignment = assignment.trim() || null;
-
-    if (pin && pin.length === 4) {
-      const hash = await import('@/lib/crypto').then(m => m.hashPin(pin));
-      insertData.pin_hash = hash;
-    }
-
-    const res = await fetch(`${s.url}/rest/v1/staff`, {
-      method: 'POST',
-      headers: { ...s.headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify(insertData),
-    });
-
-    let data = await res.json();
-
-    if (!res.ok && assignment && (data?.message?.includes("assignment") || data?.details?.includes?.("assignment") || JSON.stringify(data).includes('assignment'))) {
-      const { assignment: _remove, ...retryData } = insertData;
-      const retryRes = await fetch(`${s.url}/rest/v1/staff`, {
-        method: 'POST',
-        headers: { ...s.headers, 'Prefer': 'return=representation' },
-        body: JSON.stringify(retryData),
+  if (location_id && orgId) {
+    const { error: locError } = await supabase
+      .from('staff_locations')
+      .insert({
+        staff_id: staff.id,
+        location_id,
+        organization_id: orgId,
+        is_primary: true,
       });
-      data = await retryRes.json();
-      if (!retryRes.ok) {
-        return NextResponse.json({ error: data?.error || 'Xəta baş verdi' }, { status: 400 });
-      }
+
+    if (locError) {
+      return NextResponse.json({ error: locError.message }, { status: 500 });
     }
-
-    if (!res.ok && !data?.success) {
-      return NextResponse.json({ error: data?.error || 'Xəta baş verdi' }, { status: 400 });
-    }
-
-    const created = Array.isArray(data) ? data[0] : data;
-
-    await fetch(`${s.url}/rest/v1/operation_logs`, {
-      method: 'POST',
-      headers: s.headers,
-      body: JSON.stringify({
-        action: 'create_staff',
-        new_values: { id: created.id, name: created.name, role_id: created.role_id },
-        performed_by: auth.user?.id,
-      }),
-    });
-
-    return NextResponse.json({ success: true, data: sanitizeStaff(created) });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  return NextResponse.json({ ...staff, pin_hash: undefined }, { status: 201 });
 }

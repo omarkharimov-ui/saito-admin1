@@ -102,8 +102,18 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       );
     }
 
-    // Delete inventory logs first (foreign key)
-    await supabase.from('inventory_logs').delete().eq('ingredient_id', id);
+    // inventory_logs is immutable (0.4-H). An ingredient with ledger history
+    // can never be hard-deleted; refuse instead of violating the ledger.
+    const { count: logCount } = await supabase
+      .from('inventory_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('ingredient_id', id);
+    if (logCount && logCount > 0) {
+      return NextResponse.json(
+        { error: 'Bu inqredientin stok tarixçəsi var və silinə bilməz. Deaktiv etmək üçün statusu söndürün.' },
+        { status: 409 }
+      );
+    }
 
     const { error } = await supabase.from('ingredients').delete().eq('id', id);
 

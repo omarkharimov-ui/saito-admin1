@@ -273,7 +273,7 @@ export const OrderModal = ({
           qtyReductionReversal.push({ order_item_id: id, reverse_qty: diff });
         }
         if (qtyReductionReversal.length > 0) {
-          await supabase.rpc('reverse_stock_deduction_for_items', {
+          await supabase.rpc('reverse_stock_for_items', {
             p_items: JSON.stringify(qtyReductionReversal),
           });
         }
@@ -416,8 +416,9 @@ export const OrderModal = ({
         p_quantity: item.new_qty,
         p_unit_price: item.unit_price,
       });
-      // Reverse stock for the cancelled portion
-      await supabase.rpc('reverse_stock_deduction_for_items', {
+      // Reverse the cancelled portion through the canonical ledger (H6).
+      // No-op when the item was never consumed; idempotency-keyed otherwise.
+      await supabase.rpc('reverse_stock_for_items', {
         p_items: JSON.stringify([{ order_item_id: item.order_item_id, reverse_qty: item.cancel_qty }]),
       });
     }

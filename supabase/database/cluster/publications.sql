@@ -1,2 +1,0 @@
-ALTER PUBLICATION supabase_realtime ADD TABLE public.campaigns,
-  TABLE public.delivery_zones, TABLE public.order_items, TABLE public.orders, TABLE public.products, TABLE public.reservations, TABLE public.settings, TABLE public.table_floors;

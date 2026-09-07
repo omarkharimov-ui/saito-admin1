@@ -336,11 +336,34 @@ export async function POST(request: Request) {
       } else {
         // Create new order
         console.log('[API /orders POST] creating order', { table_number, total_amount: discountedTotal });
-      const insertRes = await fetch(`${svc().url}/rest/v1/orders`, {
+
+        // Canonical org/location come from the table itself (table_floors), never
+        // from the client. The trg_order_staff_org + location guards require a
+        // new order to carry the same organization/location as its table.
+        let orderOrganizationId: string | null = null;
+        let orderLocationId: string | null = null;
+        if (table_number !== undefined && table_number !== null) {
+          const tableMetaRes = await fetch(
+            `${svc().url}/rest/v1/table_floors?table_number=eq.${encodeURIComponent(String(table_number))}&select=organization_id,location_id&limit=1`,
+            { headers: svc().headers }
+          );
+          if (tableMetaRes.ok) {
+            const tableRows = await tableMetaRes.json();
+            const tableMeta = Array.isArray(tableRows) ? tableRows[0] : null;
+            if (tableMeta) {
+              orderOrganizationId = tableMeta.organization_id || null;
+              orderLocationId = tableMeta.location_id || null;
+            }
+          }
+        }
+
+        const insertRes = await fetch(`${svc().url}/rest/v1/orders`, {
           method: 'POST',
           headers: { ...svc().headers, 'Prefer': 'return=representation' },
           body: JSON.stringify({
             table_number,
+            organization_id: orderOrganizationId,
+            location_id: orderLocationId,
             total_amount: discountedTotal,
             status: 'confirmed',
             guest_count: guest_count || 1,

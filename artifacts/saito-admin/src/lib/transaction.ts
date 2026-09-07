@@ -83,4 +83,5 @@ export async function createTransactionLog(action: string, status: 'completed' |
  * Validates table state transitions
  * @deprecated Use tableStatus.ts instead
  */
-export { isValidTableTransition, TableStatus } from './tableStatus';
+export { isValidTableTransition } from './tableStatus';
+export type { TableStatus } from './tableStatus';

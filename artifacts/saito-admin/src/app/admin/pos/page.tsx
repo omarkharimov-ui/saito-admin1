@@ -1986,7 +1986,7 @@ export default function POSPage() {
                          isMergedChild={false}
                          kitchenStatus={table.kitchen_status}
                         flashNonce={flashInfo?.tableNumber === table.table_number ? (flashInfo?.nonce ?? 0) : 0}
-                        tapPulseNonce={tableTapPulse?.tableNumber === table.table_number ? tableTapPulse.nonce : 0}
+                        tapPulseNonce={tableTapPulse && tableTapPulse.tableNumber === table.table_number ? tableTapPulse.nonce : 0}
                       />
                        </div>
                      );

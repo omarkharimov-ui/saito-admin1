@@ -24,6 +24,46 @@ export function cartLineKey(
   return `${variantId ?? ''}::${(notes || '').trim()}::${modKey}`;
 }
 
+// --- S1 pos-sync observability (dev-only) ------------------------------
+// Lightweight counters around the floor/order realtime path. They answer the
+// later question "can the 3s polling fallback be reduced/removed?" without any
+// external analytics dependency or production log noise. Inspect live state in
+// the browser console via `window.__POS_SYNC_STATS__` (development builds).
+type PosSyncStats = {
+  realtimeEvents: number;      // postgres_changes events seen after echo filter
+  echoSuppressed: number;      // self-originated events (same terminal) skipped
+  debounceCoalesced: number;   // extra triggers merged into an open debounce window
+  debouncedExecutions: number; // floor refetches actually fired by the debounce
+  pollTicks: number;           // 3s fallback poll ticks
+  pollSkips: number;           // poll ticks skipped (coalesced/in-flight refresh)
+  realtimeExecutions: number;  // fetchFloor() runs triggered by realtime
+  pollExecutions: number;      // fetchFloor() runs triggered by polling
+  manualFetches: number;       // fetchFloor() runs from actions/initial/manual
+  failedFetches: number;       // non-ok or network-failed refetches
+  staleDiscarded: number;      // late responses dropped by the generation guard
+};
+
+const initialPosSyncStats = (): PosSyncStats => ({
+  realtimeEvents: 0,
+  echoSuppressed: 0,
+  debounceCoalesced: 0,
+  debouncedExecutions: 0,
+  pollTicks: 0,
+  pollSkips: 0,
+  realtimeExecutions: 0,
+  pollExecutions: 0,
+  manualFetches: 0,
+  failedFetches: 0,
+  staleDiscarded: 0,
+});
+
+function debugSync(...args: unknown[]) {
+  if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console
+    console.debug('[pos-sync]', ...args);
+  }
+}
+
 export function usePos() {
   const { t } = useLanguage();
   const [floors, setFloors] = useState<any[]>([]);
@@ -32,6 +72,12 @@ export function usePos() {
   const [combos, setCombos] = useState<any[]>([]);
   const [variantsByProduct, setVariantsByProduct] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
+  // Minimal floor-refresh error flag for the dine-in floor view inline error
+  // state (G8 Batch 2). Set by fetchFloor on failure, cleared on success.
+  const [floorLoadFailed, setFloorLoadFailed] = useState(false);
+  // Minimal catalog error flag for ProductGrid inline error + retry (G8
+  // Batch 3). Set by fetchCatalog on failure, cleared on success.
+  const [catalogLoadFailed, setCatalogLoadFailed] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
   const operationLocks = useRef<Set<string>>(new Set());
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
@@ -88,17 +134,55 @@ export function usePos() {
     throw lastError || new Error('Max retries exceeded');
   };
 
+  // --- S1 stale-response + coalescing state --------------------------
+  // Generation token: bumped at the START of every floor refresh (realtime,
+  // polling, action, initial). A response is applied only when its token is
+  // still the newest — an older response finishing later can never overwrite
+  // newer floor state, regardless of network response ordering.
+  const floorGenRef = useRef(0);
+  // Realtime/poll coalescing: triggers inside a short window collapse into one
+  // guarded refresh (see scheduleFloorRefresh below).
+  const floorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const floorDebounceSinceRef = useRef(0);
+  // In-flight tracking so the 3s poll does not stack an overlapping request on
+  // top of a refresh that started moments ago (starvation-safe: polls older
+  // than ~2.5s are allowed to supersede a hung request).
+  const floorInFlightCountRef = useRef(0);
+  const floorInFlightSinceRef = useRef(0);
+  const syncStatsRef = useRef<PosSyncStats>(initialPosSyncStats());
+
   // Light refresh: floor + open orders only. Used for every reactive operation
   // (place order, merge, transfer, mark-ready) and on realtime events. Kept
   // cheap so the UI reflects changes immediately instead of waiting on the
   // heavy product catalog reload.
-  const fetchFloor = useCallback(async () => {
+  //
+  // S1 guard: every call bumps the generation token; only the newest request's
+  // response is committed to state. This protects against the classic race of
+  // "UPDATE order → fetch A, PAYMENT → fetch B, B returns, then A returns and
+  // overwrites the paid state with stale data".
+  const fetchFloor = useCallback(async (reason?: 'realtime' | 'poll' | 'manual') => {
+    const gen = floorGenRef.current + 1;
+    floorGenRef.current = gen;
+    floorInFlightCountRef.current += 1;
+    floorInFlightSinceRef.current = Date.now();
+    if (reason === 'realtime') syncStatsRef.current.realtimeExecutions += 1;
+    else if (reason === 'poll') syncStatsRef.current.pollExecutions += 1;
+    else syncStatsRef.current.manualFetches += 1;
+    debugSync('refetch start', reason ?? 'manual', `gen=${gen}`);
     try {
       const tablesRes = await retryWithBackoff(() => fetch('/api/pos/tables', { cache: 'no-store' }));
       if (tablesRes.ok) {
         const data = await tablesRes.json();
+        if (gen !== floorGenRef.current) {
+          syncStatsRef.current.staleDiscarded += 1;
+          debugSync('discard stale response', `gen=${gen}`, `latest=${floorGenRef.current}`);
+          return;
+        }
         setFloors(data.floors || []);
+        setFloorLoadFailed(false);
       } else {
+        syncStatsRef.current.failedFetches += 1;
+        setFloorLoadFailed(true);
         console.error('POS tables fetch failed:', tablesRes.status);
         if (tablesRes.status === 401) {
           window.dispatchEvent(new CustomEvent('pos:unauthorized'));
@@ -106,7 +190,11 @@ export function usePos() {
         toast.error(t('table_data_refresh_error'), { id: 'pos-tables-stale' });
       }
     } catch (e) {
+      syncStatsRef.current.failedFetches += 1;
+      setFloorLoadFailed(true);
       console.error('POS floor fetch error:', e);
+    } finally {
+      floorInFlightCountRef.current -= 1;
     }
   }, []);
 
@@ -128,10 +216,13 @@ export function usePos() {
           (vmap[v.product_id] ||= []).push(v);
         }
         setVariantsByProduct(vmap);
+        setCatalogLoadFailed(false);
       } else {
+        setCatalogLoadFailed(true);
         console.error('POS products fetch failed:', (productsRes as Response)?.status);
       }
     } catch (e) {
+      setCatalogLoadFailed(true);
       console.error('POS catalog fetch error:', e);
     }
   }, []);
@@ -202,28 +293,91 @@ export function usePos() {
 
   const draftRestoredRef = useRef(false);
 
+  // --- S1 realtime coalescing scheduler ------------------------------
+  // Every refresh trigger (realtime event, 3s fallback poll) funnels through
+  // here so the floor is never refetched more than once per short window:
+  //   * realtime events → one debounced guarded fetch (250ms trailing window,
+  //     hard ceiling ~1s so a continuous event stream cannot starve the fetch)
+  //   * poll ticks → skipped while a realtime-coalesced refresh is pending or
+  //     a fetch started within the last ~2.5s (no overlapping requests)
+  // Polling is NOT permanently coupled to subscription health — its removal
+  // stays a separate decision based on the __POS_SYNC_STATS__ measurements.
+  const scheduleFloorRefresh = useCallback((reason: 'realtime' | 'poll') => {
+    if (reason === 'realtime') {
+      syncStatsRef.current.realtimeEvents += 1;
+    } else {
+      syncStatsRef.current.pollTicks += 1;
+      if (floorDebounceRef.current !== null) {
+        // A coalesced refresh is already pending — do not stack another one.
+        syncStatsRef.current.pollSkips += 1;
+        return;
+      }
+      if (
+        floorInFlightCountRef.current > 0 &&
+        Date.now() - floorInFlightSinceRef.current < 2500
+      ) {
+        syncStatsRef.current.pollSkips += 1;
+        return;
+      }
+    }
+    if (floorDebounceRef.current !== null) {
+      syncStatsRef.current.debounceCoalesced += 1;
+      // Hard ceiling: measured from the FIRST trigger of this window. Once ~1s
+      // old, stop extending — the pending timer is left to fire, so a
+      // continuous event stream can never starve the refresh.
+      if (Date.now() - floorDebounceSinceRef.current >= 1000) return;
+      clearTimeout(floorDebounceRef.current);
+    } else {
+      floorDebounceSinceRef.current = Date.now();
+    }
+    floorDebounceRef.current = setTimeout(() => {
+      floorDebounceRef.current = null;
+      syncStatsRef.current.debouncedExecutions += 1;
+      debugSync('debounced refetch', reason);
+      fetchFloorRef.current(reason);
+    }, 250);
+  }, []);
+
   useEffect(() => {
     fetchData();
+    if (typeof window !== 'undefined') {
+      (window as any).__POS_SYNC_STATS__ = syncStatsRef.current;
+    }
+
+    const onPosChange = (payload: any) => {
+      const record = payload?.new || payload?.record || {};
+      // Terminal echo suppression: updates originating from this terminal are
+      // already reflected locally (optimistic patch + action refetch), so the
+      // realtime echo must not trigger a self-refresh loop.
+      if (record.updated_by_terminal_id === terminalId) {
+        syncStatsRef.current.echoSuppressed += 1;
+        return;
+      }
+      scheduleFloorRefresh('realtime');
+    };
+
+    // S1 = canonical POS realtime owner for table_floors + orders (fetch-based
+    // reconciliation: payloads never patch table/order state directly).
     const channel = createRealtimeChannel('pos-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, (payload) => {
-        const record = (payload as any)?.new || (payload as any)?.record || {};
-        if (record.updated_by_terminal_id === terminalId) return;
-        fetchFloorRef.current();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-        const record = (payload as any)?.new || (payload as any)?.record || {};
-        if (record.updated_by_terminal_id === terminalId) return;
-        fetchFloorRef.current();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, onPosChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, onPosChange)
       .subscribe();
 
-    const poll = setInterval(() => fetchFloorRef.current(), 3000);
+    // P1 — temporary reliability fallback (3s). S1 realtime is primary; this
+    // poll is kept until measurements prove the channel alone covers floor and
+    // order transitions. It goes through the same guarded scheduler above, so
+    // it never creates an unnecessary overlapping request.
+    const poll = setInterval(() => scheduleFloorRefresh('poll'), 3000);
 
-    return () => { 
+    return () => {
       clearInterval(poll);
-      removeRealtimeChannel(channel); 
+      if (floorDebounceRef.current !== null) {
+        clearTimeout(floorDebounceRef.current);
+        floorDebounceRef.current = null;
+      }
+      removeRealtimeChannel(channel);
     };
-  }, [fetchData, terminalId]);
+  }, [fetchData, scheduleFloorRefresh, terminalId]);
 
   const prevSelectedTableStatusRef = useRef<string | null>(null);
 
@@ -1571,7 +1725,7 @@ export function usePos() {
   };
 
     return {
-      floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode,
+      floors, products, categories, combos, variantsByProduct, loading, floorLoadFailed, catalogLoadFailed, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode,
       fetchData, selectTable, mergeTables, transferTable, dismissTable, clearTable, performUndo, seatTable,
       setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, resetCart, updateGuestCount,
       updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,

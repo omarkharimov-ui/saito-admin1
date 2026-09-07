@@ -570,7 +570,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                       </div>
                       {(Number(detailOrder.discount_amount) || 0) > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-xs text-emerald-500">{t('discount_label') || 'Endirim'}</span>
+                          <span className="text-xs text-emerald-500">{t('discount_label')}</span>
                           <span className="text-xs font-bold tabular-nums text-emerald-500">−₼{Number(detailOrder.discount_amount).toFixed(2)}</span>
                         </div>
                       )}

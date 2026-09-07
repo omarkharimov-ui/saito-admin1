@@ -6,6 +6,11 @@
  *
  * Table badges are DERIVED from the latest kitchen state of orders on the table.
  * They are NOT stored in the database.
+ *
+ * G6 note (Phase-1): the UPPERCASE vocabulary below is the KITCHEN DISPLAY
+ * vocabulary (derived badges), NOT raw DB values. Canonical DB status vocabulary
+ * (verified live) lives in '@/lib/posStatus'. Do not write these uppercase values
+ * to the DB; map DB -> display on read.
  */
 
 export type TableStatus = 'EMPTY' | 'OCCUPIED' | 'RESERVED';

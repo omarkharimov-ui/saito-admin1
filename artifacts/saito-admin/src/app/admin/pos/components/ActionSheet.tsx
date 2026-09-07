@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
   User, Search, Phone, Smartphone, Building2, Gift, Car, ArrowLeftRight,
-  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck,
+  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag,
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -56,6 +56,7 @@ interface ActionSheetProps {
   onPrintBill?: () => void;
   onClearTable?: () => void;
   onSeatGuests?: () => void;
+  onDiscount?: () => void;
   posRole?: string | null;
   groupNumber?: number;
   paymentView?: boolean;
@@ -86,6 +87,7 @@ export function ActionSheet({
   onBackFromPayment, onDeliveryStatus, onTakeawayStatus, onMarkServed, onSelectCustomer, customerId, customerName,
   mergeMode, transferMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, onBillRequest, onPrintBill, onClearTable, onSeatGuests, posRole, groupNumber,
+  onDiscount,
   paymentView, transferConfirm, transferSource, transferTarget,   onConfirmTransfer, onCancelTransfer, onCheckout,
   posMode = 'dine_in',
   statusPickerTransitions, onSelectTransition, statusPickerLoading, onCloseStatusPicker, statusPickerOpen,
@@ -181,6 +183,7 @@ export function ActionSheet({
 
   const actions = [
     { id: 'customer', icon: User, label: customerName ? `${customerName}` : t('select_customer') || t('customer'), visible: true },
+    { id: 'discount', icon: Tag, label: t('discount'), visible: isCashierOrAbove && !!activeOrderId && (table?.total_amount ?? 0) > 0 },
     { id: 'print_bill', icon: Printer, label: t('print_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'bill_request', icon: Receipt, label: t('call_bill'), visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 && !table?.bill_requested },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isCashierOrAbove && (isOccupied && (table?.total_amount ?? 0) > 0 || isTakeawayOrDelivery) },
@@ -416,11 +419,11 @@ export function ActionSheet({
                        </div>
 
                        {/* Secondary actions section */}
-                        {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier', 'mark_served'].includes(a.id)) && (
+                        {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier', 'mark_served', 'discount'].includes(a.id)) && (
                           <div>
                             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
                             <div className="grid grid-cols-3 gap-3">
-                              {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier'].includes(a.id)).map((action) => (
+                              {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier', 'discount'].includes(a.id)).map((action) => (
                                <button key={action.id} onClick={() => {
                                   const fn = {
                                     add_order: onAddOrder,
@@ -433,6 +436,7 @@ export function ActionSheet({
                                     print_bill: onPrintBill,
                                     clear: onClearTable,
                                     mark_served: onMarkServed,
+                                    discount: onDiscount,
                                   }[action.id as string];
                                  if (fn) fn();
                                }}

@@ -24,14 +24,20 @@ interface TableCardProps {
   isMergedChild?: boolean;
   kitchenStatus?: string | null;
   flashNonce?: number;
+  /** G8 floor batch: 150ms pre-navigation selection pulse (table tap → order). */
+  tapPulseNonce?: number;
 }
 
-export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, kitchenStatus, flashNonce }: TableCardProps) {
+export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, kitchenStatus, flashNonce, tapPulseNonce }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
   const [showKitchenStatus, setShowKitchenStatus] = useState(false);
   const [statusTransition, setStatusTransition] = useState<string | null>(null);
+  // 1s understated ring for an actual FREE → OCCUPIED transition only.
+  const [seatRingNonce, setSeatRingNonce] = useState(0);
+  // ~0.4s selection ring for table tap → order navigation.
+  const [openRingNonce, setOpenRingNonce] = useState(0);
 
   const isOccupied = ['ordering', 'occupied', 'cooking', 'waiting_bill', 'waiting', 'ordered', 'confirmed', 'in_kitchen', 'served', 'dining', 'bill_requested', 'payment_pending', 'paid', 'cleaning'].includes(table.status);
   const isServed = table.status === 'served';
@@ -85,14 +91,40 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
     const currentStatus = table.status;
     prevStatusRef.current = currentStatus;
 
-    if (prevStatus !== currentStatus && prevStatus === 'occupied' && !isOccupied) {
-      setStatusTransition('occupied');
-      const t = setTimeout(() => {
-        setStatusTransition(null);
-      }, 3000);
-      return () => clearTimeout(t);
+    if (prevStatus !== currentStatus) {
+      // OCCUPIED → free: keep the existing label flash.
+      if (prevStatus === 'occupied' && !isOccupied) {
+        setStatusTransition('occupied');
+        const t = setTimeout(() => {
+          setStatusTransition(null);
+        }, 3000);
+        return () => clearTimeout(t);
+      }
+      // FREE → OCCUPIED family: real status transition only (never on
+      // rerender/poll/realtime echo of an unchanged status).
+      if (prevStatus === 'empty' && isOccupied) {
+        setSeatRingNonce(Date.now());
+      }
     }
   }, [table.status, isOccupied]);
+
+  // Selection pulse (table tap → order). Timed to the ~150ms navigation delay.
+  useEffect(() => {
+    if (!tapPulseNonce) return;
+    setOpenRingNonce(Date.now());
+  }, [tapPulseNonce]);
+
+  useEffect(() => {
+    if (!seatRingNonce) return;
+    const t = setTimeout(() => setSeatRingNonce(0), 1100);
+    return () => clearTimeout(t);
+  }, [seatRingNonce]);
+
+  useEffect(() => {
+    if (!openRingNonce) return;
+    const t = setTimeout(() => setOpenRingNonce(0), 450);
+    return () => clearTimeout(t);
+  }, [openRingNonce]);
 
   useEffect(() => {
     if (!flashNonce) return;
@@ -276,6 +308,25 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
            }`}
           style={isGroup ? { borderLeftWidth: '3px', borderLeftColor: '#007AFF' } : {}}
         >
+        {/* Transition ring — seat (FREE→OCCUPIED, ~1s) or tap-open selection (~0.4s).
+            Overlay-only, pointer-events-none; the card itself stays calm at rest. */}
+        {(seatRingNonce > 0 || openRingNonce > 0) && (
+          <motion.div
+            key={`pulse-${seatRingNonce || openRingNonce}`}
+            className={`absolute inset-0 rounded-4xl border-2 pointer-events-none ${
+              openRingNonce > 0 ? 'border-blue-400/80' : 'border-emerald-400/80'
+            }`}
+            initial={{ opacity: 0, scale: 0.985 }}
+            animate={{ opacity: [0, 1, 0], scale: [0.985, 1.004, 1.008] }}
+            exit={{ opacity: 0 }}
+            transition={{
+              duration: openRingNonce > 0 ? 0.4 : 1,
+              ease: 'easeOut',
+              times: [0, 0.15, 1],
+            }}
+          />
+        )}
+
         {/* Top row: Table number + action */}
         <div className="absolute top-4 left-5 right-4 flex items-start justify-between">
           <div className="flex items-center gap-2">
@@ -376,13 +427,6 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                )}
              </div>
 
-              {table.pre_order && (
-                <div className="mt-2">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-white/10 text-white/70 border border-white/20'}`}>
-                    <ShoppingBag size={10} /> Pre-order
-                  </span>
-                </div>
-              )}
            </div>
          )}
 
@@ -473,13 +517,14 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                    {t('pending_status' as any)}
                 </span>
              )}
-             {table.waiter_name && (
-               <span className={`shrink-0 px-2 py-0.5 rounded-md text-xs font-black border whitespace-nowrap ${lightMode ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-blue-500/10 border-blue-400/20 text-blue-400'}`}>
-                 {table.waiter_name}
-               </span>
-             )}
-              {Number(table.order_count || 0) > 0 && (
-                <span className={`shrink-0 px-2 py-0.5 rounded-md text-xs font-black border whitespace-nowrap ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+              {table.waiter_name && (
+                <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider select-none ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                  {table.waiter_name}
+                </span>
+              )}
+               {Number(table.order_count || 0) > 0 && (
+                <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider select-none ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                  <ShoppingBag size={10} />
                   {table.order_count}
                 </span>
               )}

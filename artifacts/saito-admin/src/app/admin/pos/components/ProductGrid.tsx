@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban } from 'lucide-react';
+import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { LiquidCategoryNavbar } from './LiquidCategoryNavbar';
@@ -35,6 +35,9 @@ interface ProductGridProps {
   cartCounts: Record<string, number>;
   outOfStock?: Set<string>;
   variantsByProduct?: Record<string, any[]>;
+  // G8 Batch 3: catalog load error + retry (parent owns catalog fetching).
+  catalogError?: boolean;
+  onRetryCatalog?: () => void;
 }
 
 const COMBO_TAB = '__combos__';
@@ -68,7 +71,8 @@ function AllergenBadges({ item }: { item: GridItem | undefined; lightMode?: bool
 }
 
 export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function ProductGrid({
-  products, combos, categories, onAddProduct, onAddCombo, cartCounts, outOfStock, variantsByProduct
+  products, combos, categories, onAddProduct, onAddCombo, cartCounts, outOfStock, variantsByProduct,
+  catalogError, onRetryCatalog
 }, ref) {
   const { language, t } = useLanguage();
   const { lightMode } = useTheme();
@@ -342,6 +346,40 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
       {/* Product Grid */}
       <div className="flex-1 overflow-y-auto pr-1 pt-2 relative z-0">
+        {catalogError ? (
+          <div className="min-h-full flex flex-col items-center justify-center text-center gap-4 py-16">
+            <div className={`w-16 h-16 rounded-3xl flex items-center justify-center ${lightMode ? 'bg-amber-50 text-amber-500' : 'bg-amber-500/10 text-amber-400'}`}>
+              <AlertTriangle size={28} strokeWidth={2} />
+            </div>
+            <p className={`text-sm font-black uppercase tracking-widest max-w-xs ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>{t('products_load_failed')}</p>
+            {onRetryCatalog && (
+              <button
+                onClick={onRetryCatalog}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] ${lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'}`}
+              >
+                <RefreshCw size={14} />
+                {t('retry')}
+              </button>
+            )}
+          </div>
+        ) : (products.length === 0 && (combos?.length ?? 0) === 0) ? (
+          <div className="min-h-full flex flex-col items-center justify-center text-center gap-4 py-16">
+            <div className={`w-16 h-16 rounded-3xl flex items-center justify-center ${lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/5 text-white/30'}`}>
+              <PackageOpen size={28} strokeWidth={1.8} />
+            </div>
+            <p className={`text-sm font-black uppercase tracking-widest max-w-xs ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{t('no_products_available')}</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="min-h-full flex flex-col items-center justify-center text-center gap-4 py-16">
+            <div className={`w-14 h-14 rounded-3xl flex items-center justify-center ${lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/5 text-white/30'}`}>
+              <Search size={24} strokeWidth={1.8} />
+            </div>
+            <p className={`text-sm font-black uppercase tracking-widest max-w-xs ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>
+              {search.trim() ? t('no_products_found') : categoryFilter ? t('no_products_in_category') : t('no_products_available')}
+            </p>
+          </div>
+        ) : (
+          <>
         {outOfStock && outOfStock.size > 0 && (
           <div className="flex items-center justify-end mb-3 flex-shrink-0 pr-1">
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${lightMode ? 'bg-rose-50 text-rose-500' : 'bg-rose-500/10 text-rose-400'}`}>
@@ -438,7 +476,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                       {item.effective_price?.campaign_badge && (
                         <span className="inline-block text-xs font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full mb-1"
                           style={{ color: item.effective_price.campaign_badge || '#D4AF37', backgroundColor: `${item.effective_price.campaign_badge || '#D4AF37'}20` }}>
-                          {item.effective_price.campaign_label || t('savings') || 'Endirim'}
+                          {item.effective_price.campaign_label || t('savings')}
                         </span>
                       )}
                       <p className={`text-sm font-bold truncate leading-tight ${cardText}`}>{name}</p>
@@ -470,6 +508,8 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
              );
            })}
         </div>
+          </>
+        )}
       </div>
 
       {/* ══════════════════════════════════════════════════════════════ */}

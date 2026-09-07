@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 function Bone({ className = '' }: { className?: string }) {
   return (
@@ -11,6 +12,7 @@ function Bone({ className = '' }: { className?: string }) {
 
 export function FloorSkeleton() {
   const { lightMode } = useTheme();
+  const { t } = useLanguage();
   return (
     <div className="h-full flex flex-col p-6">
       <div className="flex items-center justify-end gap-3 mb-6">
@@ -41,7 +43,7 @@ export function FloorSkeleton() {
             />
           ))}
         </div>
-        <span className="text-xs font-bold text-[var(--theme-text-muted)] ml-2">Yüklənir...</span>
+        <span className="text-xs font-bold text-[var(--theme-text-muted)] ml-2">{t('loading')}</span>
       </div>
     </div>
   );

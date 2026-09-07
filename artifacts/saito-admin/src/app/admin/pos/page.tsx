@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap } from '@/lib/modal-transitions';
-import { Sun, Moon, X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
+import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
+import { Sun, Moon, X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { usePos, cartLineKey } from './hooks/usePos';
@@ -94,6 +94,19 @@ export default function POSPage() {
   const [paymentView, setPaymentView] = useState(false);
   const [receiptView, setReceiptView] = useState<PosReceipt | null>(null);
   const [receiptTendered, setReceiptTendered] = useState<number | undefined>(undefined);
+  const [discountOpen, setDiscountOpen] = useState(false);
+  const [discountBusy, setDiscountBusy] = useState(false);
+  const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
+  const [discountValue, setDiscountValue] = useState('');
+  const [discountReason, setDiscountReason] = useState('');
+  const [payOutcome, setPayOutcome] = useState<{ okCount: number; failed: any[]; method: string } | null>(null);
+  const payKeyRef = useRef<Record<string, string>>({});
+  const payKeyFor = useCallback((orderId: string) => {
+    if (!payKeyRef.current[orderId]) {
+      payKeyRef.current[orderId] = `pos:${orderId}:${crypto.randomUUID()}`;
+    }
+    return payKeyRef.current[orderId];
+  }, []);
   const [statusPickerOpen, setStatusPickerOpen] = useState(false);
   const [statusPickerTransitions, setStatusPickerTransitions] = useState<{ to_status: string; description: string | null; requires_role: string | null; requires_manager_pin: boolean }[]>([]);
   const [statusPickerEntity, setStatusPickerEntity] = useState<'order' | 'delivery'>('order');
@@ -113,6 +126,9 @@ export default function POSPage() {
   const [isClockedIn, setIsClockedIn] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const gridRef = useRef<ProductGridRef>(null);
+  // Table tap → order: 150ms selection pulse before navigation.
+  const [tableTapPulse, setTableTapPulse] = useState<{ tableNumber: number; nonce: number } | null>(null);
+  const tableTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [walkInTable, setWalkInTable] = useState('');
   const [walkInGuests, setWalkInGuests] = useState('1');
@@ -194,8 +210,13 @@ export default function POSPage() {
     if (posMode === 'delivery') fetchDeliveryOrders();
   }, [posMode, fetchTakeawayOrders, fetchDeliveryOrders]);
 
+  // P2 — TA/Delivery order-list fallback poll (15s). Mounted ONLY outside
+  // dine_in: dine-in orders are covered by S1 pos-sync (inside usePos), so
+  // dine-in must not spin an extra order-list poll. The effect cleanup tears
+  // the interval down on mode switch (dine_in ⇄ takeaway ⇄ delivery).
   useEffect(() => {
     if (actionSheetOpen || paymentView) return;
+    if (posMode === 'dine_in') return;
     const poll = setInterval(() => {
       if (posMode === 'takeaway') fetchTakeawayOrders();
       if (posMode === 'delivery') fetchDeliveryOrders();
@@ -221,7 +242,13 @@ export default function POSPage() {
     return () => { cancelled = true; };
   }, []);
 
+  // S2 — TA/Delivery order-list realtime. Subscribed ONLY when posMode is
+  // takeaway/delivery: dine-in relies on S1 pos-sync (orders → floor refresh
+  // inside usePos), so dine-in must not open this extra orders channel. When
+  // switching modes the previous channel is removed by the cleanup before the
+  // new mode mounts its own mechanism — no leaked subscriptions/timers.
   useEffect(() => {
+    if (posMode === 'dine_in') return;
     const channel = supabase
       .channel('pos-order-list-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
@@ -721,6 +748,7 @@ export default function POSPage() {
             campaign_id: specificOrder.campaign_id || undefined,
             discount_amount: specificOrder.discount_amount || 0,
             discount_type: specificOrder.discount_type || 'fixed',
+            idempotency_key: payKeyFor(specificOrder.id),
           }),
         });
 
@@ -800,6 +828,7 @@ export default function POSPage() {
             campaign_id: activeOrder.campaign_id || undefined,
             discount_amount: activeOrder.discount_amount || 0,
             discount_type: activeOrder.discount_type || 'fixed',
+            idempotency_key: payKeyFor(activeOrder.id),
           }),
         });
 
@@ -811,11 +840,13 @@ export default function POSPage() {
       }
 
       if (failedOrders.length > 0) {
-        toast.error(`${failedOrders.length} ${t('payment_error_retry')}`, { id: 'action-toast' });
+        const failedOrdersRaw = activeOrders.filter((o: any) => failedOrders.includes(o.id));
+        setPayOutcome({ okCount: activeOrders.length - failedOrders.length, failed: failedOrdersRaw, method });
+        pos.fetchData();
+        if (pos.selectedTable && tableNumbers.includes(pos.selectedTable.table_number)) pos.resetCart();
         return;
-      } else {
-        toast.success(t('all_orders_paid'), { id: 'action-toast' });
       }
+      toast.success(t('all_orders_paid'), { id: 'action-toast' });
 
       setPaymentView(false);
       setActionSheetOpen(false);
@@ -936,6 +967,7 @@ export default function POSPage() {
               campaign_id: activeOrder.campaign_id || undefined,
               discount_amount: activeOrder.discount_amount || 0,
               discount_type: activeOrder.discount_type || 'fixed',
+              idempotency_key: payKeyFor(activeOrder.id),
             }),
           });
           
@@ -965,6 +997,7 @@ export default function POSPage() {
               campaign_id: activeOrder.campaign_id || undefined,
               discount_amount: activeOrder.discount_amount || 0,
               discount_type: activeOrder.discount_type || 'fixed',
+              idempotency_key: payKeyFor(activeOrder.id),
             }),
           });
           if (!res.ok) {
@@ -976,11 +1009,13 @@ export default function POSPage() {
       }
 
       if (failedOrders.length > 0) {
-        toast.error(`${failedOrders.length} ${t('payment_error_retry_short')}`, { id: 'action-toast' });
+        const failedOrdersRaw = activeOrders.filter((o: any) => failedOrders.includes(o.id));
+        setPayOutcome({ okCount: activeOrders.length - failedOrders.length, failed: failedOrdersRaw, method: 'split' });
+        pos.fetchData();
+        if (pos.selectedTable && tableNumbers.includes(pos.selectedTable.table_number)) pos.resetCart();
         return;
-      } else {
-        toast.success(t('split_payment_complete'), { id: 'action-toast' });
       }
+      toast.success(t('split_payment_complete'), { id: 'action-toast' });
 
       setPaymentView(false);
       setActionSheetOpen(false);
@@ -1028,6 +1063,15 @@ export default function POSPage() {
     });
   }, [activeFloor?.tables]);
 
+  const openTableWithPulse = (table: any) => {
+    setTableTapPulse({ tableNumber: table.table_number, nonce: Date.now() });
+    if (tableTapTimerRef.current) clearTimeout(tableTapTimerRef.current);
+    tableTapTimerRef.current = setTimeout(() => {
+      tableTapTimerRef.current = null;
+      pos.selectTable(table);
+    }, 150);
+  };
+
   const handleTableTap = (table: any) => {
     if (posMode !== 'dine_in') {
       toast.error(t('table_selection_disabled'), { id: 'action-toast' });
@@ -1041,7 +1085,7 @@ export default function POSPage() {
       setReservationMode(false);
       setReservationId(null);
       setReservationGuest(null);
-      pos.selectTable(table);
+      openTableWithPulse(table);
       return;
     }
 
@@ -1084,7 +1128,7 @@ export default function POSPage() {
     setReservationMode(false);
     setReservationId(null);
     setReservationGuest(null);
-    pos.selectTable(table);
+    openTableWithPulse(table);
   };
 
   const handleConfirmTransfer = async (targetTable?: number) => {
@@ -1151,14 +1195,18 @@ export default function POSPage() {
       return;
     }
     try {
-      const { data, error } = await supabase.rpc('seat_guests_atomic', {
-        p_reservation_id: resId,
-        p_performed_by: posSession?.staffId || null,
+      const seatRes = await apiFetch('/api/reservations/guest-arrived', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservation_id: resId, performed_by: posSession?.staffId || null }),
       });
-      if (error) {
-        toast.error(error.message || t('guest_not_arrived'));
+      const seatData = seatRes.ok ? await seatRes.json().catch(() => null) : null;
+      if (!seatRes.ok) {
+        const err = seatData || { error: t('guest_not_arrived') };
+        toast.error(err.error || t('guest_not_arrived'));
         return;
       }
+      const data = seatData;
       if (data?.success) {
         toast.success(t('guest_arrived'));
         await pos.fetchData();
@@ -1176,6 +1224,102 @@ export default function POSPage() {
       }
     } catch (e: any) {
       toast.error(e.message || t('error_occurred'));
+    }
+  };
+
+  const resolveSheetOrderId = () =>
+    actionSheetTable?.current_order_id
+    || actionSheetTable?.orders?.[0]?.id
+    || (Array.isArray(actionSheetTable?.order_ids) ? actionSheetTable.order_ids[0] : undefined)
+    || null;
+
+  const reconcileOrderFromServer = async (orderId: string) => {
+    try {
+      const ordRes = await apiFetch('/api/orders');
+      if (!ordRes.ok) return;
+      const ordData = await ordRes.json();
+      const order = (ordData.orders || []).find((o: any) => o.id === orderId);
+      if (!order) return;
+      const touchesCurrent = pos.selectedTable
+        && (pos.selectedTable.current_order_id === orderId
+          || (pos.selectedTable.table_number != null && order.table_number === pos.selectedTable.table_number));
+      if (touchesCurrent && pos.activeView === 'order') {
+        pos.resetCart();
+        pos.loadOrderIntoCart(order);
+      }
+    } catch { /* stale cart acceptable; floors still refreshed */ }
+  };
+
+  const submitDiscount = async () => {
+    const orderId = resolveSheetOrderId();
+    const value = parseFloat(discountValue);
+    if (!orderId || isNaN(value) || value <= 0 || discountBusy) return;
+    setDiscountBusy(true);
+    toast.loading(t('processing_discount'), { id: 'discount-toast' });
+    try {
+      const res = await apiFetch('/api/orders/discount', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: orderId,
+          discount_type: discountType,
+          discount_value: value,
+          reason: discountReason.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || t('error_occurred'), { id: 'discount-toast' });
+        return;
+      }
+      toast.success(t('discount_applied'), { id: 'discount-toast' });
+      setDiscountOpen(false);
+      setDiscountValue('');
+      setDiscountReason('');
+      await pos.fetchData();
+      await reconcileOrderFromServer(orderId);
+    } catch (e: any) {
+      toast.error(e.message || t('error_occurred'), { id: 'discount-toast' });
+    } finally {
+      setDiscountBusy(false);
+    }
+  };
+
+  const retryFailedPayments = async () => {
+    if (!payOutcome) return;
+    const { failed, method } = payOutcome;
+    const stillFailed: any[] = [];
+    let retried = 0;
+    for (const order of failed) {
+      const total = Number(order.total_amount) || 0;
+      const res = await apiFetch('/api/orders/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: order.id,
+          payment_method: method,
+          paid_amount: total,
+          tip_amount: 0,
+          campaign_id: order.campaign_id || undefined,
+          discount_amount: order.discount_amount || 0,
+          discount_type: order.discount_type || 'fixed',
+          idempotency_key: payKeyFor(order.id),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: t('payment_failed') }));
+        stillFailed.push({ ...order, error: err.error });
+      } else {
+        retried++;
+      }
+    }
+    if (stillFailed.length === 0) {
+      toast.success(t('all_orders_paid'), { id: 'action-toast' });
+      setPayOutcome(null);
+      pos.fetchData();
+      if (pos.selectedTable) pos.resetCart();
+    } else {
+      setPayOutcome({ okCount: payOutcome.okCount + retried, failed: stillFailed, method });
     }
   };
 
@@ -1518,13 +1662,13 @@ export default function POSPage() {
                        <Calendar size={16} />
                        <span className="hidden sm:inline">{t('reservations')}</span>
                      </button>
-                     <button
-                       onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
-                        className="flex items-center gap-2 px-3 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-wider hover:bg-amber-500/20 transition-all active:scale-[0.95]"
-                     >
-                       <span>+</span>
-                        <span className="hidden sm:inline">{t('walk_in')}</span>
-                      </button>
+                      <button
+                        onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' : 'bg-amber-500/20 border-amber-500/30 text-amber-300 hover:bg-amber-500/30'}`}
+                      >
+                        <span>+</span>
+                         <span className="hidden sm:inline">{t('walk_in')}</span>
+                       </button>
                       <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-zinc-800'}`}>
                         {[
                           { active: !mergeMode && !transferMode, label: t('normal_mode') },
@@ -1774,46 +1918,84 @@ export default function POSPage() {
                    );
                  })()}
  
-                 <div className="flex-1 overflow-y-auto overscroll-contain">
-                   <AnimatePresence mode="wait">
-                 <motion.div
-                    key={`tables-${selectedFloor || 'default'}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={fastExit}
-                  >
-                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {visibleTables?.map((table: any, _tableIdx: number) => {
-                    const groupInfo = tableGroupInfo[table.table_number];
-                    const isGroup = groupInfo && groupInfo.children.length > 0;
-                    
-                    return (
-                      <div
-                        key={`tbl-${table.table_number ?? table.id ?? _tableIdx}`}
-                        className="col-span-1"
-                      >
-                      <TableCard 
-                        table={table}
-                        onTap={() => handleTableTap(table)}
-                        onAction={() => handleOpenAction(table)}
-                        isSelected={selectedForMerge.includes(table.table_number)}
-                        selectionMode={mergeMode}
-                        isTransferSource={transferSource === table.table_number}
-                        isTransferTarget={transferTarget === table.table_number}
-                        groupNumber={groupInfo?.groupNum}
-                        mergedChildNumbers={groupInfo?.children}
-                        isMergedChild={false}
-                        kitchenStatus={table.kitchen_status}
-                        flashNonce={flashInfo?.tableNumber === table.table_number ? (flashInfo?.nonce ?? 0) : 0}
-                      />
+                  <div className="flex-1 overflow-y-auto overscroll-contain">
+                    {pos.floorLoadFailed ? (
+                      <div className="min-h-full flex flex-col items-center justify-center text-center gap-4 p-8">
+                        <div className={`w-16 h-16 rounded-3xl flex items-center justify-center ${lightMode ? 'bg-amber-50 text-amber-500' : 'bg-amber-500/10 text-amber-400'}`}>
+                          <AlertTriangle size={28} strokeWidth={2} />
+                        </div>
+                        <p className={`text-sm font-black uppercase tracking-widest max-w-xs ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>{t('floors_load_failed')}</p>
+                        <button
+                          onClick={() => pos.fetchData()}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] ${lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'}`}
+                        >
+                          <RefreshCw size={14} />
+                          {t('retry')}
+                        </button>
                       </div>
-                    );
-                  })}
-                 </div>
-                 </motion.div>
-                  </AnimatePresence>
-                 </div>
+                    ) : pos.floors.length === 0 ? (
+                      <div className="min-h-full flex flex-col items-center justify-center text-center gap-4 p-8">
+                        <div className={`w-16 h-16 rounded-3xl flex items-center justify-center ${lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/5 text-white/30'}`}>
+                          <Table2 size={28} strokeWidth={1.8} />
+                        </div>
+                        <p className={`text-sm font-black uppercase tracking-widest max-w-xs ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{t('no_floors_configured')}</p>
+                        <button
+                          onClick={() => pos.fetchData()}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] ${lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'}`}
+                        >
+                          <RefreshCw size={14} />
+                          {t('retry')}
+                        </button>
+                      </div>
+                    ) : (activeFloor?.tables?.length ?? 0) === 0 ? (
+                      <div className="min-h-full flex flex-col items-center justify-center text-center gap-4 p-8">
+                        <div className={`w-14 h-14 rounded-3xl flex items-center justify-center ${lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/5 text-white/30'}`}>
+                          <Table2 size={24} strokeWidth={1.8} />
+                        </div>
+                        <p className={`text-sm font-black uppercase tracking-widest max-w-xs ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{t('no_tables_on_floor')}</p>
+                      </div>
+                    ) : (
+                    <AnimatePresence mode="wait">
+                  <motion.div
+                     key={`tables-${selectedFloor || 'default'}`}
+                     initial={{ opacity: 0 }}
+                     animate={{ opacity: 1 }}
+                     exit={{ opacity: 0 }}
+                     transition={fastExit}
+                   >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                   {visibleTables?.map((table: any, _tableIdx: number) => {
+                     const groupInfo = tableGroupInfo[table.table_number];
+                     const isGroup = groupInfo && groupInfo.children.length > 0;
+                     
+                     return (
+                       <div
+                         key={`tbl-${table.table_number ?? table.id ?? _tableIdx}`}
+                         className="col-span-1"
+                       >
+                       <TableCard 
+                         table={table}
+                         onTap={() => handleTableTap(table)}
+                         onAction={() => handleOpenAction(table)}
+                         isSelected={selectedForMerge.includes(table.table_number)}
+                         selectionMode={mergeMode}
+                         isTransferSource={transferSource === table.table_number}
+                         isTransferTarget={transferTarget === table.table_number}
+                         groupNumber={groupInfo?.groupNum}
+                         mergedChildNumbers={groupInfo?.children}
+                         isMergedChild={false}
+                         kitchenStatus={table.kitchen_status}
+                        flashNonce={flashInfo?.tableNumber === table.table_number ? (flashInfo?.nonce ?? 0) : 0}
+                        tapPulseNonce={tableTapPulse?.tableNumber === table.table_number ? tableTapPulse.nonce : 0}
+                      />
+                       </div>
+                     );
+                   })}
+                  </div>
+                  </motion.div>
+                   </AnimatePresence>
+                    )}
+                  </div>
               </motion.div>
             )}
 
@@ -1909,8 +2091,10 @@ export default function POSPage() {
                             acc[id] = (acc[id] || 0) + (item.quantity || 0);
                             return acc;
                           }, {})}
-                          outOfStock={new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id))}
-                          />
+                           outOfStock={new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id))}
+                           catalogError={pos.catalogLoadFailed}
+                           onRetryCatalog={() => pos.fetchData()}
+                           />
                       </div>
                       <div
                          className="w-[440px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
@@ -2153,6 +2337,7 @@ export default function POSPage() {
             onDeliveryStatus={handleDeliveryStatusPick}
             onTakeawayStatus={() => handleOpenStatusPicker('order')}
             onMarkServed={handleMarkServed}
+            onDiscount={() => setDiscountOpen(true)}
            onCancelTable={async () => {
             if (!actionSheetTable) return;
             if (posMode === 'takeaway' || posMode === 'delivery') {
@@ -2491,9 +2676,9 @@ export default function POSPage() {
        {/* SHIFT REVIEW MODAL */}
        <AnimatePresence>
          {shiftReviewOpen && (
-           <motion.div className="fixed inset-0 z-[300] flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShiftReviewOpen(false)} />
-             <motion.div className={`relative w-full max-w-md rounded-3xl border p-6 shadow-2xl ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-white/10'}`} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}>
+            <motion.div className="fixed inset-0 z-[300] flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop}>
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShiftReviewOpen(false)} />
+              <motion.div className={`relative w-full max-w-md rounded-3xl border p-6 shadow-2xl ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-white/10'}`} {...morphView}>
                <h2 className="text-lg font-black uppercase tracking-tight mb-1">Shift Review</h2>
                <p className={`text-xs mb-4 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>Please declare your tips before clocking out</p>
 
@@ -2519,6 +2704,75 @@ export default function POSPage() {
                  <button onClick={confirmClockOut} className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-wider hover:bg-emerald-600 transition-all active:scale-95 shadow-lg shadow-emerald-500/20">
                    Confirm & Clock Out
                  </button>
+               </div>
+             </motion.div>
+           </motion.div>
+         )}
+       </AnimatePresence>
+
+    {/* DISCOUNT MODAL (Phase-1 G1: canonical /api/orders/discount) */}
+       <AnimatePresence>
+         {discountOpen && (
+            <motion.div className="fixed inset-0 z-[320] flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop}>
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !discountBusy && setDiscountOpen(false)} />
+              <motion.div className={`relative w-full max-w-sm rounded-3xl border p-6 shadow-2xl ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-white/10'}`} {...morphView}>
+                <h2 className="text-lg font-black uppercase tracking-tight mb-4">{t('discount_modal_title')}</h2>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <button onClick={() => setDiscountType('percent')} className={`py-2.5 rounded-2xl text-sm font-black uppercase border transition-all ${discountType === 'percent' ? 'bg-indigo-500 text-white border-indigo-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}>{t('discount_mode_percent')}</button>
+                  <button onClick={() => setDiscountType('fixed')} className={`py-2.5 rounded-2xl text-sm font-black uppercase border transition-all ${discountType === 'fixed' ? 'bg-indigo-500 text-white border-indigo-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}>{t('discount_mode_amount')}</button>
+                </div>
+                <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{discountType === 'percent' ? t('discount_percent_label') : t('discount_amount_label')}</label>
+               <input
+                 type="number" min="0" step={discountType === 'percent' ? '1' : '0.01'} value={discountValue}
+                 onChange={(e) => setDiscountValue(e.target.value)} placeholder="0"
+                 className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border mb-3 ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
+               />
+                <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{t('discount_reason_label')}</label>
+                <input
+                  type="text" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} placeholder={t('discount_reason_placeholder')}
+                 className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border mb-5 ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
+               />
+               <div className="flex gap-3">
+                  <button onClick={() => { if (!discountBusy) { setDiscountOpen(false); setDiscountValue(''); setDiscountReason(''); } }} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-wider border ${lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/50'}`}>{t('cancel')}</button>
+                  <button onClick={submitDiscount} disabled={discountBusy} className="flex-1 py-3 rounded-2xl bg-indigo-500 text-white text-xs font-black uppercase tracking-wider hover:bg-indigo-600 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">
+                    {discountBusy ? <Loader2 size={16} className="animate-spin" /> : null}
+                    {discountBusy ? t('please_wait') : t('apply_discount_btn')}
+                  </button>
+               </div>
+             </motion.div>
+           </motion.div>
+         )}
+       </AnimatePresence>
+
+    {/* PAYMENT PARTIAL-OUTCOME MODAL (Phase-1 G2) */}
+       <AnimatePresence>
+         {payOutcome && (
+            <motion.div className="fixed inset-0 z-[320] flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop}>
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPayOutcome(null)} />
+              <motion.div className={`relative w-full max-w-sm rounded-3xl border p-6 shadow-2xl ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-white/10'}`} {...morphView}>
+               <h2 className="text-lg font-black uppercase tracking-tight mb-1">Ödəniş nəticəsi</h2>
+               {payOutcome.okCount > 0 && (
+                 <p className={`text-sm font-bold mb-2 ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>{payOutcome.okCount} order ödənildi</p>
+               )}
+               {payOutcome.failed.length > 0 && (
+                 <div className={`mb-4 rounded-2xl border p-3 ${lightMode ? 'bg-rose-50 border-rose-200' : 'bg-rose-500/10 border-rose-500/20'}`}>
+                   <p className={`text-xs font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-rose-600' : 'text-rose-400'}`}>Ödənilmədi ({payOutcome.failed.length})</p>
+                   <div className="space-y-1 max-h-32 overflow-y-auto">
+                     {payOutcome.failed.map((f: any) => (
+                       <p key={f.id || f.order_id} className={`text-[11px] font-bold ${lightMode ? 'text-rose-700' : 'text-rose-300'}`}>
+                         Masa {f.table_number ?? '-'} · {f.error || 'Xəta'}
+                       </p>
+                     ))}
+                   </div>
+                 </div>
+               )}
+               <div className="flex gap-3">
+                 <button onClick={() => setPayOutcome(null)} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-wider border ${lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/50'}`}>Bağla</button>
+                 {payOutcome.failed.length > 0 && (
+                   <button onClick={retryFailedPayments} className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-wider hover:bg-emerald-600 transition-all active:scale-95">
+                     Yenidən cəhd ({payOutcome.failed.length})
+                   </button>
+                 )}
                </div>
              </motion.div>
            </motion.div>

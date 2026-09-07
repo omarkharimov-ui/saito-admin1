@@ -5,6 +5,8 @@ const PUBLIC_PATHS = [
   '/api/auth/pin-login',
   '/api/auth/verify-pin',
   '/api/auth/send-code',
+  // Public-safe settings (footer info only; whitelist enforced server-side).
+  '/api/public',
   '/api/kitchen-auth',
   '/staff/login',
   '/login',

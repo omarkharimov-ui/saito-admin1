@@ -20,7 +20,10 @@ import { BillSplitModal } from '@/app/admin/pos/components/BillSplitModal';
 import { getStatusConfig, timeAgo } from '../utils';
 
 const COURSE_LABELS: Record<string, string> = {
-  appetizers: 'Başlanğıc', mains: 'Əsas', desserts: 'Dessert', drinks: 'İçki', main: 'Əsas',
+  // Canonical values (0.4-B DB contract, singular)
+  appetizer: 'Başlanğıc', main: 'Əsas', dessert: 'Dessert', drink: 'İçki',
+  // Legacy read/display compatibility only — never written to DB
+  appetizers: 'Başlanğıc', mains: 'Əsas', desserts: 'Dessert', drinks: 'İçki',
 };
 
 interface OrderModalProps {

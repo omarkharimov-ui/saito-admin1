@@ -18,10 +18,28 @@ export async function GET() {
   const supabase = svc();
   const { data } = await supabase
     .from('staff')
-    .select('id, name, role, role_id, is_active, created_at')
+    .select('id, name, role_id, is_active, created_at')
     .order('created_at', { ascending: false });
 
-  return NextResponse.json(sanitizeStaffArray(data || []));
+  const roleIds = [...new Set((data || []).map((s: any) => s.role_id).filter(Boolean))];
+  const roleNames: Record<string, string> = {};
+  if (roleIds.length > 0) {
+    const { data: roles } = await supabase.from('roles').select('id, name').in('id', roleIds);
+    if (roles) {
+      for (const r of roles) roleNames[r.id] = r.name;
+    }
+  }
+
+  const rows = (data || []).map((s: any) => ({
+    id: s.id,
+    name: s.name,
+    role: roleNames[s.role_id] || null,
+    role_id: s.role_id,
+    is_active: s.is_active,
+    created_at: s.created_at,
+  }));
+
+  return NextResponse.json(sanitizeStaffArray(rows));
 }
 
 export async function DELETE(req: NextRequest) {

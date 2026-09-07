@@ -30,7 +30,7 @@ export async function GET() {
     if (staffIds.length > 0) {
       const { data: staff, error: staffError } = await s
         .from('staff')
-        .select('id, name, role, shift')
+        .select('id, name, role_id, shift')
         .in('id', staffIds)
         .eq('is_active', true);
 
@@ -38,12 +38,24 @@ export async function GET() {
         return NextResponse.json({ error: staffError.message }, { status: 500 });
       }
 
+      const roleIds = [...new Set((staff || []).map((st: any) => st.role_id).filter(Boolean))];
+      const roleNames: Record<string, string> = {};
+      if (roleIds.length > 0) {
+        const { data: roles, error: rolesError } = await s
+          .from('roles')
+          .select('id, name')
+          .in('id', roleIds);
+        if (!rolesError && roles) {
+          for (const r of roles) roleNames[r.id] = r.name;
+        }
+      }
+
       staffList = (staff || []).map((st: any) => {
         const shift = (activeShifts || []).find((sh: any) => sh.staff_id === st.id);
         return {
           id: st.id,
           name: st.name,
-          role: st.role,
+          role: roleNames[st.role_id] || null,
           shift: st.shift,
           clockedInAt: shift?.opened_at || null,
         };

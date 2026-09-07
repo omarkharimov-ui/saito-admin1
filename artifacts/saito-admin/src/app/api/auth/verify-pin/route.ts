@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     const { data: staffUsers } = await supabase
       .from('staff')
-      .select('id, name, role, pin_hash, role_id')
+      .select('id, name, role_id, pin_hash')
       .eq('is_active', true)
       .not('pin_hash', 'is', null)
       .limit(100);
@@ -58,7 +58,11 @@ export async function POST(req: NextRequest) {
         p_success: true,
       });
       try { await supabase.rpc('log_audit', { p_action: actionType, p_entity_type: 'staff', p_entity_id: staffUser.id, p_actor_id: staffUser.id, p_actor_name: staffUser.name, p_old_data: null, p_new_data: { method: 'staff', target_type: 'pos' }, p_metadata: { pin_verified: true, method: 'staff' } }); } catch { /* non-critical */ }
-      const role = staffUser.role || 'cashier';
+      let role = 'cashier';
+      if (staffUser.role_id) {
+        const { data: roleRow } = await supabase.from('roles').select('name').eq('id', staffUser.role_id).maybeSingle();
+        if (roleRow?.name) role = roleRow.name;
+      }
       return NextResponse.json({
         valid: true,
         role,

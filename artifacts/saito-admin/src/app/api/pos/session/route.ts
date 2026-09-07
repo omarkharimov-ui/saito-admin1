@@ -35,7 +35,7 @@ export async function GET() {
 
     const { data: staff } = await s
       .from('staff')
-      .select('id, name, role, shift')
+      .select('id, name, shift')
       .eq('id', session.user_id)
       .maybeSingle();
 
@@ -45,12 +45,13 @@ export async function GET() {
         'Ofisiant': 'waiter',
         'superadmin': 'superadmin',
       };
-      const normalizedRole = roleMap[staff.role] || staff.role.toLowerCase();
+      const rawRole = session.role || 'cashier';
+      const normalizedRole = roleMap[rawRole] || rawRole.toLowerCase();
       return NextResponse.json({
         staffId: staff.id,
         name: staff.name,
         role: normalizedRole,
-        rawRole: staff.role,
+        rawRole,
         shift: staff.shift,
       });
     }

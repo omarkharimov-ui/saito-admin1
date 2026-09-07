@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Printer, CreditCard, Banknote, Loader2, Split } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
+import { getSettings } from '@/lib/settings-client';
 import ReceiptPreview from '../../shared/ReceiptPreview';
 import type { Order, OrderItem } from '../types';
 
@@ -81,8 +81,8 @@ export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit, c
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    supabase.from('settings').select('restaurant_name, address, receipt_title, receipt_currency, receipt_service_fee_pct, receipt_show_service_fee, receipt_footer_text').single().then(({ data }) => {
-      if (data) {
+    getSettings('receipt').then((data) => {
+      if (data && Object.keys(data).length) {
         setRestaurant(prev => ({
           ...prev,
           name: (data.restaurant_name as string | null) || prev.name,

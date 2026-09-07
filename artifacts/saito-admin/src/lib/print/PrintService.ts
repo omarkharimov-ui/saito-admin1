@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getSettings } from '@/lib/settings-client';
 import { printerService } from './PrinterService';
 import { buildReservationEscPos } from './EscPosBuilder';
 
@@ -61,10 +61,8 @@ export async function getReceiptSettings(): Promise<{
   autoPrintReceipt: boolean;
   autoPrintKitchen: boolean;
 }> {
-  const { data } = await supabase
-    .from('settings')
-    .select('restaurant_name, address, receipt_title, receipt_currency, receipt_service_fee_pct, receipt_show_service_fee, receipt_footer_text, receipt_staff_name, receipt_payment_method, printer_paper_width, print_copies, auto_print_receipt, auto_print_kitchen')
-    .single();
+  const [receiptRow, printerRow] = await Promise.all([getSettings('receipt'), getSettings('printer')]);
+  const data = { ...receiptRow, ...printerRow };
 
   return {
     restaurantName: data?.restaurant_name || 'Restoran',

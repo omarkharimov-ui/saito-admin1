@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { apiFetch } from '@/lib/api-fetch';
+import { getSettings } from '@/lib/settings-client';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Order } from '../types';
@@ -113,17 +114,14 @@ export function useOrders() {
     };
   }, []);
 
-  /* ─── Settings (table count + delay threshold) ─── */
+  /* ─── Settings (table count + delay threshold) — whitelisted server endpoints ─── */
   useEffect(() => {
     let isMounted = true;
     const loadSettings = async () => {
-      const { data: rows } = await supabase
-        .from('settings')
-        .select('qr_table_count, order_delay_minutes, opening_hours')
-        .limit(1);
+      const [orderRow, posRow, generalRow] = await Promise.all([getSettings('order'), getSettings('pos'), getSettings('general')]);
       if (!isMounted) return;
-      const row = rows?.[0];
-      if (!row) return; // no row — keep cached values, don't overwrite with defaults
+      const row = { ...posRow, ...orderRow, ...generalRow };
+      if (!Object.keys(row).length) return; // no row — keep cached values, don't overwrite with defaults
       const n = Number(row.qr_table_count);
       const d = Number(row.order_delay_minutes);
       if (!Number.isNaN(n) && n >= 1 && n <= 200) setTableCount(n);
@@ -140,13 +138,8 @@ export function useOrders() {
     };
     loadSettings();
 
-    const channel = createRealtimeChannel('orders_table_count')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, loadSettings)
-      .subscribe();
-
     return () => {
       isMounted = false;
-      removeRealtimeChannel(channel);
     };
   }, []);
 

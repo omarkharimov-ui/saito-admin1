@@ -6,6 +6,7 @@ import toast, { useToaster } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { MeshBroadcaster } from '@/lib/mesh/Broadcaster';
+import { getSettings } from '@/lib/settings-client';
 import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, FlameKindling, SendHorizonal, LogOut, GitMerge, LayoutGrid, Map as MapIcon, Sun, Moon, Scissors, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -603,10 +604,10 @@ export default function KitchenPage() {
     return itemMs - orderMs > 5000;
   };
 
-  // Load delay threshold from settings
+  // Load delay threshold from settings (whitelisted server endpoint)
   useEffect(() => {
-    supabase.from('settings').select('order_delay_minutes').limit(1).then(({ data }) => {
-      const val = Number(data?.[0]?.order_delay_minutes);
+    getSettings('order').then((row) => {
+      const val = Number(row.order_delay_minutes);
       if (!isNaN(val) && val >= 1) setDelayThreshold(val);
     });
   }, []);

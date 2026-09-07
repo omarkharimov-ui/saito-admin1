@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFormDirtyCompare } from '@/hooks/useFormDirty';
-import { supabase } from '@/lib/supabase';
+import { getSettings, updateSettings } from '@/lib/settings-client';
 import { Save, Loader2, Store, MapPin, Phone, Clock, Camera, ChevronRight, Mail } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -32,8 +32,8 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
       setCloseTime(parsed.close);
       return;
     }
-    supabase.from('settings').select('*').single().then(({ data }) => {
-      if (data) {
+    getSettings('general').then((data) => {
+      if (data && Object.keys(data).length) {
         const merged = { ...settings, ...Object.fromEntries(Object.entries(data).filter(([k]) => k !== 'footer_text').map(([k, v]) => [k, v ?? ''])) };
         setSettings(merged);
         const parsed = parseHours(merged.opening_hours);
@@ -54,8 +54,9 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setUpdating(true);
-    const { error } = await supabase.from('settings').upsert([{ ...settings, id: '1' }]);
-    if (error) toast.error(error.message, { id: 'action-toast' });
+    const { id: _ignored, ...payload } = settings;
+    const res = await updateSettings('general', payload);
+    if (!res.ok) toast.error(res.error || 'Xəta', { id: 'action-toast' });
     else toast.success(t('settings_updated'), { id: 'action-toast', duration: 3000 });
     setUpdating(false);
   };

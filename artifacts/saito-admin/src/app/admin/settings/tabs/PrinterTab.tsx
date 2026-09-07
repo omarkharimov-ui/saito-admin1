@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFormDirtyCompare } from '@/hooks/useFormDirty';
-import { supabase } from '@/lib/supabase';
+import { getSettings, updateSettings } from '@/lib/settings-client';
 import { Save, Loader2, Printer, Usb, Bluetooth, Wifi, Monitor, Copy, TestTube, Search, Receipt } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -58,8 +58,8 @@ const PrinterTab = ({ initialData }: { initialData?: Record<string, any> | null 
       return;
     }
 
-    supabase.from('settings').select('printer_name, printer_type, printer_paper_width, printer_interface, auto_print_receipt, auto_print_kitchen, print_copies').single().then(({ data }) => {
-      if (data) merge(data);
+    getSettings('printer').then((data) => {
+      if (data && Object.keys(data).length) merge(data);
       setLoading(false);
     });
   }, [initialData]);
@@ -67,9 +67,9 @@ const PrinterTab = ({ initialData }: { initialData?: Record<string, any> | null 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from('settings').upsert([{ id: '1', ...cfg }]);
-    if (error) {
-      toast.error(error.message, { id: 'action-toast' });
+    const res = await updateSettings('printer', cfg);
+    if (!res.ok) {
+      toast.error(res.error || 'Xəta', { id: 'action-toast' });
     } else {
       toast.success(t('receipt_saved') || 'Printer settings saved', { id: 'action-toast', duration: 3000 });
     }

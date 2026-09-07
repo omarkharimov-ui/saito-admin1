@@ -5,6 +5,7 @@ import { toast, type Toast } from '@/lib/toast';
 import { CheckCircle2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
+import { getSettings } from '@/lib/settings-client';
 
 const dismissToast = (t: Toast) => toast.dismiss(t.id);
 
@@ -349,10 +350,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     fetchNewOrdersCount();
     fetchReadyOrdersCount();
 
-    // Load delay threshold from settings
+    // Load delay threshold from settings (whitelisted server endpoint)
     let orderDelayMinutes = 20;
-    supabase.from('settings').select('order_delay_minutes').limit(1).then(({ data }) => {
-      const val = Number(data?.[0]?.order_delay_minutes);
+    getSettings('order').then((row) => {
+      const val = Number(row.order_delay_minutes);
       if (!isNaN(val) && val >= 1) orderDelayMinutes = val;
     });
 

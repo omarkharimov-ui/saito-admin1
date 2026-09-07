@@ -3,15 +3,7 @@ import { requireAuth, requirePermission } from '@/lib/api-auth';
 import { validateCsrfToken } from '@/lib/csrf';
 import { fetchSettingsRow, patchSettingsRow, pickAllowed } from '@/lib/settings-svc';
 
-const COLS = [
-  'printer_name',
-  'printer_type',
-  'printer_paper_width',
-  'printer_interface',
-  'auto_print_receipt',
-  'auto_print_kitchen',
-  'print_copies',
-];
+const COLS = ['order_delay_minutes', 'kitchen_accept_timeout_minutes'];
 
 export async function GET() {
   const auth = await requireAuth();

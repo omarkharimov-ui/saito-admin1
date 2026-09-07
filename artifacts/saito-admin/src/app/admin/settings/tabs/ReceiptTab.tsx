@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFormDirtyCompare } from '@/hooks/useFormDirty';
-import { supabase } from '@/lib/supabase';
+import { getSettings, updateSettings } from '@/lib/settings-client';
 import { Save, Loader2, Receipt, Percent, DollarSign, AlignLeft, Eye, User, CreditCard } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -59,8 +59,8 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
       setLoading(false);
       return;
     }
-    supabase.from('settings').select('receipt_title, receipt_currency, receipt_service_fee_pct, receipt_show_service_fee, receipt_footer_text, receipt_staff_name, receipt_payment_method').single().then(({ data }) => {
-      if (data) merge(data);
+    getSettings('receipt').then((data) => {
+      if (data && Object.keys(data).length) merge(data);
       setLoading(false);
     });
   }, [initialData]);
@@ -69,9 +69,9 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
     e.preventDefault();
     if (hasError) return;
     setSaving(true);
-    const { error } = await supabase.from('settings').upsert([{ id: '1', ...cfg }]);
-    if (error) {
-      toast.error(error.message, { id: 'action-toast' });
+    const res = await updateSettings('receipt', cfg);
+    if (!res.ok) {
+      toast.error(res.error || 'Xəta', { id: 'action-toast' });
     } else {
       toast.success(t('receipt_saved'), { id: 'action-toast', duration: 3000 });
     }

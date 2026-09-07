@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFormDirtyCompare } from '@/hooks/useFormDirty';
 import { supabase } from '@/lib/supabase';
+import { getSettings, updateSettings } from '@/lib/settings-client';
 import { Save, Loader2, BrainCircuit, Store, Cloud, Bot, Sunrise, TrendingUp, Eye, Wand2 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import GoldSelect from '@/components/GoldSelect';
@@ -35,10 +36,10 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
       setLoading(false);
       return;
     }
-    supabase.from('settings').select('city, revenue_limit').single().then(({ data }) => {
-      if (data) setCfg({
-        city: data.city || 'Baku',
-        revenue_limit: data.revenue_limit ?? 10000,
+    Promise.all([getSettings('general'), getSettings('business')]).then(([generalRow, businessRow]) => {
+      setCfg({
+        city: generalRow.city || 'Baku',
+        revenue_limit: businessRow.revenue_limit ?? 10000,
       });
       setLoading(false);
     });
@@ -342,8 +343,8 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
 
   const toggleGreeting = async (next: boolean) => {
     setGreetingEnabled(next);
-    const { data: existing } = await supabase.from('settings').select('*').eq('id', '1').maybeSingle();
-    await supabase.from('settings').upsert({ ...existing, id: existing?.id || '1', morning_greeting_enabled: next });
+    const res = await updateSettings('general', { morning_greeting_enabled: next });
+    if (!res.ok) toast.error(res.error || 'Xəta', { id: 'action-toast' });
     try { const m = localStorage.getItem('saito_settings_meta'); const p = m ? JSON.parse(m) : {}; localStorage.setItem('saito_settings_meta', JSON.stringify({ ...p, greetingEnabled: next })); } catch {}
     toast.success(next ? t('gen_morning_greeting') + ' aktiv edildi' : t('gen_morning_greeting') + ' deaktiv edildi', { id: 'action-toast' });
   };
@@ -351,10 +352,10 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const { data: existing } = await supabase.from('settings').select('*').eq('id', '1').maybeSingle();
-    const { error } = await supabase.from('settings').upsert({ ...existing, id: existing?.id || '1', ...cfg });
-    if (error) {
-      toast.error(error.message, { id: 'action-toast' });
+    const generalRes = await updateSettings('general', { city: cfg.city });
+    const businessRes = await updateSettings('business', { revenue_limit: cfg.revenue_limit });
+    if (!generalRes.ok || !businessRes.ok) {
+      toast.error((generalRes.error || businessRes.error) ?? 'Xəta', { id: 'action-toast' });
     } else {
       toast.success(t('analytics_saved'), { id: 'action-toast', duration: 3000 });
     }

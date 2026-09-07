@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getPublicSettings } from '@/lib/settings-client';
 import { Share2, Phone, MapPin, Clock } from 'lucide-react';
 import Link from 'next/link';
 
@@ -10,8 +10,8 @@ const Footer = () => {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const { data } = await supabase.from('settings').select('*').single();
-      if (data) setSettings(data);
+      const data = await getPublicSettings();
+      if (data && Object.keys(data).length) setSettings(data);
     };
     fetchSettings();
   }, []);

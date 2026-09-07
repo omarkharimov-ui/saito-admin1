@@ -4,13 +4,18 @@ import { validateCsrfToken } from '@/lib/csrf';
 import { fetchSettingsRow, patchSettingsRow, pickAllowed } from '@/lib/settings-svc';
 
 const COLS = [
-  'printer_name',
-  'printer_type',
-  'printer_paper_width',
-  'printer_interface',
-  'auto_print_receipt',
-  'auto_print_kitchen',
-  'print_copies',
+  'restaurant_name',
+  'address',
+  'phone',
+  'city',
+  'opening_hours',
+  'working_hours',
+  'instagram_url',
+  'whatsapp_number',
+  'footer_text',
+  'contact_email',
+  'morning_greeting_enabled',
+  'is_open',
 ];
 
 export async function GET() {

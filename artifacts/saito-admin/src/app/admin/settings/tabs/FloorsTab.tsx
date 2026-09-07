@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getSettings, updateSettings } from '@/lib/settings-client';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, Save, Loader2, MapPin, Minus } from 'lucide-react';
 import { toast } from '@/lib/toast';
@@ -36,12 +36,13 @@ const FloorsTab = () => {
 
   const loadAll = async () => {
     try {
-      const [floorsRes, settingsRes] = await Promise.all([
+      const [floorsRes, posRow] = await Promise.all([
         fetch('/api/pos/floors'),
-        supabase.from('settings').select('qr_table_count').maybeSingle(),
+        getSettings('pos'),
       ]);
       const data = floorsRes.ok ? await floorsRes.json() : { floors: [] };
-      if (settingsRes.data?.qr_table_count) setMaxTable(settingsRes.data.qr_table_count);
+      const n = Number(posRow.qr_table_count);
+      if (!Number.isNaN(n) && n >= 1) setMaxTable(n);
       setFloors(groupRows(data.floors || []));
     } catch (e) {
       console.error('loadAll error:', e);
@@ -52,8 +53,8 @@ const FloorsTab = () => {
   const saveTableCount = async (count: number) => {
     setSavingTableCount(true);
     try {
-      const { error } = await supabase.from('settings').upsert({ id: '1', qr_table_count: count });
-      if (error) throw error;
+      const res = await updateSettings('pos', { qr_table_count: count });
+      if (!res.ok) throw new Error(res.error || 'Xəta');
       setMaxTable(count);
       toast.success(`${count} masa saxlanıldı`, { id: 'action-toast' });
     } catch (e: any) {

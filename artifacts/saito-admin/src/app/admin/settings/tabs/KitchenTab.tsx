@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getSettings, updateSettings } from '@/lib/settings-client';
 import { Save, Loader2, Timer, AlertTriangle } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
@@ -19,7 +19,7 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
       setLoading(false);
       return;
     }
-    supabase.from('settings').select('order_delay_minutes').single().then(({ data }) => {
+    getSettings('order').then((data) => {
       if (data?.order_delay_minutes) setDelayMin(data.order_delay_minutes);
       setLoading(false);
     });
@@ -27,8 +27,8 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from('settings').upsert({ id: '1', order_delay_minutes: delayMin });
-    if (error) toast.error(error.message, { id: 'action-toast' });
+    const res = await updateSettings('order', { order_delay_minutes: delayMin });
+    if (!res.ok) toast.error(res.error || 'Xəta', { id: 'action-toast' });
     else toast.success(t('kitchen_saved'), { id: 'action-toast', duration: 3000 });
     setSaving(false);
   };

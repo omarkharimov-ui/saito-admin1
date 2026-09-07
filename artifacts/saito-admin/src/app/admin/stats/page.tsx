@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
+import { getSettings } from '@/lib/settings-client';
 import { TrendingUp, BarChart3, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import StatsTopCards from './components/StatsTopCards';
@@ -114,7 +115,7 @@ const StatsPage = () => {
       if (!res.ok) throw new Error('Stats API xətası');
       const data = await res.json();
       
-      const { data: settingsData } = await supabase.from('settings').select('opening_hours, city, address').single();
+      const settingsData = await getSettings('general');
       if (settingsData?.city) setRestaurantCity(settingsData.city.includes(',') ? settingsData.city : `${settingsData.city},AZ`);
 
       const reasonColors: Record<string, string> = { delay: '#ef4444', wrong_order: '#f59e0b', customer_refused: '#8b5cf6', quality_issue: '#06b6d4', other: '#6b7280' };

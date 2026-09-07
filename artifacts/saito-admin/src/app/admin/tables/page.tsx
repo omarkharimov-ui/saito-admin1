@@ -6,8 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'qrcode';
 import { QrCode, Download, Printer, Plus, Minus, X, ExternalLink, Loader2, Save } from 'lucide-react';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
-import { supabase } from '@/lib/supabase';
-import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
+import { getSettings, updateSettings } from '@/lib/settings-client';
 import { toast } from '@/lib/toast';
 
 const TablesPage = () => {
@@ -24,66 +23,16 @@ const TablesPage = () => {
     setSiteUrl(base);
   }, []);
 
-  // Settings row id (cached after first load)
-  const [settingsId, setSettingsId] = useState<string | number | null>(null);
-
-  // Load initial table count from database
+  // Load initial table count from settings (whitelisted server endpoint)
   useEffect(() => {
-    
     const loadTableCount = async () => {
-      // Try to get any settings row (id could be string or number)
-      const { data: rows, error } = await supabase
-        .from('settings')
-        .select('id, qr_table_count')
-        .limit(1);
-      
-      
-      if (error) {
-        console.error('[Tables] Error loading settings:', error);
-        setLoading(false);
-        setReady(true);
-        return;
-      }
-      
-      if (rows && rows.length > 0) {
-        // Use first row found
-        setSettingsId(rows[0].id);
-        if (typeof rows[0].qr_table_count === 'number') {
-          setTableCount(rows[0].qr_table_count);
-        }
-      } else {
-        // No settings row exists - create one
-        const { data: newRow, error: insertError } = await supabase
-          .from('settings')
-          .insert([{ qr_table_count: 12 }])
-          .select('id')
-          .single();
-        
-        if (insertError) {
-          console.error('[Tables] Error creating settings row:', insertError);
-        } else if (newRow) {
-          setSettingsId(newRow.id);
-        }
-      }
-      
+      const row = await getSettings('pos');
+      const n = Number(row.qr_table_count);
+      if (!Number.isNaN(n) && n >= 1 && n <= 200) setTableCount(n);
       setLoading(false);
       setReady(true);
     };
-    
     loadTableCount();
-  }, []);
-
-  // Real-time subscription to settings changes
-  useEffect(() => {
-    const channel = createRealtimeChannel('tables_settings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, (payload) => {
-        if (payload.new && typeof (payload.new as any).qr_table_count === 'number') {
-          setTableCount((payload.new as any).qr_table_count);
-          setSettingsId((payload.new as any).id);
-        }
-      })
-      .subscribe();
-    return () => { removeRealtimeChannel(channel); };
   }, []);
 
   // Only update local state — "Yadda saxla" button persists to DB
@@ -97,32 +46,11 @@ const TablesPage = () => {
   const handleSave = async () => {
     if (!ready) return;
     setSaving(true);
-    
+
     try {
-      if (!settingsId) {
-        // Try to find or create settings row
-        const { data: rows } = await supabase.from('settings').select('id').limit(1);
-        if (rows && rows.length > 0) {
-          setSettingsId(rows[0].id);
-          await supabase.from('settings').update({ qr_table_count: tableCount }).eq('id', rows[0].id);
-          toast.success('Masa sayı yadda saxlanıldı', { id: 'action-toast' });
-        } else {
-          const { data: newRow, error } = await supabase.from('settings').insert([{ qr_table_count: tableCount }]).select('id').single();
-          if (error) throw error;
-          if (newRow) {
-            setSettingsId(newRow.id);
-            toast.success('Masa sayı yadda saxlanıldı', { id: 'action-toast' });
-          }
-        }
-      } else {
-        const { error } = await supabase
-          .from('settings')
-          .update({ qr_table_count: tableCount })
-          .eq('id', settingsId);
-        
-        if (error) throw error;
-        toast.success('Masa sayı yadda saxlanıldı', { id: 'action-toast' });
-      }
+      const res = await updateSettings('pos', { qr_table_count: tableCount });
+      if (!res.ok) throw new Error(res.error || 'Xəta');
+      toast.success('Masa sayı yadda saxlanıldı', { id: 'action-toast' });
     } catch (err) {
       toast.error('Masa sayı yenilənərkən xəta', { id: 'action-toast' });
       console.error('[Tables] Save error:', err);

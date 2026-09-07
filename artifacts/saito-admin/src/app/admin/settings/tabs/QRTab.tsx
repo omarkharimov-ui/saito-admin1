@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase } from '@/lib/supabase';
+import { getSettings, updateSettings } from '@/lib/settings-client';
 import { Loader2, QrCode, Download, Plus, Minus, ExternalLink, X } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -53,8 +53,8 @@ const QRTab = ({ initialData }: { initialData?: Record<string, any> | null }) =>
         return;
       }
 
-      const { data } = await supabase.from('settings').select('qr_table_count').eq('id', '1').single();
-      const n = Number(data?.qr_table_count);
+      const data = await getSettings('pos');
+      const n = Number(data.qr_table_count);
       if (!Number.isNaN(n) && n >= 1 && n <= 200) setTableCount(n);
       setQrCountReady(true);
     };
@@ -89,13 +89,10 @@ const QRTab = ({ initialData }: { initialData?: Record<string, any> | null }) =>
   const confirmTableCount = async () => {
     if (draftCount < 1 || draftCount > 200) return;
     setConfirming(true);
-    const { error } = await supabase
-      .from('settings')
-      .update({ qr_table_count: draftCount })
-      .eq('id', '1');
-    if (error) {
-      console.error('[QRTab] Update FAILED:', error);
-      toast.error(t('error') + ': ' + error.message, { id: 'action-toast' });
+    const res = await updateSettings('pos', { qr_table_count: draftCount });
+    if (!res.ok) {
+      console.error('[QRTab] Update FAILED:', res.error);
+      toast.error(t('error') + ': ' + (res.error || 'Xəta'), { id: 'action-toast' });
     } else {
       setTableCount(draftCount);
       setSavedCount(draftCount);

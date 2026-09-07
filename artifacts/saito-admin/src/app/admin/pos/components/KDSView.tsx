@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { supabase } from '@/lib/supabase';
+import { getSettings } from '@/lib/settings-client';
 
 interface KDSItem {
   id: string;
@@ -96,8 +97,8 @@ export function KDSView({ onBack }: { onBack: () => void }) {
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    supabase.from('settings').select('order_delay_minutes').limit(1).then(({ data }) => {
-      const val = Number(data?.[0]?.order_delay_minutes);
+    getSettings('order').then((row) => {
+      const val = Number(row.order_delay_minutes);
       if (!isNaN(val) && val >= 1) setDelayMin(val);
     });
   }, []);

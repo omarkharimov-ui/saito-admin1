@@ -2,7 +2,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getSettings, updateSettings } from '@/lib/settings-client';
 import { Save, Loader2, Store, MapPin, Phone, Clock, Camera, QrCode, Download, Plus, Minus, X, ExternalLink, Lock, Users, Trash2, User, Briefcase, Moon, BrainCircuit, Target, Timer, TrendingUp, AlertTriangle, Settings2 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -44,7 +44,7 @@ const HoursTab = () => {
   const todayIdx = JS_DAY_TO_IDX[new Date().getDay()];
 
   useEffect(() => {
-    supabase.from('settings').select('working_hours').single().then(({ data }) => {
+    getSettings('general').then((data) => {
       if (data?.working_hours) {
         try { setConfig(JSON.parse(data.working_hours)); } catch {}
       }
@@ -53,8 +53,8 @@ const HoursTab = () => {
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from('settings').upsert([{ id: '1', working_hours: JSON.stringify(config) }]);
-    if (error) toast.error(error.message, { id: 'action-toast' });
+    const res = await updateSettings('general', { working_hours: JSON.stringify(config) });
+    if (!res.ok) toast.error(res.error || 'Xəta', { id: 'action-toast' });
     else toast.success('İş saatları yeniləndi', { id: 'action-toast', duration: 3000 });
     setSaving(false);
   };

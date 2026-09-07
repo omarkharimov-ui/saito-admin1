@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer, Wallet } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { AnimatedTabs } from '../components/ui/MotionControls';
-import { supabase } from '@/lib/supabase';
 import GeneralTab from './tabs/GeneralTab';
+import { getSettings } from '@/lib/settings-client';
 import QRTab from './tabs/QRTab';
 import HoursTab from './tabs/HoursTab';
 import AnalyticsTab from './tabs/AnalyticsTab';
@@ -83,10 +83,14 @@ const SettingsPage = () => {
     fetchRole();
   }, []);
 
+  // Load only whitelisted settings (no secrets ever reach the browser).
   useEffect(() => {
-    supabase.from('settings').select('*').single().then(({ data }) => {
-      if (data) setSettingsData(data);
-    });
+    Promise.all([getSettings('general'), getSettings('business'), getSettings('order'), getSettings('pos'), getSettings('receipt'), getSettings('printer')])
+      .then((rows) => {
+        const merged = Object.assign({}, ...rows);
+        if (Object.keys(merged).length) setSettingsData(merged);
+      })
+      .catch(() => {});
   }, []);
 
   const visibleTabs = TAB_DEFS.filter(tb => !tb.superadminOnly || isSuperadmin);

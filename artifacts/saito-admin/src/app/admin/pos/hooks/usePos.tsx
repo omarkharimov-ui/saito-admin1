@@ -5,6 +5,7 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { isFinalOrderStatus } from '@/lib/pos-tables';
 
 import type { PosProduct, PosTable, PosCart, PosCartItem, PosModifierSelection } from '../types/shared';
 
@@ -525,7 +526,7 @@ export function usePos() {
         const primary = orders.find(
           (o: any) =>
             o.table_number === table.table_number &&
-            !['paid', 'cancelled', 'closed'].includes(o.status)
+            !isFinalOrderStatus(o.status)
         );
 
         if (primary) {
@@ -534,7 +535,7 @@ export function usePos() {
             ...orders.filter(
               (o: any) =>
                 o.merged_into === primary.id &&
-                !['paid', 'cancelled', 'closed'].includes(o.status)
+                !isFinalOrderStatus(o.status)
             ),
           ];
           const groupIds = new Set(groupOrders.map((o: any) => o.id));

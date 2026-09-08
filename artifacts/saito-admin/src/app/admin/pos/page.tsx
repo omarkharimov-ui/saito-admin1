@@ -8,6 +8,7 @@ import { Sun, Moon, X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clo
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { usePos, cartLineKey } from './hooks/usePos';
+import { isFinalOrderStatus, FINAL_ORDER_STATUSES } from '@/lib/pos-tables';
 import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
 import { TableCard } from './components/TableCard';
 import { ActionSheet } from './components/ActionSheet';
@@ -177,7 +178,7 @@ export default function POSPage() {
 
   const fetchTakeawayOrders = useCallback(async () => {
     try {
-      const res = await apiFetch('/api/orders?order_source=takeaway&status=not.in.(paid,cancelled,closed)');
+      const res = await apiFetch(`/api/orders?order_source=takeaway&status=not.in.(${FINAL_ORDER_STATUSES.join(',')})`);
       if (res.ok) {
         const data = await res.json();
         setTakeawayOrders(data.orders || []);
@@ -192,7 +193,7 @@ export default function POSPage() {
 
   const fetchDeliveryOrders = useCallback(async () => {
     try {
-      const res = await apiFetch('/api/orders?order_source=delivery&status=not.in.(paid,cancelled,closed)');
+      const res = await apiFetch(`/api/orders?order_source=delivery&status=not.in.(${FINAL_ORDER_STATUSES.join(',')})`);
       if (res.ok) {
         const data = await res.json();
         setDeliveryOrders(data.orders || []);
@@ -553,7 +554,7 @@ export default function POSPage() {
       if (!ordersRes.ok) return;
       const ordersData = await ordersRes.json();
       const activeOrders = (ordersData.orders || []).filter((o: any) =>
-        !['paid', 'cancelled', 'closed'].includes(o.status) && tableNumbers.includes(o.table_number)
+        !isFinalOrderStatus(o.status) && tableNumbers.includes(o.table_number)
       );
       if (activeOrders.length === 0) { toast.error(t('order_not_found')); return; }
       const settings = await getReceiptSettings();
@@ -798,8 +799,8 @@ export default function POSPage() {
       const ordersRes = await apiFetch('/api/orders');
       if (!ordersRes.ok) throw new Error('Failed to fetch orders');
       const ordersData = await ordersRes.json();
-      let activeOrders = (ordersData.orders || []).filter((o: any) => 
-        !['paid', 'cancelled', 'closed'].includes(o.status)
+      let activeOrders = (ordersData.orders || []).filter((o: any) =>
+        !isFinalOrderStatus(o.status)
       );
       if (posMode === 'dine_in' && tableNumbers.length > 0) {
         activeOrders = activeOrders.filter((o: any) => tableNumbers.includes(o.table_number));
@@ -916,8 +917,8 @@ export default function POSPage() {
       const ordersRes = await apiFetch('/api/orders');
       if (!ordersRes.ok) throw new Error('Failed to fetch orders');
       const ordersData = await ordersRes.json();
-      let activeOrders = (ordersData.orders || []).filter((o: any) => 
-        !['paid', 'cancelled', 'closed'].includes(o.status)
+      let activeOrders = (ordersData.orders || []).filter((o: any) =>
+        !isFinalOrderStatus(o.status)
       );
       if (posMode === 'dine_in' && tableNumbers.length > 0) {
         activeOrders = activeOrders.filter((o: any) => tableNumbers.includes(o.table_number));

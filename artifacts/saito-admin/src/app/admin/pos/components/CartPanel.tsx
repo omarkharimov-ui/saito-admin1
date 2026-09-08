@@ -1026,14 +1026,16 @@ export function CartPanel({
           ? voidSelectedCount > 0
             ? (t('confirm_void') || 'Ləğv et')
             : (t('void_select_prompt') || 'Ləğv edəcəyiniz məhsulları seçin')
-          : hasCartItems
-            ? (hasExistingOrder ? t('resend') : t('send_to_kitchen'))
-            : canSeat
-              ? t('seat_table')
-              : showActions
-                ? t('actions')
-                : (hasExistingOrder ? t('resend') : t('send_to_kitchen'));
-        const btnDisabled = voidMode ? (voidSelectedCount === 0 || voidLoading) : seatBusy;
+          : orderButtonStatus === 'loading'
+            ? t('loading')
+            : hasCartItems
+              ? (hasExistingOrder ? t('resend') : t('send_to_kitchen'))
+              : canSeat
+                ? t('seat_table')
+                : showActions
+                  ? t('actions')
+                  : (hasExistingOrder ? t('resend') : t('send_to_kitchen'));
+        const btnDisabled = voidMode ? (voidSelectedCount === 0 || voidLoading) : (seatBusy || orderButtonStatus === 'loading');
         const btnBg = voidMode
           ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/5')
           : hasCartItems
@@ -1062,7 +1064,7 @@ export function CartPanel({
               {(() => {
                 const icon = voidMode
                   ? (voidLoading ? <Loader2 size={20} className="animate-spin" /> : voidSelectedCount > 0 ? <Check size={18} /> : <Ban size={16} />)
-                  : (seatBusy ? <Loader2 size={20} className="animate-spin" /> : hasCartItems && canSeat ? <Send size={16} /> : canSeat ? <Armchair size={18} /> : showActions ? <MoreHorizontal size={18} /> : <Send size={16} />);
+                  : (seatBusy || orderButtonStatus === 'loading' ? <Loader2 size={20} className="animate-spin" /> : hasCartItems && canSeat ? <Send size={16} /> : canSeat ? <Armchair size={18} /> : showActions ? <MoreHorizontal size={18} /> : <Send size={16} />);
                 const counter = voidMode && voidSelectedCount > 0
                   ? <span key="void-count" className="inline-flex items-center justify-center min-w-[30px] h-[30px] rounded-full px-2 text-xs font-black tabular-nums bg-black/15 text-current">{voidSelectedCount}</span>
                   : null;

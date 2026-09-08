@@ -445,21 +445,19 @@ export async function POST(request: Request) {
         };
       });
 
-      for (const ins of itemInserts) {
-        const itemRes = await fetch(`${svc().url}/rest/v1/order_items`, {
-          method: 'POST',
+      const itemRes = await fetch(`${svc().url}/rest/v1/order_items`, {
+        method: 'POST',
+        headers: svc().headers,
+        body: JSON.stringify(itemInserts),
+      });
+      if (!itemRes.ok) {
+        // Rollback: soft-delete the order (status=cancelled) instead of hard delete
+        await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}`, {
+          method: 'PATCH',
           headers: svc().headers,
-          body: JSON.stringify(ins),
+          body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }),
         });
-        if (!itemRes.ok) {
-          // Rollback: soft-delete the order (status=cancelled) instead of hard delete
-          await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}`, {
-            method: 'PATCH',
-            headers: svc().headers,
-            body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }),
-          });
-          throw new Error(`Order item insert failed: ${await itemRes.text()}`);
-        }
+        throw new Error(`Order item insert failed: ${await itemRes.text()}`);
       }
 
       // The create_order_with_items RPC does not accept reservation_id / customer_id,

@@ -1103,18 +1103,6 @@ export function usePos() {
       // of creating a 2nd active order, which would violate idx_orders_active_table.
       // For takeaway/delivery: use cart.order_id if already created via modal
       let activeOrderId: string | null = cart.order_id || null;
-      if (!activeOrderId && cart.table_number) {
-        try {
-           const ordersRes = await apiFetch(`/api/orders?table_number=${cart.table_number}`, { credentials: 'include' });
-          if (ordersRes.ok) {
-            const data = await ordersRes.json();
-            const active = (data.orders || []).find(
-              (o: any) => o.table_number === cart.table_number && !['paid', 'cancelled', 'closed'].includes(o.status)
-            );
-            activeOrderId = active?.id || null;
-          }
-        } catch { /* fall through to create */ }
-      }
 
       const itemBasedDiscount = cart.items.reduce((s, i) => s + Math.max(0, ((i.original_unit_price ?? i.unit_price) - i.unit_price) * i.quantity), 0);
       const autoCampaign = campaign?.id ? getAutoCampaign(cart) : null;

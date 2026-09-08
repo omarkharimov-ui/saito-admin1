@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
 import { validateAuth } from '@/lib/api-auth';
+import {
+  FINAL_ORDER_STATUSES,
+  composeAggregates,
+  composedKitchenStatus,
+  isOpenOrder,
+  openOrderSums,
+} from '@/lib/pos-tables';
 
 function getHeaders() {
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -22,7 +29,13 @@ export async function GET() {
   try {
     const [floorsRes, ordersRes, reservationsRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*)&status=neq.paid&status=neq.cancelled&status=neq.closed&order=created_at.desc`, { headers }),
+      // F-3: exclude ALL final states (same 6-state set the DB aggregate trigger
+      // uses in sync_table_order_aggregates). Previously only 3 were excluded,
+      // which would inflate the card for refunded/voided/partially_refunded orders.
+      fetch(
+        `${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*)&status=not.in.(${FINAL_ORDER_STATUSES.join(',')})&order=created_at.desc`,
+        { headers }
+      ),
       fetch(`${SUPABASE_URL}/rest/v1/reservations?select=*&status=neq.cancelled&status=neq.no_show&status=neq.archived`, { headers }),
     ]);
 
@@ -113,46 +126,38 @@ export async function GET() {
       const childrenNums = parentToChildren[parentTableNumber] || [];
       const allInGroup = [parentTableNumber, ...childrenNums];
 
-      // Aggregate group data from table_floors + linked orders
-      let groupTotalAmount = 0;
-      let groupGuestCount = 0;
-      let groupItemCount = 0;
-      let groupOrderIds: string[] = [];
-      let groupLastActivity: string | null = null;
-
-      allInGroup.forEach((tNum: number) => {
-        const tFloor = floorByNumber.get(tNum);
-        const tOrder = tFloor?.current_order_id ? currentOrderMap.get(tFloor.current_order_id) : null;
-        const tAllOrders = ordersByTable[tNum] || [];
-
-        groupTotalAmount += (tFloor?.total_amount || 0) + tAllOrders.reduce((s: any, o: any) => s + Number(o.total_amount || 0), 0);
-        groupGuestCount += (tFloor?.guest_count || 0) || tAllOrders.reduce((s: any, o: any) => s + Number(o.guest_count || 0), 0);
-        tAllOrders.forEach((o: any) => {
-          groupItemCount += (o.order_items || []).reduce((s: number, it: any) => s + Number(it.quantity || 0), 0);
-        });
-        groupOrderIds = [...groupOrderIds, ...(tFloor?.current_order_id ? [tFloor.current_order_id] : []), ...tAllOrders.map((o: any) => o.id)];
-        tAllOrders.forEach((o: any) => {
-          if (o.updated_at && (!groupLastActivity || o.updated_at > groupLastActivity)) {
-            groupLastActivity = o.updated_at;
-          }
-        });
-      });
+      // F-1: one canonical aggregate source. Every member's OPEN orders are summed
+      // exactly once (the same rows the DB aggregate trigger tracks). We do NOT add
+      // floor.total_amount on top of the order sum — that was the double-count defect.
+      const groupMembers = allInGroup.map((tNum: number) => ({
+        floor: floorByNumber.get(tNum),
+        orders: ordersByTable[tNum] || [],
+      })).filter((m: { floor: any }) => m.floor);
+      const agg = composeAggregates({ floor: f, groupMembers, currentOrder });
 
       const tableOrders = currentOrder ? [currentOrder] : (ordersByTable[f.table_number] || []);
+      const groupOrderIds: string[] = [];
+      for (const m of groupMembers) {
+        if (m.floor.current_order_id) groupOrderIds.push(m.floor.current_order_id);
+        for (const o of m.orders) groupOrderIds.push(o.id);
+      }
       const singleOrderIds = f.current_order_id ? [f.current_order_id] : tableOrders.map((o: any) => o.id);
 
       const processedTable = {
         ...f,
-        last_activity_at: groupLastActivity || f.last_activity_at,
+        last_activity_at: agg.last_activity_at || f.last_activity_at,
         status: (isChild || isParent) ? (status === 'empty' || status === 'dirty' ? 'occupied' : status) : status,
-        total_amount: (isChild || isParent) ? groupTotalAmount : (f.total_amount || tableOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0)),
-        guest_count: (isChild || isParent) ? (groupGuestCount || 1) : (f.guest_count || tableOrders.reduce((s: any, o: any) => s + Number(o.guest_count || 0), 0)),
-        item_count: (isChild || isParent) ? groupItemCount : tableOrders.reduce((s: any, o: any) => s + (o.order_items || []).reduce((si: number, it: any) => si + Number(it.quantity || 0), 0), 0),
+        total_amount: agg.total_amount,
+        guest_count: agg.guest_count,
+        item_count: agg.item_count,
+        order_count: agg.order_count,
+        has_pending: agg.has_pending,
+        oldest_pending_at: agg.oldest_pending_at,
         merged_with: isChild || isParent ? allInGroup : [],
         is_group: isChild || isParent,
         parent_table_number: parentTableNumber,
         order_ids: isChild || isParent ? groupOrderIds : singleOrderIds,
-        kitchen_status: currentOrder?.kitchen_status || f.kitchen_status || tableOrders[0]?.kitchen_status || null,
+        kitchen_status: composedKitchenStatus(currentOrder, f.kitchen_status, tableOrders),
         orders: (isChild || isParent) ? allInGroup.map((tNum: number) => {
           const tFloor = floorByNumber.get(tNum);
           const tOrder = tFloor?.current_order_id ? currentOrderMap.get(tFloor.current_order_id) : null;
@@ -167,21 +172,22 @@ export async function GET() {
       floorMap[fn].tables.push(processedTable);
 
       if (isParent && !floorMap[fn].merged_groups.find((g: any) => g.id === `group-${f.table_number}`)) {
-        const parentOrder = f.current_order_id ? currentOrderMap.get(f.current_order_id) : null;
+        const cAggs = childrenNums.map((ctn: number) => {
+          const cFloor = floorByNumber.get(ctn);
+          const cOrders = ordersByTable[ctn] || [];
+          const cSum = openOrderSums(cOrders as any);
+          return {
+            floor: cFloor,
+            guest_count: cFloor?.guest_count ?? (cSum.guests || null),
+            total_amount: cSum.total,
+          };
+        });
         floorMap[fn].merged_groups.push({
           id: `group-${f.table_number}`,
-          parent: { ...processedTable, total_amount: parentOrder?.total_amount || f.total_amount || 0 },
-          children: childrenNums.map((ctn: number) => {
-            const cFloor = floorByNumber.get(ctn);
-            const cOrder = cFloor?.current_order_id ? currentOrderMap.get(cFloor.current_order_id) : null;
-            return {
-              ...cFloor,
-              total_amount: cOrder?.total_amount || cFloor?.total_amount || 0,
-              guest_count: cFloor?.guest_count || cOrder?.guest_count || 1,
-            };
-          }),
-          total_guests: groupGuestCount,
-          total_amount: groupTotalAmount,
+          parent: { ...processedTable },
+          children: cAggs,
+          total_guests: agg.guest_count,
+          total_amount: agg.total_amount,
         });
       }
     });

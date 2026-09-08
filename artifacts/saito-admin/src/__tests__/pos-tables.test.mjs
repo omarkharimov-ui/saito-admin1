@@ -10,6 +10,7 @@ import {
   composeAggregates,
   openOrderSums,
   floorGuestCount,
+  isFinalOrderStatus,
   isOpenOrder,
 } from '../lib/pos-tables.ts';
 
@@ -174,6 +175,25 @@ test('transferred order visible exactly once at the new table (old table 0)', ()
 test('openOrderSums last_activity picks newest open order', () => {
   const s = openOrderSums([order({ updated_at: '2026-09-08T09:00:00Z' }), order({ updated_at: '2026-09-08T11:00:00Z' }), order({ updated_at: '2026-09-08T12:00:00Z', status: 'paid' })]);
   assert.equal(s.lastActivity, '2026-09-08T11:00:00Z', 'final order must not drive activity');
+});
+
+console.log('D-1: delivery/takeaway unpaid-badge rule (!isFinalOrderStatus)');
+test('closed/paid/refunded/voided/cancelled/partially_refunded -> NO unpaid badge', () => {
+  for (const s of ['paid','closed','cancelled','voided','refunded','partially_refunded']) {
+    assert.equal(isFinalOrderStatus(s), true, `${s} must be final`);
+    assert.equal(!isFinalOrderStatus(s), false, `${s} must not show unpaid badge`);
+  }
+});
+test('genuinely unpaid (new/confirmed/preparing/ready/served) -> badge shown', () => {
+  for (const s of ['new','confirmed','preparing','ready','served']) {
+    assert.equal(isFinalOrderStatus(s), false, `${s} must be open`);
+    assert.equal(!isFinalOrderStatus(s), true, `${s} must show unpaid badge`);
+  }
+});
+test('legacy non-existent state "completed" (old D-1 code) is NOT an order status -> treated as open (safe)', () => {
+  // documents why the old `!== 'completed'` check was dead: no order ever has status 'completed',
+  // so a closed/refunded delivery order slipped through the old badge condition.
+  assert.equal(isFinalOrderStatus('completed'), false);
 });
 
 console.log('\n' + (process.exitCode ? 'SOME TESTS FAILED' : `ALL ${passed} TESTS PASSED`));

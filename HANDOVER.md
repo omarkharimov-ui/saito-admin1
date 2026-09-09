@@ -109,20 +109,33 @@ Q1 VAT (8-ci günə qədər) · Q2 loyalty build/cut · Q3 gift cards · Q4 wait
 4. `git status` + `git log --oneline -10` — uncommitted iş var?
 5. YENİDƏN AUDIT ETMƏ (MASTER_AUDIT var). FROZEN-a toxunma.
 
-### Hər TAMAMLANAN tapşırıqdan SONRA (X.Y)
+### Hər TAMAMLANAN tapşırıqdan SONRA (X.Y) — və HƏR dəyişiklikdən sonra
+> **⚠️ MÜTƏLƏQ QAYDA: hər dəyişiklikdən (commit / fix / status dəyişikliyi / qərar) SONRA
+> DEYİŞİKLİK JURNALINA (§6.3) yeni sətir əlavə ET. Jurnal yenilənməyən commit = bitmiş sayılmır.
+> Qayda agent dəyişsə belə qalır — heç bir dəyişiklik yaddan çıxmasın.**
+
 1. **Test/build**: `npm run build` green (feature işindənsə + E2E smoke).
 2. **Commit**: `X.Y: təsvir` (yalnız həmin tapşırıq faylları).
 3. **HANDOVER.md yenilə**: §5-də tapşırıq "AÇIQ"dan "son etilən"ə köçür (commit hash + tarix).
-4. **Notion sync** (accio-mcp-cli / notion plugin):
+4. **JURNAL** (ZORUNLU): §6.3 DEYİŞİKLİK JURNALINA yeni sətir əlavə et (format: `YYYY-MM-DD — X.Y — nə etdin — commit <hash7> — status`). Notion versiyasına da aynısını qoy.
+5. **Notion sync** (accio-mcp-cli / notion plugin):
    - tapşırıq + sub-checkbox-ların üstünə tik qoy,
    - tapşırıq altına qeyd: `YYYY-MM-DD: bitdi — commit <hash7>`,
-   - status dəyişibsə (məs. "🔴 18" → "🔴 17") son bölməni yenilə.
-   - Notion-a giriş yoxdursa: buraya (HANDOVER §5) qeyd et: `Notion tiklənib YOX — <tarix>` (növbəti agent tikləsin).
-5. **Push** (token işləyirsə; 401-dirsə qeyd et, davam et — lokal commit kifayətdir).
+   - status dəyişibsə (məs. "🔴 18" → "🔴 17") son bölməni yenilə,
+   - Notion "DEYİŞİKLİK JURNALI" section-unun sONUNA ayni sətir əlavə et.
+   - Notion-a giriş yoxdursa: §6.3 jurnalına `Notion tiklənib YOX — <tarix>` qeyd et (növbəti agent tikləsin).
+6. **Push** (token işləyirsə; 401-dirsə qeyd et, davam et — lokal commit kifayətdir).
+
+### 6.3 DEYİŞİKLİK JURNALI (ZORUNLU — hər dəyişiklikdən sonra sətir əlavə et)
+> Format: `YYYY-MM-DD — X.Y — nə etdin — commit <hash7> — status`. Yeni sətir HAMİŞƏ SONA.
+> Bu jurnal Notion-da da aynıdır ("DEYİŞİKLİK JURNALI" section). İkisi eyni olmalıdır.
+
+- `2026-09-09 — AUDIT — MASTER AUDİT tamam (142 feature, P0-5, A–Z xəritəsi) — MASTER_AUDIT.md — 87🟢/31🟡/18🔴/6⛔`
+- `2026-09-09 — HANDOVER — HANDOVER.md + SECRETS.local.md + Notion plan yaradıldı — commit 0bfc0d0 — Addım 1 hazırdır`
 
 ### Agent/credits DEYİŞƏNDƏ
-- Yuxarıdakı 4 addımın hamısı artıq edilibsə → yeni agent §6.1 ilə başlayır, problem YOX.
-- Ən vacib: **uncommitted iş qoyma**. Half-done tapşırıqda dayandınsan: ya bitir, ya §5-ə dəqiq qeyd et ("1.4: blocker 2-5 qalıb, migration yarımçıq — ROLLBACK edilib").
+- Yuxarıdakı addımlar (özelliklə jurnal) edilibsə → yeni agent §6.1 ilə başlayır, problem YOX.
+- Ən vacib: **uncommitted iş qoyma**. Half-done tapşırıqda dayandınsan: ya bitir, ya §5-ə dəqiq qeyd et + jurnal sətiri ("1.4: blocker 2-5 qalıb, migration yarımçıq — ROLLBACK edilib").
 
 ---
 

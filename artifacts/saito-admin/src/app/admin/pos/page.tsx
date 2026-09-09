@@ -1302,7 +1302,18 @@ export default function POSPage() {
         toast.error(data.error || t('error_occurred'), { id: 'vat-toast' });
         return;
       }
-      toast.success(apply ? `ƏDV tətbiq edildi — ₼${(data.total ?? 0).toFixed(2)}` : 'ƏDV ləğv edildi', { id: 'vat-toast' });
+      toast.success(
+        apply
+          ? `ƏDV tətbiq edildi (+₼${(data.tax_amount ?? 0).toFixed(2)}) — cəm ₼${(data.total ?? 0).toFixed(2)}`
+          : `ƏDV ləğv edildi — cəm ₼${(data.total ?? 0).toFixed(2)}`,
+        { id: 'vat-toast' }
+      );
+      // Update selectedTable.orders[0] in-place so ActionSheet toggle reflects new state
+      // on next open (fetchData refreshes tableOrderCache, not the selectedTable snapshot).
+      pos.setSelectedTable((prev: any) => {
+        if (!prev?.orders?.[0]) return prev;
+        return { ...prev, orders: [{ ...prev.orders[0], apply_vat: data.apply_vat ?? apply, total_amount: data.total, tax_amount: data.tax_amount }] };
+      });
       setActionSheetOpen(false);
       await pos.fetchData();
       await reconcileOrderFromServer(orderId);

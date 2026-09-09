@@ -7,6 +7,7 @@
 
 - `2026-09-10 — 1.5 FIX — VAT BUG (user report: "0 tətbiq edildi + toggle off qalır"): root cause = engine settings.vat_enabled master gate (Q1 dizayn səhvi — toggle authority olmalı idi). Fix: migration 20260910000004 (engine: IF p_apply_vat YALNIZ, master gate kalk; vat_enabled = UI visibility semantic). settings.vat_enabled=true edildi. LIVE VERIFIED via real route + real manager session: toggle ON → total 200→236 tax=36 (18%), toggle OFF → 200/0, apply_vat persist olunur, 0 residu. UI: ActionSheet toggle refresh-dən sonra activeOrder.apply_vat göstərir (/api/orders select=* = apply_vat daxil) — commit (bu) + migration |`> Son yenilənmə: 2026-09-09. Agent dəyişdikdə, iş bitdikdə bu faylın `CARİ STATUS` bölməsini yeniləmək ZORUNLUDUR (aşağıda SYNC PROTOKOL).
 
+- `2026-09-10 — 1.5 FIX2 — UI toggle state bug (sən: "toggle off olaraq qalır"): actionSheetTable/selectedTable snapshot idi, toggle-dan sonra apply_vat yenilənmirdi. Fix: handleToggleVat response (total+tax+apply_vat) ilə selectedTable.orders[0]-u in-place yeniləyir + toast indi tax_amount göstərir ("+₼36.00 — cəm ₼236"). Build green. Səhifəni HARD REFRESH et (Cmd+Shift+R) + test |`
 ---
 
 ## 1. MİSİYA

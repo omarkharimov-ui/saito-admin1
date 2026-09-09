@@ -1449,7 +1449,7 @@ export function usePos() {
     try {
       let result: any = null;
       if (posMode === 'takeaway') {
-        const res = await fetch('/api/rpc/create_takeaway_order', {
+        const res = await apiFetch('/api/rpc/create_takeaway_order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1470,7 +1470,7 @@ export function usePos() {
         });
         result = await res.json();
       } else {
-        const res = await fetch('/api/rpc/create_delivery_order', {
+        const res = await apiFetch('/api/rpc/create_delivery_order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

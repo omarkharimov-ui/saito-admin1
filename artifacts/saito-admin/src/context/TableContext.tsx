@@ -5,6 +5,7 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { computeTableStatus } from '@/lib/tableStatus';
 import type { TableStatus } from '@/lib/tableStatus';
+import { apiFetch } from '@/lib/api-fetch';
 
 export interface TableRow {
   id: string;
@@ -82,7 +83,7 @@ export function TableProvider({ children }: { children: React.ReactNode }) {
 
   const dismissTable = useCallback(async (tableNumber: number) => {
     try {
-      const res = await fetch('/api/orders/dismiss', {
+      const res = await apiFetch('/api/orders/dismiss', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table_number: tableNumber }),
@@ -99,7 +100,7 @@ export function TableProvider({ children }: { children: React.ReactNode }) {
 
   const closeBill = useCallback(async (orderId: string, payment: PaymentInfo) => {
     try {
-      const res = await fetch('/api/orders/pay', {
+      const res = await apiFetch('/api/orders/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -122,7 +123,7 @@ export function TableProvider({ children }: { children: React.ReactNode }) {
 
   const activateTable = useCallback(async (tableId: string) => {
     try {
-      const res = await fetch('/api/tables/activate', {
+      const res = await apiFetch('/api/tables/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table_id: tableId }),
@@ -139,7 +140,7 @@ export function TableProvider({ children }: { children: React.ReactNode }) {
 
   const reserveTables = useCallback(async (reservationId: string, tableIds: string[], guestCount: number) => {
     try {
-      const res = await fetch('/api/reservations/reserve-table', {
+      const res = await apiFetch('/api/reservations/reserve-table', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reservation_id: reservationId, table_ids: tableIds, guest_count: guestCount }),

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requirePermission } from '@/lib/api-auth';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -8,6 +9,8 @@ function svc() {
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requirePermission('cash.view');
+  if (!auth.authenticated) return auth;
   try {
     const s = svc();
     const { id } = await params;

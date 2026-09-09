@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requirePermission } from '@/lib/api-auth';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -8,6 +9,8 @@ function svc() {
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requirePermission('schedule.manage');
+  if (!auth.authenticated) return auth;
   try {
     const s = svc();
     const { id } = await params;
@@ -33,6 +36,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requirePermission('schedule.manage');
+  if (!auth.authenticated) return auth;
   try {
     const s = svc();
     const { id } = await params;

@@ -1,147 +1,138 @@
-# SAITO ADMIN 1 — BACKEND AUDIT CONTINUATION
+# SAITO OS — HANDOVER KIT (hər yeni agent BURADAN başlayır)
 
-You are continuing an existing production audit of the Saito Admin 1 Restaurant POS system.
-
-## IMPORTANT
-
-Do NOT redesign the architecture.
-
-The architecture has already been decided.
-
-Continue exactly from the previous audit.
-
-Do not revert previous work.
-
-Do not introduce duplicate data.
-
-Maintain Single Source Of Truth (SSOT).
+> **Bu fayl sistemi davam etdirən agent-ə verilən ilk sənəddir.**
+> Son yenilənmə: 2026-09-09. Agent dəyişdikdə, iş bitdikdə bu faylın `CARİ STATUS` bölməsini yeniləmək ZORUNLUDUR (aşağıda SYNC PROTOKOL).
 
 ---
 
-# Current State
+## 1. MİSİYA
 
-Already completed:
+Saito = restoran Operating System (məqsəd: Toast / Square / Lightspeed parity).
+Plan: **Addım 1 (təməli möhkəmləndir, ~2 həftə) → Addım 2 (yarımçıqları tamamla) → Addım 3 (yeni feature-lər, dalğalarla)**.
+Tam plan, checkbox-larla: **Notion səhifəsi** → link SECRETS.local.md-dədir (aşağı §4).
 
-* Atomic RPCs
-  * `complete_payment_atomic()`
-  * `reopen_order_atomic()`
-  * `merge_tables_atomic()`
-  * `transfer_table_atomic()`
-  * `dismiss_table_atomic()`
-  * `cancel_reservation_atomic()`
+Qaynaq sənədlər (repo root-da):
+- `MASTER_AUDIT.md` — 17 sahə, 142 feature, P0–P3 (2026-09-09 read-only audit)
+- `SAITO_ROADMAP.md` — planın tam versiyası
+- `SAITO_OS_DATA_MAP.svg` — 154 cədvəlin FK xəritəsi
+- `code-quality-audit.md` — dead/dup/any sweep
+- `AUDIT_REPORT.md`, `BACKEND_AUDIT_REPORT.md`, `D2_D5_FIX_REPORT.md` — tarixi
 
-* `order_payments` implemented
-* `inventory_transactions` implemented
-* `reservation_tables` implemented
-* `current_order_id` implemented
-* `operation_logs` implemented
-* `reservation_preorder_items` is now the SSOT
-* Draft orders removed
-* `orders.items` JSON is no longer used
+> **Qeyd:** köhnə `HANDOVER.md` (backend audit davamı) tarixidir — onun qızıl qaydaları (§2) qüvvədədir, amma statusu köhnədir. Status üçün YALNIZ bu faylın §5 + Notion.
 
 ---
 
-# Current Goal
+## 2. QIZIL QAYDALAR (dəyişdirilmir)
 
-Do NOT start frontend work.
-
-Continue auditing every backend workflow until the backend is production ready.
-
----
-
-# Continue From This Checklist
-
-Continue exactly from here:
-
-### Kitchen
-
-* [ ] Send ticket
-* [ ] Accept
-* [ ] Preparing
-* [ ] Ready
-* [ ] Served
-* [ ] Scheduled reservation preorder
-* [ ] Reopen kitchen ticket
-
-### Inventory
-
-* [ ] Deduction
-* [ ] Rollback
-* [ ] Duplicate protection
-* [ ] Combo recipes
-
-### Realtime
-
-* [ ] POS ↔ POS
-* [ ] POS ↔ Kitchen
-* [ ] Reservation ↔ POS
-* [ ] Merge sync
-* [ ] Transfer sync
-* [ ] Payment sync
-
-### Failure Tests
-
-* [ ] Network interruption
-* [ ] Double click
-* [ ] Refresh during payment
-* [ ] Refresh during merge
-* [ ] Refresh during reservation
-* [ ] Concurrent waiters
+1. **SSOT** — hər business əməliyyatın tək backend giriş nöqtəsi var (atomic RPC). Frontend heç vaxt bir neçə update-i koordinat ETMƏLİDİR.
+2. **Arxitektura redizaynı YOX** — arxitektura artıq qərarlaşdırılıb. Yeni feature üçün sual: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" — "UI-də harada olsun?" DEYİL.
+3. **UX/UI = CORE FREEZE v1.0-dan SONRA.** Indiki faza (Addım 1) biznes-logicdir, dizayn toxunulmur.
+4. **FROZEN yenidən audit EDİLMİR** — yalnız regression şübhəsində (§5 FROZEN list).
+5. **Heç vaxt `psql --single-transaction`** içində `ROLLBACK` olan skriptlərə — auto-commit qaydası ilə işlə (in-file `BEGIN…ROLLBACK`).
+6. **Test data artıq:** Tables 6/7 = zombie reservation (biznes qərarı gözləyir — toxunma). 9991 residue saxlanılır.
+7. **Commit mesajı formatı:** `X.Y: qısa təsvir` (məs. `1.3: KDS realtime publication fix`). Hər tapşırıq = öz commit-i.
 
 ---
 
-# IMPORTANT
+## 3. REPO QURULUŞU
 
-Do NOT simply test.
+```
+/Users/mr.apple/saito-admin1/
+├── HANDOVER.md              ← BU FAYL
+├── SECRETS.local.md         ← girişlər (gitignored; burada yoxdursa, yenidən yarat §4)
+├── MASTER_AUDIT.md, SAITO_ROADMAP.md, SAITO_OS_DATA_MAP.svg
+└── artifacts/saito-admin/   ← NEXT.JS app (Next.js 16)
+    ├── .env.local           ← app secret-ləri (gitignored)
+    ├── src/app/api/         ← 256 route
+    ├── src/app/admin/pos/   ← POS terminal
+    ├── src/context/, src/lib/
+    └── supabase/            ← migrations
+```
 
-While auditing:
-
-* Find hidden bugs
-* Fix them immediately
-* Remove duplicated logic
-* Remove race conditions
-* Fix transaction boundaries
-* Fix inconsistent state transitions
-* Fix orphan records
-* Fix inventory mismatches
-* Fix payment inconsistencies
-* Fix reservation bugs
-* Fix realtime synchronization
-
-If you discover architecture problems,
-fix them before continuing.
-
----
-
-# Backend Rules
-
-Every business operation must have exactly one backend entry point.
-
-Frontend must never coordinate multiple updates.
-
-All business logic belongs inside Atomic RPCs.
-
-Maintain SSOT.
-
-Never duplicate business data.
+- Dev server: `cd artifacts/saito-admin && npm run dev` (:3000, log `/tmp/saito-admin-dev.log`)
+- Build: `npm run build` — hər commit-dən əvvəl ZORUNLU
+- Git: origin = `github.com/omarkharimov-ui/saito-admin1` — **push 401** (token sərf oldu, §5). Token əvəz olunmadan push yoxdur.
+- Məlum repo məsələsi: dərin history-də 1 commit missing (709d1c59) — `git gc` xəta verir amma commit/pull işləyir. **Toxunma.**
 
 ---
 
-# Do NOT do yet
+## 4. GİRİŞLƏR (access map)
 
-Do NOT begin frontend polish.
+| Nə | Harada |
+|---|---|
+| Supabase psql (REAL DB) | `SECRETS.local.md` → `psql` command hazır |
+| Supabase URL / anon / service key | `artifacts/saito-admin/.env.local` (və SECRETS.local.md) |
+| GitHub token | `git remote -v` içində embedded (hələ sərf olub — əvəzləmək lazımdır) |
+| Notion plan səhifəsi | `SECRETS.local.md` → page id + URL |
+| Notion API (agent üçün) | `accio-mcp-cli` → notion toolkit. Yeni agent: `plugin` action=install skill_id `notion`, sonra `apply`. Hesab: 6m6vx2bpg2@privaterelay.appleid.com (omar kharimov's Space) |
 
-Do NOT redesign UI.
+**"supabase'i yoxla" demək = REAL DB-yə psql ilə baxmaq** (repo-da SQL file-lərə DEYİL).
 
-Do NOT refactor components unless required to fix backend workflow.
+> Əgər `SECRETS.local.md` yoxdur (təmiz clone): `artifacts/saito-admin/.env.local`-dan qur — orada hamısı var (SUPABASE_URL, ANON, SERVICE_ROLE, DATABASE_URL, SUPABASE_DB_PASSWORD, CRON_SECRET).
 
 ---
 
-# After ALL backend workflows pass
+## 5. CARİ STATUS
 
-Only then continue with:
+### Son etilən (VERIFIED/FROZEN)
+- ✅ **D-6 + D-7** (commit `8c7f587`, migration `20260908000005`, LIVE): `complete_payment_atomic_v2` — idempotency dedupe, refund guard, overpay guard, atomic ledger insert. Real parallel psql race-lərlə təsdiq (double-charge YOX).
+- ✅ **D-2 + D-5** (commit `22508af`, migration `20260908000006`, LIVE): split location inherit; takeaway/delivery location guard + server-side `resolve_staff_location` (`src/lib/location-context.ts`).
+- ✅ **FULL TORTURE RE-RUN PASS** (commit `073a5ce`) — R1–R4 + L1–L4 + integrity sweep, zero residue.
+- ✅ Commit chain (local): `… → 8c7f587 → 073a5ce → 22508af` (origin-dən qabaqda, push BLOCKED)
 
-1. Remove `orders.items` permanently
-2. Clean `table_floors` snapshot columns
-3. Redesign reservation kitchen preorder
-4. Frontend/UI audit
+### FROZEN-VERIFIED (yenidən audit etmə — regression yoxlaması istisna)
+Payment core (D-6/D-7) · merge/unmerge/transfer V2 contracts · D-2/D-5 location propagation · inventory consume/waste · agg/reconciler trigger · Z-report · auth core · order state machine.
+
+### AÇIQ (P0 — Addım 1-in işi, Notion-da da aynısı var)
+| # | Məsələ | Status |
+|---|---|---|
+| P0-1 | **FIX-1 CSRF — UNCOMMITTED** | 3 fayl düzəlib amma commit YOX: `src/lib/api-fetch.ts` (singleton), `src/context/TableContext.tsx`, `src/app/admin/pos/hooks/usePos.tsx`. Bitirmək: build + typecheck + commit + smoke. **Bu Addım 1-in 1.1-i — İLK İŞ.** |
+| P0-2 | 10 sensitive route `requireAuth`-sız | cash/reconciliation(+[id]), handover, schedule(+swap+[id]), messages, products/costs, invoice-ocr, vision, discrepancies, suppliers/[id]/stats, sensei/* |
+| P0-3 | `kitchen_tickets` realtime publication-da YOX | `ALTER PUBLICATION supabase_realtime ADD TABLE kitchen_tickets, inventory_logs, cash_drawer_sessions` |
+| P0-4 | **D-8 refund chain** (5 blocker) | recalc 'captured' gap · reopen double-stock-return · state machine · ledger trigger refund guard · reopen+repay |
+| P0-5 | **Total SSOT** (D-9 + 14 formula) | tək server-side canonical total; VAT qərarı (Q1) gözləyir; 2 service-fee store birləşməlidir |
+
+### P1–P3 (qısa)
+O-1 dismiss-on-occupied · B-2 unmerge occ+occ (browser repro) · active-location persist (0/310) · gift card/loyalty/PO/stock-count/couriers = boş (Addım 2) · outbox consumer yox (220 event) · cron unverified · 300 orphan fn / 91 orphan route / 24 dead module · `:any` 1079.
+
+### Qərarlar gözləyir (Notion §0)
+Q1 VAT (8-ci günə qədər) · Q2 loyalty build/cut · Q3 gift cards · Q4 waitlist · Q7 terminal provider · Q8 offline-first · Q10 push token.
+
+---
+
+## 6. SYNC PROTOKOL (hər agent ZORUNLU)
+
+### İşə BAŞLARKAN
+1. Bu faylı (HANDOVER.md) BAŞDAN AXXA oxu.
+2. `SECRETS.local.md` ilə DB + Notion-a giriş al.
+3. Notion səhifəsini aç → tikli/bos checkbox-lara bax → **nə harada dayandı** müəyyən et.
+4. `git status` + `git log --oneline -10` — uncommitted iş var?
+5. YENİDƏN AUDIT ETMƏ (MASTER_AUDIT var). FROZEN-a toxunma.
+
+### Hər TAMAMLANAN tapşırıqdan SONRA (X.Y)
+1. **Test/build**: `npm run build` green (feature işindənsə + E2E smoke).
+2. **Commit**: `X.Y: təsvir` (yalnız həmin tapşırıq faylları).
+3. **HANDOVER.md yenilə**: §5-də tapşırıq "AÇIQ"dan "son etilən"ə köçür (commit hash + tarix).
+4. **Notion sync** (accio-mcp-cli / notion plugin):
+   - tapşırıq + sub-checkbox-ların üstünə tik qoy,
+   - tapşırıq altına qeyd: `YYYY-MM-DD: bitdi — commit <hash7>`,
+   - status dəyişibsə (məs. "🔴 18" → "🔴 17") son bölməni yenilə.
+   - Notion-a giriş yoxdursa: buraya (HANDOVER §5) qeyd et: `Notion tiklənib YOX — <tarix>` (növbəti agent tikləsin).
+5. **Push** (token işləyirsə; 401-dirsə qeyd et, davam et — lokal commit kifayətdir).
+
+### Agent/credits DEYİŞƏNDƏ
+- Yuxarıdakı 4 addımın hamısı artıq edilibsə → yeni agent §6.1 ilə başlayır, problem YOX.
+- Ən vacib: **uncommitted iş qoyma**. Half-done tapşırıqda dayandınsan: ya bitir, ya §5-ə dəqiq qeyd et ("1.4: blocker 2-5 qalıb, migration yarımçıq — ROLLBACK edilib").
+
+---
+
+## 7. TƏHLÜKƏ ZONALARI
+
+- **PUL:** payment core FROZEN-dir. `complete_payment_atomic_v2`-yə toxunmaq = torture re-run tələb edir.
+- **DELETE-ALL:** sentinel UUID-lə "delete all" helper-ləri var (products/inventory/recipes clear-all) — İŞLETMƏ.
+- **Zombie data:** tables 6/7, 9991 residue — toxunma.
+- **Dev backdoor:** `pos/page.tsx:276` dev-session superadmin (dev-guard) — prod bundle-a diqqət (P2).
+- **Realtime:** publication-da olmayan cədvəl = KDS/inventory miss. Yeni cədvəl realtime lazımdırsa PUBLICATION-a əlavə et.
+
+---
+*Bu fayl sistemi SİZİDİR. Agent dəyişir, qaydalar qalır.*

@@ -55,3 +55,6 @@ Thumbs.db
 
 # Supabase local cache / temp
 supabase/.temp
+
+# Agent handover secrets (never commit)
+SECRETS.local.md

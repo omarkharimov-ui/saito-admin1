@@ -1286,6 +1286,31 @@ export default function POSPage() {
     }
   };
 
+  // 1.5 — VAT toggle (POS, manager PIN verified in ActionSheet before this runs).
+  const handleToggleVat = async (apply: boolean) => {
+    const orderId = resolveSheetOrderId();
+    if (!orderId) return;
+    toast.loading('ƏDV yenilənir…', { id: 'vat-toast' });
+    try {
+      const res = await apiFetch('/api/orders/apply-vat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, apply_vat: apply }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || t('error_occurred'), { id: 'vat-toast' });
+        return;
+      }
+      toast.success(apply ? `ƏDV tətbiq edildi — ₼${(data.total ?? 0).toFixed(2)}` : 'ƏDV ləğv edildi', { id: 'vat-toast' });
+      setActionSheetOpen(false);
+      await pos.fetchData();
+      await reconcileOrderFromServer(orderId);
+    } catch (e: any) {
+      toast.error(e.message || t('error_occurred'), { id: 'vat-toast' });
+    }
+  };
+
   const retryFailedPayments = async () => {
     if (!payOutcome) return;
     const { failed, method } = payOutcome;
@@ -2338,7 +2363,8 @@ export default function POSPage() {
             onDeliveryStatus={handleDeliveryStatusPick}
             onTakeawayStatus={() => handleOpenStatusPicker('order')}
             onMarkServed={handleMarkServed}
-            onDiscount={() => setDiscountOpen(true)}
+             onDiscount={() => setDiscountOpen(true)}
+             onToggleVat={handleToggleVat}
            onCancelTable={async () => {
             if (!actionSheetTable) return;
             if (posMode === 'takeaway' || posMode === 'delivery') {

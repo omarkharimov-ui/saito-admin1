@@ -25,12 +25,28 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // 1.5 — QR VAT toggle (R3: sərbəst). Display estimate only; final total = server SSOT.
+  const [vatEnabled, setVatEnabled] = useState(false);
+  const [vatPct, setVatPct] = useState(18);
+  const [applyVat, setApplyVat] = useState(false);
+
+  const fetchVatConfig = async () => {
+    try {
+      const res = await fetch('/api/public/vat-config');
+      if (res.ok) {
+        const data = await res.json();
+        setVatEnabled(!!data.vat_enabled);
+        setVatPct(Number(data.vat_percentage) || 18);
+      }
+    } catch { /* estimate falls back to 18 */ }
+  };
 
   useEffect(() => {
     searchParams.then(params => {
       if (params.table) setTableNumber(Number(params.table));
     });
     fetchProducts();
+    fetchVatConfig();
   }, [searchParams]);
 
   const fetchProducts = async () => {
@@ -89,6 +105,7 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
           table_number: tableNumber,
           items,
           order_type: 'qr_order',
+          apply_vat: applyVat && vatEnabled,
         }),
       });
 
@@ -107,6 +124,9 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const vatOn = applyVat && vatEnabled;
+  const vatEstimate = vatOn ? (cartTotal * vatPct) / 100 : 0;
+  const cartTotalWithVat = cartTotal + vatEstimate;
 
   const grouped = products.reduce((acc: any, p: any) => {
     const catName = p.category?.name_az || p.category?.name_en || p.category?.name_ru || 'Digər';
@@ -163,7 +183,18 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
                   {cartCount}
                 </span>
               </div>
-              <div className="font-bold">₼{cartTotal.toFixed(2)}</div>
+              <div className="flex flex-col items-end">
+                <div className="font-bold">{vatOn ? `₼${cartTotalWithVat.toFixed(2)}` : `₼${cartTotal.toFixed(2)}`}</div>
+                {vatOn && <div className="text-[10px] text-white/60">ƏDV {vatPct}% daxil: ₼{vatEstimate.toFixed(2)}</div>}
+              </div>
+              {vatEnabled && (
+                <button
+                  onClick={() => setApplyVat(v => !v)}
+                  className={`px-3 py-2 rounded-full text-[10px] font-black uppercase tracking-wide transition-all ${vatOn ? 'bg-emerald-500 text-white' : 'bg-white/10 text-white/60'}`}
+                >
+                  ƏDV {vatOn ? 'ON' : 'OFF'}
+                </button>
+              )}
               <button
                 onClick={sendToKitchen}
                 disabled={sending}

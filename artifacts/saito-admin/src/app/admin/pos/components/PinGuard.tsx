@@ -26,6 +26,7 @@ const ACTION_LABELS: Record<string, string> = {
   split: 'order_split',
   merge: 'merge',
   transfer: 'transfer',
+  vat: 'ƏDV tətbiq et',
   admin: 'admin_action',
 };
 

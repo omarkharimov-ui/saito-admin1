@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
     }
 
     const totalFromItems = items.reduce((s: number, i: any) => s + ((i.unit_price || 0) * (i.quantity || 1)), 0);
+    const applyVat = !!body.apply_vat;
 
     const insertRes = await fetch(`${s.url}/rest/v1/orders`, {
       method: 'POST',
@@ -95,13 +96,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Order items creation failed: ${errText}` }, { status: 500 });
     }
 
+    // SSOT: recompute total server-side (VAT per apply_vat, service off)
+    let finalTotal = totalFromItems;
+    if (applyVat) {
+      const ssotRes = await fetch(`${s.url}/rest/v1/rpc/calculate_order_total_v3`, {
+        method: 'POST',
+        headers: s.headers,
+        body: JSON.stringify({ p_order_id: activeOrderId, p_apply_vat: true, p_apply_service: false }),
+      });
+      if (ssotRes.ok) {
+        const ssot = await ssotRes.json();
+        finalTotal = ssot?.total ?? totalFromItems;
+      }
+    }
+
     await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
       method: 'PATCH',
       headers: s.headers,
-      body: JSON.stringify({ status: 'occupied', total_amount: totalFromItems, last_activity_at: new Date().toISOString() }),
+      body: JSON.stringify({ status: 'occupied', total_amount: finalTotal, last_activity_at: new Date().toISOString() }),
     });
 
-    return NextResponse.json({ success: true, orderId: activeOrderId });
+    return NextResponse.json({ success: true, orderId: activeOrderId, total: finalTotal });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

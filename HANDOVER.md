@@ -132,6 +132,7 @@ Q1 VAT (8-ci günə qədər) · Q2 loyalty build/cut · Q3 gift cards · Q4 wait
 
 - `2026-09-09 — AUDIT — MASTER AUDİT tamam (142 feature, P0-5, A–Z xəritəsi) — MASTER_AUDIT.md — 87🟢/31🟡/18🔴/6⛔`
 - `2026-09-09 — HANDOVER — HANDOVER.md + SECRETS.local.md + Notion plan yaradıldı — commit 0bfc0d0 — Addım 1 hazırdır`
+- `2026-09-09 — CHECKLIST — TAM A–Z + Layer 4 Notion səhifəsi (475 feature, 38 modul, checkbox) — səhifə 3d678888-d173-81d4-92db — qurma xəritəsi hazırdır`
 
 ### Agent/credits DEYİŞƏNDƏ
 - Yuxarıdakı addımlar (özelliklə jurnal) edilibsə → yeni agent §6.1 ilə başlayır, problem YOX.

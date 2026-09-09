@@ -1,6 +1,7 @@
 
 - `2026-09-10 — 1.5 — TOTAL SSOT + VAT: canonical engine calculate_order_total_v3 + D-9 (qty recompute) + void + create_takeaway SSOT + settings vat_* + orders.apply_vat. Qərar: tax-exclusive default, opt-in VAT, POS toggle = manager PIN (b), QR = sərbəst. Migration 20260910000003 (dry-run clean, APPLY olunmayıb) — gözləyir: R1 (service əsası) + R2 (auto_apply_vat) + R3 (QR sərbəst) + apply`# SAITO OS — HANDOVER KIT (hər yeni agent BURADAN başlayır)
 
+- `2026-09-10 — 1.5 APPLY — migration 20260910000003 LIVE (R1=service on Subtotal, R2=auto_apply_vat, R3=QR sərbəst/POS PIN). Engine E2E GREEN (S1 vat-off=150, S2 vat-on=177, S2b svc=7.50 R1-verified, S3 void recompute=59, S4 D-9 qty=118, S4b stable no-double-vat) + zero residu (settings restore false/18/false, orders=691, op=61). UI Addım 3 qalıb — commit 390d455 (migration) + bu`
 > **Bu fayl sistemi davam etdirən agent-ə verilən ilk sənəddir.**
 > Son yenilənmə: 2026-09-09. Agent dəyişdikdə, iş bitdikdə bu faylın `CARİ STATUS` bölməsini yeniləmək ZORUNLUDUR (aşağıda SYNC PROTOKOL).
 
@@ -91,7 +92,7 @@ Payment core (D-6/D-7) · merge/unmerge/transfer V2 contracts · D-2/D-5 locatio
 | ~~P0-2~~ | ~~No-auth routes~~ | ✅ **2026-09-10 — commit 90021fe**. Dəqiqləşmə: həqiqi no-auth 7 idi (sensei/ocr/vision/discrepancies/costs/stats artıq validateAuth istifadə edirdi). 7 route-a requirePermission: cash/recon(+[id]), handover, schedule(+swap+[id]), messages. Middleware artıq redirect verirdi (307) — route-level = defense-in-depth. |
 | ~~P0-3~~ | ~~Realtime pub~~ | ✅ **2026-09-10 — commit aa66c58, LIVE**. `supabase_realtime` = 12 cədvəl (+kitchen_tickets, +inventory_logs, +cash_drawer_sessions). Qeyd: KDS artıq orders kanalından realtime işləyirdi (15s polling + orders realtime); bu fix = direct ticket/inventory/drawer realtime yolu. |
 | ~~P0-4~~ | ~~D-8 refund chain~~ | ✅ **2026-09-10 — LIVE (commit 83cecbc)**: 5/5 fix applied+verified. E2E GREEN (full/partial refund→reopen→repay, double-stock guard, zero residu). R1=saxla, R2=1.5-ə |
-| P0-5 | **Total SSOT** (D-9 + 14 formula) | 📝 **2026-09-10 — dizayn+migration hazırdır (REVIEW, dry-run clean, applied YOX)**: Q1 təsdiqlənib. Gözləyir: R1/R2/R3 + apply. Dizayn: D15_TOTAL_SSOT_VAT_DESIGN.md |
+| P0-5 | **Total SSOT** (D-9 + 14 formula) | 🟡 **2026-09-10 — engine+migration LIVE (390d455), E2E GREEN (R1 verified, zero residu). Qalan: UI toggle (POS PinGuard + QR) + qr/discount route SSOT call = Addım 3** |
 
 ### P1–P3 (qısa)
 O-1 dismiss-on-occupied · B-2 unmerge occ+occ (browser repro) · active-location persist (0/310) · gift card/loyalty/PO/stock-count/couriers = boş (Addım 2) · outbox consumer yox (220 event) · cron unverified · 300 orphan fn / 91 orphan route / 24 dead module · `:any` 1079.

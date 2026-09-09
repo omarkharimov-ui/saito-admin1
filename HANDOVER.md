@@ -2,7 +2,8 @@
 - `2026-09-10 — 1.5 — TOTAL SSOT + VAT: canonical engine calculate_order_total_v3 + D-9 (qty recompute) + void + create_takeaway SSOT + settings vat_* + orders.apply_vat. Qərar: tax-exclusive default, opt-in VAT, POS toggle = manager PIN (b), QR = sərbəst. Migration 20260910000003 (dry-run clean, APPLY olunmayıb) — gözləyir: R1 (service əsası) + R2 (auto_apply_vat) + R3 (QR sərbəst) + apply`# SAITO OS — HANDOVER KIT (hər yeni agent BURADAN başlayır)
 
 - `2026-09-10 — 1.5 APPLY — migration 20260910000003 LIVE (R1=service on Subtotal, R2=auto_apply_vat, R3=QR sərbəst/POS PIN). Engine E2E GREEN (S1 vat-off=150, S2 vat-on=177, S2b svc=7.50 R1-verified, S3 void recompute=59, S4 D-9 qty=118, S4b stable no-double-vat) + zero residu (settings restore false/18/false, orders=691, op=61). UI Addım 3 qalıb — commit 390d455 (migration) + bu`
-> **Bu fayl sistemi davam etdirən agent-ə verilən ilk sənəddir.**
+
+- `2026-09-10 — 1.5 UI — POS VAT toggle (ActionSheet, manager PIN via PinGuard action 'vat' + server re-verify discount.approve) + QR sərbəst toggle (menu/page.tsx, /api/public/vat-config) + /api/orders/apply-vat route + qr route SSOT call (apply_vat flag → calculate_order_total_v3). Client display-only (təxmin), final = server SSOT. Master switch: settings.vat_enabled=false zamanı toggle ON da VAT bloklanır (safe default). Build green (0 error), RPC contract E2E GREEN (177/27 named params, master gate, zero residu) — commit 64ff651 + 076c9a0 — P0-5 TAM (engine+UI). Qeyd: /api/orders/qr indiki halda staff-auth tələb edir (anon customer access = Wave A scope) |`> **Bu fayl sistemi davam etdirən agent-ə verilən ilk sənəddir.**
 > Son yenilənmə: 2026-09-09. Agent dəyişdikdə, iş bitdikdə bu faylın `CARİ STATUS` bölməsini yeniləmək ZORUNLUDUR (aşağıda SYNC PROTOKOL).
 
 ---
@@ -92,7 +93,7 @@ Payment core (D-6/D-7) · merge/unmerge/transfer V2 contracts · D-2/D-5 locatio
 | ~~P0-2~~ | ~~No-auth routes~~ | ✅ **2026-09-10 — commit 90021fe**. Dəqiqləşmə: həqiqi no-auth 7 idi (sensei/ocr/vision/discrepancies/costs/stats artıq validateAuth istifadə edirdi). 7 route-a requirePermission: cash/recon(+[id]), handover, schedule(+swap+[id]), messages. Middleware artıq redirect verirdi (307) — route-level = defense-in-depth. |
 | ~~P0-3~~ | ~~Realtime pub~~ | ✅ **2026-09-10 — commit aa66c58, LIVE**. `supabase_realtime` = 12 cədvəl (+kitchen_tickets, +inventory_logs, +cash_drawer_sessions). Qeyd: KDS artıq orders kanalından realtime işləyirdi (15s polling + orders realtime); bu fix = direct ticket/inventory/drawer realtime yolu. |
 | ~~P0-4~~ | ~~D-8 refund chain~~ | ✅ **2026-09-10 — LIVE (commit 83cecbc)**: 5/5 fix applied+verified. E2E GREEN (full/partial refund→reopen→repay, double-stock guard, zero residu). R1=saxla, R2=1.5-ə |
-| P0-5 | **Total SSOT** (D-9 + 14 formula) | 🟡 **2026-09-10 — engine+migration LIVE (390d455), E2E GREEN (R1 verified, zero residu). Qalan: UI toggle (POS PinGuard + QR) + qr/discount route SSOT call = Addım 3** |
+| ~~P0-5~~ | ~~Total SSOT~~ | ✅ **2026-09-10 — TAM (engine+UI)**: canonical engine calculate_order_total_v3 LIVE (390d455, E2E GREEN R1-verified) + UI toggle POS(manager PIN 64ff651)/QR(sərbəst 076c9a0) + /apply-vat + /public/vat-config + qr route SSOT. Client display-only. Master switch=settings.vat_enabled. Qeyd: 14 client formula-ların hamısı display-only-ya çevrilmədi (qr route SSOT-a bağlandı; discount route client hesabı qalıb = P2) |
 
 ### P1–P3 (qısa)
 O-1 dismiss-on-occupied · B-2 unmerge occ+occ (browser repro) · active-location persist (0/310) · gift card/loyalty/PO/stock-count/couriers = boş (Addım 2) · outbox consumer yox (220 event) · cron unverified · 300 orphan fn / 91 orphan route / 24 dead module · `:any` 1079.

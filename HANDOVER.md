@@ -89,7 +89,7 @@ Payment core (D-6/D-7) · merge/unmerge/transfer V2 contracts · D-2/D-5 locatio
 | ~~P0-1~~ | ~~FIX-1 CSRF~~ | ✅ **2026-09-10 — commit c317b71** (build green; POS op-lar CSRF-süz) |
 | ~~P0-2~~ | ~~No-auth routes~~ | ✅ **2026-09-10 — commit 90021fe**. Dəqiqləşmə: həqiqi no-auth 7 idi (sensei/ocr/vision/discrepancies/costs/stats artıq validateAuth istifadə edirdi). 7 route-a requirePermission: cash/recon(+[id]), handover, schedule(+swap+[id]), messages. Middleware artıq redirect verirdi (307) — route-level = defense-in-depth. |
 | ~~P0-3~~ | ~~Realtime pub~~ | ✅ **2026-09-10 — commit aa66c58, LIVE**. `supabase_realtime` = 12 cədvəl (+kitchen_tickets, +inventory_logs, +cash_drawer_sessions). Qeyd: KDS artıq orders kanalından realtime işləyirdi (15s polling + orders realtime); bu fix = direct ticket/inventory/drawer realtime yolu. |
-| P0-4 | **D-8 refund chain** (5 blocker) | recalc 'captured' gap · reopen double-stock-return · state machine · ledger trigger refund guard · reopen+repay |
+| P0-4 | **D-8 refund chain** (5 blocker) | 📝 **2026-09-10 — dizayn+migration hazırdır (83cecbc, REVIEW, applied YOX)**. Gözləyir: R1/R2 qərarı + apply. Dizayn: D8_REFUND_CHAIN_DESIGN.md |
 | P0-5 | **Total SSOT** (D-9 + 14 formula) | tək server-side canonical total; VAT qərarı (Q1) gözləyir; 2 service-fee store birləşməlidir |
 
 ### P1–P3 (qısa)
@@ -137,7 +137,7 @@ Q1 VAT (8-ci günə qədər) · Q2 loyalty build/cut · Q3 gift cards · Q4 wait
 - `2026-09-10 — 1.3 — Realtime pub: +kitchen_tickets, +inventory_logs, +cash_drawer_sessions (idempotent migration, LIVE) — commit aa66c58 — P0-3 TAM, pub=12 cədvəl`
 - `2026-09-10 — 1.2 — 7 route-a requirePermission guards (cash/recon, handover, schedule, messages) — commit 90021fe — P0-2 TAM, build green, anon → middleware 307 + route 401/403`
 - `2026-09-10 — Q1 — VAT QƏRAR (təsdiqlənib): Tax-Exclusive default (Baku) + opt-in "ƏDV Tətbiq Et" düyməsi (POS+QR). Settings: vat_enabled(false) / vat_percentage(18) / auto_apply_vat(false). Tək canonical SSOT engine: Total = Subtotal + (VAT%×Subtotal) + Service; VAT=0 əgər düymə basılmayıb. 1.4/1.5 dizaynı buna görə — status: QƏRAR`
-
+- `2026-09-10 — 1.4 — D-8 refund chain: 5 blocker dizayn + migration (REVIEW, APPLY olunmayıb, dry-run ROLLBACK təsdiqi) — commit 83cecbc — gözləyir: sən R1/R2 + apply təsdiqi`
 ### Agent/credits DEYİŞƏNDƏ
 - Yuxarıdakı addımlar (özelliklə jurnal) edilibsə → yeni agent §6.1 ilə başlayır, problem YOX.
 - Ən vacib: **uncommitted iş qoyma**. Half-done tapşırıqda dayandınsan: ya bitir, ya §5-ə dəqiq qeyd et + jurnal sətiri ("1.4: blocker 2-5 qalıb, migration yarımçıq — ROLLBACK edilib").

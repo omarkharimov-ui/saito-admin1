@@ -136,6 +136,7 @@ Q1 VAT (8-ci günə qədər) · Q2 loyalty build/cut · Q3 gift cards · Q4 wait
 - `2026-09-10 — 1.1 — FIX-1 CSRF bitirildi (singleton token + apiFetch conversions) — commit c317b71 — P0-1 TAM, build green`
 - `2026-09-10 — 1.3 — Realtime pub: +kitchen_tickets, +inventory_logs, +cash_drawer_sessions (idempotent migration, LIVE) — commit aa66c58 — P0-3 TAM, pub=12 cədvəl`
 - `2026-09-10 — 1.2 — 7 route-a requirePermission guards (cash/recon, handover, schedule, messages) — commit 90021fe — P0-2 TAM, build green, anon → middleware 307 + route 401/403`
+- `2026-09-10 — Q1 — VAT QƏRAR (təsdiqlənib): Tax-Exclusive default (Baku) + opt-in "ƏDV Tətbiq Et" düyməsi (POS+QR). Settings: vat_enabled(false) / vat_percentage(18) / auto_apply_vat(false). Tək canonical SSOT engine: Total = Subtotal + (VAT%×Subtotal) + Service; VAT=0 əgər düymə basılmayıb. 1.4/1.5 dizaynı buna görə — status: QƏRAR`
 
 ### Agent/credits DEYİŞƏNDƏ
 - Yuxarıdakı addımlar (özelliklə jurnal) edilibsə → yeni agent §6.1 ilə başlayır, problem YOX.

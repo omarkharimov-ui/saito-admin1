@@ -86,9 +86,9 @@ Payment core (D-6/D-7) · merge/unmerge/transfer V2 contracts · D-2/D-5 locatio
 ### AÇIQ (P0 — Addım 1-in işi, Notion-da da aynısı var)
 | # | Məsələ | Status |
 |---|---|---|
-| P0-1 | **FIX-1 CSRF — UNCOMMITTED** | 3 fayl düzəlib amma commit YOX: `src/lib/api-fetch.ts` (singleton), `src/context/TableContext.tsx`, `src/app/admin/pos/hooks/usePos.tsx`. Bitirmək: build + typecheck + commit + smoke. **Bu Addım 1-in 1.1-i — İLK İŞ.** |
-| P0-2 | 10 sensitive route `requireAuth`-sız | cash/reconciliation(+[id]), handover, schedule(+swap+[id]), messages, products/costs, invoice-ocr, vision, discrepancies, suppliers/[id]/stats, sensei/* |
-| P0-3 | `kitchen_tickets` realtime publication-da YOX | `ALTER PUBLICATION supabase_realtime ADD TABLE kitchen_tickets, inventory_logs, cash_drawer_sessions` |
+| ~~P0-1~~ | ~~FIX-1 CSRF~~ | ✅ **2026-09-10 — commit c317b71** (build green; POS op-lar CSRF-süz) |
+| ~~P0-2~~ | ~~No-auth routes~~ | ✅ **2026-09-10 — commit 90021fe**. Dəqiqləşmə: həqiqi no-auth 7 idi (sensei/ocr/vision/discrepancies/costs/stats artıq validateAuth istifadə edirdi). 7 route-a requirePermission: cash/recon(+[id]), handover, schedule(+swap+[id]), messages. Middleware artıq redirect verirdi (307) — route-level = defense-in-depth. |
+| ~~P0-3~~ | ~~Realtime pub~~ | ✅ **2026-09-10 — commit aa66c58, LIVE**. `supabase_realtime` = 12 cədvəl (+kitchen_tickets, +inventory_logs, +cash_drawer_sessions). Qeyd: KDS artıq orders kanalından realtime işləyirdi (15s polling + orders realtime); bu fix = direct ticket/inventory/drawer realtime yolu. |
 | P0-4 | **D-8 refund chain** (5 blocker) | recalc 'captured' gap · reopen double-stock-return · state machine · ledger trigger refund guard · reopen+repay |
 | P0-5 | **Total SSOT** (D-9 + 14 formula) | tək server-side canonical total; VAT qərarı (Q1) gözləyir; 2 service-fee store birləşməlidir |
 
@@ -133,6 +133,9 @@ Q1 VAT (8-ci günə qədər) · Q2 loyalty build/cut · Q3 gift cards · Q4 wait
 - `2026-09-09 — AUDIT — MASTER AUDİT tamam (142 feature, P0-5, A–Z xəritəsi) — MASTER_AUDIT.md — 87🟢/31🟡/18🔴/6⛔`
 - `2026-09-09 — HANDOVER — HANDOVER.md + SECRETS.local.md + Notion plan yaradıldı — commit 0bfc0d0 — Addım 1 hazırdır`
 - `2026-09-09 — CHECKLIST — TAM A–Z + Layer 4 Notion səhifəsi (475 feature, 38 modul, checkbox) — səhifə 3d678888-d173-81d4-92db — qurma xəritəsi hazırdır`
+- `2026-09-10 — 1.1 — FIX-1 CSRF bitirildi (singleton token + apiFetch conversions) — commit c317b71 — P0-1 TAM, build green`
+- `2026-09-10 — 1.3 — Realtime pub: +kitchen_tickets, +inventory_logs, +cash_drawer_sessions (idempotent migration, LIVE) — commit aa66c58 — P0-3 TAM, pub=12 cədvəl`
+- `2026-09-10 — 1.2 — 7 route-a requirePermission guards (cash/recon, handover, schedule, messages) — commit 90021fe — P0-2 TAM, build green, anon → middleware 307 + route 401/403`
 
 ### Agent/credits DEYİŞƏNDƏ
 - Yuxarıdakı addımlar (özelliklə jurnal) edilibsə → yeni agent §6.1 ilə başlayır, problem YOX.

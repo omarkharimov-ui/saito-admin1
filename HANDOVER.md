@@ -89,7 +89,7 @@ Payment core (D-6/D-7) · merge/unmerge/transfer V2 contracts · D-2/D-5 locatio
 | ~~P0-1~~ | ~~FIX-1 CSRF~~ | ✅ **2026-09-10 — commit c317b71** (build green; POS op-lar CSRF-süz) |
 | ~~P0-2~~ | ~~No-auth routes~~ | ✅ **2026-09-10 — commit 90021fe**. Dəqiqləşmə: həqiqi no-auth 7 idi (sensei/ocr/vision/discrepancies/costs/stats artıq validateAuth istifadə edirdi). 7 route-a requirePermission: cash/recon(+[id]), handover, schedule(+swap+[id]), messages. Middleware artıq redirect verirdi (307) — route-level = defense-in-depth. |
 | ~~P0-3~~ | ~~Realtime pub~~ | ✅ **2026-09-10 — commit aa66c58, LIVE**. `supabase_realtime` = 12 cədvəl (+kitchen_tickets, +inventory_logs, +cash_drawer_sessions). Qeyd: KDS artıq orders kanalından realtime işləyirdi (15s polling + orders realtime); bu fix = direct ticket/inventory/drawer realtime yolu. |
-| P0-4 | **D-8 refund chain** (5 blocker) | 📝 **2026-09-10 — dizayn+migration hazırdır (83cecbc, REVIEW, applied YOX)**. Gözləyir: R1/R2 qərarı + apply. Dizayn: D8_REFUND_CHAIN_DESIGN.md |
+| ~~P0-4~~ | ~~D-8 refund chain~~ | ✅ **2026-09-10 — LIVE (commit 83cecbc)**: 5/5 fix applied+verified. E2E GREEN (full/partial refund→reopen→repay, double-stock guard, zero residu). R1=saxla, R2=1.5-ə |
 | P0-5 | **Total SSOT** (D-9 + 14 formula) | tək server-side canonical total; VAT qərarı (Q1) gözləyir; 2 service-fee store birləşməlidir |
 
 ### P1–P3 (qısa)
@@ -154,3 +154,5 @@ Q1 VAT (8-ci günə qədər) · Q2 loyalty build/cut · Q3 gift cards · Q4 wait
 
 ---
 *Bu fayl sistemi SİZİDİR. Agent dəyişir, qaydalar qalır.*
+
+- `2026-09-10 — 1.4 APPLY — migration 20260910000002 LIVE apply olundu (sən təsdiq: R1=saxla, R2=1.5-ə). 5/5 fix verified live. E2E GREEN (2 ssenari: full-refund→reopen→repay, partial→reopen) + double-stock guard təsdiq + ZERO RESIDU (stock=144, op=61, il=709) — P0-4 TAM, commit 83cecbc (migration) + bu journal`

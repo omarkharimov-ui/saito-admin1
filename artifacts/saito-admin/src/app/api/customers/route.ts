@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
 
     let query = `${url}/rest/v1/customers?select=id,name,phone,total_visits,total_spent&order=total_visits.desc&limit=${limit}`;
     if (q) {
-      query += `&or=(name.ilike.%${encodeURIComponent(q)}%,phone.ilike.%${encodeURIComponent(q)}%)`;
+      // The `or` VALUE must be URI-encoded as a whole: the literal '%'
+      // wildcard characters are not valid percent-encoding on their own,
+      // which made undici throw "fetch failed" (500) for any q.
+      query += `&or=${encodeURIComponent(`(name.ilike.%${q}%,phone.ilike.%${q}%)`)}`;
     }
 
     const res = await fetch(query, {

@@ -143,7 +143,12 @@ export function KDSView({ onBack }: { onBack: () => void }) {
         if (!res.ok) return;
         const data = await res.json();
         const kdsOrders: KDSOrder[] = (data.orders || [])
-          .filter((o: any) => o.status !== 'paid' && o.status !== 'cancelled' && o.kitchen_status !== null && o.kitchen_status !== 'completed' && o.kitchen_status !== 'cancelled')
+          // A KDS ticket is only valid while the order can still progress in
+          // the kitchen. Terminal/fulfilled statuses (closed, refunded, ...)
+          // must NOT show — a closed order on the KDS makes the ✓ no-op
+          // (mark-ready rejects it) and the ticket is "stuck" forever.
+          .filter((o: any) => !['paid','cancelled','closed','refunded','partially_refunded','voided'].includes(o.status)
+            && o.kitchen_status !== null && o.kitchen_status !== 'completed' && o.kitchen_status !== 'cancelled')
           .map((o: any) => ({
             id: o.id,
             table_number: o.table_number,

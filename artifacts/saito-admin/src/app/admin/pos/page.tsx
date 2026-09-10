@@ -2471,6 +2471,13 @@ export default function POSPage() {
             onSelectCustomer={(customerId, customerName) => {
               pos.updateCartCustomer(customerId, customerName);
             }}
+            onLoyaltyRedeemed={() => {
+              // Redeem changed the order total server-side (v3 recompute) —
+              // refresh floor data + reconcile the sheet's order from server.
+              pos.fetchData();
+              const oid = actionSheetTable?.current_order_id || actionSheetTable?.orders?.[0]?.id;
+              if (oid) void reconcileOrderFromServer(oid);
+            }}
             posMode={posMode}
             transferConfirm={transferConfirm}
             transferSource={transferSource}

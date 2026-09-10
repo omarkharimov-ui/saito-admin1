@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer, Wallet } from 'lucide-react';
+import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer, Wallet, Star } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { AnimatedTabs } from '../components/ui/MotionControls';
 import GeneralTab from './tabs/GeneralTab';
@@ -15,9 +15,10 @@ import PrinterTab from './tabs/PrinterTab';
 import FloorsTab from './tabs/FloorsTab';
 import PayrollTab from './tabs/PayrollTab';
 import LocationTab from './tabs/LocationTab';
+import LoyaltyTab from './tabs/LoyaltyTab';
 
 
-type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'printer' | 'floors' | 'hours' | 'payroll' | 'location';
+type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'printer' | 'floors' | 'hours' | 'payroll' | 'location' | 'loyalty';
 
 type TabDef = { key: Tab; labelKey: string; icon: React.ReactNode; superadminOnly?: boolean; desc?: string };
 
@@ -30,7 +31,8 @@ const TAB_DEFS: TabDef[] = [
   { key: 'receipt',   labelKey: 'tab_receipt',   icon: <Receipt size={20} />,     desc: 'Çek və çıxarış' },
   { key: 'printer',   labelKey: 'tab_printer',   icon: <Printer size={20} />,     desc: 'Printer ayarları' },
   { key: 'floors',    labelKey: 'tab_floors',    icon: <MapPin size={20} />,      desc: 'Zallar, mərtəbələr, masa planı' },
-  { key: 'payroll',   labelKey: 'tab_payroll',   icon: <Wallet size={20} />,      desc: 'Payroll və webhook ayarları', superadminOnly: true },
+  { key: 'loyalty',   labelKey: 'tab_loyalty' as any, icon: <Star size={20} />,    desc: 'Məxsusiyyət (loyalty) proqramı' },
+  { key: 'payroll',   labelKey: 'tab_payroll',   icon: <Wallet size={20} />,     desc: 'Payroll və webhook ayarları', superadminOnly: true },
   { key: 'location',  labelKey: 'tab_location',  icon: <MapPin size={20} />,      desc: 'Wi-Fi və GPS geofence' },
 ];
 
@@ -51,6 +53,7 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
       {tab === 'receipt'   && <ReceiptTab initialData={settingsData} />}
       {tab === 'printer'   && <PrinterTab initialData={settingsData} />}
       {tab === 'floors'    && <FloorsTab />}
+      {tab === 'loyalty'   && <LoyaltyTab />}
       {tab === 'payroll'   && <PayrollTab />}
       {tab === 'location'  && <LocationTab />}
     </>  );

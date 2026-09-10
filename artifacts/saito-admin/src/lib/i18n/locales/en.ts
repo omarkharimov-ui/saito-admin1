@@ -445,6 +445,7 @@ export const en: TranslationMap = {
   tab_users: 'Accounts',
   tab_floors: 'Halls & Floors',
   tab_location: 'Location',
+  tab_loyalty: 'Loyalty',
   floor_plan_settings: 'Hall & Floor Plan',
 
   // General Tab

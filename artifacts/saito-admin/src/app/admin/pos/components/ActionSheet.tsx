@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
   User, Search, Phone, Smartphone, Building2, Gift, Car, ArrowLeftRight,
-  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag,
+  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag, Star,
 } from 'lucide-react';
+import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { PosTable } from '../types/shared';
@@ -40,6 +41,7 @@ interface ActionSheetProps {
   onSelectCustomer?: (customerId: string | null, customerName: string | null) => void;
   customerId?: string | null;
   customerName?: string | null;
+  onLoyaltyRedeemed?: () => void;
   mergeMode?: boolean;
   transferMode?: boolean;
   mergeParent?: number | null;
@@ -85,7 +87,7 @@ interface ActionSheetProps {
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onUnmerge, onCancelTable,
   onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
-  onBackFromPayment, onDeliveryStatus, onTakeawayStatus, onMarkServed, onSelectCustomer, customerId, customerName,
+  onBackFromPayment, onDeliveryStatus, onTakeawayStatus, onMarkServed, onSelectCustomer, customerId, customerName, onLoyaltyRedeemed,
   mergeMode, transferMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, onBillRequest, onPrintBill, onClearTable, onSeatGuests, posRole, groupNumber,
   onDiscount,
@@ -124,7 +126,7 @@ export function ActionSheet({
   const loadCustomers = async (q: string) => {
     setLoadingCustomers(true);
     try {
-      const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}&limit=20`);
+      const res = await apiFetch(`/api/customers?q=${encodeURIComponent(q)}&limit=20`);
       if (res.ok) {
         const data = await res.json();
         setCustomers(Array.isArray(data) ? data : []);
@@ -133,6 +135,60 @@ export function ActionSheet({
       setCustomers([]);
     } finally {
       setLoadingCustomers(false);
+    }
+  };
+
+  // ── Loyalty spine (OS BUILD #1) ─────────────────────────────────────
+  // Balance + enabled state come from /api/orders/loyalty (server reads the
+  // customer's loyalty_accounts row). Redeem posts points → order discount
+  // via the idempotent loyalty_redeem RPC (v3 total recompute server-side).
+  const [loyalty, setLoyalty] = useState<{ enabled: boolean; balance: number; min_redeem: number; point_value: number } | null>(null);
+  const [loyaltyExpanded, setLoyaltyExpanded] = useState(false);
+  const [loyaltyPts, setLoyaltyPts] = useState('');
+  const [loyaltyBusy, setLoyaltyBusy] = useState(false);
+
+  const loadLoyalty = async () => {
+    if (!customerId) { setLoyalty(null); return; }
+    try {
+      const res = await apiFetch(`/api/orders/loyalty?customer_id=${encodeURIComponent(customerId)}`);
+      if (res.ok) setLoyalty(await res.json());
+      else setLoyalty(null);
+    } catch { setLoyalty(null); }
+  };
+
+  useEffect(() => {
+    if (open && paymentView && customerId) loadLoyalty();
+    else setLoyalty(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, paymentView, customerId]);
+
+  const handleLoyaltyRedeem = async () => {
+    const pts = parseInt(loyaltyPts, 10);
+    if (!pts || pts <= 0 || !customerId) return;
+    setLoyaltyBusy(true);
+    try {
+      // The sheet's live table snapshot carries the active order id.
+      const orderId = activeOrderId;
+      if (!orderId) { setLoyaltyBusy(false); return; }
+      const res = await apiFetch('/api/orders/loyalty', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, points: pts }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'Loyalty redeem failed');
+      } else {
+        setLoyaltyPts('');
+        setLoyaltyExpanded(false);
+        loadLoyalty();
+        // Total changed server-side — let the parent refresh the sheet data.
+        onLoyaltyRedeemed?.();
+      }
+    } catch {
+      alert('Loyalty redeem failed');
+    } finally {
+      setLoyaltyBusy(false);
     }
   };
 
@@ -561,6 +617,51 @@ export function ActionSheet({
                               );
                             })}
                           </div>
+                        </motion.div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Loyalty — customer attached & program enabled (OS BUILD #1) */}
+                  {!isDeliveryOnly && loyalty?.enabled && customerId && (
+                    <div className="mt-2">
+                      {!loyaltyExpanded ? (
+                        <button onClick={() => setLoyaltyExpanded(true)} className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all" style={{ color: lightMode ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.25)' }}>
+                          <Star size={12} className="text-sky-400" />
+                          Məxsusiyyət xalları <span className="text-sky-400">{loyalty.balance}</span>
+                        </button>
+                      ) : (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={`p-2.5 rounded-xl border ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-sky-400 flex-shrink-0">
+                              Xal ({loyalty.balance})
+                            </span>
+                            <div className="relative flex-1">
+                              <input type="number" step="1" min={loyalty.min_redeem} value={loyaltyPts} onChange={e => setLoyaltyPts(e.target.value)} placeholder={`${loyalty.min_redeem}+`}
+                                className={`w-full rounded-lg pl-2 pr-2 py-1.5 text-xs font-black outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-sky-400' : 'bg-white/5 border-white/10 text-white focus:border-sky-400/50'}`} />
+                            </div>
+                            {[10, 25, 50].map(p => (
+                              <button key={p} onClick={() => setLoyaltyPts(String(p))}
+                                className={`px-2 py-1.5 rounded-lg text-[8px] font-black border transition-all ${
+                                  parseInt(loyaltyPts, 10) === p ? 'bg-sky-500/10 border-sky-500/30 text-sky-500'
+                                  : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-400' : 'bg-white/5 border-white/10 text-white/30'
+                                } active:scale-95`}>
+                                {p}
+                              </button>
+                            ))}
+                            <button
+                              onClick={handleLoyaltyRedeem}
+                              disabled={loyaltyBusy || !parseInt(loyaltyPts, 10) || parseInt(loyaltyPts, 10) < loyalty.min_redeem}
+                              className="px-2.5 py-1.5 rounded-lg text-[8px] font-black bg-sky-500 text-white disabled:opacity-30 transition-all active:scale-95"
+                            >
+                              İstifadə et
+                            </button>
+                          </div>
+                          {loyaltyPts && parseInt(loyaltyPts, 10) >= loyalty.min_redeem && (
+                            <p className="mt-1.5 text-[8px] font-bold" style={{ color: lightMode ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)' }}>
+                              {parseInt(loyaltyPts, 10)} xal = −₼{(parseInt(loyaltyPts, 10) * loyalty.point_value).toFixed(2)} endirim
+                            </p>
+                          )}
                         </motion.div>
                       )}
                     </div>

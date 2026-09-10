@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { runOrderAction } from '@/lib/transaction';
+import { FINAL_ORDER_STATUSES } from '@/lib/pos-tables';
+
+// A table's "active" order excludes ALL terminal states — must match the DB
+// aggregate (sync_table_order_aggregates) and the floor view exactly. The old
+// filter (only paid,cancelled) picked up CLOSED orders, so new items were
+// appended to a closed order (invisible to kitchen/floor) and the table total
+// was inflated by the sum of every closed order (e.g. ₼428.61 / ₼3016.35).
+const NOT_FINAL = `not.in.(${FINAL_ORDER_STATUSES.join(',')})`;
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -263,7 +271,7 @@ export async function POST(request: Request) {
       let existingOrder = null;
       if (table_number) {
         const existingRes = await fetch(
-          `${svc().url}/rest/v1/orders?table_number=eq.${table_number}&status=not.in.(paid,cancelled)&order=created_at.asc&limit=1&select=id,total_amount,version`,
+          `${svc().url}/rest/v1/orders?table_number=eq.${table_number}&status=${NOT_FINAL}&order=created_at.asc&limit=1&select=id,total_amount,version`,
           { headers: svc().headers }
         );
         const existingOrders = existingRes.ok ? await existingRes.json() : [];
@@ -321,8 +329,11 @@ export async function POST(request: Request) {
         const patched = await patchRes.json();
         if (!patched || (Array.isArray(patched) && patched.length === 0)) throw new Error('CONCURRENCY_CONFLICT');
 
-        // Update table_floors total_amount and keep current_order_id (SSOT)
-        const tableOrdersRes = await fetch(`${svc().url}/rest/v1/orders?table_number=eq.${table_number}&status=not.in.(paid,cancelled)`, { headers: svc().headers });
+        // Update table_floors total_amount and keep current_order_id (SSOT).
+        // Must exclude ALL final states (matches sync_table_order_aggregates) —
+        // summing closed/refunded/voided orders produced phantom totals like
+        // ₼428.61 / ₼3016.35 on tables with no open order.
+        const tableOrdersRes = await fetch(`${svc().url}/rest/v1/orders?table_number=eq.${table_number}&status=${NOT_FINAL}`, { headers: svc().headers });
         const tableOrders = tableOrdersRes.ok ? await tableOrdersRes.json() : [];
         const tableTotal = tableOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
         const tablePatchRes2 = await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {

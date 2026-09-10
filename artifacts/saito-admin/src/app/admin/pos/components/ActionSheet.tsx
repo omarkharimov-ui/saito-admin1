@@ -38,7 +38,7 @@ interface ActionSheetProps {
   onDeliveryStatus?: () => void;
   onTakeawayStatus?: () => void;
   onMarkServed?: () => void;
-  onSelectCustomer?: (customerId: string | null, customerName: string | null) => void;
+  onSelectCustomer?: (customerId: string | null, customerName: string | null, customerPhone?: string | null) => void;
   customerId?: string | null;
   customerName?: string | null;
   onLoyaltyRedeemed?: () => void;
@@ -192,10 +192,13 @@ export function ActionSheet({
     }
   };
 
-  const handleCustomerSelect = (customerId: string | null, customerName: string | null) => {
-    onSelectCustomer?.(customerId, customerName);
+  const handleCustomerSelect = (customerId: string | null, customerName: string | null, customerPhone?: string | null) => {
+    onSelectCustomer?.(customerId, customerName, customerPhone);
     setShowCustomerSearch(false);
     setCustomerSearch('');
+    // Loyalty spine (OS BUILD #1b): after the order is PATCHed with the new
+    // customer, refresh the sheet's loyalty balance for that customer.
+    if (customerId) setTimeout(() => loadLoyalty(), 350);
   };
 
   useEffect(() => {
@@ -972,7 +975,7 @@ export function ActionSheet({
                         <p className="text-center text-[var(--theme-text-muted)] text-xs py-4">{t('customer_not_found')}</p>
                       ) : (
                         customers.map(c => (
-                          <button key={c.id} onClick={() => handleCustomerSelect(c.id, c.name)}
+                          <button key={c.id} onClick={() => handleCustomerSelect(c.id, c.name, c.phone)}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${customerId === c.id ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-white/5 border border-white/5 hover:bg-white/10'}`}>
                             <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
                               <User size={14} className="text-blue-400" />

@@ -2468,8 +2468,23 @@ export default function POSPage() {
             groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
              customerId={pos.cart?.customer_id}
             customerName={pos.cart?.customer_name}
-            onSelectCustomer={(customerId, customerName) => {
+            onSelectCustomer={(customerId, customerName, customerPhone) => {
               pos.updateCartCustomer(customerId, customerName);
+              // OS BUILD #1b: the order already exists (table opened earlier) —
+              // cart state alone would send points to the wrong/none customer.
+              // PATCH the live order so the loyalty spine credits the right one.
+              const oid = actionSheetTable?.current_order_id || actionSheetTable?.orders?.[0]?.id;
+              if (oid) {
+                void (async () => {
+                  try {
+                    await apiFetch('/api/orders/customer', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ order_id: oid, customer_id: customerId, customer_name: customerName, customer_phone: customerPhone || null }),
+                    });
+                  } catch { /* non-blocking: earn falls back to order's prior customer */ }
+                })();
+              }
             }}
             onLoyaltyRedeemed={() => {
               // Redeem changed the order total server-side (v3 recompute) —

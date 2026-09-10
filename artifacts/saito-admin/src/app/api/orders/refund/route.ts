@@ -106,6 +106,19 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(data, { status: 400 });
       }
 
+      // Loyalty spine (OS BUILD #1b): reverse the refunded item's points.
+      // Best-effort — a loyalty failure must never break the refund.
+      try {
+        await supabase.rpc('loyalty_reverse', {
+          p_order_id: order_id,
+          p_order_item_id: order_item_id || null,
+          p_reason: 'refund',
+          p_performed_by: auth.user?.id || null,
+        });
+      } catch (loyErr) {
+        console.warn('[refund] loyalty_reverse (non-blocking):', loyErr);
+      }
+
       // Log approved refund if above threshold
       if (refundAmount > REFUND_APPROVAL_THRESHOLD) {
         await fetch(`${s.url}/rest/v1/approval_requests`, {
@@ -212,6 +225,19 @@ export async function POST(request: NextRequest) {
     }
     if (data && !data.success) {
       return NextResponse.json(data, { status: 400 });
+    }
+
+    // Loyalty spine (OS BUILD #1b): order-level refund → reverse ALL points.
+    // Best-effort — a loyalty failure must never break the refund.
+    try {
+      await supabase.rpc('loyalty_reverse', {
+        p_order_id: order_id,
+        p_order_item_id: null,
+        p_reason: 'refund',
+        p_performed_by: auth.user?.id || null,
+      });
+    } catch (loyErr) {
+      console.warn('[refund] loyalty_reverse (non-blocking):', loyErr);
     }
 
     // Log approved refund if above threshold

@@ -1287,7 +1287,9 @@ export default function POSPage() {
   };
 
   // 1.5 — VAT toggle (POS, manager PIN verified in ActionSheet before this runs).
-  const handleToggleVat = async (apply: boolean) => {
+  // Manager-override: if the session user lacks discount.approve, the PIN-
+  // verified staffId is sent; the server re-verifies THAT staff's permission.
+  const handleToggleVat = async (apply: boolean, pinVerified?: { staffId: string; role: string; name: string }) => {
     const orderId = resolveSheetOrderId();
     if (!orderId) return;
     toast.loading('ƏDV yenilənir…', { id: 'vat-toast' });
@@ -1295,7 +1297,11 @@ export default function POSPage() {
       const res = await apiFetch('/api/orders/apply-vat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId, apply_vat: apply }),
+        body: JSON.stringify({
+          order_id: orderId,
+          apply_vat: apply,
+          approver_staff_id: pinVerified?.staffId || null,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

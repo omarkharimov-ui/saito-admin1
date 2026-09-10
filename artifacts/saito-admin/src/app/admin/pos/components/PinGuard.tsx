@@ -9,10 +9,18 @@ import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { apiFetch } from '@/lib/api-fetch';
 import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';
 
+export interface PinVerified {
+  valid: boolean;
+  role: string;
+  staffId: string;
+  name: string;
+}
+
 interface PinGuardProps {
   open: boolean;
   onClose: () => void;
-  onVerified: () => void;
+  /** Called with the server-verified approver (staffId = whose PIN matched). */
+  onVerified: (verified: PinVerified) => void;
   title?: string;
   action?: string;
 }
@@ -58,9 +66,9 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
         body: JSON.stringify({ pin, action }),
       });
       const data = await res.json();
-      if (res.ok && data.valid) {
-        onVerified();
-        onClose();
+        if (res.ok && data.valid) {
+          onVerified({ valid: true, role: data.role, staffId: data.staffId, name: data.name });
+          onClose();
       } else {
         setError(data.error || t('wrong_pin'));
         setPin('');
@@ -137,7 +145,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
 
             <div className="flex gap-3 mt-5">
               <button onClick={onClose} className={`flex-1 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
-                t('cancel')
+                {t('cancel')}
               </button>
               <button
                 onClick={handleSubmit}
@@ -147,7 +155,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
                 {verifying ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    t('checking')
+                    {t('checking')}
                   </span>
                 ) : t('confirm')}
               </button>

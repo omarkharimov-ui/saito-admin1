@@ -10,7 +10,7 @@ function svc() {
   );
 }
 
-const VALID_ACTIONS = ['void_item', 'loss', 'dismiss', 'reprint', 'merge', 'transfer', 'admin'];
+const VALID_ACTIONS = ['void_item', 'loss', 'dismiss', 'reprint', 'merge', 'transfer', 'vat', 'admin'];
 
 function getClientIp(req: NextRequest): string {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';

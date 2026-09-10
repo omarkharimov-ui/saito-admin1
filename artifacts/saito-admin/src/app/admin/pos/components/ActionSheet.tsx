@@ -13,7 +13,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { PosTable } from '../types/shared';
 import { fastExit, slideUp, morphView } from '@/lib/modal-transitions';
 import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
-import { PinGuard } from './PinGuard';
+import { PinGuard, type PinVerified } from './PinGuard';
 import { GiftCardModal } from './GiftCardModal';
 import { RoomChargeModal } from './RoomChargeModal';
 import { CorporateModal } from './CorporateModal';
@@ -57,7 +57,7 @@ interface ActionSheetProps {
   onClearTable?: () => void;
   onSeatGuests?: () => void;
   onDiscount?: () => void;
-  onToggleVat?: (apply: boolean) => void;
+  onToggleVat?: (apply: boolean, pinVerified?: { staffId: string; role: string; name: string }) => void;
   posRole?: string | null;
   groupNumber?: number;
   paymentView?: boolean;
@@ -111,7 +111,7 @@ export function ActionSheet({
   const [splitItems, setSplitItems] = useState<Record<number, 'cash' | 'card'>>({});
   const [confirmAction, setConfirmAction] = useState<'cancel_table' | 'dismiss_group' | null>(null);
   const [pinGuardOpen, setPinGuardOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{ fn: () => void; action: string } | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ fn: (verified?: PinVerified) => void; action: string } | null>(null);
   const [tipAmount, setTipAmount] = useState('');
   const [tipExpanded, setTipExpanded] = useState(false);
   const [showMorePayments, setShowMorePayments] = useState(false);
@@ -481,7 +481,7 @@ export function ActionSheet({
                       <button
                         onClick={() => {
                           const next = !(activeOrder as any).apply_vat;
-                          setPendingAction({ fn: () => onToggleVat?.(next), action: 'vat' });
+                          setPendingAction({ fn: (v?: any) => onToggleVat?.(next, v ?? undefined), action: 'vat' });
                           setPinGuardOpen(true);
                         }}
                         className="relative h-6 w-11 rounded-full transition-colors"
@@ -1137,7 +1137,7 @@ export function ActionSheet({
       <PinGuard
         open={pinGuardOpen}
         onClose={() => { setPinGuardOpen(false); setPendingAction(null); }}
-        onVerified={() => { pendingAction?.fn(); }}
+        onVerified={(verified) => { pendingAction?.fn(verified); }}
         action={pendingAction?.action || 'admin'}
       />
 

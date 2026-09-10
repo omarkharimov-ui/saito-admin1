@@ -16,8 +16,9 @@
 --   VAT      = p_apply_vat AND settings.vat_enabled
 --              ? ROUND(Subtotal × settings.vat_percentage/100, 2) : 0
 --   Service  = p_apply_service AND settings.receipt_show_service_fee
---              ? ROUND((Subtotal + VAT) × settings.receipt_service_fee_pct/100, 2) : 0
+--              ? ROUND(Subtotal × settings.receipt_service_fee_pct/100, 2) : 0
 --   Total    = max(0, Subtotal + VAT + Service − orders.discount_amount)
+-- R1 (user-locked): Service on SUBTOTAL (no tax-on-tax, Baku practice).
 --
 -- Behavior compatibility:
 --   • New orders are created with apply_vat=settings.auto_apply_vat
@@ -81,16 +82,17 @@ BEGIN
    WHERE order_id = p_order_id
      AND kitchen_status NOT IN ('cancelled','voided');
 
-  -- VAT (opt-in, settings-gated).
+  -- VAT (opt-in: p_apply_vat set by toggle; master switch = settings.vat_enabled;
+  -- percentage from settings.vat_percentage).
   IF p_apply_vat AND COALESCE(v_cfg.vat_enabled, false) THEN
     v_vat_pct := COALESCE(v_cfg.vat_percentage, 0);
     v_vat_amt := ROUND(v_subtotal * v_vat_pct / 100, 2);
   END IF;
 
-  -- Service charge (opt-in, on Subtotal+VAT).
+  -- Service charge (opt-in, R1: on SUBTOTAL — no tax-on-tax).
   IF p_apply_service AND COALESCE(v_cfg.receipt_show_service_fee, false) THEN
     v_svc_pct := COALESCE(v_cfg.receipt_service_fee_pct, 0);
-    v_svc_amt := ROUND((v_subtotal + v_vat_amt) * v_svc_pct / 100, 2);
+    v_svc_amt := ROUND(v_subtotal * v_svc_pct / 100, 2);
   END IF;
 
   SELECT COALESCE(discount_amount, 0) INTO v_disc FROM public.orders WHERE id = p_order_id;

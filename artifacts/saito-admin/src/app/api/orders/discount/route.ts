@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
+import { validateCsrfToken } from '@/lib/csrf';
 import { createClient } from '@supabase/supabase-js';
 
 function svc() {
@@ -22,6 +23,13 @@ interface DiscountRequest {
   discount_value: number;
   item_id?: string;
   reason?: string;
+  /**
+   * Sprint-1 manager-override (same pattern as void/apply-vat): if the
+   * session user lacks discount.approve, the PIN-verified staffId may be
+   * supplied. The server re-verifies THAT staff's permission — the PIN is
+   * only the client-side gate.
+   */
+  approver_staff_id?: string | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -29,8 +37,12 @@ export async function POST(request: NextRequest) {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
+    if (!validateCsrfToken(request, auth.authenticated)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
     const body: DiscountRequest = await request.json();
-    const { order_id, discount_type, discount_value, item_id, reason } = body;
+    const { order_id, discount_type, discount_value, item_id, reason, approver_staff_id } = body;
 
     if (!order_id || !discount_type || discount_value === undefined || discount_value === null) {
       return NextResponse.json({ error: 'order_id, discount_type, and discount_value are required' }, { status: 400 });
@@ -140,17 +152,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Fixed discount cannot be negative' }, { status: 400 });
     }
 
-    if (isOrderPercent && discount_value > 20 && auth.role === 'cashier') {
-      return NextResponse.json({ error: 'Discounts over 20% require manager approval' }, { status: 403 });
+    // Sprint-1: a cashier may apply a >20% discount ONLY with a manager
+    // PIN-override (approver_staff_id). The permission block below re-verifies
+    // the approver's discount.approve on the server — the PIN is only the
+    // client-side gate.
+    if (isOrderPercent && discount_value > 20 && auth.role === 'cashier' && !approver_staff_id) {
+      return NextResponse.json({ error: 'Discounts over 20% require manager approval', requires_approval: true }, { status: 403 });
     }
 
     if (isOrderPercent && discount_value > 20) {
+      let discountApproved = false;
       const { data: hasApprove, error: approveErr } = await supabaseRpc().rpc('has_permission', {
         p_staff_id: auth.user!.id,
         p_permission: 'discount.approve',
       });
+      if (!approveErr && hasApprove) {
+        discountApproved = true;
+      } else if (approver_staff_id) {
+        // Sprint-1: PIN-override path — re-verify the approver's permission.
+        const { data: hasApprover, error: approverErr } = await supabaseRpc().rpc('has_permission', {
+          p_staff_id: approver_staff_id,
+          p_permission: 'discount.approve',
+        });
+        if (approverErr || !hasApprover) {
+          return NextResponse.json({
+            error: 'The PIN entered belongs to a staff without discount approval rights',
+            requires_approval: true,
+          }, { status: 403 });
+        }
+        discountApproved = true;
+      }
 
-      if (approveErr || !hasApprove) {
+      if (!discountApproved) {
         try {
           await fetch(`${s.url}/rest/v1/approval_requests`, {
             method: 'POST',

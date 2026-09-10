@@ -448,6 +448,31 @@ export const ru: TranslationMap = {
   tab_loyalty: 'Лояльность',
   floor_plan_settings: 'План залов и этажей',
 
+  // U-2: paid table release (Core Freeze)
+  release_table: 'Освободить стол',
+  release_table_question: 'Освободить этот стол?',
+  release_table_orders_closed: 'Оплаченные заказы будут закрыты, стол освободится',
+  release_has_active_orders: 'На столе есть неоплаченные заказы — сначала отмените/сдайте их',
+  release_no_paid: 'На столе нет оплаченных заказов для освобождения',
+  release_reserved: 'Стол зарезервирован',
+  release_merged: 'Стол уже объединён с другим',
+
+  // U-3: merge error mapping (Core Freeze)
+  merge_child_no_order: 'На выбранных столах нет заказов',
+  merge_parent_no_order: 'На основном столе нет заказа',
+  merge_same_table: 'Нельзя объединить стол с самим собой',
+  merge_already_merged: 'Стол уже объединён',
+  merge_reserved: 'Один из столов зарезервирован',
+
+  // U-4: unsent cart guard (Core Freeze)
+  unsent_items_title: 'Неотправленные позиции',
+  unsent_items_question: 'В корзине есть позиции, ещё не отправленные на кухню. Удалить их?',
+  unsent_items_send: 'Отправить',
+  unsent_items_discard: 'Удалить',
+
+  // Sprint-1: void PIN override
+  void_pin_required: 'Для отмены требуется PIN менеджера',
+
   // General Tab
   gen_restaurant_name: 'Название ресторана',
   gen_address: 'Адрес',

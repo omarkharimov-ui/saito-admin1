@@ -654,7 +654,18 @@ export function usePos() {
       });
       const data = await res.json();
       if (!res.ok || !data?.success) {
-        toast.error(data?.error || 'Merge failed');
+        // U-3: the backend returns terse G_* guard codes — surface them
+        // readably instead of toasting "G_MERGE_CHILD_NO_ORDER" (or nothing
+        // visible at all, as the UI E2E found).
+        const raw = data?.error || 'Merge failed';
+        const mergeMsgMap: Record<string, string> = {
+          G_MERGE_CHILD_NO_ORDER: t('merge_child_no_order'),
+          G_MERGE_PARENT_NO_ORDER: t('merge_parent_no_order'),
+          G_MERGE_SAME_TABLE: t('merge_same_table'),
+          G_MERGE_TABLE_MERGED: t('merge_already_merged'),
+          G_TABLE_RESERVED: t('merge_reserved'),
+        };
+        toast.error(mergeMsgMap[raw] || raw, { id: 'merge-error' });
         return null;
       }
       setLastUndo({ action: 'merge', data: data.data?.undo, message: t('tables_merged') });
@@ -730,6 +741,35 @@ export function usePos() {
         const err = await res.json().catch(() => ({ error: 'Seat failed' }));
         toast.error(err.error || t('seat_failed'));
       }
+    });
+  };
+
+  // U-2: release a fully-PAID table. dismissTable CANCELS active orders and
+  // refuses paid-only tables (G_NO_ACTIVE_ORDER); release CLOSES the settled
+  // orders and frees the table. Returns {ok, error?}.
+  const releaseTable = async (num: number) => {
+    return withOperationLock(`release_${num}`, async () => {
+      const res = await apiFetch('/api/tables/release', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_number: num }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.success) {
+        markTableEmptyLocal([num]);
+        fetchFloor();
+        toast.success(t('table_cleared').replace('{table}', String(num)), { id: `release_${num}` });
+        return { ok: true as const };
+      }
+      const raw = data?.error || 'Release failed';
+      const map: Record<string, string> = {
+        G_TABLE_HAS_ACTIVE_ORDERS: t('release_has_active_orders'),
+        G_NO_PAID_ORDER: t('release_no_paid'),
+        G_TABLE_RESERVED: t('release_reserved'),
+        G_TABLE_MERGED: t('release_merged'),
+      };
+      toast.error(map[raw] || raw, { id: `release_${num}` });
+      return { ok: false as const, error: raw };
     });
   };
 
@@ -1715,7 +1755,7 @@ export function usePos() {
 
     return {
       floors, products, categories, combos, variantsByProduct, loading, floorLoadFailed, catalogLoadFailed, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode,
-      fetchData, selectTable, mergeTables, transferTable, dismissTable, clearTable, performUndo, seatTable,
+      fetchData, selectTable, mergeTables, transferTable, dismissTable, releaseTable, clearTable, performUndo, seatTable,
       setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, resetCart, updateGuestCount,
       updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
       reservationMode, reservationId, reservationPreOrderItems, reservationInfo,

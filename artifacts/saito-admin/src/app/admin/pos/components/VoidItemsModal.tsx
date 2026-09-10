@@ -9,6 +9,7 @@ import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { appleCard, fastExit } from '@/lib/modal-transitions';
+import { PinGuard } from './PinGuard';
 
 interface OrderItem {
   id: string;
@@ -33,6 +34,10 @@ export function VoidItemsModal({ open, onClose, orderId, items, onSuccess }: Voi
   const keyboardHeight = useKeyboardHeight();
   const [selected, setSelected] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
+  // Sprint-1: manager PIN override (server re-verifies the approver's
+  // void.approve permission — the PIN is only the client-side gate).
+  const [pinGuardOpen, setPinGuardOpen] = useState(false);
+  const [pendingApprover, setPendingApprover] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) setSelected({});
@@ -68,8 +73,7 @@ export function VoidItemsModal({ open, onClose, orderId, items, onSuccess }: Voi
     return sum + (item ? (item.unit_price || item.total_price / item.quantity) * qty : 0);
   }, 0);
 
-  const handleVoid = async () => {
-    if (selectedCount === 0) return;
+  const doVoid = async (approverStaffId?: string | null) => {
     setLoading(true);
     try {
       const payload = Object.entries(selected).map(([id, qty]) => ({
@@ -80,7 +84,7 @@ export function VoidItemsModal({ open, onClose, orderId, items, onSuccess }: Voi
       const res = await apiFetch('/api/orders/void', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId, items: payload }),
+        body: JSON.stringify({ order_id: orderId, items: payload, approver_staff_id: approverStaffId || null }),
       });
 
       const data = await res.json();
@@ -88,14 +92,30 @@ export function VoidItemsModal({ open, onClose, orderId, items, onSuccess }: Voi
         toast.success(t('void_success') || 'Ləğv edildi');
         onSuccess();
         onClose();
-      } else {
-        toast.error(data.error || t('void_error') || 'Ləğv edilmədi');
+        return true;
       }
+      // Sprint-1: the session user lacks void.approve — open the PIN guard
+      // and retry with the manager's PIN-verified staffId (the server
+      // re-verifies THAT staff's permission; the PIN is only client-side).
+      if (data?.requires_approval || data?.approval_required) {
+        toast.error(t('void_pin_required') || 'Manager PIN required');
+        setPendingApprover(null);
+        setPinGuardOpen(true);
+        return false;
+      }
+      toast.error(data.error || t('void_error') || 'Ləğv edilmədi');
+      return false;
     } catch {
       toast.error(t('network_error') || 'Şəbəkə xətası');
+      return false;
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVoid = async () => {
+    if (selectedCount === 0) return;
+    await doVoid(null);
   };
 
   return (
@@ -215,7 +235,7 @@ export function VoidItemsModal({ open, onClose, orderId, items, onSuccess }: Voi
                 onClick={handleVoid}
                 disabled={selectedCount === 0 || loading}
                 className="flex-1 py-3.5 rounded-2xl bg-rose-500 text-white text-xs font-black uppercase tracking-widest hover:bg-rose-600 active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-rose-500/20"
-              >
+               >
                 {loading ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -227,6 +247,21 @@ export function VoidItemsModal({ open, onClose, orderId, items, onSuccess }: Voi
           </motion.div>
         </motion.div>
       )}
+
+      {/* Sprint-1: manager PIN override (server re-verifies the approver) */}
+      <PinGuard
+        open={pinGuardOpen}
+        onClose={() => { setPinGuardOpen(false); setPendingApprover(null); }}
+        onVerified={(verified) => {
+          setPinGuardOpen(false);
+          if (verified?.valid && verified.staffId) {
+            setPendingApprover(verified.staffId);
+            void doVoid(verified.staffId);
+          }
+        }}
+        action="void"
+        title={t('void_pin_required') || 'Manager PIN'}
+      />
     </AnimatePresence>
   );
 }

@@ -12,6 +12,7 @@ import { isFinalOrderStatus, FINAL_ORDER_STATUSES } from '@/lib/pos-tables';
 import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
 import { TableCard } from './components/TableCard';
 import { ActionSheet } from './components/ActionSheet';
+import { PinGuard, type PinVerified } from './components/PinGuard';
 import { ProductGrid, type ProductGridRef } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { playHapticSound } from '@/lib/haptic';
@@ -90,6 +91,10 @@ export default function POSPage() {
   const [unmergeMode, setUnmergeMode] = useState(false);
   const [selectedForUnmerge, setSelectedForUnmerge] = useState<number[]>([]);
 
+  // U-4: guard against silently discarding an unsent cart when the panel is
+  // closed (back).
+  const [unsentCartGuard, setUnsentCartGuard] = useState(false);
+
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [cleanMode, setCleanMode] = useState(false);
   const [paymentView, setPaymentView] = useState(false);
@@ -100,6 +105,8 @@ export default function POSPage() {
   const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
   const [discountValue, setDiscountValue] = useState('');
   const [discountReason, setDiscountReason] = useState('');
+  // Sprint-1: manager PIN override for >20% discounts.
+  const [discountPinOpen, setDiscountPinOpen] = useState(false);
   const [payOutcome, setPayOutcome] = useState<{ okCount: number; failed: any[]; method: string } | null>(null);
   const payKeyRef = useRef<Record<string, string>>({});
   const payKeyFor = useCallback((orderId: string) => {
@@ -1249,10 +1256,13 @@ export default function POSPage() {
     } catch { /* stale cart acceptable; floors still refreshed */ }
   };
 
-  const submitDiscount = async () => {
+  // Sprint-1: core discount submit. If the server answers requires_approval
+  // (no discount.approve for the session user) and no approver is present yet,
+  // open the PIN guard and re-run with the verified manager staffId.
+  const doSubmitDiscount = async (approverStaffId?: string | null) => {
     const orderId = resolveSheetOrderId();
     const value = parseFloat(discountValue);
-    if (!orderId || isNaN(value) || value <= 0 || discountBusy) return;
+    if (!orderId || isNaN(value) || value <= 0) return;
     setDiscountBusy(true);
     toast.loading(t('processing_discount'), { id: 'discount-toast' });
     try {
@@ -1264,10 +1274,15 @@ export default function POSPage() {
           discount_type: discountType,
           discount_value: value,
           reason: discountReason.trim() || undefined,
+          approver_staff_id: approverStaffId || null,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data?.requires_approval && !approverStaffId) {
+          setDiscountPinOpen(true);
+          return;
+        }
         toast.error(data.error || t('error_occurred'), { id: 'discount-toast' });
         return;
       }
@@ -1282,6 +1297,48 @@ export default function POSPage() {
     } finally {
       setDiscountBusy(false);
     }
+  };
+
+  const submitDiscount = async () => {
+    if (discountBusy) return;
+    await doSubmitDiscount(null);
+  };
+
+  // Shared cart-send path (U-4): used by the CartPanel "Send" button AND by
+  // the unsent-cart guard modal, so both execute identical logic.
+  const sendCurrentOrder = () => {
+    if (pos.reservationMode) {
+      pos.savePreOrder();
+      return;
+    }
+    if (posMode !== 'dine_in') {
+      const phone = pos.cart?.customer_phone?.trim();
+      if (posMode === 'delivery' && !phone) {
+        toast.error(t('enter_phone'));
+        return;
+      }
+      if (posMode === 'delivery' && !pos.cart?.delivery_address?.trim()) {
+        toast.error(t('enter_address'));
+        return;
+      }
+      pos.placeOrder(undefined, {
+        customer_phone: phone,
+        customer_name: pos.cart?.customer_name || undefined,
+        customer_note: pos.cart?.notes || undefined,
+        delivery_address: pos.cart?.delivery_address || undefined,
+        delivery_fee: pos.cart?.delivery_fee || 0,
+        estimated_delivery_time: pos.cart?.estimated_delivery_time || undefined,
+        payment_method: pos.cart?.payment_method || 'cash',
+      }, posSession?.staffId);
+    } else {
+      const autoCampaign = pos.getAutoCampaign(pos.cart);
+      pos.placeOrder(autoCampaign ? { id: autoCampaign.id, type: 'AUTO' } : undefined, undefined, posSession?.staffId);
+    }
+  };
+
+  // U-4: close the panel without discarding an unsent cart.
+  const closeCartPanel = () => {
+    pos.clearCart(); pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null); if (pos.selectedTable && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(pos.selectedTable.status)) { setFlashInfo({ tableNumber: pos.selectedTable.table_number, nonce: Date.now() }); } pos.setActiveView('floor'); setEditingOrder(null);
   };
 
   // 1.5 — VAT toggle (POS, manager PIN verified in ActionSheet before this runs).
@@ -2249,39 +2306,18 @@ export default function POSPage() {
                            </div>
                          </div>
                        )}
-                       <CartPanel
-                          cart={pos.cart}
-                          cartHydrating={pos.cartHydrating}
-                          onPlaceOrder={() => {
-                            if (pos.reservationMode) {
-                              pos.savePreOrder();
-                              return;
-                            }
-                            if (posMode !== 'dine_in') {
-                              const phone = pos.cart?.customer_phone?.trim();
-                              if (posMode === 'delivery' && !phone) {
-                                toast.error(t('enter_phone'));
-                                return;
-                              }
-                              if (posMode === 'delivery' && !pos.cart?.delivery_address?.trim()) {
-                                toast.error(t('enter_address'));
-                                return;
-                              }
-                              pos.placeOrder(undefined, {
-                                customer_phone: phone,
-                                customer_name: pos.cart?.customer_name || undefined,
-                                customer_note: pos.cart?.notes || undefined,
-                                delivery_address: pos.cart?.delivery_address || undefined,
-                                delivery_fee: pos.cart?.delivery_fee || 0,
-                                estimated_delivery_time: pos.cart?.estimated_delivery_time || undefined,
-                                payment_method: pos.cart?.payment_method || 'cash',
-                              }, posSession?.staffId);
-                            } else {
-                              const autoCampaign = pos.getAutoCampaign(pos.cart);
-                              pos.placeOrder(autoCampaign ? { id: autoCampaign.id, type: 'AUTO' } : undefined, undefined, posSession?.staffId);
-                            }
-                          }}
-                         onBack={() => { pos.clearCart(); pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null); if (pos.selectedTable && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(pos.selectedTable.status)) { setFlashInfo({ tableNumber: pos.selectedTable.table_number, nonce: Date.now() }); } pos.setActiveView('floor'); setEditingOrder(null); }}
+                        <CartPanel
+                           cart={pos.cart}
+                           cartHydrating={pos.cartHydrating}
+                           onPlaceOrder={sendCurrentOrder}
+                           onBack={() => {
+                             // U-4: an unsent cart must never be discarded
+                             // silently. unsent = quantity beyond what was
+                             // already sent (placeOrder tracks sentQuantity).
+                             const unsentQty = (pos.cart?.items || []).reduce((s: number, i: any) => s + Math.max(0, (i.quantity || 0) - (i.sentQuantity || 0)), 0);
+                             if (!pos.placingOrder && unsentQty > 0) { setUnsentCartGuard(true); return; }
+                             closeCartPanel();
+                           }}
                          orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
                          onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
                           onEditGuestCount={() => { setActionSheetOpen(true); }}
@@ -2406,19 +2442,24 @@ export default function POSPage() {
              onDiscount={() => setDiscountOpen(true)}
              onToggleVat={handleToggleVat}
            onCancelTable={async () => {
-            if (!actionSheetTable) return;
-            if (posMode === 'takeaway' || posMode === 'delivery') {
-              setActionSheetOpen(false);
-              if (posMode === 'delivery') {
-                await orderStateMachine.transitionDelivery(actionSheetTable.id, 'cancelled');
-              } else {
-                await orderStateMachine.transition(actionSheetTable.id, 'cancelled');
-              }
-            } else {
-              pos.dismissTable(actionSheetTable.table_number);
-              setActionSheetOpen(false);
-            }
-          }}
+             if (!actionSheetTable) return;
+             if (posMode === 'takeaway' || posMode === 'delivery') {
+               setActionSheetOpen(false);
+               if (posMode === 'delivery') {
+                 await orderStateMachine.transitionDelivery(actionSheetTable.id, 'cancelled');
+               } else {
+                 await orderStateMachine.transition(actionSheetTable.id, 'cancelled');
+               }
+             } else {
+               pos.dismissTable(actionSheetTable.table_number);
+               setActionSheetOpen(false);
+             }
+           }}
+           onReleaseTable={async () => {
+             if (!actionSheetTable) return;
+             const res = await pos.releaseTable(actionSheetTable.table_number);
+             if (res.ok) setActionSheetOpen(false);
+           }}
          onDismissGroup={handleDismissGroup}
           paymentView={paymentView}
           mergeMode={mergeMode}
@@ -2833,6 +2874,20 @@ export default function POSPage() {
          )}
        </AnimatePresence>
 
+       {/* Sprint-1: manager PIN override for >20% discounts */}
+       <PinGuard
+         open={discountPinOpen}
+         onClose={() => { setDiscountPinOpen(false); setDiscountBusy(false); }}
+         onVerified={(verified: PinVerified) => {
+           setDiscountPinOpen(false);
+           if (verified?.valid && verified.staffId) {
+             void doSubmitDiscount(verified.staffId);
+           }
+         }}
+         action="discount"
+         title={t('manager_approval_required')}
+       />
+
     {/* PAYMENT PARTIAL-OUTCOME MODAL (Phase-1 G2) */}
        <AnimatePresence>
          {payOutcome && (
@@ -2863,10 +2918,38 @@ export default function POSPage() {
                    </button>
                  )}
                </div>
-             </motion.div>
-           </motion.div>
-         )}
-       </AnimatePresence>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence> 
+
+        {/* U-4: unsent-cart guard — never discard silently */}
+        <AnimatePresence>
+          {unsentCartGuard && (
+            <motion.div key="ui-unsent-guard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+              <motion.div initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
+                className={`w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
+                <p className={`text-lg font-black tracking-tight text-center ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{t('unsent_items_title')}</p>
+                <p className={`text-xs text-center mt-2 leading-relaxed ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>{t('unsent_items_question')}</p>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setUnsentCartGuard(false)}
+                    className={`flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest border transition-all ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
+                    {t('back')}
+                  </button>
+                  <button onClick={() => { setUnsentCartGuard(false); closeCartPanel(); }}
+                    className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-rose-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-rose-500/20">
+                    {t('unsent_items_discard')}
+                  </button>
+                  <button onClick={() => { setUnsentCartGuard(false); sendCurrentOrder(); }}
+                    className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-emerald-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-emerald-500/20">
+                    {t('unsent_items_send')}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
     </div>
     </VirtualKeyboardProvider>

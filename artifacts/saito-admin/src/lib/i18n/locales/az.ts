@@ -445,6 +445,31 @@ export const az = {
   tab_loyalty: 'Məxsusiyyət',
   floor_plan_settings: 'Zal və Mərtəbə Planı',
 
+  // U-2: paid table release (Core Freeze)
+  release_table: 'Sərbəst burax',
+  release_table_question: 'Masa sərbəst buraxılsın?',
+  release_table_orders_closed: 'Ödənilmiş orderlar bağlanacaq və masa boşalacaq',
+  release_has_active_orders: 'Masada aktiv (ödənməyib) order var — əvvəl void/waste edin',
+  release_no_paid: 'Masada sərbəst buraxılacaq ödənilmiş order yoxdur',
+  release_reserved: 'Masa rezervasiyalıdır',
+  release_merged: 'Masa başqa masaya birləşdirilib',
+
+  // U-3: merge error mapping (Core Freeze)
+  merge_child_no_order: 'Seçilən masalarda sifariş yoxdur',
+  merge_parent_no_order: 'Əsas masada sifariş yoxdur',
+  merge_same_table: 'Masa özünə birləşdirilə bilməz',
+  merge_already_merged: 'Masa artıq birləşdirilib',
+  merge_reserved: 'Masalardan biri rezervasiyalıdır',
+
+  // U-4: unsent cart guard (Core Freeze)
+  unsent_items_title: 'Göndərilməyən məhsullar',
+  unsent_items_question: 'Səbətdə hələ yeməkxanaya göndərilməyən məhsullar var. Onları silə bilərsiniz?',
+  unsent_items_send: 'Göndər',
+  unsent_items_discard: 'Sil',
+
+  // Sprint-1: void PIN override
+  void_pin_required: 'Void üçün idarəçi PIN tələb olunur',
+
   // General Tab
   gen_restaurant_name: 'Restoran Adı',
   gen_address: 'Ünvan',

@@ -448,6 +448,31 @@ export const en: TranslationMap = {
   tab_loyalty: 'Loyalty',
   floor_plan_settings: 'Hall & Floor Plan',
 
+  // U-2: paid table release (Core Freeze)
+  release_table: 'Release Table',
+  release_table_question: 'Release this table?',
+  release_table_orders_closed: 'Paid orders will be closed and the table freed',
+  release_has_active_orders: 'Table has unpaid orders — void/waste them first',
+  release_no_paid: 'No paid orders to release on this table',
+  release_reserved: 'Table is reserved',
+  release_merged: 'Table is already merged into another',
+
+  // U-3: merge error mapping (Core Freeze)
+  merge_child_no_order: 'Selected tables have no orders',
+  merge_parent_no_order: 'Main table has no order',
+  merge_same_table: 'A table cannot be merged into itself',
+  merge_already_merged: 'Table is already merged',
+  merge_reserved: 'One of the tables is reserved',
+
+  // U-4: unsent cart guard (Core Freeze)
+  unsent_items_title: 'Unsent items',
+  unsent_items_question: 'Your cart has items not yet sent to the kitchen. Discard them?',
+  unsent_items_send: 'Send',
+  unsent_items_discard: 'Discard',
+
+  // Sprint-1: void PIN override
+  void_pin_required: 'Manager PIN required for void',
+
   // General Tab
   gen_restaurant_name: 'Restaurant Name',
   gen_address: 'Address',

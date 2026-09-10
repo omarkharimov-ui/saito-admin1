@@ -30,6 +30,7 @@ interface ActionSheetProps {
   onAddOrder: () => void;
   onUnmerge: () => void;
   onCancelTable?: () => void;
+  onReleaseTable?: () => void;
   onOpenPayment?: () => void;
   onPaymentMethodSelect?: (method: PaymentMethod, tenderedAmount?: number, tipAmount?: number) => void;
   onSplitConfirm?: (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }, tipAmount?: number) => void;
@@ -85,7 +86,7 @@ interface ActionSheetProps {
 }
 
 export function ActionSheet({ 
-  table, open, onClose, onAddOrder, onUnmerge, onCancelTable,
+  table, open, onClose, onAddOrder, onUnmerge, onCancelTable, onReleaseTable,
   onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
   onBackFromPayment, onDeliveryStatus, onTakeawayStatus, onMarkServed, onSelectCustomer, customerId, customerName, onLoyaltyRedeemed,
   mergeMode, transferMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
@@ -111,7 +112,7 @@ export function ActionSheet({
   const [cashTenderedAmount, setCashTenderedAmount] = useState('');
   const [cardConfirmView, setCardConfirmView] = useState(false);
   const [splitItems, setSplitItems] = useState<Record<number, 'cash' | 'card'>>({});
-  const [confirmAction, setConfirmAction] = useState<'cancel_table' | 'dismiss_group' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'cancel_table' | 'dismiss_group' | 'release_table' | null>(null);
   const [pinGuardOpen, setPinGuardOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ fn: (verified?: PinVerified) => void; action: string } | null>(null);
   const [tipAmount, setTipAmount] = useState('');
@@ -248,7 +249,10 @@ export function ActionSheet({
     { id: 'print_bill', icon: Printer, label: t('print_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'bill_request', icon: Receipt, label: t('call_bill'), visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 && !table?.bill_requested },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isCashierOrAbove && (isOccupied && (table?.total_amount ?? 0) > 0 || isTakeawayOrDelivery) },
-    { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? t('cancel') : t('dismiss_table'), visible: isCashierOrAbove && !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) },
+    { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? t('cancel') : t('dismiss_table'), visible: isCashierOrAbove && !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) && !(table?.status === 'paid' || activeOrder?.status === 'paid') },
+    // U-2: paid tables cannot be dismissed (they would 400 G_NO_ACTIVE_ORDER)
+    // — they must be RELEASED (orders close, table frees).
+    { id: 'release_table', icon: CheckCircle, label: t('release_table'), visible: isCashierOrAbove && !isTakeawayOrDelivery && (table?.status === 'paid' || activeOrder?.status === 'paid') },
     { id: 'clear', icon: BrushCleaning, label: t('clear'), visible: table?.status === 'empty' || table?.status === 'dirty' },
     ...(posMode === 'delivery' ? [
       { id: 'delivery_status', icon: Car, label: t('delivery_status'), visible: true },
@@ -439,7 +443,7 @@ export function ActionSheet({
                        <div>
                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('main_actions')}</p>
                          <div className="grid grid-cols-3 gap-3">
-                            {visibleActions.filter(a => ['customer', 'close_bill', 'clear'].includes(a.id)).map((action) => {
+                             {visibleActions.filter(a => ['customer', 'close_bill', 'clear', 'release_table'].includes(a.id)).map((action) => {
                               if (action.id === 'customer') {
                                 return (
                                   <button key={action.id} onClick={() => setShowCustomerSearch(true)}
@@ -449,11 +453,12 @@ export function ActionSheet({
                                   </button>
                                 );
                               }
-                                return (
+                                 return (
                                 <button key={action.id} onClick={() => {
                                   const fn = {
                                     close_bill: onOpenPayment,
                                     cancel_table: () => setConfirmAction('cancel_table'),
+                                    release_table: () => setConfirmAction('release_table'),
                                     delivery_status: onDeliveryStatus,
                                     takeaway_status: onTakeawayStatus,
                                     mark_served: onMarkServed,
@@ -1066,11 +1071,15 @@ export function ActionSheet({
                  <motion.div key="ui-confirm" {...morphView} className="flex flex-col gap-4 py-2">
                    <div className="text-center">
                      <p className={`text-xl font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                       {confirmAction === 'dismiss_group' ? t('clear_group_question') : t('clear_table_question')}
+                       {confirmAction === 'dismiss_group' ? t('clear_group_question')
+                         : confirmAction === 'release_table' ? t('release_table_question')
+                         : t('clear_table_question')}
                      </p>
                      <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
                        {confirmAction === 'dismiss_group'
                          ? t('all_connected_tables_cleared')
+                         : confirmAction === 'release_table'
+                         ? t('release_table_orders_closed')
                          : t('this_table_orders_deleted')}
                      </p>
                    </div>
@@ -1080,19 +1089,21 @@ export function ActionSheet({
                        {t('back')}
                      </button>
                       <button onClick={() => {
+                        const isRelease = confirmAction === 'release_table';
                         const doAction = () => {
                           if (confirmAction === 'dismiss_group') onDismissGroup?.();
+                          else if (isRelease) onReleaseTable?.();
                           else onCancelTable?.();
                           setConfirmAction(null);
                         };
-                        if (waiterPinRequired) {
+                        if (!isRelease && waiterPinRequired) {
                           setPendingAction({ fn: doAction, action: 'dismiss' });
                           setPinGuardOpen(true);
                         } else {
                           doAction();
                         }
                       }}
-                       className={`flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-rose-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-rose-500/20`}>
+                       className={`flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest ${confirmAction === 'release_table' ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-rose-500 text-white shadow-rose-500/20'} active:scale-[0.98] transition-all shadow-lg`}>
                        {t('confirm')}
                      </button>
                    </div>

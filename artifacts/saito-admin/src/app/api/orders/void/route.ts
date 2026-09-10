@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createAuthClient();
-    const { order_id, items, reason } = await req.json();
+    const { order_id, items, reason, approver_staff_id } = await req.json();
     if (!order_id || !items?.length) {
       return NextResponse.json({ error: 'order_id and items required' }, { status: 400 });
     }
@@ -55,50 +55,79 @@ export async function POST(req: NextRequest) {
       const orderItem = orderItems.find((i: any) => i.id === voidItem.order_item_id);
       if (!orderItem) continue;
       const qty = Number(voidItem.quantity) || 0;
-      const price = productPriceMap[orderItem.product_id] || Number(orderItem.unit_price) || 0;
+      // Line price of the ORDER (already reflects any applied discount),
+      // falling back to the catalog price only when the line price is missing.
+      // This keeps the approval threshold honest: voiding a discounted line
+      // must count for what it is actually worth, not the pre-discount price.
+      const qtyOrdered = Number(orderItem.quantity) || 1;
+      const linePrice = Number(orderItem.total_price) ? Number(orderItem.total_price) / qtyOrdered : 0;
+      const price = linePrice || productPriceMap[orderItem.product_id] || Number(orderItem.unit_price) || 0;
       voidAmount += price * qty;
     }
 
-    // Check if approval is required
+    // Approval (Sprint-1 manager-override pattern, same as apply-vat):
+    // the session user must hold void.approve, OR the PIN-verified approver
+    // (whose identity the client sends after verify-pin) must hold it. The
+    // server re-verifies the approver's permission — the PIN itself is only
+    // the client-side gate and is never trusted.
+    let effectiveActor = auth.user!.id;
     const { data: hasVoidApprove, error: approveErr } = await supabase.rpc('has_permission', {
       p_staff_id: auth.user!.id,
       p_permission: 'void.approve',
     });
 
     if (approveErr || !hasVoidApprove) {
-      // Create pending approval request
-      const approvalData: any = {
-        staff_id: auth.user.id,
-        action_type: 'void',
-        entity_type: 'order',
-        entity_id: order_id,
-        amount: voidAmount,
-        reason: reason || null,
-        old_values: { items: items.map((i: any) => ({ order_item_id: i.order_item_id, quantity: i.quantity })) },
-        new_values: { items_voided: items.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0) },
-        status: 'pending',
-      };
+      if (approver_staff_id) {
+        // PIN-override path: validate the approver directly (no pending
+        // approval request is created for a PIN-mediated void).
+        const { data: hasApprover, error: approverErr } = await supabase.rpc('has_permission', {
+          p_staff_id: approver_staff_id,
+          p_permission: 'void.approve',
+        });
+        if (approverErr || !hasApprover) {
+          return NextResponse.json({
+            error: 'The PIN entered belongs to a staff without void approval rights',
+            requires_approval: true,
+          }, { status: 403 });
+        }
+        effectiveActor = approver_staff_id;
+      } else if (!approver_staff_id) {
+        // Create pending approval request
+        const approvalData: any = {
+          staff_id: auth.user.id,
+          action_type: 'void',
+          entity_type: 'order',
+          entity_id: order_id,
+          amount: voidAmount,
+          reason: reason || null,
+          old_values: { items: items.map((i: any) => ({ order_item_id: i.order_item_id, quantity: i.quantity })) },
+          new_values: { items_voided: items.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0) },
+          status: 'pending',
+        };
 
-      const approvalRes = await fetch(`${s.url}/rest/v1/approval_requests`, {
-        method: 'POST',
-        headers: { ...s.headers, 'Prefer': 'return=minimal' },
-        body: JSON.stringify(approvalData),
-      });
+        const approvalRes = await fetch(`${s.url}/rest/v1/approval_requests`, {
+          method: 'POST',
+          headers: { ...s.headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify(approvalData),
+        });
 
-      if (!approvalRes.ok) {
-        const errText = await approvalRes.text();
-        return NextResponse.json({ error: errText || 'Failed to create approval request' }, { status: 400 });
-      }
+        if (!approvalRes.ok) {
+          const errText = await approvalRes.text();
+          return NextResponse.json({ error: errText || 'Failed to create approval request' }, { status: 400 });
+        }
 
-      return NextResponse.json({
-        error: `Void amount ${voidAmount.toFixed(2)} exceeds threshold ${VOID_APPROVAL_THRESHOLD}. Manager approval required.`,
-        requires_approval: true,
-        void_amount: voidAmount,
-        threshold: VOID_APPROVAL_THRESHOLD,
-      }, { status: 403 });
-    }
+         return NextResponse.json({
+           error: `Void amount ${voidAmount.toFixed(2)} exceeds threshold ${VOID_APPROVAL_THRESHOLD}. Manager approval required.`,
+           requires_approval: true,
+           void_amount: voidAmount,
+           threshold: VOID_APPROVAL_THRESHOLD,
+           approval_required: true,
+         }, { status: 403 });
+       }
+     }
 
-    // User has void.approve permission, execute void
+    // Execute void. effectiveActor = session user, or the PIN-verified approver
+    // when the session user lacked void.approve (recorded for forensics).
     const { data: rpcResult, error: rpcErr } = await supabase.rpc('void_items_state_aware', {
       p_order_id: order_id,
       p_items: items.map((i: any) => ({
@@ -106,7 +135,7 @@ export async function POST(req: NextRequest) {
         quantity: i.quantity,
       })),
       p_performed_by: auth.user?.id || null,
-      p_reason: reason || null,
+      p_reason: reason || (effectiveActor !== auth.user!.id ? `Manager PIN override by ${approver_staff_id}` : null),
     });
 
     if (rpcErr) throw rpcErr;
@@ -129,7 +158,12 @@ export async function POST(req: NextRequest) {
           amount: voidAmount,
           reason: reason || null,
           old_values: { items: voidItems.map((i: any) => ({ order_item_id: i.order_item_id, quantity: i.quantity })) },
-          new_values: { items_voided: totalVoided, void_amount: voidAmount },
+          new_values: {
+            items_voided: totalVoided,
+            void_amount: voidAmount,
+            // Sprint-1: forensics — who actually authorized (PIN override).
+            ...(effectiveActor !== auth.user!.id ? { pin_overridden_by: effectiveActor } : {}),
+          },
           status: 'approved',
         }),
       }).catch(() => {});

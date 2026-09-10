@@ -182,17 +182,29 @@ export function KDSView({ onBack }: { onBack: () => void }) {
     return () => clearInterval(interval);
   }, [playSound]);
 
-  const handleItemStatus = async (itemId: string, status: string) => {
+  // U-1 fix: per-item ✓ now calls the FROZEN atomic mark-ready route for a
+  // single item (the old action 'updateItemStatus' was not handled by
+  // /api/orders, so clicks silently no-op'd). Optimistic update is rolled
+  // back on failure so a 400 (already-ready / wrong state) stays consistent.
+  const handleItemStatus = async (orderId: string, itemId: string, status: string) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? {
+      ...o,
+      items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: status } : i),
+    } : o));
     try {
-      await apiFetch('/api/orders', {
+      const res = await apiFetch('/api/orders/mark-ready', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'updateItemStatus', item_id: itemId, status }),
+        body: JSON.stringify({ order_id: orderId, item_ids: [itemId] }),
       });
-      setOrders(prev => prev.map(o => ({
-        ...o,
-        items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: status } : i),
-      })));
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setOrders(prev => prev.map(o => o.id === orderId ? {
+          ...o,
+          items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: 'preparing' } : i),
+        } : o));
+        toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
+      }
     } catch {
       toast.error(t('status_update_error'), { id: 'kds-toast' });
     }
@@ -313,7 +325,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                               <span className={`text-xs font-bold ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>×{item.quantity}</span>
                               {!itemReady ? (
                                 <button
-                                  onClick={() => handleItemStatus(item.id, 'ready')}
+                                  onClick={() => handleItemStatus(order.id, item.id, 'ready')}
                                   className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border transition-all active:scale-95 ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:border-emerald-300 hover:text-emerald-500' : 'bg-white/5 border-white/10 text-white/40 hover:border-emerald-500/30 hover:text-emerald-400'}`}
                                 >
                                   ✓
@@ -341,7 +353,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                         onClick={() => handleMarkReady(order.id)}
                         className={`w-full py-2.5 rounded-2xl text-xs font-bold transition-all ${lightMode ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-emerald-500 text-white hover:bg-emerald-400'}`}
                       >
-                        t('complete_order')
+                        {t('complete_order')}
                       </button>
                     )}
                   </div>

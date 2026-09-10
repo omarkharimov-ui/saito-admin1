@@ -171,7 +171,17 @@ export function usePos() {
     else syncStatsRef.current.manualFetches += 1;
     debugSync('refetch start', reason ?? 'manual', `gen=${gen}`);
     try {
-      const tablesRes = await retryWithBackoff(() => fetch('/api/pos/tables', { cache: 'no-store' }));
+      const tablesRes = await retryWithBackoff(async () => {
+        const r = await fetch('/api/pos/tables', { cache: 'no-store' });
+        // Defensive: a 307/HTML login page (stale session) is not JSON.
+        // Reject so the retry kicks in instead of crashing the floor.
+        const ct = r.headers.get('content-type') || '';
+        if (!r.ok || !ct.includes('application/json')) {
+          if (r.status === 401) window.dispatchEvent(new CustomEvent('pos:unauthorized'));
+          throw new Error(`pos/tables: ${r.status}`);
+        }
+        return r;
+      });
       if (tablesRes.ok) {
         const data = await tablesRes.json();
         if (gen !== floorGenRef.current) {
@@ -1159,11 +1169,7 @@ export function usePos() {
       const computedDiscount = { amount: itemBasedDiscount, type: computedType };
 
       console.log('[placeOrder] API payload', { table_number: cart?.table_number, unsent: unsent?.length, activeOrderId, posMode });
-      const res = await apiFetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(
+      const orderBody = JSON.stringify(
           activeOrderId
             ? { action: 'addItems', id: activeOrderId, items: unsent, terminal_id: terminalId }
             : {
@@ -1196,13 +1202,42 @@ export function usePos() {
                  campaign_id: campaign?.id || null,
                  is_rush: false,
                  payment_method: checkoutOverrides?.payment_method || null,
-                }
-        ),
+                 }
+      );
+      // ONE retry on 5xx ONLY. A 5xx from /api/orders means the server's
+      // Supabase call threw (e.g. the intermittent pooler TLS reset) — the
+      // order was NOT created, so a retry is safe and cannot duplicate items.
+      // A client-side network throw is ambiguous (the order may have landed),
+      // so we do NOT auto-retry that — we surface a clear error instead.
+      const doOrderFetch = () => apiFetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: orderBody,
       });
+      let res: Response = await doOrderFetch();
+      if (!res.ok && res.status >= 500 && res.status <= 599) {
+        console.warn('[placeOrder] 5xx server failure, retrying once', res.status);
+        await new Promise(r => setTimeout(r, 300));
+        res = await doOrderFetch();
+      }
       let createdOrderId: string | null = null;
       console.log('[placeOrder] API response', { status: res.status, ok: res.ok });
       if (res.ok) {
         const data = await res.json();
+        // CRITICAL: /api/orders returns HTTP 200 even on business failure
+        // ({success:false, error}). Without this check the UI toasted
+        // "order sent" for an order that was never created — the exact
+        // "seated but no order" state dismiss/merge then hit.
+        if (data?.success === false) {
+          if (data?.error === 'CONCURRENCY_CONFLICT') {
+            toast.error(t('order_changed_by_other_terminal'), { id: 'action-toast' });
+          } else {
+            toast.error(data?.error || t('order_not_sent'), { id: 'action-toast' });
+          }
+          fetchFloor().catch(() => {});
+          return;
+        }
         createdOrderId = data.data?.id || data.id || data.order?.id || activeOrderId;
         console.log('[placeOrder] success', { createdOrderId, data });
         toast.success(t('order_sent'));
@@ -1234,9 +1269,15 @@ export function usePos() {
         setActiveView('floor');
         fetchFloor().catch(() => {});
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         if (res.status === 409) {
           toast.error(t('order_changed_by_other_terminal'), { id: 'action-toast' });
+        } else if (res.status === 401) {
+          // Staff session died mid-action (was previously masked by the
+          // middleware's 307→HTML redirect, leaving a "seated but no order"
+          // table). Be explicit so the user re-logs in instead of retrying.
+          toast.error(t('session_expired') || 'Session expired — log in again', { id: 'action-toast', duration: 6000 });
+          window.dispatchEvent(new CustomEvent('pos:unauthorized'));
         } else {
           toast.error(err.error || t('order_not_sent'), { id: 'action-toast' });
         }

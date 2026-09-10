@@ -760,6 +760,7 @@ export const az = {
   error_deleting: 'Silmək mümkün olmadı',
   error_network: 'İnternet bağlantısı yoxdur',
   error_unauthorized: 'İcazə yoxdur',
+  session_expired: 'Sessiya bitib — yenidən daxil olun',
   error_not_found: 'Tapılmadı',
   error_occurred: 'Xəta baş verdi',
   no_variants_added: 'Bu məhsul üçün növ əlavə edilməyib',

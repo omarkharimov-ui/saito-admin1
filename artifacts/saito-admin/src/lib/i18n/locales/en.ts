@@ -764,6 +764,7 @@ export const en: TranslationMap = {
   error_deleting: 'Failed to delete',
   error_network: 'No internet connection',
   error_unauthorized: 'Unauthorized',
+  session_expired: 'Session expired — log in again',
   error_not_found: 'Not found',
   error_occurred: 'An error occurred',
   no_variants_added: 'No variants added for this product',

@@ -24,6 +24,21 @@ const PUBLIC_PATHS = [
   '/icon-512x512.png',
 ];
 
+function apiUnauthorized(request: NextRequest) {
+  // API calls must NEVER receive a 307 → HTML login page: the browser fetch
+  // would parse the login page as JSON and crash the whole POS floor
+  // ("Unexpected token '<'"). Return JSON 401 and let the route/handlers
+  // react (toast + re-login flow).
+  return NextResponse.json({ error: 'Unauthorized', login: '/staff/login' }, { status: 401 });
+}
+
+function pageUnauthorized(request: NextRequest) {
+  const url = new URL('/staff/login', request.url);
+  const res = NextResponse.redirect(url);
+  res.cookies.set('saito_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', expires: new Date(0), path: '/' });
+  return res;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -36,12 +51,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const isApi = pathname.startsWith('/api/');
   const token = request.cookies.get('saito_token')?.value;
   if (!token) {
-    // Public entrance points redirect to the staff login
-    const target = pathname.startsWith('/staff') ? '/staff/login' : '/staff/login';
-    const url = new URL(target, request.url);
-    return NextResponse.redirect(url);
+    return isApi ? apiUnauthorized(request) : pageUnauthorized(request);
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -59,24 +72,21 @@ export async function middleware(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const url = new URL('/staff/login', request.url);
-      const res = NextResponse.redirect(url);
-      res.cookies.set('saito_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', expires: new Date(0), path: '/' });
-      return res;
+      return isApi ? apiUnauthorized(request) : pageUnauthorized(request);
     }
 
     const sessions = await response.json();
     const session = Array.isArray(sessions) ? sessions[0] : null;
 
     if (!session || new Date(session.expires_at).getTime() < Date.now()) {
-      const url = new URL('/staff/login', request.url);
-      const res = NextResponse.redirect(url);
-      res.cookies.set('saito_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', expires: new Date(0), path: '/' });
-      return res;
+      return isApi ? apiUnauthorized(request) : pageUnauthorized(request);
     }
   } catch {
-    const url = new URL('/staff/login', request.url);
-    return NextResponse.redirect(url);
+    // TRANSIENT failure (e.g. intermittent pooler TLS reset). Do NOT bounce
+    // the user to login on a hiccup — let the request continue; the actual
+    // route re-checks the session and answers properly (or the client's
+    // retry handles it). Only hard 401s above force re-login.
+    return NextResponse.next();
   }
 
   return NextResponse.next();

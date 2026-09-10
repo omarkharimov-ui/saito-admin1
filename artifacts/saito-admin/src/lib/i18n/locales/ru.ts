@@ -791,6 +791,7 @@ export const ru: TranslationMap = {
   error_deleting: 'Не удалось удалить',
   error_network: 'Нет подключения к интернету',
   error_unauthorized: 'Нет доступа',
+  session_expired: 'Сессия истекла — войдите снова',
   error_not_found: 'Не найдено',
   error_occurred: 'Произошла ошибка',
   no_variants_added: 'Для этого продукта не добавлены варианты',

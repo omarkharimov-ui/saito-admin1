@@ -117,8 +117,9 @@ kitchen routing → course assignment → inventory reservation → realtime eve
 audit log → analytics event. External processor / notification = **DB transaction
 dən kənarda, idempotent outbox** ilə (`outbox_events` + `emit_outbox_event`).
 
-> **⚠️ Backbone qısqıcı:** `outbox_events` cədvəli var (220+ event birikib) amma
-> **consumer YOX** — event-i heç kim işlətmir. Addım 2-də P1.
+> **Backbone:** `outbox_events` + **`outbox_pump` consumer LIVE (2.1, 2026-09-11)** —
+> pg_cron */30s pump; handler dispatch; dead-letter `status='dead'`. Yeni event tipi
+> əlavə edəndə `outbox_dispatch()`-də handler qur.
 
 ---
 
@@ -388,7 +389,7 @@ Operational (order/pickup ready, low stock, payment failed, refund); reservation
 | WhatsApp automation (send + auto-order) | ✅ | `/api/whatsapp/*` | — |
 | SMS provider (Twilio/yerli) | ❌ | — | Wave C |
 | Email + push | ❌ | — | Wave C (Q10 push token qərarı) |
-| Low-stock / payment-failed auto-notify | 🟡 | `check_stock_thresholds` (cron) var | Notification bağlantısı Addım 2 |
+| Low-stock / payment-failed auto-notify | ✅ **outbox dispatch (2.1)** | `check_stock_thresholds` + `outbox_dispatch` handlers (payment.failed, inventory.stock_changed dedupe) | cron → RPC → outbox/notifications |
 
 ---
 
@@ -461,9 +462,9 @@ Database, realtime, event system, API, queue, cache, offline sync, idempotency, 
 |---|---|---|---|
 | Atomic RPC + idempotency keys | ✅ FROZEN | `payment_idempotency_keys`, `check_idempotency`, `p_idempotency_key` parametrləri | — |
 | Realtime publication (12 cədvəl + messages) | ✅ FROZEN | `supabase_realtime`, `supabase_realtime_messages_publication` | — |
-| Outbox event system | 🟡 **consumer YOX** (220 event birikib) | `outbox_events`, `emit_outbox_event` | Addım 2 P1 — hamı üçün kritik |
+| Outbox event system | ✅ **LIVE (2.1, 2026-09-11)** — `outbox_pump()` SSOT consumer + `outbox_dispatch()` handlers (paid/cancelled/pay-failed/refund/low-stock dedupe); claim SKIP LOCKED, backoff, dead-letter `status='dead'` | `outbox_events`, `emit_outbox_event`, `outbox_pump`, `outbox_dispatch` | migration `20260911000001` |
 | Sync operations (offline sync qatı) | ⚪ | `sync_operations`, `sync_operation` | Q8 offline-first qədarından sonra |
-| Cron jobs | ✅ | `/api/cron/*` (6 job: auto-clockout, auto-no-show, stock thresholds, kitchen schedules, expired reservations, tip shortfall) | unverified (Addım 2 yoxlama) |
+| Cron jobs (pg_cron scheduler) | ✅ **LIVE (2.1)** — 7 job: outbox-pump */30s · kitchen-schedules */60s · auto-no-show */15s · stock-thresholds */10s · expired-reservations */15s · tip-shortfall 01:00 UTC · auto-clockout `*/5 * * * *` (5 dəq, mövcud). Run audit: `cron.job_run_details` | `/api/cron/*` routes (manual trigger, Bearer CRON_SECRET) | `cron.job`; migration `20260911000001/2` |
 | Monitoring / backup / DR | ⚪ | Supabase default backup | Wave C |
 
 ---
@@ -544,14 +545,14 @@ Order, customer, address, zone, fee, driver; status RECEIVED→ACCEPTED→PREPAR
 
 ## 9. ROADMAP — WAVELƏR (nərdən başlayırıq)
 
-### Wave A — "Sistemi aç" (Addım 2-in ilk yarısı, təxminən 1–2 həftə)
-1. **Outbox consumer** (220 event birikib; realtime/analytics/integrations üçün yeganə açar) — P1
+### Wave A — "Sistemi aç" (Addım 2-in ilk yarısı)
+1. ~~**Outbox consumer**~~ ✅ **BİTİB (2.1, 2026-09-11)** — `outbox_pump` SSOT + handlers + dead-letter; pg_cron scheduler 7 job LIVE; backlog drained
 2. **QR anon customer access** (qr route staff-auth → anon; customer order/pay/loyalty açılır)
 3. **Gift card UI** (engine ✓, UI+report yoxdur) + bar tab (pre-auth, `customers` var)
 4. **Customer timeline UI** (history/favorites/spend) + segmentation bloku
 5. **Daily operating checklists** (opening/closing/maintenance; onboarding engine mövcuddur — eyni pattern)
 6. **Waitlist SMS** + reservation reminder/confirmation (provider: WhatsApp mövcuddur → genişləndirmə)
-7. **Cron verification** (6 job — real run yoxlanışı)
+7. ~~**Cron verification**~~ ✅ **BİTİB (2.1)** — 7 job LIVE, run audit `cron.job_run_details`
 8. **Device registry + print routing** (print_jobs var, registry yoxdur)
 9. **Loyalty qərarı Q2** (tiers/birthday UI build/cut) — qədardan asılı
 

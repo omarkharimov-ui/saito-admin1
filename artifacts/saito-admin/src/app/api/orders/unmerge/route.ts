@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
+import { validateCsrfToken } from '@/lib/csrf';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -12,6 +13,10 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
+
+    if (!validateCsrfToken(req, auth.authenticated)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
 
     const { primary_table_number, child_table_numbers } = await req.json();
     if (!primary_table_number || !child_table_numbers?.length) {

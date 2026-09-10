@@ -30,8 +30,8 @@ interface ActionSheetProps {
   onUnmerge: () => void;
   onCancelTable?: () => void;
   onOpenPayment?: () => void;
-  onPaymentMethodSelect?: (method: PaymentMethod, tenderedAmount?: number) => void;
-  onSplitConfirm?: (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }) => void;
+  onPaymentMethodSelect?: (method: PaymentMethod, tenderedAmount?: number, tipAmount?: number) => void;
+  onSplitConfirm?: (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }, tipAmount?: number) => void;
   onDismissGroup?: () => void;
   onBackFromPayment?: () => void;
   onDeliveryStatus?: () => void;
@@ -498,11 +498,11 @@ export function ActionSheet({
                         <CreditCard size={20} strokeWidth={2.5} />
                         <span className="text-sm font-black tracking-wide">{t('card') || 'Kart'}</span>
                       </button>
-                      <button onClick={() => onPaymentMethodSelect?.('transfer')} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 active:scale-[0.98] transition-all hover:bg-purple-500/20">
+                      <button onClick={() => onPaymentMethodSelect?.('transfer', undefined, parseFloat(tipAmount) || 0)} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 active:scale-[0.98] transition-all hover:bg-purple-500/20">
                         <ArrowLeftRight size={20} strokeWidth={2.5} />
                         <span className="text-sm font-black tracking-wide">Kart-to-Kart</span>
                       </button>
-                      <button onClick={() => onPaymentMethodSelect?.('cash', table?.total_amount || 0)} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 active:scale-[0.98] transition-all hover:bg-emerald-500/20">
+                      <button onClick={() => onPaymentMethodSelect?.('cash', table?.total_amount || 0, parseFloat(tipAmount) || 0)} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 active:scale-[0.98] transition-all hover:bg-emerald-500/20">
                         <Wallet size={20} strokeWidth={2.5} />
                         <span className="text-sm font-black tracking-wide">{t('cash')}</span>
                       </button>
@@ -637,9 +637,9 @@ export function ActionSheet({
                       )
                     )}
                   </div>
-                   <button onClick={() => { setCashTenderedView(false); setCashTenderedAmount(''); }} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
-                  <button
-                    onClick={() => { onPaymentMethodSelect?.('cash', Number(cashTenderedAmount) || 0); setCashTenderedView(false); setCashTenderedAmount(''); }}
+                      <button onClick={() => { setCashTenderedView(false); setCashTenderedAmount(''); }} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
+                      <button
+                        onClick={() => { onPaymentMethodSelect?.('cash', Number(cashTenderedAmount) || 0, parseFloat(tipAmount) || 0); setCashTenderedView(false); setCashTenderedAmount(''); }}
                     disabled={!cashTenderedAmount || Number(cashTenderedAmount) <= 0 || Number(cashTenderedAmount) < (table?.total_amount || 0) * 0.99}
                     className="w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-emerald-500 text-white active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                   >
@@ -657,9 +657,9 @@ export function ActionSheet({
                     <p className="text-sm font-bold text-blue-400">{t('sent_to_terminal')}</p>
                     <p className="text-[10px] text-blue-400/60 mt-1">{t('customer_approach_terminal')}</p>
                   </div>
-                   <button onClick={() => { setCardConfirmView(false); }} className="w-full mt-2 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
-                  <button
-                    onClick={() => { onPaymentMethodSelect?.('card'); setCardConfirmView(false); }}
+                    <button onClick={() => { setCardConfirmView(false); }} className="w-full mt-2 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
+                    <button
+                      onClick={() => { onPaymentMethodSelect?.('card', undefined, parseFloat(tipAmount) || 0); setCardConfirmView(false); }}
                     className="w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-blue-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20"
                   >
                     {t('confirm_payment')}
@@ -820,20 +820,21 @@ export function ActionSheet({
                          className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">
                          {t('back')}
                        </button>
-                       <button
-                         onClick={() => {
-                           if (splitMode === 'amount') {
-                             onSplitConfirm?.(localSplit);
-                            } else {
+                        <button
+                          onClick={() => {
+                            const tipNum = parseFloat(tipAmount) || 0;
+                            if (splitMode === 'amount') {
+                              onSplitConfirm?.(localSplit, tipNum);
+                             } else {
                               const cashTotal = activeOrderItems.reduce((sum: number, _: any, idx: number) => {
                                 if (splitItems[idx] !== 'cash') return sum;
                                 return sum + (Number(activeOrderItems[idx].total_price || activeOrderItems[idx].unit_price * activeOrderItems[idx].quantity) || 0);
                               }, 0);
-                              const cardTotal = activeOrderItems.reduce((sum: number, _: any, idx: number) => {
-                                if (splitItems[idx] !== 'card') return sum;
-                                return sum + (Number(activeOrderItems[idx].total_price || activeOrderItems[idx].unit_price * activeOrderItems[idx].quantity) || 0);
-                              }, 0);
-                             onSplitConfirm?.({ cash: cashTotal.toFixed(2), card: cardTotal.toFixed(2), items: splitItems });
+                                const cardTotal = activeOrderItems.reduce((sum: number, _: any, idx: number) => {
+                                  if (splitItems[idx] !== 'card') return sum;
+                                  return sum + (Number(activeOrderItems[idx].total_price || activeOrderItems[idx].unit_price * activeOrderItems[idx].quantity) || 0);
+                                }, 0);
+                                onSplitConfirm?.({ cash: cashTotal.toFixed(2), card: cardTotal.toFixed(2), items: splitItems }, tipNum);
                            }
                            setLocalSplit(null); setSplitMode('amount'); setSplitItems({});
                          }}
@@ -1145,24 +1146,24 @@ export function ActionSheet({
       <GiftCardModal
         open={giftCardModalOpen}
         onClose={() => setGiftCardModalOpen(false)}
-        amount={(table?.total_amount || 0) + (parseFloat(tipAmount) || 0)}
-        onSuccess={() => { onPaymentMethodSelect?.('gift_card'); }}
+        amount={table?.total_amount || 0}
+        onSuccess={() => { onPaymentMethodSelect?.('gift_card', undefined, parseFloat(tipAmount) || 0); }}
       />
 
       {/* Room Charge Modal */}
       <RoomChargeModal
         open={roomChargeModalOpen}
         onClose={() => setRoomChargeModalOpen(false)}
-        amount={(table?.total_amount || 0) + (parseFloat(tipAmount) || 0)}
-        onSuccess={() => { onPaymentMethodSelect?.('room_charge'); }}
+        amount={table?.total_amount || 0}
+        onSuccess={() => { onPaymentMethodSelect?.('room_charge', undefined, parseFloat(tipAmount) || 0); }}
       />
 
       {/* Corporate Modal */}
       <CorporateModal
         open={corporateModalOpen}
         onClose={() => setCorporateModalOpen(false)}
-        amount={(table?.total_amount || 0) + (parseFloat(tipAmount) || 0)}
-        onSuccess={() => { onPaymentMethodSelect?.('corporate'); }}
+        amount={table?.total_amount || 0}
+        onSuccess={() => { onPaymentMethodSelect?.('corporate', undefined, parseFloat(tipAmount) || 0); }}
       />
     </>
   );

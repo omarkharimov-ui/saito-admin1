@@ -143,28 +143,10 @@ export default function POSPage() {
   const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
   const [deliveryOrders, setDeliveryOrders] = useState<any[]>([]);
 
-  const checkoutTotal = useMemo(() => {
-    if (!pos.cart || pos.cart.items.length === 0) return 0;
-    const originalTotal = pos.cart.items.reduce((s: number, i: any) => s + ((i.original_unit_price ?? i.unit_price) * i.quantity), 0);
-    let total = originalTotal;
-    const itemBasedDiscount = pos.cart.items.reduce((s: number, i: any) => s + Math.max(0, ((i.original_unit_price ?? i.unit_price) - i.unit_price) * i.quantity), 0);
-    if (itemBasedDiscount > 0) {
-      total = originalTotal - itemBasedDiscount;
-    } else {
-      const discountAmount = pos.cart.discount_amount ?? 0;
-      if (discountAmount > 0) {
-        if (pos.cart.discount_type === 'percentage') {
-          total = originalTotal * (1 - discountAmount / 100);
-        } else {
-          total = Math.max(0, originalTotal - discountAmount);
-        }
-      }
-    }
-    const vatRate = 0.18;
-    const vatAmount = total / (1 + vatRate) * vatRate;
-    const deliveryFee = posMode === 'delivery' ? (pos.cart.delivery_fee || 0) : 0;
-    return total + vatAmount + deliveryFee;
-  }, [pos.cart, posMode]);
+  // NOTE (M2 removed): a `checkoutTotal` useMemo lived here with a hardcoded
+  // 18% tax-INCLUSIVE VAT formula — it diverged from the server SSOT
+  // (calculate_order_total_v3, tax-EXCLUSIVE) and was unused (dead landmine).
+  // Totals always come from the server: table.total_amount / order.total_amount.
 
   useEffect(() => {
     if (!flashInfo) return;
@@ -717,7 +699,7 @@ export default function POSPage() {
   };
 
 
-  const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | string, tenderedAmount?: number) => {
+  const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge' | string, tenderedAmount?: number, tipAmount?: number) => {
     if (!actionSheetTable) return;
     const tableNumbers = actionSheetGroup
       ? [actionSheetTable.table_number, ...actionSheetGroup.children.map((c: any) => c.table_number)]
@@ -738,6 +720,7 @@ export default function POSPage() {
         }
 
         const total = specificOrder.total_amount || 0;
+        const specificTip = Math.max(0, Number(tipAmount) || 0);
         const payRes = await apiFetch('/api/orders/pay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -745,7 +728,10 @@ export default function POSPage() {
             order_id: specificOrder.id,
             payment_method: method,
             paid_amount: total,
-            tip_amount: 0,
+            // P1 fix: tip was hardcoded 0 — now carried from the payment sheet.
+            tip_amount: specificTip,
+            // P2 fix: real cash tendered is recorded for cash-drawer reconciliation.
+            ...(method === 'cash' && tenderedAmount ? { cash_received: Number(tenderedAmount) || 0 } : {}),
             campaign_id: specificOrder.campaign_id || undefined,
             discount_amount: specificOrder.discount_amount || 0,
             discount_type: specificOrder.discount_type || 'fixed',
@@ -770,10 +756,11 @@ export default function POSPage() {
             quantity: item.quantity || 1,
             total_price: Number(item.total_price || item.unit_price * item.quantity || 0),
           })),
-          subtotal: Number(specificOrder.total_amount) || 0,
+           subtotal: Number(specificOrder.total_amount) || 0,
           discount: Number(specificOrder.discount_amount) || 0,
           discountName: specificOrder.campaigns?.name,
-          tip: Number(specificOrder.tip_amount) || 0,
+          // P1: specificOrder was fetched before the pay call — add the tip we just sent.
+          tip: (Number(specificOrder.tip_amount) || 0) + specificTip,
           total: Number(specificOrder.total_amount) || 0,
           paymentMethod: method,
           cashAmount: method === 'cash' ? Number(specificOrder.total_amount) || 0 : 0,
@@ -814,6 +801,10 @@ export default function POSPage() {
       }
 
       const failedOrders: string[] = [];
+      const manualTip = Math.max(0, Number(tipAmount) || 0);
+      // P1: a manually entered tip belongs to the primary order (the one the
+      // operator is paying at), not spread across all group orders.
+      const tipOrderIds = new Set([activeOrders[0]?.id]);
       for (const activeOrder of activeOrders) {
         const total = activeOrder.total_amount || 0;
         const paidAmount = total;
@@ -825,7 +816,9 @@ export default function POSPage() {
             order_id: activeOrder.id,
             payment_method: method,
             paid_amount: paidAmount,
-            tip_amount: 0,
+            tip_amount: tipOrderIds.has(activeOrder.id) ? manualTip : 0,
+            // P2: real cash tendered recorded for cash-drawer reconciliation.
+            ...(method === 'cash' && tenderedAmount ? { cash_received: Number(tenderedAmount) || 0 } : {}),
             campaign_id: activeOrder.campaign_id || undefined,
             discount_amount: activeOrder.discount_amount || 0,
             discount_type: activeOrder.discount_type || 'fixed',
@@ -862,7 +855,7 @@ export default function POSPage() {
       const receiptItems: { product_name: string; quantity: number; total_price: number }[] = [];
       let subtotal = 0;
       let discount = 0;
-      let tip = 0;
+      let receiptTip = 0;
       let total = 0;
       for (const activeOrder of activeOrders) {
         for (const item of (activeOrder.order_items || [])) {
@@ -874,9 +867,12 @@ export default function POSPage() {
           subtotal += Number(item.total_price || item.unit_price * item.quantity || 0);
         }
         discount += Number(activeOrder.discount_amount) || 0;
-        tip += Number(activeOrder.tip_amount) || 0;
+        receiptTip += Number(activeOrder.tip_amount) || 0;
         total += Number(activeOrder.total_amount) || 0;
       }
+      // P1: activeOrders was fetched BEFORE the pay call, so the tip we just
+      // sent (manualTip) is not yet in the rows — add it for the on-screen receipt.
+      receiptTip += manualTip;
       const receiptSettings2 = await getReceiptSettings().catch(() => null);
       const paymentNow2 = new Date();
       setReceiptView({
@@ -886,7 +882,7 @@ export default function POSPage() {
         subtotal,
         discount,
         discountName: activeOrders[0]?.campaigns?.name,
-        tip,
+        tip: receiptTip,
         total,
         paymentMethod: method,
         cashAmount: method === 'cash' ? total : 0,
@@ -905,10 +901,12 @@ export default function POSPage() {
     }
   };
 
-  const handleSplitConfirm = async (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }) => {
+  const handleSplitConfirm = async (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }, tipAmount?: number) => {
     if (!actionSheetTable && posMode === 'dine_in') return;
     const cash = parseFloat(split.cash) || 0;
     const card = parseFloat(split.card) || 0;
+    // P1: tip carried from the payment sheet; attached to the first order of the split.
+    const manualTip = Math.max(0, Number(tipAmount) || 0);
     const tableNumbers = actionSheetGroup
       ? [actionSheetTable.table_number, ...(actionSheetGroup.children?.map((c: any) => c.table_number) || [])]
       : (actionSheetTable ? [actionSheetTable.table_number] : []);
@@ -963,7 +961,7 @@ export default function POSPage() {
               payment_method: 'split',
               cash_amount: Math.round(orderCash * 100) / 100,
               card_amount: Math.round(orderCard * 100) / 100,
-              tip_amount: 0,
+              tip_amount: activeOrders[0]?.id === activeOrder.id ? manualTip : 0,
               per_item_allocations: itemAllocations,
               campaign_id: activeOrder.campaign_id || undefined,
               discount_amount: activeOrder.discount_amount || 0,
@@ -994,7 +992,7 @@ export default function POSPage() {
               payment_method: 'split',
               cash_amount: orderCash,
               card_amount: orderCard,
-              tip_amount: 0,
+              tip_amount: i === 0 ? manualTip : 0,
               campaign_id: activeOrder.campaign_id || undefined,
               discount_amount: activeOrder.discount_amount || 0,
               discount_type: activeOrder.discount_type || 'fixed',
@@ -1940,22 +1938,40 @@ export default function POSPage() {
                          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                          className="mb-4"
                        >
-                          <div className={`flex items-center gap-3 px-4 py-3 rounded-4xl border shadow-lg ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
-                            <Users size={16} className="text-[var(--theme-accent)] shrink-0" />
-                            <div className="flex flex-col">
-                              <p className="text-xs uppercase tracking-widest font-black text-[var(--theme-text-secondary)] mb-0.5">
-                                {t('merge_preview')}
-                              </p>
-                              <p className="text-sm font-black text-[var(--theme-text)]">
-                                <span>{t('table_number')} {parentTable.table_number}</span>
-                                {childTables.map((t: any) => ` + ${t.table_number}`)}
-                                <span className="mx-2">·</span>
-                                <span className="text-[var(--theme-accent)]">{totalGuests} {t('guests')}</span>
-                                <span className="mx-2">·</span>
-                                <span className="text-[var(--theme-text-secondary)]">{orderCount} {t('orders')}</span>
-                              </p>
-                            </div>
-                          </div>
+                           <div className={`flex items-center gap-3 px-4 py-3 rounded-4xl border shadow-lg ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
+                             <Users size={16} className="text-[var(--theme-accent)] shrink-0" />
+                             <div className="flex flex-col flex-1 min-w-0">
+                               <p className="text-xs uppercase tracking-widest font-black text-[var(--theme-text-secondary)] mb-0.5">
+                                 {t('merge_preview')}
+                               </p>
+                               <p className="text-sm font-black text-[var(--theme-text)]">
+                                 <span>{t('table_number')} {parentTable.table_number}</span>
+                                 {childTables.map((t: any) => ` + ${t.table_number}`)}
+                                 <span className="mx-2">·</span>
+                                 <span className="text-[var(--theme-accent)]">{totalGuests} {t('guests')}</span>
+                                 <span className="mx-2">·</span>
+                                 <span className="text-[var(--theme-text-secondary)]">{orderCount} {t('orders')}</span>
+                               </p>
+                             </div>
+                             {/* M1 fix: confirm was unreachable in floor-tap merge flow
+                                 (ActionSheet merge bar only renders when sheet is open).
+                                 Opens the existing PIN-guarded merge confirm bar. */}
+                             <div className="flex items-center gap-2 shrink-0">
+                               <button
+                                 onClick={() => { setMergeMode(false); setSelectedForMerge([]); }}
+                                 className="px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all active:scale-95"
+                                 style={{ borderColor: lightMode ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)', color: lightMode ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)' }}
+                               >
+                                 {t('cancel')}
+                               </button>
+                               <button
+                                 onClick={() => setActionSheetOpen(true)}
+                                 className="px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-zinc-900 text-white shadow-lg active:scale-95 transition-all"
+                               >
+                                 {t('merge_confirm')}
+                               </button>
+                             </div>
+                           </div>
                        </motion.div>
                      </AnimatePresence>
                    );
@@ -2356,9 +2372,16 @@ export default function POSPage() {
            )}
            </AnimatePresence>
 
-           <ActionSheet
-           table={actionSheetTable} 
-           open={actionSheetOpen || paymentView} 
+            <ActionSheet
+            table={(() => {
+              if (!actionSheetTable) return actionSheetTable;
+              // S1 snapshot-drift fix: the floor list (pos.floors) is refreshed on
+              // every poll/realtime; the sheet should show LIVE totals/status, not
+              // the stale snapshot captured when it opened.
+              const live = (pos.floors || []).flatMap((f: any) => f.tables || []).find((t: any) => t.table_number === actionSheetTable.table_number);
+              return (live && live.table_number === actionSheetTable.table_number) ? live : actionSheetTable;
+            })()}
+            open={actionSheetOpen || paymentView} 
             onClose={() => { playHapticSound('off'); setActionSheetOpen(false); setUnmergeMode(false); setPaymentView(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }} 
            onAddOrder={() => { if (actionSheetTable?.table_number && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(actionSheetTable.status)) { setFlashInfo({ tableNumber: actionSheetTable.table_number, nonce: Date.now() }); } pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
            onSeatGuests={() => {

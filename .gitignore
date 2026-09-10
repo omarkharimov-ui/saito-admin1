@@ -58,3 +58,6 @@ supabase/.temp
 
 # Agent handover secrets (never commit)
 SECRETS.local.md
+
+# DB inventory snapshots (agent working files)
+.db-inventory-*.txt

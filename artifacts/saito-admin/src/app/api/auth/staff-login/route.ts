@@ -3,117 +3,109 @@ import { createAuthClient } from '@/lib/api-auth';
 import { verifyPin } from '@/lib/crypto';
 import crypto from 'crypto';
 
-function canonicalRole(raw: string): string {
-  const r = raw.toLowerCase().trim();
-  if (r.includes('ofisiant') || r === 'waiter') return 'waiter';
-  if (r.includes('kassir') || r === 'kassa' || r === 'cashier') return 'cashier';
-  if (r.includes('aşpaz') || r === 'kitchen') return 'kitchen';
-  if (r.includes('barmen') || r === 'bartender') return 'bartender';
-  if (r.includes('menecer') || r.includes('menedjer') || r === 'manager') return 'manager';
-  if (r === 'admin') return 'admin';
-  if (r === 'superadmin') return 'superadmin';
-  if (r === 'owner') return 'owner';
-  return 'cashier';
+// Banned/weak default PINs — login succeeds but flags pin_change_required
+// (soft policy per A-FOUNDATION GATE §gate-4.1; HARD block on set/reset = 4.4).
+const BANNED_PINS = new Set(['0000', '1234', '1111', '0000', '0001', '2222']);
+
+function getClientIp(req: NextRequest): string {
+  const fwd = req.headers.get('x-forwarded-for');
+  return (fwd?.split(',')[0]?.trim()) || 'unknown';
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { pin } = await req.json();
-    if (!pin || pin.length !== 4) {
+    const body = await req.json().catch(() => ({}));
+    const pin: string = String(body?.pin ?? '').trim();
+    if (!pin || !/^\d{4}$/.test(pin)) {
       return NextResponse.json({ error: '4 rəqəmli PIN daxil edin' }, { status: 400 });
     }
 
-    let staff: any = null;
-    let error: any = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) await new Promise(r => setTimeout(r, 400));
-      const client = await createAuthClient();
-      const res = await client
-        .from('staff')
-        .select('id, name, full_name, pin_hash, is_active, shift, role_id')
-        .eq('is_active', true)
-        .limit(100);
-      staff = res.data;
-      error = res.error;
-      if (!error) break;
-    }
+    const ip = getClientIp(req);
+    const ua = (req.headers.get('user-agent') || '').slice(0, 300);
 
-    if (error || !staff) {
+    const client = await createAuthClient();
+
+    // ---- Phase 1: preflight (IP rate-limit + candidate list, all in DB) ----
+    const pf = await client.rpc('login_preflight', { p_ip: ip });
+    if (pf.error) {
       return NextResponse.json({ error: 'Xəta' }, { status: 500 });
     }
-
-    // Fetch roles separately to avoid relationship issues
-    const roleIds = [...new Set(staff.map((s: any) => s.role_id).filter(Boolean))];
-    const rolesMap: Record<string, string> = {};
-    if (roleIds.length > 0) {
-      const rolesRes = await (await createAuthClient())
-        .from('roles')
-        .select('id, name')
-        .in('id', roleIds);
-      if (rolesRes.data) {
-        for (const role of rolesRes.data) {
-          rolesMap[role.id] = role.name;
-        }
-      }
+    const preflight: any = pf.data;
+    if (preflight?.action === 'ip_locked') {
+      return NextResponse.json(
+        { error: preflight.message || 'Çoxsaylı uğursuz cəhd' },
+        { status: 429 }
+      );
     }
-
-    const trimmedPin = pin.trim();
-    const matched = staff.find((s: any) => verifyPin(trimmedPin, s.pin_hash));
-
-    if (!matched) {
-      try {
-        const client = await createAuthClient();
-        await client.from('security_events').insert({
-          event_type: 'login_failed',
-          success: false,
-          metadata: { method: 'pin', reason: 'invalid_pin' },
-        });
-      } catch { /* non-critical */ }
+    const candidates: any[] = preflight?.candidates ?? [];
+    if (candidates.length === 0) {
+      // No active staff — still audit as failed attempt (enumeration-neutral).
+      await client.rpc('login_commit', {
+        p_candidate_id: null, p_success: false, p_ip: ip, p_user_agent: ua,
+        p_failure_reason: 'no_active_staff',
+      }).catch(() => {});
       return NextResponse.json({ error: 'Yanlış PIN' }, { status: 401 });
     }
 
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
-    const role = rolesMap[matched.role_id] || 'cashier';
+    // ---- Phase 2: bounded PBKDF2 verify (Node — PG has no native pbkdf2) ----
+    // Constant-ish cost: verify ALL valid-hash candidates (≤ ~5) regardless of
+    // match position; weak-hash candidates are skipped here (commit flags them).
+    const valid = candidates.filter((c) => !c.weak && typeof c.pin_hash === 'string' && c.pin_hash.startsWith('pbkdf2_sha256$260000'));
+    let matched: any = null;
+    for (const c of valid) {
+      if (verifyPin(pin, c.pin_hash)) matched = c;
+    }
+    // If only weak-hash staff exist, no one can match → treated as invalid.
 
-    await (await createAuthClient()).from('sessions').insert({
-      token,
-      user_id: matched.id,
-      role,
-      expires_at: expiresAt,
-    });
-
-    const res = NextResponse.json({
-      success: true,
-      staffId: matched.id,
-      name: matched.full_name || matched.name,
-      role: matched.role,
-      canonicalRole: role,
-      shift: matched.shift,
-      token,
-      expiresAt,
-    });
-
-    res.cookies.set('saito_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      expires: new Date(expiresAt),
-      path: '/',
-    });
-
-    try {
-      const client = await createAuthClient();
-      await client.from('security_events').insert({
-        staff_id: matched.id,
-        event_type: 'login',
-        success: true,
-        metadata: { role, method: 'pin' },
+    // ---- Phase 3: commit (single transaction in DB: lock / session / audit) ----
+    if (matched) {
+      const res = await client.rpc('login_commit', {
+        p_candidate_id: matched.id,
+        p_success: true,
+        p_ip: ip,
+        p_user_agent: ua,
+        p_pin_banned: BANNED_PINS.has(pin),
       });
-    } catch { /* non-critical */ }
+      if (res.error || !res.data?.success) {
+        // Race: staff disabled between preflight and commit → generic 401.
+        return NextResponse.json({ error: 'Yanlış PIN' }, { status: 401 });
+      }
+      const d = res.data;
+      const expiresAt = new Date(d.expires_at).toISOString();
 
-    return res;
+      const nextRes = NextResponse.json({
+        success: true,
+        staffId: d.staff_id,
+        name: d.name,
+        role: d.role,
+        canonicalRole: d.canonical_role,
+        shift: d.shift,
+        token: d.token,
+        expiresAt,
+        pinChangeRequired: d.pin_change_required === true,
+      });
+      nextRes.cookies.set('saito_token', d.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        expires: new Date(expiresAt),
+        path: '/',
+      });
+      return nextRes;
+    }
+
+    // No match → commit records the failure (staff lock counter / weak-hash event)
+    // using the first valid candidate as context is NOT safe for lock attribution
+    // without identity; use null → DB logs attempt without staff attribution.
+    await client.rpc('login_commit', {
+      p_candidate_id: null,
+      p_success: false,
+      p_ip: ip,
+      p_user_agent: ua,
+      p_failure_reason: 'invalid_pin',
+    });
+    return NextResponse.json({ error: 'Yanlış PIN' }, { status: 401 });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: 'Xəta' }, { status: 500 });
   }
 }

@@ -73,17 +73,18 @@ export async function POST(req: Request) {
     if (action === 'open') {
       const auth = await requirePermission('cash.open');
       if (!auth.authenticated) return auth;
-      const staffId = auth.user?.id || null;
 
+      // S-08 (frozen): identity = session token (A-frozen set_session_staff);
+      // loc/org + 1:1 shift bind resolved server-side inside the RPC.
       const { data, error: rpcError } = await s.rpc('open_cash_register', {
+        p_token: auth.token,
         p_opening_balance: amount || 0,
         p_notes: description || null,
-        p_opened_by: staffId,
       });
 
       if (rpcError) throw rpcError;
 
-      return NextResponse.json(data);
+      return NextResponse.json(data, { status: data?.success === false ? 400 : 200 });
     }
 
     if (action === 'close') {

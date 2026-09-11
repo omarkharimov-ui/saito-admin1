@@ -135,7 +135,7 @@
     "id": "Z-2",
     "name": "LOC_B staff authorize on own LOC_B (payments.refund) -> allowed=true (mgr has perm)",
     "pass": true,
-    "evidence": "{\"allowed\": true, \"role_id\": \"bb579b8a-022d-4f89-99c7-56eebcec3032\", \"staff_id\": \"1cbd29b2"
+    "evidence": "{\"allowed\": true, \"role_id\": \"bb579b8a-022d-4f89-99c7-56eebcec3032\", \"staff_id\": \"5fdd04f1"
   },
   {
     "id": "Z-3",
@@ -183,7 +183,7 @@
     "id": "A24",
     "name": "role/status change audited (staff_suspended/enabled events)",
     "pass": true,
-    "evidence": "lifecycle events=30"
+    "evidence": "lifecycle events=36"
   },
   {
     "id": "A25",
@@ -219,7 +219,7 @@
     "id": "C-2",
     "name": "login+disable race -> invariant holds (token cannot authenticate after disable)",
     "pass": true,
-    "evidence": "login=200 auth-after=401"
+    "evidence": "login=401 auth-after=401"
   },
   {
     "id": "C-3",

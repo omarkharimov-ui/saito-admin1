@@ -381,7 +381,36 @@ use 9-arg — S/F untouched). Re-created with the correct call; business UPDATEs
 **G7 = 12/12.** Build: `next build` exit 0 (270/270 static + `/api/kitchen/action`,
 `/api/kitchen/realtime` compiled). tsc: 0 errors in G7 files. Raw browser → KDS RPC = **0**
 (only the service-role `/api/orders/mark-ready` server route remains, which is correct).
-A/E/S/F/O untouched. Next: K-3 concurrency battery.
+A/E/S/F/O untouched.
+
+### K-3 — Concurrency battery (live, parallel RPC, zero-residue)
+**Scope:** both live KDS surfaces — canonical item-level (`item_kitchen_step` /
+`item_kitchen_terminal` / `kitchen_order_items_action`, G3/G4) + legacy order-level
+(`mark_order_ready` etc., G7 transport). Parallel Node promises = true concurrent
+DB mutations via service-role PostgREST.
+| # | Test | Result | PASS |
+|---|---|---|---|
+| K3-1 | 2× concurrent `mark_order_ready` (same order) | both 200, item=ready, **stock consumed EXACTLY ONCE** (inventory_log=1, delta −2) | ✅ |
+| K3-2 | `step(ready)` vs `terminal(voided)` concurrent | consistent final state (voided this run), no corrupt/both state | ✅ |
+| K3-3 | canonical void on **PAID** order | **ORDER_FINALIZED refused**, item unchanged | ✅ |
+| K3-4 | `kitchen_order_items_action(recall)` vs `step(ready)` concurrent | consistent final state (race winner), no corrupt state | ✅ |
+| K3-5 | 2× concurrent `step(ready)` same item | both 200, consistent final=ready, no corrupt state (READ COMMITTED: both may advance to the same target — benign; dup events are dup-safe on the G6 spine) | ✅ |
+| K3-5b | sequential re-entry `step(ready)` on ready item | 200 `idempotent:true`, state unchanged — idempotency guarantee proven directly | ✅ |
+| K3-6 | **legacy `mark_order_ready` on PAID order** | **GAP documented**: legacy order-level fns still mutate finalized orders (no finalized guard); canonical path refuses (K3-3) | ⚠️ |
+| K3-7 | cleanup | 0 residue (orders/tables/outbox/staff/inventory all 0, independent psql) | ✅ |
+
+**K-3 = 8/8 (7 PASS + 1 documented GAP).** Note: `item_kitchen_step` requires ALL
+6 params (no defaults) — `p_metadata` + `p_correlation_id` mandatory over PostgREST
+(PGRST202 otherwise); the initial K3-5 404 was a probe param issue, NOT a failure
+of the concurrency logic.
+
+**OPEN (pre-freeze, user decision) — K3-6 legacy finalized guard:** the legacy
+order-level fns G7 preserved for stock-safety (`mark_order_ready`,
+`prepare_order_items`, `update_order_item_status`, `mark_order_completed`) mutate
+orders in `paid/cancelled/closed` states without the canonical `ORDER_FINALIZED`
+guard. Decision needed: add the finalized guard to those fns (stock semantics:
+refuse mutation on finalized orders; no stock change since the item is already
+consumed) — then K-4 full regression.
 
 ---
 *K-0 audit: no code/DB changed during K-0. A/E/S/F/O remain 🔒 FROZEN. `idx_orders_active_table` residual stays an F-boundary note.*

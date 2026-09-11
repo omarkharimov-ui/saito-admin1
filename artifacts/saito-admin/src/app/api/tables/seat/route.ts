@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requirePermission } from '@/lib/api-auth';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -10,7 +10,9 @@ function svc() {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    // F-01 (frozen): seat is a floor-staff op → `orders.create` (host/kitchen
+    // lack it and were previously able to seat via requireAuth — closed).
+    const auth = await requirePermission('orders.create');
     if (!auth.authenticated) return auth;
 
     const { table_number, guest_count } = await req.json();
@@ -21,7 +23,22 @@ export async function POST(req: NextRequest) {
     const s = svc();
     const guests = Math.max(1, Math.min(99, Number(guest_count) || 1));
 
-    const tablesRes = await fetch(`${s.url}/rest/v1/table_floors?select=id,status,reservation_id&table_number=eq.${table_number}`, { headers: s.headers });
+    // F-02/F-03 (frozen): this route uses the SERVICE ROLE (bypasses RLS) and
+    // filters by table_number, which after F-03 is only unique PER location.
+    // Scope to the caller's ACTIVE location (server-trusted, from session).
+    let locFilter = '';
+    const token: string = auth.token || '';
+    if (token) {
+      const sessRes = await fetch(`${s.url}/rest/v1/sessions?select=active_location_id&token=eq.${encodeURIComponent(token)}&limit=1`, { headers: s.headers });
+      const sess = await sessRes.json().catch(() => []);
+      const locId = Array.isArray(sess) ? sess[0]?.active_location_id : null;
+      if (locId) locFilter = `&location_id=eq.${encodeURIComponent(locId)}`;
+    }
+
+    const tablesRes = await fetch(
+      `${s.url}/rest/v1/table_floors?select=id,status,reservation_id&table_number=eq.${table_number}&is_archived=eq.false${locFilter}`,
+      { headers: s.headers }
+    );
     const tables = await tablesRes.json();
     if (!tables || tables.length === 0) {
       return NextResponse.json({ error: 'Table not found' }, { status: 404 });
@@ -30,15 +47,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Table is reserved' }, { status: 409 });
     }
 
-    const patchRes = await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
-      method: 'PATCH',
-      headers: s.headers,
-      body: JSON.stringify({
-        status: 'occupied',
-        guest_count: guests,
-        last_activity_at: new Date().toISOString(),
-      }),
-    });
+    // Same-location + non-archived scope on the PATCH (service role bypasses RLS).
+    const patchRes = await fetch(
+      `${s.url}/rest/v1/table_floors?table_number=eq.${table_number}&is_archived=eq.false${locFilter}`,
+      {
+        method: 'PATCH',
+        headers: s.headers,
+        body: JSON.stringify({
+          status: 'occupied',
+          guest_count: guests,
+          last_activity_at: new Date().toISOString(),
+        }),
+      }
+    );
 
     if (!patchRes.ok) {
       const errText = await patchRes.text();

@@ -1,0 +1,216 @@
+{
+  "startTotal": 16,
+  "endTotal": 16,
+  "results": [
+    {
+      "id": "M1",
+      "name": "waiter → dismiss = PERMISSION_DENIED",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "M2",
+      "name": "waiter → merge = PERMISSION_DENIED",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "M3",
+      "name": "waiter → transfer = PERMISSION_DENIED",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "M4",
+      "name": "waiter → own-location op NOT authz-denied (expect TABLE_NOT_RESERVED)",
+      "pass": true,
+      "evidence": "err=TABLE_NOT_RESERVED"
+    },
+    {
+      "id": "M5",
+      "name": "Location A actor → Location B table = DENIED + state untouched",
+      "pass": true,
+      "evidence": "err=TABLE_NOT_FOUND state=occupied"
+    },
+    {
+      "id": "M6",
+      "name": "same table number across locations coexist (101,102@A + 103@B)",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "M7",
+      "name": "duplicate same-location table number = DENIED",
+      "pass": true,
+      "evidence": "ERROR:  duplicate key value violates unique constraint \"table_floors_location_ta"
+    },
+    {
+      "id": "M8",
+      "name": "archived table → new order = BLOCKED (TABLE_ARCHIVED)",
+      "pass": true,
+      "evidence": "ERROR:  TABLE_ARCHIVED: cannot create an order for archived table 104\nCONTEXT:  "
+    },
+    {
+      "id": "M9",
+      "name": "hard DELETE = BLOCKED (TABLE_ARCHIVE_ONLY)",
+      "pass": true,
+      "evidence": "ERROR:  TABLE_ARCHIVE_ONLY: table 104 cannot be deleted; archive it instead (F-0"
+    },
+    {
+      "id": "M10",
+      "name": "live open order → pointer set (live wins)",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "M11",
+      "name": "cancelled order → pointer cleared at runtime (=0 stale)",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "F10-1",
+      "name": "raw PATCH gone; undo-merge via route = atomic RPC SUCCESS",
+      "pass": true,
+      "evidence": "{\"action\":\"merge\",\"success\":true,\"result\":{\"mode\":\"bill-merge\",\"count\":1,\"success\":true,\"unmerged\":[{\"table\":102,\"order_"
+    },
+    {
+      "id": "F10-2",
+      "name": "undo-merge audit row exists (operation_logs)",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "F10-3",
+      "name": "undo-merge outbox event exists (count increased)",
+      "pass": true,
+      "evidence": "outbox table.*: 596 -> 604"
+    },
+    {
+      "id": "F10-4",
+      "name": "raw RPC bypass: invalid token → BLOCKED",
+      "pass": true,
+      "evidence": "ERROR:  Invalid or expired session\nCONTEXT:  PL/pgSQL function set_session_staff"
+    },
+    {
+      "id": "F10-5",
+      "name": "bypass left table 101 state unchanged (occupied)",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "C1",
+      "name": "2x merge → exactly 1 success",
+      "pass": true,
+      "evidence": "true | false"
+    },
+    {
+      "id": "C2",
+      "name": "2x unmerge → exactly 1 success",
+      "pass": true,
+      "evidence": "true | false"
+    },
+    {
+      "id": "C3",
+      "name": "2x clear on occupied table → consistent end state (clear is idempotent no-op; no corruption)",
+      "pass": true,
+      "evidence": "successes=2 final_status=empty raw=true | true"
+    },
+    {
+      "id": "C4",
+      "name": "2x transfer → exactly one valid outcome (≤1 success, consistent state)",
+      "pass": true,
+      "evidence": "false | false"
+    },
+    {
+      "id": "A1",
+      "name": "F-01/02: 8 token table fns exist (p_token identity)",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "A2",
+      "name": "F-01/02: 0 non-token (caller-identity) overloads remain",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "A3",
+      "name": "F-01: all 8 table-op routes requirePermission (no bare requireAuth)",
+      "pass": true,
+      "evidence": "route authz grep"
+    },
+    {
+      "id": "A4",
+      "name": "F-10: 0 raw client PATCH to table_floors/orders in undo + transfer routes",
+      "pass": true,
+      "evidence": "raw PATCH grep"
+    },
+    {
+      "id": "A5",
+      "name": "F-03: UNIQUE(location_id,table_number) present + global UNIQUE(table_number) gone",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "A6",
+      "name": "F-05: 0 stale current_order_id pointers production-wide",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "A7",
+      "name": "F-04: is_archived present + DELETE blocked",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "A8",
+      "name": "F-06: seats + fns gone (0 dead references)",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "A9",
+      "name": "F-03: table_order_contract view location-scoped",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "A10",
+      "name": "tables/seat: orders.create required + location-scoped (host/cross-loc bypass CLOSED)",
+      "pass": true,
+      "evidence": "seat route grep"
+    },
+    {
+      "id": "Z1",
+      "name": "test residue: 0 tables 101-108, 0 FG_ staff/sessions",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "Z2",
+      "name": "no NEW orphan orders (orders→table_floors) from this run",
+      "pass": true,
+      "evidence": "undefined"
+    },
+    {
+      "id": "Z3",
+      "name": "production table count restored to baseline",
+      "pass": true,
+      "evidence": "baseline=16 end=16"
+    },
+    {
+      "id": "Z4",
+      "name": "archive guard trigger enabled again (production protection intact)",
+      "pass": true,
+      "evidence": "tgenabled check=true"
+    },
+    {
+      "id": "Z5",
+      "name": "table 1 production row untouched (status = baseline)",
+      "pass": true,
+      "evidence": "baseline=empty"
+    }
+  ]
+}

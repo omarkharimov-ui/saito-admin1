@@ -64,11 +64,12 @@ export function useOrderStateMachine(options?: UseOrderStateMachineOptions) {
     params?: {
       reason?: string;
       metadata?: Record<string, unknown>;
-      employeeName?: string;
     }
   ): Promise<TransitionResult> => {
     setTransitioning(true);
     try {
+      // G1: identity comes from the session (server side); no caller-supplied
+      // employee name / performed_by is sent.
       const res = await apiFetch('/api/rpc/transition_order_status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -77,14 +78,13 @@ export function useOrderStateMachine(options?: UseOrderStateMachineOptions) {
           p_new_status: newStatus,
           p_reason: params?.reason,
           p_metadata: params?.metadata,
-          p_employee_name: params?.employeeName,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        const error = data?.error || 'Transition failed';
+        const error = data?.detail || data?.error || 'Transition failed';
         options?.onError?.(error);
         return { success: false, error };
       }
@@ -115,11 +115,11 @@ export function useOrderStateMachine(options?: UseOrderStateMachineOptions) {
       courierId?: string;
       courierName?: string;
       metadata?: Record<string, unknown>;
-      employeeName?: string;
     }
   ): Promise<TransitionResult> => {
     setTransitioning(true);
     try {
+      // G1: delivery path is token-first; identity from the session (server side).
       const res = await apiFetch('/api/rpc/transition_delivery_status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -128,7 +128,6 @@ export function useOrderStateMachine(options?: UseOrderStateMachineOptions) {
           p_new_status: newStatus,
           p_courier_id: params?.courierId,
           p_courier_name: params?.courierName,
-          p_employee_name: params?.employeeName,
           p_metadata: params?.metadata,
         }),
       });

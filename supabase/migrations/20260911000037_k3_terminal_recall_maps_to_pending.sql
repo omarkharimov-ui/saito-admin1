@@ -43,7 +43,7 @@ BEGIN
   PERFORM set_session_staff(p_token);
   v_staff_id := current_staff_id();
 
-  SELECT o.id, o.status, o.location_id, o.organization_id INTO v_order
+  SELECT o.id, o.status, o.location_id, o.organization_id, o.apply_vat, o.service_charge_pct, o.total_amount INTO v_order
     FROM orders o JOIN order_items i ON i.order_id = o.id
    WHERE i.id = p_item_id FOR UPDATE OF o;
   IF NOT FOUND THEN
@@ -125,7 +125,7 @@ BEGIN
     v_op, v_order.id, v_staff_id, p_reason,
     jsonb_build_object('kitchen_status', v_item.kitchen_status, 'order_total', v_order.total_amount),
     jsonb_build_object('kitchen_status', v_target,
-      'order_total', COALESCE(v_total->>'total', v_order.total_amount)),
+      'order_total', COALESCE(v_total->>'total', v_order.total_amount::text)),
     v_order.location_id, v_order.organization_id,
     jsonb_build_object('idempotency_key', NULL, 'correlation_id', v_corr, 'inventory', v_inv)
   );
@@ -141,7 +141,7 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'idempotent', false,
     'order_item_id', p_item_id, 'from_status', v_item.kitchen_status,
     'to_status', v_target, 'correlation_id', v_corr,
-    'new_order_total', COALESCE(v_total->>'total', v_order.total_amount),
+    'new_order_total', COALESCE(v_total->>'total', v_order.total_amount::text),
     'inventory', v_inv);
 END;
 $$;

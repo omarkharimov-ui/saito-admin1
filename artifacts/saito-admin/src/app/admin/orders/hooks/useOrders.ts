@@ -222,9 +222,16 @@ export function useOrders() {
   const handleStartPreparing = useCallback(async (id: string) => {
     try {
       const now = new Date().toISOString();
-      // Use RPC — the transaction layer, not direct REST
-      const { error } = await supabase.rpc('prepare_order_items', { p_order_id: id });
-      if (error) throw error;
+      // G7: KDS mutation via guarded server route (session identity + location +
+      // permission + service-role RPC). Raw browser supabase.rpc is 42501 (anon).
+      const res = await apiFetch('/api/kitchen/action', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'prepare', order_id: id }),
+      });
+      if (!res.ok) {
+        const err: any = await res.json().catch(() => ({}));
+        throw new Error(err?.error || `HTTP ${res.status}`);
+      }
       setOrders(prev => prev.map(o => o.id === id ? { ...o, kitchen_status: 'preparing', status: 'confirmed', kitchen_accepted_at: now } : o));
     } catch (e: unknown) {
       toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
@@ -233,9 +240,15 @@ export function useOrders() {
 
   const handleMarkReady = useCallback(async (id: string) => {
     try {
-      // Use RPC — FOR UPDATE, deducts stock, maintains audit
-      const { error } = await supabase.rpc('mark_order_ready', { p_order_id: id });
-      if (error) throw error;
+      // G7: mark-ready via guarded server route (preserves stock consumption)
+      const res = await apiFetch('/api/kitchen/action', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'ready', order_id: id }),
+      });
+      if (!res.ok) {
+        const err: any = await res.json().catch(() => ({}));
+        throw new Error(err?.error || `HTTP ${res.status}`);
+      }
       setOrders(prev => prev.map(o => o.id === id ? { ...o, kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() } : o));
     } catch (e: unknown) {
       toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });

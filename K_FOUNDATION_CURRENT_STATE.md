@@ -182,7 +182,12 @@ but duplicate event handling is not defined. **SSOT is the DB** (good) — the r
   prepare_order_items / cancel_order_items / update_order_item_status / mark_order_completed / assign_order_staff
   / mark_item_ready_atomic)` all use the **anon-key** client with **no Supabase Auth session** → live probe
   **6/6 = 42501**. They are **broken no-ops** (functional gap, transferred to K from O), not a security hole.
-  The working KDS path is the **server routes** (K-04).
+   The working KDS path is the **server routes** (K-04).
+   **STATUS (G7): browser-direct KDS mutations are now WIRED to the guarded server
+   route** `/api/kitchen/action` (`requireKdsAction('kitchen.manage')` → service-role
+   RPC → stock-safe order-level fns). Raw browser → KDS Supabase RPC = **0** (all
+   call sites in `kitchen/page.tsx` + `admin/orders/hooks/useOrders.ts` rewired).
+   Proof: see "HARDENING — G-GATES" § G7.
 
 ---
 
@@ -331,6 +336,52 @@ Post-G1 the raw CDC push is RLS-scoped for authenticated (`has_location_access`,
 Caller sweep: `kds_ticket_poll` → route only; `/api/kitchen/realtime` → KDS client only; DB other-fn = 0.
 
 **G6 = 🔒 CLOSED.** A/E/S/F/O untouched.
+
+### G7 — browser KDS mutations → guarded server route (transport-only; business behavior preserved) (FIXED)
+**Contract:** K. Route `/api/kitchen/action`; `kitchen/page.tsx` + `admin/orders/hooks/useOrders.ts`
+rewired; migration `20260911000041` (K-boundary `log_audit` arity fix).
+**Model (confirmed):** ONLY the transport layer changes:
+`kitchen/page.tsx → POST /api/kitchen/action → requireKdsAction('kitchen.manage') →
+session identity + location + permission → service-role RPC → existing stock-safe
+order-level mutation`. Raw browser → KDS Supabase RPC = **0**. Business behavior
+preserved: `mark_order_ready` **still consumes stock**; prepare/ready/complete/assign/undo
+all go through the route.
+
+**Before (evidence):** kitchen page + admin orders hook called `supabase.rpc`
+(`prepare_order_items`/`mark_order_ready`/`mark_order_completed`/`assign_order_staff`/
+`update_order_item_status`) with the **anon-key** client → **42501** (G3 revoked anon+authed
+EXECUTE) → broken no-ops. The order-level fns are the only ones with the correct stock
+consumption (`consume_stock_for_item` inside `mark_order_ready`), so they were kept (NOT
+re-routed to the item-level `item_kitchen_step`, which does not consume stock and rejects
+`pending→preparing`).
+
+**Latent K bug found + fixed (migration 041):** `assign_order_staff` + `mark_order_completed`
+called `log_audit(...)` with the **old 13-arg** form, but `log_audit` is 9-param
+(`action, entity_type, entity_id, actor_id, actor_name, old, new, metadata, ip`) → Postgres
+resolves the overload by arg count → **42883 "log_audit(13 args) does not exist"**. Masked
+before because the anon browser path 42501'd before executing the body; G7 wiring exposed it.
+Only these **2 K-boundary** fns had the 13-arg form (staff/table `log_audit` callers already
+use 9-arg — S/F untouched). Re-created with the correct call; business UPDATEs/RETURN unchanged.
+
+**Proof (real sessions, zero-residue, build green):**
+| # | Check | Result | PASS |
+|---|---|---|---|
+| G7-1 | waiter (no kitchen.manage) complete | 403 | ✅ |
+| G7-2 | manager (no kitchen.manage) prepare | 403 | ✅ |
+| G7-3 | kitchen prepare | 200 + item=preparing | ✅ |
+| G7-4 | kitchen ready | 200 + item=ready | ✅ |
+| G7-5 | **mark_order_ready consumed stock** (inventory_log + exact −2 delta) | ✓ | ✅ |
+| G7-6 | cross-location (kit@LOC_B → LOCA order) | 403 | ✅ |
+| G7-7 | **spoofed identity ignored** (assigned_to = session staff, not client-sent) | ✓ | ✅ |
+| G7-8 | raw browser anon `supabase.rpc(mark_order_ready)` | **42501** | ✅ |
+| G7-9 | kitchen complete | 200 + item=completed + `audit_logs_canonical(order_completed)` | ✅ |
+| G7-10 | no order/payment/table regression (not forced to paid, table not cleared) | ✓ | ✅ |
+| G7-11 | cleanup | 0 residue | ✅ |
+
+**G7 = 12/12.** Build: `next build` exit 0 (270/270 static + `/api/kitchen/action`,
+`/api/kitchen/realtime` compiled). tsc: 0 errors in G7 files. Raw browser → KDS RPC = **0**
+(only the service-role `/api/orders/mark-ready` server route remains, which is correct).
+A/E/S/F/O untouched. Next: K-3 concurrency battery.
 
 ---
 *K-0 audit: no code/DB changed during K-0. A/E/S/F/O remain 🔒 FROZEN. `idx_orders_active_table` residual stays an F-boundary note.*

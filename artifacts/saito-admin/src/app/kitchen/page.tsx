@@ -1050,15 +1050,45 @@ export default function KitchenPage() {
     undoTimer.current = setTimeout(() => setRecentAction(null), 8000);
   };
 
+  // G7: KDS browser actions go through the guarded server route (session identity
+  // + location scope + permission + service-role RPC). Raw browser supabase.rpc is
+  // 42501 (anon) and must not be used for KDS mutations — business behavior
+  // (e.g. mark_order_ready stock consumption) is preserved server-side.
+  const kdsAction = useCallback(async (payload: {
+    action: string; order_id?: string; order_item_id?: string;
+    status?: string; prepared_quantity?: number | null;
+  }) => {
+    try {
+      const res = await fetch('/api/kitchen/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body: any = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        console.error('[kdsAction] ' + payload.action + ' failed:', res.status, body?.error);
+        if (res.status !== 401) toast.error('Əməliyyat uğursuz oldu', { duration: 2500 });
+        return { ok: false, status: res.status, error: body?.error };
+      }
+      return { ok: true, data: body?.data };
+    } catch (e) {
+      console.error('[kdsAction] ' + payload.action + ' error:', e);
+      toast.error('Əməliyyat uğursuz oldu', { duration: 2500 });
+      return { ok: false, status: 0, error: String(e) };
+    }
+  }, []);
+
   const handleUndo = async () => {
     if (!recentAction) return;
     setRecentAction(null);
     if (undoTimer.current) clearTimeout(undoTimer.current);
     for (const it of recentAction.items) {
-      await supabase.rpc('update_order_item_status', {
-        p_order_item_id: it.id,
-        p_status: it.kitchen_status,
-        p_prepared_quantity: it.prepared_quantity,
+      await kdsAction({
+        action: 'undo',
+        order_id: recentAction.orderId,
+        order_item_id: it.id,
+        status: it.kitchen_status,
+        prepared_quantity: it.prepared_quantity,
       });
     }
     fetchOrdersRef.current();
@@ -1069,32 +1099,11 @@ export default function KitchenPage() {
     if (newStatus === 'completed') {
       const order = orders.find(o => o.id === id);
       if (order) pushUndo(`MASA ${order.table_number} — tamamlandı`, order);
-      const session = localStorage.getItem('saito_staff_session');
-      const staffId = session ? JSON.parse(session).id : null;
-      const { error } = await supabase.rpc('mark_order_completed', {
-        p_order_id: id,
-        p_performed_by: staffId,
-      });
-      if (error) {
-        console.error('[updateOrderStatus] mark_order_completed failed:', error);
-        toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
-        return;
-      }
-    } else if (newStatus === 'preparing') {
-      const { error } = await supabase.rpc('prepare_order_items', { p_order_id: id });
-      if (error) {
-        console.error('[updateOrderStatus] prepare_order_items failed:', error);
-        toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
-        return;
-      }
-    } else if (newStatus === 'ready') {
-      const order = orders.find(o => o.id === id);
-      const { error } = await supabase.rpc('mark_order_ready', { p_order_id: id });
-      if (error) {
-        console.error('[updateOrderStatus] mark_order_ready failed:', error);
-        toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
-        return;
-      }
+    }
+    const r = await kdsAction({ action: newStatus === 'completed' ? 'complete' : newStatus, order_id: id });
+    if (!r.ok) {
+      toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
+      return;
     }
     fetchOrdersRef.current();
   };
@@ -1103,9 +1112,8 @@ export default function KitchenPage() {
   // mark_order_ready handles: FOR UPDATE, item status, order status, stock deduction, audit
   const markAllReadyAndNotify = async (order: Order) => {
     pushUndo(`MASA ${order.table_number} — servise verildi`, order);
-    const { error } = await supabase.rpc('mark_order_ready', { p_order_id: order.id });
-    if (error) {
-      console.error('[kitchen] mark_order_ready failed:', error);
+    const r = await kdsAction({ action: 'ready', order_id: order.id });
+    if (!r.ok) {
       toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
       return;
     }
@@ -1149,22 +1157,10 @@ export default function KitchenPage() {
 
   // ── Sifarişi qəbul et — atomik RPC (FOR UPDATE + status transition)
   const acceptOrder = async (order: Order) => {
-    try {
-      const session = localStorage.getItem('saito_staff_session');
-      const staffId = session ? JSON.parse(session).id : null;
-      if (staffId) {
-        await supabase.rpc('assign_order_staff', {
-          p_order_id: order.id,
-          p_staff_id: staffId,
-          p_performed_by: staffId,
-        });
-      }
-    } catch (e) {
-      console.error('[acceptOrder] assign_order_staff failed:', e);
-    }
-    const { error } = await supabase.rpc('prepare_order_items', { p_order_id: order.id });
-    if (error) {
-      console.error('[acceptOrder] error:', error);
+    // G7: assign to the SESSION identity (server-resolved; no client staff_id)
+    await kdsAction({ action: 'assign', order_id: order.id });
+    const r = await kdsAction({ action: 'prepare', order_id: order.id });
+    if (!r.ok) {
       toast.error('Sifariş qəbul edilərkən xəta baş verdi', { duration: 2500 });
     }
     fetchOrdersRef.current();

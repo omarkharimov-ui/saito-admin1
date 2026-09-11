@@ -27,16 +27,31 @@ export async function GET() {
 
   const { SUPABASE_URL, headers } = getHeaders();
   try {
+    // F-03 (frozen): multi-location. This route fetches with the service role
+    // (bypasses RLS), so it MUST scope to the caller's ACTIVE location —
+    // otherwise every location's tables/orders/reservations would render.
+    // Location = session.active_location_id (server-trusted, never client).
+    const token: string = auth.token || '';
+    let locFilter = '';
+    if (token) {
+      const sessRes = await fetch(`${SUPABASE_URL}/rest/v1/sessions?select=active_location_id&token=eq.${encodeURIComponent(token)}&limit=1`, { headers });
+      const sess = await sessRes.json().catch(() => []);
+      const locId = Array.isArray(sess) ? sess[0]?.active_location_id : null;
+      if (locId) locFilter = `&location_id=eq.${encodeURIComponent(locId)}`;
+    }
+
     const [floorsRes, ordersRes, reservationsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc${locFilter}`, { headers }),
       // F-3: exclude ALL final states (same 6-state set the DB aggregate trigger
       // uses in sync_table_order_aggregates). Previously only 3 were excluded,
       // which would inflate the card for refunded/voided/partially_refunded orders.
+      // F-03: also scope by the active location.
       fetch(
-        `${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*)&status=not.in.(${FINAL_ORDER_STATUSES.join(',')})&order=created_at.desc`,
+        `${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*)&status=not.in.(${FINAL_ORDER_STATUSES.join(',')})&order=created_at.desc${locFilter}`,
         { headers }
       ),
-      fetch(`${SUPABASE_URL}/rest/v1/reservations?select=*&status=neq.cancelled&status=neq.no_show&status=neq.archived`, { headers }),
+      // F-03: reservations scoped by location_id too (reservations carry it).
+      fetch(`${SUPABASE_URL}/rest/v1/reservations?select=*&status=neq.cancelled&status=neq.no_show&status=neq.archived${locFilter}`, { headers }),
     ]);
 
     const rawFloors = await floorsRes.json();

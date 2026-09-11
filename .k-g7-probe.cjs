@@ -23,17 +23,21 @@ function anonRpc(fn,fnArgs){return new Promise((res,rej)=>{const r=require('http
   S(`ALTER TABLE public.inventory_logs DISABLE TRIGGER trg_inventory_logs_immutable`);
   S(`DELETE FROM kitchen_schedule WHERE order_id IN (SELECT id FROM orders WHERE table_number IN (${T.join(',')}))`);
   S(`DELETE FROM inventory_logs WHERE order_item_id IN (SELECT id FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_number IN (${T.join(',')})))`);
-  S(`DELETE FROM outbox_events WHERE payload->>'order_id' IN (SELECT id::text FROM orders WHERE table_number IN (${T.join(',')}))`);
   S(`DELETE FROM audit_logs_canonical WHERE entity_id IN (SELECT id::text FROM orders WHERE table_number IN (${T.join(',')}))`);
   S(`DELETE FROM operation_logs WHERE order_id IN (SELECT id FROM orders WHERE table_number IN (${T.join(',')}))`);
+  // outbox by order_id BEFORE orders delete (subquery needs orders to exist)
+  S(`DELETE FROM outbox_events WHERE payload->>'order_id' IN (SELECT id::text FROM orders WHERE table_number IN (${T.join(',')}))`);
+  // source rows (triggers may emit new outbox rows)
   S(`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_number IN (${T.join(',')}))`);
   S(`DELETE FROM orders WHERE table_number IN (${T.join(',')})`);
   S(`DELETE FROM table_floors WHERE table_number IN (${T.join(',')})`);
+  // outbox by table_number AFTER table_floors delete (catches trigger-generated rows)
+  S(`DELETE FROM outbox_events WHERE payload->>'table_number' IN (${T.map(n=>"'"+n+"'").join(',')})`);
   S(`ALTER TABLE public.inventory_logs ENABLE TRIGGER trg_inventory_logs_immutable`);
   S(`ALTER TABLE public.table_floors ENABLE TRIGGER trg_table_archive_guard`);
   S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'G7_%')`);
   S(`DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'G7_%')`);
-  S(`UPDATE staff SET is_active=false WHERE name LIKE 'G7_%'`);
+  S(`UPDATE staff SET is_active=false, status='INACTIVE' WHERE name LIKE 'G7_%'`);
 
   const R_WTR=S("SELECT id::text FROM roles WHERE name='waiter'");
   const R_KIT=S("SELECT id::text FROM roles WHERE name='kitchen'");
@@ -132,12 +136,15 @@ function anonRpc(fn,fnArgs){return new Promise((res,rej)=>{const r=require('http
   S(`ALTER TABLE public.inventory_logs DISABLE TRIGGER trg_inventory_logs_immutable`);
   S(`DELETE FROM kitchen_schedule WHERE order_id IN (${q(O1.o)},${q(O2.o)})`);
   S(`DELETE FROM inventory_logs WHERE order_item_id IN (${q(O1it)},${q(O2it)})`);
-  S(`DELETE FROM outbox_events WHERE payload->>'order_id' IN (${q(O1.o)},${q(O2.o)})`);
   S(`DELETE FROM audit_logs_canonical WHERE entity_id IN (${q(O1.o)},${q(O2.o)})`);
   S(`DELETE FROM operation_logs WHERE order_id IN (${q(O1.o)},${q(O2.o)})`);
+  // Delete source rows FIRST (their triggers may emit outbox events);
+  // THEN delete outbox (catches trigger-generated rows from the deletes above).
   S(`DELETE FROM order_items WHERE order_id IN (${q(O1.o)},${q(O2.o)})`);
   S(`DELETE FROM orders WHERE id IN (${q(O1.o)},${q(O2.o)})`);
   S(`DELETE FROM table_floors WHERE table_number IN (${T.join(',')})`);
+  S(`DELETE FROM outbox_events WHERE payload->>'order_id' IN (${q(O1.o)},${q(O2.o)})`);
+  S(`DELETE FROM outbox_events WHERE payload->>'table_number' IN (${T.map(n=>"'"+n+"'").join(',')})`);
   S(`ALTER TABLE public.inventory_logs ENABLE TRIGGER trg_inventory_logs_immutable`);
   S(`ALTER TABLE public.table_floors ENABLE TRIGGER trg_table_archive_guard`);
   S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'G7_%')`);

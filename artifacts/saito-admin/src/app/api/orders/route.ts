@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requireAuth, requirePermission } from '@/lib/api-auth';
 import { runOrderAction } from '@/lib/transaction';
 import { FINAL_ORDER_STATUSES } from '@/lib/pos-tables';
-import { resolveLocationContext } from '@/lib/location-context';
+import { resolveLocationContext, resolveReadLocationScope } from '@/lib/location-context';
 
 // A table's "active" order excludes ALL terminal states — must match the DB
 // aggregate (sync_table_order_aggregates) and the floor view exactly. The old
@@ -19,12 +19,26 @@ function svc() {
 
 export async function GET(request: Request) {
   try {
-    const auth = await requireAuth();
-    if (!auth.authenticated) return auth;
-
     if (!svc().url || !svc().headers['apikey']) {
       console.error('[API /orders] Missing env vars:', { SUPABASE_URL: !!svc().url, SERVICE_ROLE_KEY: !!svc().headers['apikey'] });
       return NextResponse.json({ error: 'Missing Supabase configuration. Restart the dev server after creating .env.local' }, { status: 500 });
+    }
+
+    // G7 (O frozen contract): order reads require orders.view + are scoped to the
+    // operator's active location. resolveReadLocationScope falls back to the org's
+    // single location for staff without an explicit binding (single-location prod
+    // => no leakage); if it truly cannot be scoped it returns null and we fail
+    // CLOSED with an empty result (never leak cross-location data). (settings is
+    // org-wide config, not location data — left unscoped.)
+    const auth = await requirePermission('orders.view');
+    if (!auth.authenticated) return auth;
+    const lctx = auth.user?.id ? await resolveReadLocationScope(auth.user.id) : null;
+    const sessLoc = lctx?.locationId || null;
+    if (!sessLoc) {
+      return NextResponse.json({
+        orders: [], orderItems: [], tableCount: null, delayThreshold: null,
+        openingHours: null, tableStatuses: [],
+      });
     }
 
     const { searchParams } = new URL(request.url);
@@ -34,10 +48,10 @@ export async function GET(request: Request) {
 
     // Build the orders query. Accept both plain equality values (status=confirmed)
     // and PostgREST exclusion expressions (status=not.in.(paid,cancelled,closed)).
-    const orderFilters: string[] = [];
+    const orderFilters: string[] = [ `location_id=eq.${encodeURIComponent(sessLoc)}` ];
     if (statusFilter) {
       const trimmed = statusFilter.trim();
-      const notInMatch = trimmed.match(/^not\.in\.\(([^)]*)\)$/);
+      const notInMatch = trimmed.match(/^not\.in\.(([^)]*))$/);
       if (notInMatch) {
         const values = notInMatch[1].split(',').map((v) => v.trim()).filter(Boolean);
         if (values.length > 0) {
@@ -57,33 +71,44 @@ export async function GET(request: Request) {
       orderFilters.push(`table_number=eq.${encodeURIComponent(tableNumber)}`);
     }
 
-    let ordersQuery = `${svc().url}/rest/v1/orders?select=*,campaigns(name),order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc`;
-    if (orderFilters.length > 0) {
-      ordersQuery += `&${orderFilters.join('&')}`;
-    }
-
-    const [ordersRes, itemsRes, tablesRes, floorsRes] = await Promise.all([
+    // Scoped orders first (so the flat order_items list can be limited to this
+    // location's orders — order_items has no own location_id; RLS is bypassed
+    // by the service role, so we scope explicitly to 0 cross-location leakage).
+    const ordersQuery = `${svc().url}/rest/v1/orders?select=*,campaigns(name),order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc&${orderFilters.join('&')}`;
+    const [ordersRes, tablesRes, settingsRes] = await Promise.all([
       fetch(ordersQuery, { headers: svc().headers }),
-      fetch(`${svc().url}/rest/v1/order_items?select=*,products(image_url,name_az,name_en,name_ru,translations)`, { headers: svc().headers }),
+      fetch(`${svc().url}/rest/v1/table_floors?select=table_number,status,reservation_name,reservation_time&location_id=eq.${encodeURIComponent(sessLoc)}`, { headers: svc().headers }),
       fetch(`${svc().url}/rest/v1/settings?select=qr_table_count,opening_hours&limit=1`, { headers: svc().headers }),
-      fetch(`${svc().url}/rest/v1/table_floors?select=table_number,status,reservation_name,reservation_time`, { headers: svc().headers }),
     ]);
 
-    if (!ordersRes.ok || !itemsRes.ok || !tablesRes.ok || !floorsRes.ok) {
+    if (!ordersRes.ok || !tablesRes.ok || !settingsRes.ok) {
       console.error('[API /orders] Fetch error');
       return NextResponse.json({ error: 'Data fetch failed' }, { status: 500 });
     }
 
-    const [orders, orderItems, settings, tableFloors] = await Promise.all([
+    const [orders, tableFloors, settings] = await Promise.all([
       ordersRes.json(),
-      itemsRes.json(),
       tablesRes.json(),
-      floorsRes.json(),
+      settingsRes.json(),
     ]);
+
+    const orderIds = (Array.isArray(orders) ? orders : []).map((o: any) => o.id).filter(Boolean);
+    let orderItems: any[] = [];
+    if (orderIds.length > 0) {
+      const idsCsv = orderIds.map((id: string) => `"${id}"`).join(',');
+      const itemsRes = await fetch(
+        `${svc().url}/rest/v1/order_items?select=*,products(image_url,name_az,name_en,name_ru,translations)&order_id=in.(${idsCsv})`,
+        { headers: svc().headers }
+      );
+      if (itemsRes.ok) {
+        const its = await itemsRes.json();
+        orderItems = Array.isArray(its) ? its : [];
+      }
+    }
 
     return NextResponse.json({
       orders: orders || [],
-      orderItems: orderItems || [],
+      orderItems,
       tableCount: settings?.[0]?.qr_table_count ?? null,
       delayThreshold: settings?.[0]?.order_delay_minutes ?? null,
       openingHours: settings?.[0]?.opening_hours || null,

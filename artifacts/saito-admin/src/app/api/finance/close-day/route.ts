@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePermission } from '@/lib/api-auth';
+import { requirePermission, createAuthClient } from '@/lib/api-auth';
+import { localDayRange, dayInTz } from '@/lib/timezone';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -23,13 +24,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing Supabase configuration' }, { status: 500 });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // S-05 (frozen): business day boundaries in the SESSION location's
+    // timezone (locations.timezone), not browser/server-local date.
+    // No active location in session → server-timezone fallback (matches DB local_day).
+    const now = new Date();
+    let bizTz: string | null = null;
+    try {
+      const sc = await createAuthClient();
+      const sess = await sc
+        .from('sessions')
+        .select('active_location_id')
+        .eq('token', auth.token)
+        .maybeSingle();
+      if (sess.data?.active_location_id) {
+        const loc = await sc.from('locations').select('timezone').eq('id', sess.data.active_location_id).maybeSingle();
+        bizTz = loc.data?.timezone || null;
+      }
+    } catch {
+      /* fallback: server timezone */
+    }
 
-    const todayStart = today.toISOString();
-    const tomorrowStart = tomorrow.toISOString();
+    const { start: todayStart, end: tomorrowStart } = localDayRange(now, bizTz);
+    const today = now;
 
     const [
       ordersRes,
@@ -186,7 +202,8 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    const reportDate = today.toISOString().split('T')[0];
+    // S-05: report date = business date in the location's timezone.
+    const reportDate = dayInTz(now, bizTz);
     const closedAt = new Date().toISOString();
 
     const dailyReport = {

@@ -1,221 +1,92 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/api-auth';
-import { runOrderAction } from '@/lib/transaction';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!url || !key) throw new Error('Missing Supabase configuration');
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
+// /api/orders/undo — F-10 (frozen): EVERY undo action maps onto the EXISTING
+// atomic inverse RPC. NO raw client PATCH / table_state snapshot / manual
+// total recomputation (all of which bypassed the state machine, FOR UPDATE
+// locks, audit and outbox). Each RPC enforces: floor.manage (F-01),
+// session-location scope (F-02/F-03), FOR UPDATE concurrency, audit + outbox.
 export async function POST(request: NextRequest) {
   try {
-    // F-01 (frozen): undo/split actions (merge/unmerge/transfer/seat/dismiss)
-    // are manager-level floor ops (`floor.manage`) — same tier as the forward
-    // operations they reverse.
-    // NOTE (F-10, separate fix): the merge/unmerge/transfer/seat cases rewrite
-    // table_floors/orders via raw client PATCH, bypassing atomic RPCs, the
-    // state machine, locks, audit and outbox. The permission gate is applied
-    // here; the unsafe rewrite is addressed in the F-10 fix.
     const auth = await requirePermission('floor.manage');
     if (!auth.authenticated) return auth;
 
     const { action, data } = await request.json();
-
     if (!action || !data) {
       return NextResponse.json({ error: 'action and data required' }, { status: 400 });
     }
 
-    const result = await runOrderAction(`Undo${action}`, async () => {
-      switch (action) {
-        case 'merge': {
-          const { sourceOrders, sourceTableNumbers, targetTable, tableState, parentHadActiveOrder } = data;
-
-          const stateByTable = new Map<number, any>((tableState || []).map((t: any) => [Number(t.table_number), t]));
-
-          // 1. Restore child table_floors to their pre-merge state
-          if (sourceTableNumbers?.length) {
-            for (const tableNum of sourceTableNumbers) {
-              const pre = stateByTable.get(Number(tableNum));
-              await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tableNum}`, {
-                method: 'PATCH',
-                headers: svc().headers,
-                body: JSON.stringify({
-                  status: pre?.status ?? 'occupied',
-                  merged_into_table: null,
-                  guest_count: pre?.guest_count ?? null,
-                  total_amount: pre?.total_amount ?? 0,
-                  opened_at: pre?.opened_at ?? null,
-                }),
-              });
-            }
-          }
-
-          // 2. Restore parent table_floors to its pre-merge state
-          const parentPre = stateByTable.get(Number(targetTable));
-          if (parentPre) {
-            await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${targetTable}`, {
-              method: 'PATCH',
-              headers: svc().headers,
-              body: JSON.stringify({
-                status: parentPre.status,
-                guest_count: parentPre.guest_count ?? null,
-                total_amount: parentPre.total_amount ?? 0,
-              }),
-            });
-          }
-
-          // 3. Restore child orders + recalculate parent total
-          if (sourceOrders?.length) {
-            const parentRes = await fetch(`${svc().url}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&status=neq.cancelled&select=*`, { headers: svc().headers });
-            const parentOrder = (await parentRes.json())?.[0];
-
-            let childTotal = 0;
-            for (const src of sourceOrders) {
-              childTotal += Number(src.total_amount || 0);
-              await fetch(`${svc().url}/rest/v1/orders?id=eq.${src.id}`, {
-                method: 'PATCH',
-                headers: svc().headers,
-                body: JSON.stringify({ merged_into: null, version: (src.version || 0) + 1 }),
-              });
-            }
-
-            if (parentOrder && parentHadActiveOrder !== false) {
-              const newTotal = Math.max(0, Number(parentOrder.total_amount || 0) - childTotal);
-              await fetch(`${svc().url}/rest/v1/orders?id=eq.${parentOrder.id}`, {
-                method: 'PATCH',
-                headers: svc().headers,
-                body: JSON.stringify({ total_amount: newTotal, version: (parentOrder.version || 0) + 1 }),
-              });
-            }
-          }
-
-          // 4. Remove the auto-created empty order if the parent had none before merge
-          if (parentHadActiveOrder === false) {
-            const autoRes = await fetch(`${svc().url}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&status=neq.cancelled&status=neq.closed&select=id`, { headers: svc().headers });
-            const autoOrders = (await autoRes.json()) || [];
-            for (const o of autoOrders) {
-              const itemsRes = await fetch(`${svc().url}/rest/v1/order_items?order_id=eq.${o.id}&select=id`, { headers: svc().headers });
-              const items = (await itemsRes.json()) || [];
-              if (items.length === 0) {
-                await fetch(`${svc().url}/rest/v1/orders?id=eq.${o.id}`, { method: 'DELETE', headers: svc().headers });
-              }
-            }
-          }
-          break;
-        }
-
-        case 'unmerge': {
-          const { parentTable, parentOrderId, parentOldTotal, parentOldGuests, childTables } = data;
-
-          // Re-merge each child table into parent
-          for (const child of childTables) {
-            await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${child.tableNumber}`, {
-              method: 'PATCH',
-              headers: svc().headers,
-              body: JSON.stringify({
-                status: 'merged',
-                merged_into_table: parentTable,
-              }),
-            });
-
-            if (child.orderId) {
-              await fetch(`${svc().url}/rest/v1/orders?id=eq.${child.orderId}`, {
-                method: 'PATCH',
-                headers: svc().headers,
-                body: JSON.stringify({ merged_into: parentOrderId }),
-              });
-            }
-          }
-
-          // Restore parent order totals
-          if (parentOrderId) {
-            await fetch(`${svc().url}/rest/v1/orders?id=eq.${parentOrderId}`, {
-              method: 'PATCH',
-              headers: svc().headers,
-              body: JSON.stringify({
-                total_amount: parentOldTotal,
-                guest_count: parentOldGuests,
-              }),
-            });
-          }
-          break;
-        }
-
-        case 'transfer': {
-          const { orderIds, fromTable, toTable } = data;
-          if (!orderIds?.length) break;
-          for (const oid of orderIds) {
-            await fetch(`${svc().url}/rest/v1/orders?id=eq.${oid}`, {
-              method: 'PATCH',
-              headers: svc().headers,
-              body: JSON.stringify({ table_number: fromTable }),
-            });
-          }
-          
-          await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${fromTable}`, {
-            method: 'PATCH',
-            headers: svc().headers,
-            body: JSON.stringify({ status: 'occupied' }),
-          });
-          
-          await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${toTable}`, {
-            method: 'PATCH',
-            headers: svc().headers,
-            body: JSON.stringify({ status: 'empty' }),
-          });
-          break;
-        }
-
-        case 'dismiss_undo': {
-          const { table_number, child_tables } = data;
-          const restoreTable = async (tn: number) => {
-            const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/dismiss_undo_atomic`, {
-              method: 'POST',
-              headers: svc().headers,
-              body: JSON.stringify({ p_token: auth.token, p_table_number: tn, p_performed_by: auth.user.id }),
-            });
-            if (!rpcRes.ok) {
-              const errText = await rpcRes.text();
-              throw new Error(errText || 'Dismiss undo failed');
-            }
-            return rpcRes.json();
-          };
-          const result = await restoreTable(table_number);
-          for (const child of child_tables || []) {
-            await restoreTable(child).catch(() => {});
-          }
-          return { action: 'dismiss_undo', success: true, result };
-        }
-
-        case 'seat': {
-          const { table_number } = data;
-          if (!table_number) throw new Error('table_number required');
-          const patchRes = await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
-            method: 'PATCH',
-            headers: svc().headers,
-            body: JSON.stringify({
-              status: 'empty',
-              guest_count: null,
-              last_activity_at: null,
-            }),
-          });
-          if (!patchRes.ok) {
-            const errText = await patchRes.text();
-            throw new Error(errText || 'Seat undo failed');
-          }
-          return { action: 'seat', success: true, table_number };
-        }
-
-        default:
-          throw new Error(`Unknown action: ${action}`);
+    const s = svc();
+    // dispatch one inverse atomic RPC; surface DB-level errors with proper status
+    const callRpc = async (fn: string, args: Record<string, unknown>): Promise<NextResponse> => {
+      const rpcRes = await fetch(`${s.url}/rest/v1/rpc/${fn}`, {
+        method: 'POST',
+        headers: s.headers,
+        body: JSON.stringify({ p_token: auth.token, p_performed_by: auth.user?.id || null, p_performed_by_terminal_id: null, ...args }),
+      });
+      const rpcData = await rpcRes.json().catch(() => ({}));
+      if (!rpcRes.ok || rpcData?.success === false) {
+        const msg = rpcData?.error || 'Undo failed';
+        const status = msg === 'PERMISSION_DENIED' || msg === 'FORBIDDEN_LOCATION' ? 403
+          : msg === 'FORBIDDEN' ? 401 : rpcRes.ok ? 400 : rpcRes.status;
+        return NextResponse.json({ error: msg }, { status });
       }
-      return { action, success: true };
-    });
+      return NextResponse.json({ action, success: true, result: rpcData });
+    };
 
-    return NextResponse.json(result);
+    switch (action) {
+      case 'merge': {
+        // inverse of merge_tables_atomic = unmerge_tables_atomic
+        const { targetTable, sourceTableNumbers } = data;
+        if (!targetTable || !sourceTableNumbers?.length) return NextResponse.json({ error: 'targetTable + sourceTableNumbers required' }, { status: 400 });
+        return callRpc('unmerge_tables_atomic', {
+          p_parent_table_number: Number(targetTable),
+          p_child_table_numbers: sourceTableNumbers.map(Number),
+        });
+      }
+      case 'unmerge': {
+        // inverse of unmerge_tables_atomic = merge_tables_atomic
+        const { primaryTable, childTables } = data;
+        if (!primaryTable || !childTables?.length) return NextResponse.json({ error: 'primaryTable + childTables required' }, { status: 400 });
+        return callRpc('merge_tables_atomic', {
+          p_parent_table_number: Number(primaryTable),
+          p_child_table_numbers: childTables.map(Number),
+        });
+      }
+      case 'transfer': {
+        // inverse of A→B transfer = atomic B→A transfer (no manual order/
+        // table PATCH rewrite — the RPC moves the order + sets both tables)
+        const { from_table, to_table } = data;
+        if (!from_table || !to_table) return NextResponse.json({ error: 'from_table and to_table required' }, { status: 400 });
+        return callRpc('transfer_table_atomic', { p_from_table: Number(to_table), p_to_table: Number(from_table) });
+      }
+      case 'dismiss_undo': {
+        const { table_number, child_tables } = data;
+        const r1 = await callRpc('dismiss_undo_atomic', { p_table_number: Number(table_number) });
+        if (r1.status !== 200) return r1;
+        for (const child of child_tables || []) {
+          await callRpc('dismiss_undo_atomic', { p_table_number: Number(child) }).catch(() => {});
+        }
+        return r1;
+      }
+      case 'seat': {
+        // inverse of seat = clear the (occupied) table via the atomic clear
+        const { table_number } = data;
+        if (!table_number) return NextResponse.json({ error: 'table_number required' }, { status: 400 });
+        return callRpc('clear_table_atomic', { p_table_number: Number(table_number) });
+      }
+      default:
+        return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
+    }
   } catch (error: any) {
+    console.error('[API /orders/undo] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-

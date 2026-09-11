@@ -113,7 +113,7 @@ BEGIN
   END IF;
 
   PERFORM public.validate_actor(p_performed_by);
-  SELECT * INTO v_table FROM public.table_floors WHERE table_number = p_table_number (v_sess_loc IS NULL OR location_id = v_sess_loc) FOR UPDATE;
+  SELECT * INTO v_table FROM public.table_floors WHERE table_number = p_table_number AND (v_sess_loc IS NULL OR location_id = v_sess_loc) FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'TABLE_NOT_FOUND');
   END IF;
@@ -196,7 +196,7 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'G_DISMISS_INVALID_FINAL');
   END IF;
 
-  SELECT * INTO v_table FROM public.table_floors WHERE table_number = p_table_number (v_sess_loc IS NULL OR location_id = v_sess_loc) FOR UPDATE;
+  SELECT * INTO v_table FROM public.table_floors WHERE table_number = p_table_number AND (v_sess_loc IS NULL OR location_id = v_sess_loc) FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'TABLE_NOT_FOUND');
   END IF;
@@ -316,7 +316,7 @@ BEGIN
   SELECT public.effective_admin_role() INTO v_caller_role;
 
   -- F-02: location isolation (the table must be in the actor's accessible locations)
-  SELECT location_id INTO v_loc FROM public.table_floors WHERE table_number = p_table_number (v_sess_loc IS NULL OR location_id = v_sess_loc);
+  SELECT location_id INTO v_loc FROM public.table_floors WHERE table_number = p_table_number AND (v_sess_loc IS NULL OR location_id = v_sess_loc);
   IF FOUND AND NOT has_location_access(v_loc) THEN
     RETURN jsonb_build_object('success', false, 'error', 'FORBIDDEN_LOCATION');
   END IF;
@@ -459,7 +459,7 @@ BEGIN
   END IF;
 
   SELECT * INTO v_parent FROM public.table_floors
-   WHERE table_number = p_parent_table_number (v_sess_loc IS NULL OR location_id = v_sess_loc) FOR UPDATE;
+   WHERE table_number = p_parent_table_number AND (v_sess_loc IS NULL OR location_id = v_sess_loc) FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'TABLE_NOT_FOUND');
   END IF;
@@ -974,7 +974,7 @@ BEGIN
   END IF;
 
   SELECT * INTO v_parent FROM public.table_floors
-   WHERE table_number = p_parent_table_number (v_sess_loc IS NULL OR location_id = v_sess_loc) FOR UPDATE;
+   WHERE table_number = p_parent_table_number AND (v_sess_loc IS NULL OR location_id = v_sess_loc) FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'TABLE_NOT_FOUND');
   END IF;
@@ -1381,8 +1381,8 @@ BEGIN
       WHERE table_number IN (p_from_table, p_to_table)) <> 2 THEN
     RETURN jsonb_build_object('success', false, 'error', 'TABLE_NOT_FOUND');
   END IF;
-  SELECT * INTO v_from FROM public.table_floors WHERE table_number = p_from_table (v_sess_loc IS NULL OR location_id = v_sess_loc);
-  SELECT * INTO v_to   FROM public.table_floors WHERE table_number = p_to_table (v_sess_loc IS NULL OR location_id = v_sess_loc);
+  SELECT * INTO v_from FROM public.table_floors WHERE table_number = p_from_table AND (v_sess_loc IS NULL OR location_id = v_sess_loc);
+  SELECT * INTO v_to   FROM public.table_floors WHERE table_number = p_to_table AND (v_sess_loc IS NULL OR location_id = v_sess_loc);
   IF NOT (has_location_access(v_from.location_id) AND has_location_access(v_to.location_id)) THEN
     RETURN jsonb_build_object('success', false, 'error', 'FORBIDDEN_LOCATION');
   END IF;
@@ -1537,7 +1537,7 @@ BEGIN
   END IF;
 
   SELECT * INTO v_table FROM public.table_floors
-   WHERE table_number = p_table_number (v_sess_loc IS NULL OR location_id = v_sess_loc) FOR UPDATE;
+   WHERE table_number = p_table_number AND (v_sess_loc IS NULL OR location_id = v_sess_loc) FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'TABLE_NOT_FOUND');
   END IF;

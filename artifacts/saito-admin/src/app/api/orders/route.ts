@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { runOrderAction } from '@/lib/transaction';
 import { FINAL_ORDER_STATUSES } from '@/lib/pos-tables';
+import { resolveLocationContext } from '@/lib/location-context';
 
 // A table's "active" order excludes ALL terminal states — must match the DB
 // aggregate (sync_table_order_aggregates) and the floor view exactly. The old
@@ -107,9 +108,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Kitchen can only update order status' }, { status: 403 });
     }
 
+    // G4 (O frozen contract): the session's active location is the ONLY location
+    // context. Every create/append/update/addItems below is scoped to it; a client
+    // can never redirect an order to another location via table_number (the request
+    // body carries no location_id/organization_id — they are resolved server-side).
+    const lctx = auth.user?.id ? await resolveLocationContext(auth.user.id) : null;
+    if (!lctx?.locationId) {
+      return NextResponse.json({ error: 'NO_LOCATION_CONTEXT' }, { status: 400 });
+    }
+    const sessLoc = lctx.locationId;
+    const sessOrg = lctx.organizationId;
+
     const result = await runOrderAction(`Order${action || 'Create'}`, async () => {
       if (action === 'update') {
-        const orderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=id,version,table_number,guest_count`, { headers: svc().headers });
+        // G4: order must belong to the session's active location
+        const orderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&location_id=eq.${encodeURIComponent(sessLoc)}&select=id,version,table_number,guest_count,location_id`, { headers: svc().headers });
         const existingOrder = (await orderRes.json())?.[0];
         
         if (!existingOrder) throw new Error('Order not found');
@@ -125,6 +138,19 @@ export async function POST(request: Request) {
         const safeData: Record<string, any> = {};
         for (const key of ALLOWED_UPDATE_FIELDS) {
           if (data && key in data) safeData[key] = data[key];
+        }
+        // G4: a table reassignment must resolve WITHIN the session's active location
+        if (safeData.table_number !== undefined) {
+          const tchkRes = await fetch(
+            `${svc().url}/rest/v1/table_floors?table_number=eq.${encodeURIComponent(String(safeData.table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}&select=id&limit=1`,
+            { headers: svc().headers }
+          );
+          const tchk = tchkRes.ok ? await tchkRes.json() : [];
+          if (!Array.isArray(tchk) || tchk.length === 0) {
+            const err = new Error('Table not found in your active location') as any;
+            err.status = 400;
+            throw err;
+          }
         }
         const patchRes = await fetch(
           `${svc().url}/rest/v1/orders?id=eq.${id}&version=eq.${currentVersion}`,
@@ -145,13 +171,17 @@ export async function POST(request: Request) {
 
         const updatedOrder = Array.isArray(patched) ? patched[0] : patched;
 
-        // If guest_count changed, update table_floors too
+        // If guest_count changed, update table_floors too — G4: scoped to the
+        // session's active location (never a cross-location table write).
         if (data.guest_count !== undefined && existingOrder.table_number) {
-          await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${existingOrder.table_number}`, {
-            method: 'PATCH',
-            headers: svc().headers,
-            body: JSON.stringify({ guest_count: data.guest_count }),
-          });
+          await fetch(
+            `${svc().url}/rest/v1/table_floors?table_number=eq.${existingOrder.table_number}&location_id=eq.${encodeURIComponent(sessLoc)}`,
+            {
+              method: 'PATCH',
+              headers: svc().headers,
+              body: JSON.stringify({ guest_count: data.guest_count }),
+            }
+          );
         }
 
         return updatedOrder;
@@ -190,6 +220,15 @@ export async function POST(request: Request) {
       // that already have a draft/active order, so we never create a 2nd active order).
       if (action === 'addItems') {
         if (!id || !items?.length) throw new Error('id and items required');
+
+        // G4: the target order must belong to the session's active location
+        const addOrdRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=id,location_id&limit=1`, { headers: svc().headers });
+        const addOrd = addOrdRes.ok ? await addOrdRes.json() : [];
+        if (!Array.isArray(addOrd) || addOrd.length === 0 || addOrd[0].location_id !== sessLoc) {
+          const err = new Error('Order not found in your active location') as any;
+          err.status = 404;
+          throw err;
+        }
 
         const insertRes = await fetch(`${svc().url}/rest/v1/order_items`, {
           method: 'POST',
@@ -275,10 +314,12 @@ export async function POST(request: Request) {
 
       // Check for existing active order on this table (dine-in only; takeaway
       // and delivery always create a fresh order)
+      // G4: the active-order lookup is scoped to the session's active location,
+      // so a colliding table_number in another location can never be appended to.
       let existingOrder = null;
       if (table_number) {
         const existingRes = await fetch(
-          `${svc().url}/rest/v1/orders?table_number=eq.${table_number}&status=${NOT_FINAL}&order=created_at.asc&limit=1&select=id,total_amount,version`,
+          `${svc().url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}&status=${NOT_FINAL}&order=created_at.asc&limit=1&select=id,total_amount,version`,
           { headers: svc().headers }
         );
         const existingOrders = existingRes.ok ? await existingRes.json() : [];
@@ -340,13 +381,20 @@ export async function POST(request: Request) {
         // Must exclude ALL final states (matches sync_table_order_aggregates) —
         // summing closed/refunded/voided orders produced phantom totals like
         // ₼428.61 / ₼3016.35 on tables with no open order.
-        const tableOrdersRes = await fetch(`${svc().url}/rest/v1/orders?table_number=eq.${table_number}&status=${NOT_FINAL}`, { headers: svc().headers });
+        const tableOrdersRes = await fetch(
+          `${svc().url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}&status=${NOT_FINAL}`,
+          { headers: svc().headers }
+        );
         const tableOrders = tableOrdersRes.ok ? await tableOrdersRes.json() : [];
         const tableTotal = tableOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
-        const tablePatchRes2 = await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
-          method: 'PATCH', headers: svc().headers,
-          body: JSON.stringify({ total_amount: tableTotal, status: 'occupied', last_activity_at: new Date().toISOString() }),
-        });
+        // G4: table_floors PATCH scoped to the session's active location
+        const tablePatchRes2 = await fetch(
+          `${svc().url}/rest/v1/table_floors?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}`,
+          {
+            method: 'PATCH', headers: svc().headers,
+            body: JSON.stringify({ total_amount: tableTotal, status: 'occupied', last_activity_at: new Date().toISOString() }),
+          }
+        );
         if (!tablePatchRes2.ok) {
           const errText = await tablePatchRes2.text();
           console.error('[POST /api/orders] table_floors update failed:', tablePatchRes2.status, errText);
@@ -355,24 +403,29 @@ export async function POST(request: Request) {
         // Create new order
         console.log('[API /orders POST] creating order', { table_number, total_amount: discountedTotal });
 
-        // Canonical org/location come from the table itself (table_floors), never
-        // from the client. The trg_order_staff_org + location guards require a
-        // new order to carry the same organization/location as its table.
+        // G4: location/org come from the SERVER (session active location), never
+        // from the client. Dine-in resolves the table WITHIN that location; a
+        // table_number that exists only in another location is rejected.
         let orderOrganizationId: string | null = null;
         let orderLocationId: string | null = null;
         if (table_number !== undefined && table_number !== null) {
           const tableMetaRes = await fetch(
-            `${svc().url}/rest/v1/table_floors?table_number=eq.${encodeURIComponent(String(table_number))}&select=organization_id,location_id&limit=1`,
+            `${svc().url}/rest/v1/table_floors?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}&select=organization_id,location_id&limit=1`,
             { headers: svc().headers }
           );
-          if (tableMetaRes.ok) {
-            const tableRows = await tableMetaRes.json();
-            const tableMeta = Array.isArray(tableRows) ? tableRows[0] : null;
-            if (tableMeta) {
-              orderOrganizationId = tableMeta.organization_id || null;
-              orderLocationId = tableMeta.location_id || null;
-            }
+          const tableRows = tableMetaRes.ok ? await tableMetaRes.json() : [];
+          const tableMeta = Array.isArray(tableRows) ? tableRows[0] : null;
+          if (!tableMeta) {
+            const err = new Error('Table not found in your active location') as any;
+            err.status = 400;
+            throw err;
           }
+          orderOrganizationId = tableMeta.organization_id || sessOrg || null;
+          orderLocationId = tableMeta.location_id || sessLoc;
+        } else {
+          // Takeaway / delivery: no table — stamp the session's active location.
+          orderOrganizationId = sessOrg || null;
+          orderLocationId = sessLoc;
         }
 
         const insertRes = await fetch(`${svc().url}/rest/v1/orders`, {
@@ -427,13 +480,17 @@ export async function POST(request: Request) {
         activeOrderId = created?.[0]?.id;
         if (!activeOrderId) throw new Error('Order creation failed: no id returned');
 
-        // Mark table as occupied with current_order_id (SSOT)
+        // Mark table as occupied with current_order_id (SSOT) — G4: scoped to
+        // the session's active location (table already verified to be here above).
         if (table_number) {
           console.log('[API /orders POST] updating table_floors', { table_number, activeOrderId });
-          const tablePatchRes3 = await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
-            method: 'PATCH', headers: svc().headers,
-            body: JSON.stringify({ status: 'occupied', current_order_id: activeOrderId, total_amount: discountedTotal, last_activity_at: new Date().toISOString() }),
-          });
+          const tablePatchRes3 = await fetch(
+            `${svc().url}/rest/v1/table_floors?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}`,
+            {
+              method: 'PATCH', headers: svc().headers,
+              body: JSON.stringify({ status: 'occupied', current_order_id: activeOrderId, total_amount: discountedTotal, last_activity_at: new Date().toISOString() }),
+            }
+          );
           console.log('[API /orders POST] table_floors update result:', tablePatchRes3.status);
           if (!tablePatchRes3.ok) {
             const errText = await tablePatchRes3.text();

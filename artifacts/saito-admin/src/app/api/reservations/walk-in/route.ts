@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { requireActiveShift } from '@/lib/shiftLock';
+import { resolveLocationContext } from '@/lib/location-context';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -26,6 +27,14 @@ export async function POST(request: NextRequest) {
 
     const s = svc();
 
+    // G4: walk-in table_number resolves WITHIN the operator's active location only.
+    // p_location_id is server-resolved (session -> primary -> single-active); a
+    // client can never redirect a walk-in to another location via table_number.
+    const lctx = auth.user?.id ? await resolveLocationContext(auth.user.id) : null;
+    if (!lctx?.locationId) {
+      return NextResponse.json({ error: 'NO_LOCATION_CONTEXT' }, { status: 400 });
+    }
+
     // Atomic walk-in: reservation + customer + order + table update + audit
     const rpcRes = await fetch(`${s.url}/rest/v1/rpc/walkin_atomic`, {
       method: 'POST',
@@ -41,6 +50,7 @@ export async function POST(request: NextRequest) {
           p_pre_order: !!pre_order,
           p_scheduled_date: scheduled_date || null,
           p_scheduled_time: scheduled_time || null,
+          p_location_id: lctx.locationId,
         }),
     });
 

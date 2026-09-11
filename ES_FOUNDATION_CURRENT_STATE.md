@@ -3,13 +3,14 @@
 > **Bu sənəd kod/fix DEYİL** — mövcud DB/code contract-ı + undefined qərarlar + critical tapıntılar.
 > Bütün evidence = REAL DB (`jbxmlnsicbfkbsatnoej`) + repo source.
 > **A (AUTH/RBAC) = FROZEN dependency** — identity/status/PIN/roles/locations/audit A-dan istifadə olunur, A audit EDİLMİR.
+> **STATUS:** S-01 ✅ FIXED · S-02 ✅ FIXED · S-03/S-04/S-05/S-06..09 AÇIQ (növbəti).
 > Məqsəd: "100%" iddiası YOX — production contract-ların harası müəyyən, harası qırılıb, harası sənə qərardır.
 
 ---
 
 ## 🔴 CRITICAL (production-a buraxılmaz)
 
-### S-01 — CLOCK-IN TAMAMİNLƏ QIRILIB (hər iki path)
+### S-01 — CLOCK-IN NOT NULL CRASH — ✅ FIXED (migration 20260911000009, commit 4fc5f9d)
 **Sübut (live):** `clock_in(admin, '1871', 'audit_test')` → **`ERROR: null value in column "location_id" of relation "shifts" violates not-null constraint`**.
 - `shifts.location_id` + `shifts.organization_id` = **NOT NULL**.
 - `clock_in` gövdəsi: `INSERT INTO shifts (staff_id, opened_at, starting_cash)` — **location_id/organization_id YOX**.
@@ -17,7 +18,7 @@
 - `clock_in_atomic` gövdəsi eyni pattern: `INSERT INTO shifts (staff_id, opened_at, notes)` — **eyni NOT NULL crash** (by inspection; eyni constraint).
 - **Nəticə:** heç kim clock-in edə bilmir. 23 mövcud `time_clock_entries` 01.09-dan (location_id NOT NULL oldundandı). Bu, "clock in/out işləyir" iddiasının (əvvəlki 100%) **təzə sübutu edilməmiş qısqıcıdır**.
 
-### S-02 — TIME-CLOCK IDOR (security)
+### S-02 — TIME-CLOCK IDOR — ✅ FIXED (migrations 20260911000010+11, commit 96d28d2)
 **Sübut (source):** `/api/time-clock/[id]/clock-in|clock-out|break|status` route-ləri **`requireAuth`/`requirePermission` YOXDUR** — `svc()` ilə birbaşa service-role RPC, `[id]` URL-dən gəlir.
 - Middleware default-deny **authentication** qoruyur (token yox → 401), amma **authorization YOX**: istənilən valide-session staff istənilən `staff_id` üçün clock-in/out/break edə bilir.
 - Müqayisə: `close_shift` **ownership check**-i var (`Cannot close another staff shift`), `clock_in_atomic` session identity istifadə edir — amma `clock_in`/`clock_out`/`start_break`/`end_break` **caller-provided `p_staff_id`** alırlar, ownership/permission yoxlamaq YOX.

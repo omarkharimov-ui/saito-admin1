@@ -40,10 +40,26 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { name, full_name, email, phone, role_id, hourly_rate, status } = body;
+  const { name, full_name, email, phone, role_id, hourly_rate, status, status_reason } = body;
 
   const { createAuthClient } = await import('@/lib/api-auth');
   const supabase = await createAuthClient();
+
+  let statusResult: any = null;
+  // Contract §12: status lifecycle is DB-authoritative (atomic transition +
+  // audit + session consequence). Never write `status` via raw .update().
+  if (status !== undefined && ['ACTIVE', 'SUSPENDED', 'TERMINATED'].includes(status)) {
+    const r = await supabase.rpc('set_staff_status_atomic', {
+      p_token: auth.token,
+      p_staff_id: id,
+      p_new_status: status,
+      p_reason: status_reason ?? null,
+    });
+    if (r.error) {
+      return NextResponse.json({ error: r.error.message }, { status: 403 });
+    }
+    statusResult = r.data;
+  }
 
   const updates: Record<string, any> = {};
   if (name !== undefined) updates.name = name;
@@ -52,22 +68,20 @@ export async function PATCH(
   if (phone !== undefined) updates.phone = phone;
   if (role_id !== undefined) updates.role_id = role_id;
   if (hourly_rate !== undefined) updates.hourly_rate = hourly_rate;
-  if (status !== undefined) updates.status = status;
 
-  if (Object.keys(updates).length === 0) {
+  let data: any = null;
+  if (Object.keys(updates).length > 0) {
+    const res = await supabase
+      .from('staff')
+      .update(updates)
+      .eq('id', id)
+      .select('id, name, status, role_id')
+      .single();
+    if (res.error) return NextResponse.json({ error: res.error.message }, { status: 500 });
+    data = res.data;
+  } else if (!statusResult) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from('staff')
-    .update(updates)
-    .eq('id', id)
-    .select('id, name, status, role_id')
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json(data);
+  return NextResponse.json(statusResult ?? data);
 }

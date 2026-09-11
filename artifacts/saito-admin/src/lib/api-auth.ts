@@ -19,11 +19,17 @@ export async function validateAuth() {
   const supabase = svc();
   const { data: session } = await supabase
     .from('sessions')
-    .select('user_id, role, expires_at')
+    .select('user_id, role, expires_at, status, revoked_at')
     .eq('token', token)
     .maybeSingle();
 
   if (!session) return { authenticated: false, error: 'Invalid session', status: 401 };
+
+  // Contract §3: revoked session → 401 (logout / force_logout / status-revoke).
+  if (session.revoked_at || session.status === 'REVOKED') {
+    await supabase.from('sessions').delete().eq('token', token);
+    return { authenticated: false, error: 'Session revoked', status: 401 };
+  }
 
   if (new Date(session.expires_at).getTime() < Date.now()) {
     try {
@@ -40,17 +46,18 @@ export async function validateAuth() {
 
   const { data: staff } = await supabase
     .from('staff')
-    .select('is_active')
+    .select('is_active, status')
     .eq('id', session.user_id)
     .maybeSingle();
 
-  if (!staff?.is_active) {
+  // Contract §3: disabled OR suspended/terminated staff → session invalid.
+  if (!staff?.is_active || staff?.status !== 'ACTIVE') {
     try {
       await supabase.from('security_events').insert({
         staff_id: session.user_id,
         event_type: 'account_disabled',
         success: false,
-        metadata: { reason: 'staff_inactive' },
+        metadata: { reason: staff?.status && staff.status !== 'ACTIVE' ? `status_${staff.status}` : 'staff_inactive' },
       });
     } catch { /* non-critical */ }
     await supabase.from('sessions').delete().eq('token', token);
@@ -61,6 +68,7 @@ export async function validateAuth() {
     authenticated: true,
     user: { id: session.user_id },
     role: session.role,
+    token,
   };
 }
 

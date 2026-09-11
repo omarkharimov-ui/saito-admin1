@@ -40,10 +40,12 @@ export async function POST(req: NextRequest) {
     const candidates: any[] = preflight?.candidates ?? [];
     if (candidates.length === 0) {
       // No active staff — still audit as failed attempt (enumeration-neutral).
-      await client.rpc('login_commit', {
-        p_candidate_id: null, p_success: false, p_ip: ip, p_user_agent: ua,
-        p_failure_reason: 'no_active_staff',
-      }).catch(() => {});
+      try {
+        await client.rpc('login_commit', {
+          p_candidate_id: null, p_success: false, p_ip: ip, p_user_agent: ua,
+          p_failure_reason: 'no_active_staff',
+        });
+      } catch { /* audit best-effort */ }
       return NextResponse.json({ error: 'Yanlış PIN' }, { status: 401 });
     }
 
@@ -67,7 +69,18 @@ export async function POST(req: NextRequest) {
         p_pin_banned: BANNED_PINS.has(pin),
       });
       if (res.error || !res.data?.success) {
-        // Race: staff disabled between preflight and commit → generic 401.
+        // PIN matched THIS staff but was rejected (locked / inactive / banned /
+        // weak) → attributed per-staff failure (feeds 5→15min lock, §2 brute-force).
+        try {
+          await client.rpc('login_commit', {
+            p_candidate_id: matched.id,
+            p_success: false,
+            p_ip: ip,
+            p_user_agent: ua,
+            p_failure_reason: res.data?.reason || 'rejected',
+          });
+        } catch { /* audit best-effort */ }
+        // Generic: no reason leakage (enumeration-safe).
         return NextResponse.json({ error: 'Yanlış PIN' }, { status: 401 });
       }
       const d = res.data;

@@ -64,7 +64,7 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${supabaseUrl}/rest/v1/sessions?select=expires_at,role&token=eq.${encodeURIComponent(token)}&limit=1`, {
+    const response = await fetch(`${supabaseUrl}/rest/v1/sessions?select=expires_at,role,status,revoked_at&token=eq.${encodeURIComponent(token)}&limit=1`, {
       headers: {
         'apikey': serviceRoleKey,
         'Authorization': `Bearer ${serviceRoleKey}`,
@@ -78,7 +78,12 @@ export async function middleware(request: NextRequest) {
     const sessions = await response.json();
     const session = Array.isArray(sessions) ? sessions[0] : null;
 
-    if (!session || new Date(session.expires_at).getTime() < Date.now()) {
+    // Contract §3: revoked (logout / force_logout / status-revoke) session
+    // must be rejected even before it expires.
+    if (!session
+      || session.revoked_at
+      || session.status === 'REVOKED'
+      || new Date(session.expires_at).getTime() < Date.now()) {
       return isApi ? apiUnauthorized(request) : pageUnauthorized(request);
     }
   } catch {

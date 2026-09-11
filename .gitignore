@@ -61,3 +61,7 @@ SECRETS.local.md
 
 # DB inventory snapshots (agent working files)
 .db-inventory-*.txt
+
+# One-off agent working scripts (not reusable)
+.pin-check.cjs
+.pin-rotate.cjs

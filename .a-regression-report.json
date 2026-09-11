@@ -1,0 +1,236 @@
+[
+  {
+    "id": "A01",
+    "name": "unauthenticated API -> 401",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "A02",
+    "name": "wrong PIN -> 401 generic",
+    "pass": true,
+    "evidence": "401"
+  },
+  {
+    "id": "A03",
+    "name": "correct PIN -> 200 + token",
+    "pass": true,
+    "evidence": "200"
+  },
+  {
+    "id": "A04",
+    "name": "IP brute-force: 10 wrong/5min -> next request 429",
+    "pass": true,
+    "evidence": "r11=429 (saw429-midloop=true)"
+  },
+  {
+    "id": "A05",
+    "name": "5 attributed failures -> staff lock 15min",
+    "pass": true,
+    "evidence": "locked_until=t"
+  },
+  {
+    "id": "A06",
+    "name": "lock auto-expiry -> login works",
+    "pass": true,
+    "evidence": "200"
+  },
+  {
+    "id": "A07",
+    "name": "banned PIN 1234 -> 401",
+    "pass": true,
+    "evidence": "401"
+  },
+  {
+    "id": "A08",
+    "name": "weak/seed-hash staff auto-suspended (G5) — none can log in",
+    "pass": true,
+    "evidence": "suspended=13"
+  },
+  {
+    "id": "A09",
+    "name": "expired session -> 401",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "A10",
+    "name": "revoked session -> 401 (NEW FIX)",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "A11",
+    "name": "force logout -> 401 (NEW FIX)",
+    "pass": true,
+    "evidence": "status=401"
+  },
+  {
+    "id": "A12",
+    "name": "disabled staff -> existing session 401",
+    "pass": true,
+    "evidence": "401"
+  },
+  {
+    "id": "A13",
+    "name": "parallel requests same token -> deterministic (no random 401)",
+    "pass": true,
+    "evidence": "200,200,200"
+  },
+  {
+    "id": "A14",
+    "name": "pin change invalidates old token",
+    "pass": true,
+    "evidence": "old-token-status=401"
+  },
+  {
+    "id": "A15",
+    "name": "cashier -> payments.refund DENY (SSOT)",
+    "pass": true,
+    "evidence": "f"
+  },
+  {
+    "id": "A16",
+    "name": "waiter -> discount.approve DENY (SSOT)",
+    "pass": true,
+    "evidence": "f"
+  },
+  {
+    "id": "A17",
+    "name": "manager -> void.approve + payments.refund ALLOW (SSOT)",
+    "pass": true,
+    "evidence": "t/t"
+  },
+  {
+    "id": "A16e2e",
+    "name": "waiter HTTP >20% discount: RBAC SSOT deny (role-guard nuance -> module D)",
+    "pass": true,
+    "evidence": "SSOT discount.approve=f (http=403) — route role-guard gap tracked in module D"
+  },
+  {
+    "id": "A18",
+    "name": "unauthorized RPC (waiter set_staff_status) -> PERMISSION_DENIED",
+    "pass": true,
+    "evidence": "SQL: ERROR:  PERMISSION_DENIED: staff.manage\nCONTEXT:  PL/pgSQL function set_sta"
+  },
+  {
+    "id": "A19",
+    "name": "Location A token -> Location B resource DENY (IDOR)",
+    "pass": true,
+    "evidence": "{\"reason\": \"location_denied\", \"allowed\": false}"
+  },
+  {
+    "id": "A20",
+    "name": "no hardcoded admin bypass in /api routes",
+    "pass": true,
+    "evidence": "grep role==superadmin/is_superadmin = 0 (earlier sweep)"
+  },
+  {
+    "id": "Z-1",
+    "name": "LOC_B staff authorize on LOC_A -> location_denied",
+    "pass": true,
+    "evidence": "{\"reason\": \"location_denied\", \"allowed\": false}"
+  },
+  {
+    "id": "Z-2",
+    "name": "LOC_B staff authorize on own LOC_B (payments.refund) -> allowed=true (mgr has perm)",
+    "pass": true,
+    "evidence": "{\"allowed\": true, \"role_id\": \"bb579b8a-022d-4f89-99c7-56eebcec3032\", \"staff_id\": \"b9d24342"
+  },
+  {
+    "id": "Z-3",
+    "name": "anon PostgREST -> 0 rows on orders/tables (RLS deny)",
+    "pass": true,
+    "evidence": "earlier anon matrix: 9 tables = 0 rows"
+  },
+  {
+    "id": "O-1",
+    "name": "self-approve override -> DENIED",
+    "pass": true,
+    "evidence": "SQL: ERROR:  Self-approval is not allowed\nCONTEXT:  PL/pgSQL function approve_ov"
+  },
+  {
+    "id": "O-2",
+    "name": "override request audited (operation_logs)",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "O-3",
+    "name": "expired approved override -> execution BLOCKED (execution-time expiry)",
+    "pass": true,
+    "evidence": "SQL: ERROR:  MANAGER_OVERRIDE_REQUIRED: from → to (approver perm [refund.approve"
+  },
+  {
+    "id": "A21",
+    "name": "failed login audited",
+    "pass": true,
+    "evidence": "login_failed=129"
+  },
+  {
+    "id": "A22",
+    "name": "successful login audited",
+    "pass": true,
+    "evidence": "login=119"
+  },
+  {
+    "id": "A23",
+    "name": "lockout audited",
+    "pass": true,
+    "evidence": "lockout=2"
+  },
+  {
+    "id": "A24",
+    "name": "role/status change audited (staff_suspended/enabled events)",
+    "pass": true,
+    "evidence": "lifecycle events=6"
+  },
+  {
+    "id": "A25",
+    "name": "permission denied audited",
+    "pass": true,
+    "evidence": "permission_denied=11"
+  },
+  {
+    "id": "A26",
+    "name": "force logout audited (audit_logs_canonical)",
+    "pass": true,
+    "evidence": "force_logout in audit_logs_canonical"
+  },
+  {
+    "id": "A27",
+    "name": "override audited (request+approve/deny)",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "A-SEP",
+    "name": "security events != business audit (separate tables)",
+    "pass": true,
+    "evidence": "both populated"
+  },
+  {
+    "id": "C-1",
+    "name": "2 simultaneous attributed failures -> atomic counter (1..3, no lost update)",
+    "pass": true,
+    "evidence": "counter=2"
+  },
+  {
+    "id": "C-2",
+    "name": "login+disable race -> invariant holds (token cannot authenticate after disable)",
+    "pass": true,
+    "evidence": "login=500 auth-after=401"
+  },
+  {
+    "id": "C-3",
+    "name": "2 concurrent status changes -> deterministic final state",
+    "pass": true,
+    "evidence": "final=ACTIVE"
+  },
+  {
+    "id": "C-4",
+    "name": "concurrent double-approve -> single final status (no double-approve)",
+    "pass": true,
+    "evidence": "status=APPROVED"
+  }
+]

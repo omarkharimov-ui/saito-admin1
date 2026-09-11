@@ -30,14 +30,17 @@ export async function POST(request: Request) {
     }
 
     if (action === 'in') {
-      const { data, error: rpcError } = await s.rpc('clock_in_atomic', {
-        p_staff_id: staffId,
-        p_notes: null,
-        p_performed_by: staffId,
+      // S-02 (frozen): identity = session token; self clock-in (target = self).
+      const { data, error: rpcError } = await s.rpc('clock_in_atomic_token', {
+        p_token: auth.token,
+        p_target_id: staffId,
       });
 
       if (rpcError) {
         return NextResponse.json({ error: rpcError.message }, { status: 500 });
+      }
+      if (data?.success === false && data?.error === 'PERMISSION_DENIED') {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
       }
 
       if (role_id && data?.shift_id) {
@@ -51,14 +54,17 @@ export async function POST(request: Request) {
 
       return NextResponse.json(data);
     } else {
-      const { data, error: rpcError } = await s.rpc('clock_out_atomic', {
-        p_staff_id: staffId,
+      // S-02 (frozen): self close via session token.
+      const { data, error: rpcError } = await s.rpc('clock_out_atomic_token', {
+        p_token: auth.token,
         p_notes: null,
-        p_performed_by: staffId,
       });
 
       if (rpcError) {
         return NextResponse.json({ error: rpcError.message }, { status: 500 });
+      }
+      if (data?.success === false && data?.error === 'PERMISSION_DENIED') {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
       }
 
       return NextResponse.json(data);

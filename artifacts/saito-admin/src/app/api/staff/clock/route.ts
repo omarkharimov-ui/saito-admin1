@@ -1,15 +1,10 @@
 import { NextResponse } from 'next/server';
-import { validateAuth } from '@/lib/api-auth';
+import { validateAuth, createAuthClient } from '@/lib/api-auth';
 
-function svc() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) throw new Error('Missing Supabase configuration');
-  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
-}
-
-// /api/staff/clock
+// /api/staff/clock  (mobile app)
 // body: { action: 'clock_in' | 'clock_out' | 'break_start' | 'break_end', pin?, break_type? }
+// S-02 (frozen): identity = session token; this is always SELF (mobile = own clock).
+// The DB token RPCs also allow `timeclock.override` on a target, but mobile acts on self.
 export async function POST(req: Request) {
   try {
     const auth = await validateAuth();
@@ -17,57 +12,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
     const id = auth.user!.id;
-    const s = svc();
-    const body = await req.json();
+    const s = await createAuthClient();
+    const body = await req.json().catch(() => ({}));
     const { action, pin, break_type } = body;
-
     const source = 'mobile_app';
+    const bad = (data: any, code = 400) =>
+      NextResponse.json(data, { status: data?.success === false ? (data?.error === 'PERMISSION_DENIED' ? 403 : code) : 200 });
 
     if (action === 'clock_in') {
       if (!pin) return NextResponse.json({ error: 'PIN required' }, { status: 400 });
-      const res = await fetch(`${s.url}/rest/v1/rpc/clock_in`, {
-        method: 'POST',
-        headers: s.headers,
-        body: JSON.stringify({ p_staff_id: id, p_pin: pin, p_source: source }),
-      });
-      const data = await res.json();
-      return NextResponse.json(data, { status: data?.success === false ? 400 : 200 });
+      const r = await s.rpc('clock_in_token', { p_token: auth.token, p_target_id: id, p_pin: pin, p_source: source });
+      if (r.error) return NextResponse.json({ error: r.error.message }, { status: 500 });
+      return bad(r.data);
     }
-
     if (action === 'clock_out') {
       if (!pin) return NextResponse.json({ error: 'PIN required' }, { status: 400 });
-      const notes = body.notes || null;
-      const res = await fetch(`${s.url}/rest/v1/rpc/clock_out`, {
-        method: 'POST',
-        headers: s.headers,
-        body: JSON.stringify({ p_staff_id: id, p_pin: pin, p_notes: notes }),
-      });
-      const data = await res.json();
-      return NextResponse.json(data, { status: data?.success === false ? 400 : 200 });
+      const r = await s.rpc('clock_out_token', { p_token: auth.token, p_target_id: id, p_pin: pin, p_notes: body.notes ?? null });
+      if (r.error) return NextResponse.json({ error: r.error.message }, { status: 500 });
+      return bad(r.data);
     }
-
     if (action === 'break_start') {
-      const res = await fetch(`${s.url}/rest/v1/rpc/start_break`, {
-        method: 'POST',
-        headers: s.headers,
-        body: JSON.stringify({ p_staff_id: id, p_break_type: break_type || 'unpaid' }),
-      });
-      const data = await res.json();
-      return NextResponse.json(data, { status: data?.success === false ? 400 : 200 });
+      const r = await s.rpc('start_break_token', { p_token: auth.token, p_target_id: id, p_break_type: break_type || 'unpaid' });
+      if (r.error) return NextResponse.json({ error: r.error.message }, { status: 500 });
+      return bad(r.data);
     }
-
     if (action === 'break_end') {
-      const res = await fetch(`${s.url}/rest/v1/rpc/end_break`, {
-        method: 'POST',
-        headers: s.headers,
-        body: JSON.stringify({ p_staff_id: id }),
-      });
-      const data = await res.json();
-      return NextResponse.json(data, { status: data?.success === false ? 400 : 200 });
+      const r = await s.rpc('end_break_token', { p_token: auth.token, p_target_id: id });
+      if (r.error) return NextResponse.json({ error: r.error.message }, { status: 500 });
+      return bad(r.data);
     }
-
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

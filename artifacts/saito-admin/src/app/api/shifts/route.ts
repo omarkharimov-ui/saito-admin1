@@ -78,14 +78,18 @@ export async function POST(request: NextRequest) {
 
     const s = await (await import('@/lib/api-auth')).createAuthClient();
 
-    const { data, error: rpcError } = await s.rpc('clock_in_atomic', {
-      p_staff_id: staff_id,
-      p_notes: notes || null,
-      p_performed_by: auth.user?.id || staff_id,
+    // S-02 (frozen): identity = session token; target = staff_id, allowed for
+    // self or `timeclock.override` (enforced in DB). cash.open grants the action.
+    const { data, error: rpcError } = await s.rpc('clock_in_atomic_token', {
+      p_token: auth.token,
+      p_target_id: staff_id,
     });
 
     if (rpcError) {
       return NextResponse.json({ error: rpcError.message }, { status: 500 });
+    }
+    if (data?.success === false && data?.error === 'PERMISSION_DENIED') {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
     return NextResponse.json(data);
@@ -108,14 +112,18 @@ export async function PATCH(request: NextRequest) {
 
     const s = await (await import('@/lib/api-auth')).createAuthClient();
 
-    const { data, error: rpcError } = await s.rpc('clock_out_atomic', {
-      p_staff_id: id,
+    // S-02 (frozen): identity = session token; target = id (self or timeclock.override).
+    const { data, error: rpcError } = await s.rpc('clock_out_atomic_token', {
+      p_token: auth.token,
+      p_target_id: id,
       p_notes: notes || null,
-      p_performed_by: auth.user?.id || id,
     });
 
     if (rpcError) {
       return NextResponse.json({ error: rpcError.message }, { status: 500 });
+    }
+    if (data?.success === false && data?.error === 'PERMISSION_DENIED') {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
     return NextResponse.json(data);

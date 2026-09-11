@@ -341,8 +341,9 @@ Recipe (ingredients/qty/unit/cost), modifier consumption, yield/portion, food co
 
 ## 3. PEOPLE + OPERATIONS
 
-### 19. STAFF / RBAC
+### 19. STAFF / RBAC — 🔒 FROZEN (A, 2026-09-11)
 Staff profile/PIN/location/device/status; roles (owner/admin/manager/cashier/waiter/kitchen/bartender/custom); permissions (POS/orders/payments/refunds/discounts/inventory/staff/reports/settings); security (manager approval, override, PIN, sessions, audit).
+**FROZEN:** 39/39 regression (`.a-regression.cjs`) · 5 bug fixed (migrations `20260911000004–8`) · IP 10/5d + per-staff 5/15d lock · banned-PIN hard policy · weak-hash 13 staff SUSPENDED · RLS (own-sessions, pin_hash view) · self-approve guard · execution-time override expiry. Sənəd: `AUDIT_A_FREEZE.md`. Açıla bilməz — yalnız real security vuln / data corruption / regression / frozen-contract səhvi. **A16e2e → D-01 (discount role-guard + type validation) D-a keçdi: D OPEN-HIGH.**
 
 | Feature | Saito | DB | API/UI |
 |---|---|---|---|

@@ -178,7 +178,7 @@ function check(id, name, pass, evidence) {
   adminTok = await rLogin('1871', '6.6.9.60'); // A14 pin-change revoked admin sessions
   { sql(`SELECT public.set_staff_status_atomic('${adminTok}','${cashBId}','SUSPENDED','a24_test')`);
    sql(`SELECT public.set_staff_status_atomic('${adminTok}','${cashBId}','ACTIVE','a24_test')`);
-   check('A24', 'role/status change audited (staff_suspended/enabled events)', sql(`SELECT count(*) FROM security_events WHERE event_type IN ('staff_suspended','staff_enabled')`) >= '2', 'lifecycle events=' + sql(`SELECT count(*) FROM security_events WHERE event_type IN ('staff_suspended','staff_enabled')`)); }
+   check('A24', 'role/status change audited (staff_suspended/enabled events)', parseInt(sql(`SELECT count(*) FROM security_events WHERE event_type IN ('staff_suspended','staff_enabled')`),10) >= 2, 'lifecycle events=' + sql(`SELECT count(*) FROM security_events WHERE event_type IN ('staff_suspended','staff_enabled')`)); }
   check('A25', 'permission denied audited', ev('permission_denied') >= '1', 'permission_denied=' + ev('permission_denied'));
   check('A26', 'force logout audited (audit_logs_canonical)', sql(`SELECT count(*) FROM audit_logs_canonical WHERE action='force_logout'`) >= '1', 'force_logout in audit_logs_canonical');
   check('A27', 'override audited (request+approve/deny)', sql(`SELECT count(*) FROM operation_logs WHERE operation LIKE 'override.%'`) >= '1');

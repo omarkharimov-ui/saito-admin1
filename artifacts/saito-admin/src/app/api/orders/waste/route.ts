@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { validateCsrfToken } from '@/lib/csrf';
+import { requireKdsAction } from '@/lib/kds-guard';
 
 /**
  * POST /api/orders/waste
@@ -23,22 +24,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
     }
 
-    const supabase = await createAuthClient();
     const { order_item_id, quantity, reason, reason_text } = await req.json();
 
     if (!order_item_id || !reason) {
       return NextResponse.json({ error: 'order_item_id and reason required' }, { status: 400 });
     }
 
+    // K-G3: session identity + location scope + kitchen.manage (kitchen waste model)
+    const g = await requireKdsAction({ order_item_id }, 'kitchen.manage');
+    if (!g.ok) return g.res;
+
+    const supabase = await createAuthClient(); // service role
     const { data: rpcResult, error: rpcErr } = await supabase.rpc('record_item_waste', {
       p_order_item_id: order_item_id,
       p_quantity: quantity || null,
       p_reason: reason,
       p_reason_text: reason_text || null,
-      p_performed_by: auth.user?.id || null,
+      p_performed_by: g.performed_by,
     });
 
-    if (rpcErr) throw rpcErr;
+    if (rpcErr) {
+      const m = String(rpcErr.message || '');
+      if (m.includes('PERMISSION_DENIED')) return NextResponse.json({ success: false, error: 'PERMISSION_DENIED' }, { status: 403 });
+      throw rpcErr;
+    }
     if (!rpcResult?.success) {
       return NextResponse.json(rpcResult, { status: 400 });
     }

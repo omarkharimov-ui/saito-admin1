@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { validateCsrfToken } from '@/lib/csrf';
+import { requireKdsAction } from '@/lib/kds-guard';
 
 /**
  * POST /api/orders/return-to-stock

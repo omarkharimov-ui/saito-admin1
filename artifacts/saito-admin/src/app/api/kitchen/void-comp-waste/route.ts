@@ -1,62 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { requireActiveShift } from '@/lib/shiftLock';
+import { requireKdsAction } from '@/lib/kds-guard';
 
-function svc() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) throw new Error('Missing Supabase configuration');
-  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
-}
-
-async function callRpc(rpcName: string, params: Record<string, any>) {
-  const s = svc();
-  const res = await fetch(`${s.url}/rest/v1/rpc/${rpcName}`, {
-    method: 'POST',
-    headers: s.headers,
-    body: JSON.stringify(params),
-  });
-  return res.json();
-}
-
+/**
+ * POST /api/kitchen/void-comp-waste
+ * K-G3: canonical. Session identity + location scope + permission (requireKdsAction).
+ *   void / comp → item_kitchen_terminal (idempotent + finalized guard + stock + SSOT + outbox)
+ *   waste       → waste_order_item_atomic (quantity/ledger total semantics kept) — guarded.
+ * Client performed_by NOT accepted.
+ */
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
-
     const shiftCheck = await requireActiveShift();
-    if (!shiftCheck.ok) {
-      return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
-    }
+    if (!shiftCheck.ok) return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
 
     const { action, order_item_id, reason, terminal_id } = await req.json();
-    if (!action || !order_item_id) {
-      return NextResponse.json({ error: 'action and order_item_id required' }, { status: 400 });
+    if (!action || !order_item_id) return NextResponse.json({ error: 'action and order_item_id required' }, { status: 400 });
+    if (!['void', 'comp', 'waste'].includes(action)) return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+
+    const g = await requireKdsAction({ order_item_id }, action === 'waste' ? 'kitchen.manage' : 'order.void');
+    if (!g.ok) return g.res;
+
+    const supabase = await createAuthClient(); // service role
+    let data: any; let error: any;
+    if (action === 'void' || action === 'comp') {
+      const r = await supabase.rpc('item_kitchen_terminal', {
+        p_token: g.token, p_item_id: order_item_id,
+        p_action: action === 'void' ? 'voided' : 'comped',
+        p_reason: reason || action, p_metadata: null, p_correlation_id: null,
+      });
+      data = r.data; error = r.error;
+    } else {
+      const r = await supabase.rpc('waste_order_item_atomic', {
+        p_order_item_id: order_item_id, p_reason: reason || 'waste',
+        p_performed_by: g.performed_by, p_performed_by_terminal_id: terminal_id || null,
+      });
+      data = r.data; error = r.error;
     }
 
-    const performedBy = auth.user?.id || null;
-    const terminalId = terminal_id || null;
-    let result: any;
-
-    switch (action) {
-      case 'void':
-        result = await callRpc('void_order_item_atomic', { p_order_item_id: order_item_id, p_reason: reason || 'void', p_performed_by: performedBy, p_performed_by_terminal_id: terminalId });
-        break;
-      case 'comp':
-        result = await callRpc('comp_order_item_atomic', { p_order_item_id: order_item_id, p_reason: reason || 'comp', p_performed_by: performedBy, p_performed_by_terminal_id: terminalId });
-        break;
-      case 'waste':
-        result = await callRpc('waste_order_item_atomic', { p_order_item_id: order_item_id, p_reason: reason || 'waste', p_performed_by: performedBy, p_performed_by_terminal_id: terminalId });
-        break;
-      default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    if (error) {
+      const m = String(error.message || '');
+      if (m.includes('PERMISSION_DENIED')) return NextResponse.json({ success: false, error: 'PERMISSION_DENIED', detail: m }, { status: 403 });
+      if (m.includes('ORDER_FINALIZED')) return NextResponse.json({ success: false, error: 'ORDER_FINALIZED' }, { status: 409 });
+      if (m.includes('INVALID_ITEM_TRANSITION')) return NextResponse.json({ success: false, error: 'INVALID_ITEM_TRANSITION', detail: m }, { status: 422 });
+      if (m.includes('MANAGER_OVERRIDE_REQUIRED')) return NextResponse.json({ success: false, error: 'MANAGER_OVERRIDE_REQUIRED' }, { status: 403 });
+      return NextResponse.json({ error: m }, { status: 500 });
     }
-
-    if (result?.error) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
-    }
-
-    return NextResponse.json({ success: true, data: result });
+    if (data && data.success === false) return NextResponse.json(data, { status: 400 });
+    return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error('[API /kitchen/void-comp-waste] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

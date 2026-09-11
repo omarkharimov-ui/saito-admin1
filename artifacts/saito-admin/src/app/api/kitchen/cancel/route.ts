@@ -1,45 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { createAuthClient } from '@/lib/api-auth';
+import { requireKdsAction } from '@/lib/kds-guard';
 
-function svc() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) throw new Error('Missing Supabase configuration');
-  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
-}
-
+/**
+ * POST /api/kitchen/cancel
+ * K-G3: canonical order-level KDS cancel → kitchen_order_items_action('cancel').
+ * Session identity + location scope + order.void (management). Fan-out reuses
+ * item_kitchen_terminal per item (idempotent + finalized guard + stock + SSOT +
+ * outbox). Client performed_by NOT accepted.
+ */
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth();
-    if (!auth.authenticated) return auth;
+    const { order_id, reason } = await req.json();
+    if (!order_id) return NextResponse.json({ error: 'order_id is required' }, { status: 400 });
 
-    const { order_id, reason, terminal_id } = await req.json();
-    if (!order_id) {
-      return NextResponse.json({ error: 'order_id is required' }, { status: 400 });
-    }
+    const g = await requireKdsAction({ order_id }, 'order.void');
+    if (!g.ok) return g.res;
 
-    const s = svc();
-    const rpcRes = await fetch(`${s.url}/rest/v1/rpc/cancel_ticket_atomic`, {
-      method: 'POST',
-      headers: s.headers,
-      body: JSON.stringify({
-        p_order_id: order_id,
-        p_reason: reason || 'kitchen_cancel',
-        p_performed_by: auth.user?.id || null,
-        p_performed_by_terminal_id: terminal_id || null,
-      }),
+    const supabase = await createAuthClient(); // service role
+    const { data, error } = await supabase.rpc('kitchen_order_items_action', {
+      p_token: g.token, p_order_id: order_id, p_action: 'cancel',
+      p_reason: reason || 'kitchen_cancel', p_correlation_id: null,
     });
 
-    if (!rpcRes.ok) {
-      const errText = await rpcRes.text();
-      return NextResponse.json({ error: `Cancel ticket failed: ${errText}` }, { status: 400 });
+    if (error) {
+      const m = String(error.message || '');
+      if (m.includes('PERMISSION_DENIED')) return NextResponse.json({ success: false, error: 'PERMISSION_DENIED', detail: m }, { status: 403 });
+      if (m.includes('ORDER_NOT_FOUND')) return NextResponse.json({ success: false, error: 'ORDER_NOT_FOUND' }, { status: 404 });
+      return NextResponse.json({ error: m }, { status: 500 });
     }
-
-    const data = await rpcRes.json();
-    if (data?.error) {
-      return NextResponse.json({ error: data.error }, { status: 400 });
-    }
-
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error('[API /kitchen/cancel] Error:', error);

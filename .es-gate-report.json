@@ -1,0 +1,326 @@
+[
+  {
+    "id": "E1",
+    "name": "PIN login (A-frozen) → session",
+    "pass": true,
+    "evidence": "cash=true mgr=true"
+  },
+  {
+    "id": "E2",
+    "name": "clock-in wrong PIN → 401 (TS verifyPin)",
+    "pass": true,
+    "evidence": "status=401"
+  },
+  {
+    "id": "E3",
+    "name": "clock-in missing PIN → 400 (NULL-PIN bypass closed)",
+    "pass": true,
+    "evidence": "status=400"
+  },
+  {
+    "id": "E4",
+    "name": "clock-in self → success + shift + report_date",
+    "pass": true,
+    "evidence": "{\"success\":true,\"shift_id\":\"cd0f6390-d4b9-441f-88b0-09e60b972d09\",\"staff_name\":\"G2mtwswp9m_CASH\",\"location_id\":\"f1f830b3-cf15-47e3-a538-01abd8222c6d\",\"report_date\":\"2026-09-11\",\"override\":false,\"timestamp\":\"2026-09-11T10"
+  },
+  {
+    "id": "E5",
+    "name": "break start → success + break_id (G-1/G-3 fixed)",
+    "pass": true,
+    "evidence": "{\"success\":true,\"break_id\":\"f12c4812-b9b2-4a4a-aca4-6b3d5a0833bb\",\"override\":false,\"started_at\":\"2026-09-11T10:16:22.482158+00:00\"}"
+  },
+  {
+    "id": "E6",
+    "name": "break end → success + duration",
+    "pass": true,
+    "evidence": "{\"success\":true,\"duration_minutes\":0,\"override\":false,\"ended_at\":\"2026-09-11T10:16:24.430481+00:00\"}"
+  },
+  {
+    "id": "E7",
+    "name": "drawer open → success + bound to shift (S-08 1:1)",
+    "pass": true,
+    "evidence": "{\"id\":\"8a3a9a70-8f36-4123-aa1d-e73990d3def6\",\"success\":true,\"shift_id\":\"cd0f6390-d4b9-441f-88b0-09e60b972d09\",\"opening_balance\":200}"
+  },
+  {
+    "id": "E8",
+    "name": "cash movement (cash_in 150) → success",
+    "pass": true,
+    "evidence": "{\"type\":\"cash_in\",\"amount\":150,\"success\":true,\"created_at\":\"2026-09-11T10:16:25.518571+00:00\",\"session_id\":\"8a3a9a70-8f36-4123-aa1d-e73990d3def6\"}"
+  },
+  {
+    "id": "E9",
+    "name": "drawer close by MANAGER (cash.close) → success + shift auto-closed",
+    "pass": true,
+    "evidence": "{\"success\":true,\"overtime\":{\"success\":true,\"shift_id\":\"cd0f6390-d4b9-441f-88b0-09e60b972d09\",\"day_worked\":0.001,\"hourly_rate\":5,\"week_worked\":0.001,\"worked_hours\":0.001,\"business_date\":\"2026-09-11\",\"daily_ot_hours\":0,\"do"
+  },
+  {
+    "id": "E10",
+    "name": "shift expected_cash DERIVED from ledger (350), status CLOSED",
+    "pass": true,
+    "evidence": "350.00|350|CLOSED"
+  },
+  {
+    "id": "E11",
+    "name": "cash_drawer_logs audit row written",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "E12",
+    "name": "time_clock_audit chain present (clock_in+breaks)",
+    "pass": true,
+    "evidence": "rows=3"
+  },
+  {
+    "id": "E13",
+    "name": "cashier self-close drawer → FORBIDDEN (cash.close = manager-only)",
+    "pass": true,
+    "evidence": "status=403"
+  },
+  {
+    "id": "X1",
+    "name": "no-location staff clock-in → NO_LOCATION_ASSIGNED",
+    "pass": true,
+    "evidence": "{\"success\":false,\"error\":\"NO_LOCATION_ASSIGNED\"}"
+  },
+  {
+    "id": "X2",
+    "name": "inactive staff clock-in → refused (not found/inactive)",
+    "pass": true,
+    "evidence": "{\"error\":\"Staff not found or inactive\"}"
+  },
+  {
+    "id": "X3",
+    "name": "manager override clock-in other staff → success override=true",
+    "pass": true,
+    "evidence": "{\"success\":true,\"shift_id\":\"03712953-6819-4d1e-93a8-522538dbaa01\",\"staff_name\":\"G2mtwswp9m_WTR\",\"location_id\":\"f1f830b3-cf15-47e3-a538-01abd8222c6d\",\"report_date\":\"2026-09-11\",\"override\":true,\"timestamp\":\"2026-09-11T10:1"
+  },
+  {
+    "id": "X4",
+    "name": "waiter → other staff (no override) → 403 PERMISSION_DENIED",
+    "pass": true,
+    "evidence": "status=403"
+  },
+  {
+    "id": "X5",
+    "name": "status route unauthenticated → 401 (G-2 fixed)",
+    "pass": true,
+    "evidence": "status=401"
+  },
+  {
+    "id": "X6",
+    "name": "status route self → 200 (authorized)",
+    "pass": true,
+    "evidence": "status=200"
+  },
+  {
+    "id": "X7",
+    "name": "schedule conflict 10-18+14-22 → DENY",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "X8",
+    "name": "schedule boundary 10-18+18-22 → ALLOW",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "X9",
+    "name": "overtime approval lock: recalc keeps exactly 1 approved row",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "R1",
+    "name": "2x clock-in (from closed) → exactly 1 success",
+    "pass": true,
+    "evidence": "true | false"
+  },
+  {
+    "id": "R2",
+    "name": "2x break-start → exactly 1 success",
+    "pass": true,
+    "evidence": "true | false"
+  },
+  {
+    "id": "R3",
+    "name": "2x break-end → exactly 1 success",
+    "pass": true,
+    "evidence": "true | false"
+  },
+  {
+    "id": "R4",
+    "name": "2x drawer-open → exactly 1 success (1:1 atomic)",
+    "pass": true,
+    "evidence": "true | false"
+  },
+  {
+    "id": "R5",
+    "name": "2x drawer-close → exactly 1 success",
+    "pass": true,
+    "evidence": "true | false"
+  },
+  {
+    "id": "R6",
+    "name": "2x clock-out → exactly 1 success",
+    "pass": true,
+    "evidence": "true | false"
+  },
+  {
+    "id": "R7",
+    "name": "2x shift-close → exactly 1 success, 1 \"already closed\"",
+    "pass": true,
+    "evidence": "{\"status\": \"CLOSED\", \"overtime\": { | ERR:ERROR:  Shift already closed\nC"
+  },
+  {
+    "id": "R8",
+    "name": "2x overtime calc (parallel) → exactly 1 record (advisory lock)",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "R9",
+    "name": "2x overlapping schedule create → 1 success, 1 row",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "R10",
+    "name": "schedule create/update race → 0 overlaps in DB",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "R11",
+    "name": "override-vs-self race → 0 or 1 open shift (no corruption)",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "R12",
+    "name": "approved overtime immutable under concurrent recalc",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "R13",
+    "name": "2x clock-in_token (from closed) → exactly 1 success",
+    "pass": true,
+    "evidence": "true | false"
+  },
+  {
+    "id": "Z1",
+    "name": "orphan shifts (staff missing) = 0",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "Z2",
+    "name": "orphan drawer sessions NEW (last 24h, my code) = 0",
+    "pass": true,
+    "evidence": "new=0 pre-existing=3"
+  },
+  {
+    "id": "Z3",
+    "name": "multiple OPEN drawers per shift = 0",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "Z4",
+    "name": "shift/drawer staff mismatch = 0",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "Z5",
+    "name": "overlapping schedules (any staff) = 0",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "Z6",
+    "name": "duplicate unapproved overtime = 0",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "Z7",
+    "name": "open breaks without open shift = 0",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "Z8",
+    "name": "audit residue (performed_by not staff) = 0",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "Z9",
+    "name": "cross-org leakage (shift org ≠ staff org) = 0",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "Z10",
+    "name": "closed shift with status<>CLOSED = 0 (migration 19 invariant)",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "A1",
+    "name": "legacy uuid-identity clock/break RPCs DROPPED (0)",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "A2",
+    "name": "old 4-arg clock_in/out_token (p_pin) gone (0)",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "A3",
+    "name": "old open_cash_register(p_opened_by) gone (0)",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "A4",
+    "name": "md5 in clock/break/cash fns = 0",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "A5",
+    "name": "hardcoded CURRENT_DATE in S clock/close fns = 0",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "A6",
+    "name": "expected_cash=0 hardcode gone from close paths",
+    "pass": true,
+    "evidence": "undefined"
+  },
+  {
+    "id": "A7",
+    "name": "TS: no legacy p_pin/p_opened_by/rpc calls (excluding p_pin_banned)",
+    "pass": true,
+    "evidence": ""
+  },
+  {
+    "id": "A8",
+    "name": "TS: all 6 time-clock routes (incl status) authenticated",
+    "pass": true,
+    "evidence": "[\"time-clock/[id]/clock-in\",\"time-clock/[id]/clock-out\",\"time-clock/[id]/break\",\"time-clock/[id]/status\",\"staff/clock\",\"pos/staff/clock\"]"
+  },
+  {
+    "id": "A9",
+    "name": "no unauthenticated status/audit read (G-2) — status 401, audit has requirePermission",
+    "pass": true,
+    "evidence": "undefined"
+  }
+]

@@ -7,6 +7,11 @@ const PUBLIC_PATHS = [
   '/api/auth/send-code',
   // Public-safe settings (footer info only; whitelist enforced server-side).
   '/api/public',
+  // G3 (O frozen contract): QR customer self-service. PUBLIC by design — the
+  // /menu page is public and the caller sends no staff token. Abuse control =
+  // the route's IP rate limit; location/org are server-trusted (table row).
+  // NEVER gate this with staff requirePermission (it is not a staff path).
+  '/api/orders/qr',
   '/api/kitchen-auth',
   '/staff/login',
   '/login',

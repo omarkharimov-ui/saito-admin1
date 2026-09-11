@@ -161,7 +161,11 @@ intended KDS event spine exists but is **unused**; realtime is raw table CDC.
 authenticated RLS on `order_items` is defeated by K-01's `polroles={0}` policy at the REST layer; realtime
 uses its own replication policy — needs confirmation); (b) event loss is safe only because DB is SSOT (true),
 but duplicate event handling is not defined. **SSOT is the DB** (good) — the risk is **push scope**, not state.
-**Affected contract:** K (realtime) + F (isolation).
+ **Affected contract:** K (realtime) + F (isolation).
+ **STATUS: 🔒 FIXED (G6, migrations `20260911000039`+`20260911000040`)** — the `kds_ticket`
+ outbox spine is now the canonical **location/station-scoped, dup-safe, resync-able**
+ KDS event; the KDS poll is the security boundary; raw CDC demoted to a non-security wake.
+ Proof: see "HARDENING — G-GATES" § G6.
 
 ### 🟢 K-09 — Positive (verified solid, keep)
 - **Item state VALIDITY** is trigger-enforced for all callers (`trg_item_state_machine_guard` →
@@ -282,6 +286,51 @@ overloads; `REVOKE EXECUTE FROM PUBLIC/authenticated/anon`; `GRANT EXECUTE TO se
   variant via service role with a server-resolved location (never client-supplied).
 
 **G5 = 🔒 CLOSED.** A/E/S/F/O untouched. No other change in G5.
+
+### G6 — KDS realtime via `kds_ticket` outbox spine: location/station-scoped, dup-safe, resync-able (FIXED)
+**Contract:** K (realtime) + F (isolation). Migrations `20260911000039` (scoped event payload) +
+`20260911000040` (`kds_ticket_poll` RPC); route `/api/kitchen/realtime`; `kitchen/page.tsx` outbox poll.
+**Model:** DB = SSOT; delivery = mutation → `kds_ticket` outbox → **server-side location/station-scoped**
+event → KDS client; on events/gap/reconnect the client does a **full DB resync** (`/api/kitchen/orders`).
+Client-side filtering is NOT the security boundary.
+
+**Before (evidence):** `trg_kds_ticket_emit` (AFTER INSERT OR UPDATE OF kitchen_status ON order_items)
+already populated the `kds_ticket` outbox (130 rows) but the payload carried **no**
+`location_id`/`organization_id`/`station` (130/130 = NULL). KDS wake = raw `postgres_changes`
+(orders/order_items) table CDC. `outbox_events` in no publication; `outbox_dispatch` NOOP for kds.
+Post-G1 the raw CDC push is RLS-scoped for authenticated (`has_location_access`, no anon policy) —
+**not** a cross-location leak; G6 establishes the canonical scoped EVENT + scoped delivery endpoint.
+
+**Fix:**
+1. `emit_kds_ticket_event` payload += `location_id, organization_id, station, table_number,
+   order_source, order_status` (one join to orders). Partial index `idx_outbox_kds_ticket_cursor`.
+2. `kds_ticket_poll(uuid,uuid,text,timestamptz,uuid,integer)` — SECURITY DEFINER, **service_role-only**
+   (this PostgREST build can't filter jsonb keys over REST → PGRST108). Server-side
+   `payload->>'location_id' = p_location_id` scope; composite `(created_at,id)` strictly-after cursor;
+   first load returns ONE DB-anchored row (`resync_required=true`, `anchor=now()`); gap
+   (`since < oldest available`) → `resync_required=true`.
+3. Route `/api/kitchen/realtime`: `requirePermission('kitchen.view')` + `resolveReadLocationScope`
+   (server-trusted active location/org) → RPC.
+4. `kitchen/page.tsx`: outbox poll (1.5s) = PRIMARY location-scoped spine + security boundary;
+   raw `postgres_changes` kept only as secondary, RLS-scoped, **non-security** wake for order toasts.
+
+**Proof (fresh processes, zero-residue):**
+| # | Check | Result | PASS |
+|---|---|---|---|
+| G6-1..6 | event payload carries location_id/station/org; trigger attached | ✓ | ✅ |
+| G6-4/5/7/8 | LOC_A event has location_id+station, NO LOC_B bleed | ✓ | ✅ |
+| G6-9 | UPDATE kitchen_status re-emits (previous_status=pending) | ✓ | ✅ |
+| G6D-1 | unauthenticated `/api/kitchen/realtime` | 401 | ✅ |
+| G6D-2..5 | authed first load: 200 + resync_required + DB anchor + location_id=LOCA | ✓ | ✅ |
+| G6D-7 | LOCA item change → event DELIVERED to LOCA operator | ✓ | ✅ |
+| G6D-8 | LOCB item change → event NOT delivered to LOCA operator | ✓ | ✅ |
+| G6D-9 | every delivered event location_id == LOCA | ✓ | ✅ |
+| — | residue (event + delivery probes) | 0 | ✅ |
+
+**Event-contract probe: 11/11. Delivery-isolation probe: 10/10.** tsc: 0 errors in G6 files.
+Caller sweep: `kds_ticket_poll` → route only; `/api/kitchen/realtime` → KDS client only; DB other-fn = 0.
+
+**G6 = 🔒 CLOSED.** A/E/S/F/O untouched.
 
 ---
 *K-0 audit: no code/DB changed during K-0. A/E/S/F/O remain 🔒 FROZEN. `idx_orders_active_table` residual stays an F-boundary note.*

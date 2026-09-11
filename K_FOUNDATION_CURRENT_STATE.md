@@ -413,4 +413,121 @@ refuse mutation on finalized orders; no stock change since the item is already
 consumed) — then K-4 full regression.
 
 ---
-*K-0 audit: no code/DB changed during K-0. A/E/S/F/O remain 🔒 FROZEN. `idx_orders_active_table` residual stays an F-boundary note.*
+
+## LIFECYCLE RECONCILIATION — L1 AUDIT (evidence-only, no code changed)
+
+Cross-module state confusion: **table / order / kitchen / service / payment** are
+coupled through a broken table floor-sync. Evidence below is from the live DB + source.
+
+### L1-1 Canonical state matrix (LIVE enums, not guessed)
+**table_floors.status — REAL distinct (live): `empty, occupied, reserved` (3).**
+**state_transitions(entity='table') — registry (13 states):** empty, seated, ordering,
+in_kitchen, ready, dining, bill_requested, payment_pending, paid, cleaning, out_of_service,
+reserved, merged. `TableCard.tsx` hardcodes 14+ for display.
+→ **The real table data uses `occupied`, which is NOT a registry state.** Seating
+(`seat_guests_atomic`, `activate_table_atomic`, transfers, merges) writes `status='occupied'`
+by raw UPDATE (bypassing the registry). The registry lifecycle is `empty→seated→ordering→…`
+and has **NO edge out of `occupied` except `occupied→merged`.**
+
+**orders.status (live):** cancelled, closed, confirmed, paid, served (+ registry adds
+draft/open/new/in_kitchen/ready/payment_pending/partially_ready/refunded/voided).
+**orders.kitchen_status (live):** cancelled, completed, cooking, partially_ready, pending,
+preparing, ready, reserved. **order_items.kitchen_status (live):** pending, ready, hot,
+completed, cancelled, voided (+ `bar`/`sushi` = 9/2 rows of **station values leaked into
+kitchen_status** — data contamination, 89 `hot`).
+
+| Lifecycle | States (live) | SSOT column |
+|---|---|---|
+| Table | empty / occupied / reserved (+10 registry-only) | `table_floors.status` |
+| Order | confirmed→…→paid→closed (+cancelled) | `orders.status` |
+| Kitchen (order) | pending→preparing→ready→completed | `orders.kitchen_status` |
+| Kitchen (item) | pending→…→ready→completed | `order_items.kitchen_status` |
+| Service | (derived: order `ready`→`served`) | `orders.status='served'` |
+| Payment | (derived: order →`paid`) | `orders.status='paid'` |
+
+### L1-2 ROOT CAUSE #1 (the "table stuck occupied" / payment confusion) — F boundary
+`transition_order_atomic` (O-frozen) maps order status → a **table** status and calls
+`transition_table_status` (registry-validated):
+`new/confirmed→ordering, in_kitchen→in_kitchen, ready→ready, served→dining,
+payment_pending→bill_requested, paid→payment_pending, closed→cleaning, cancelled→empty`.
+But the table is in `occupied` (off-registry), and the registry has **no `occupied→*` edge**
+→ every intermediate floor-sync throws `INVALID_TRANSITION`, which the O code **catches
+silently** and logs to `audit_logs(action='status_change_failed')`.
+**Live evidence: 39 `status_change_failed` rows** — `occupied→empty` ×24,
+`occupied→in_kitchen` ×13, `occupied→dining` ×1, `ready→dining` ×1.
+**Effect:** the table never advances past `occupied`; after payment it stays `occupied`
+(not `payment_pending`), which is exactly the "PAID + OCCUPIED" the user flagged — but here
+it's a **stuck** state, not the intentional "customer still sitting" state, and it breaks the
+UI's paid-vs-occupied branching. The terminal ops (`dismiss_table_atomic`,
+`release_paid_table_atomic`) use **raw UPDATE** to `p_final_status` (bypassing the registry)
+so they *do* reach `empty` — only the intermediate order-driven sync is broken.
+**Boundary: F (table registry / seating writes).** Fix = reconcile `occupied` into the table
+lifecycle (add `occupied` as a valid registry state with the forward edges, or seat to `seated`),
+preserving all F permission/atomicity/location guarantees. This reopens F on the lifecycle
+registry only (a concrete regression is proven: 39 silent failures + stuck tables).
+
+### L1-3 ROOT CAUSE #2 (P0 "Send to Kitchen — No location context")
+`/api/orders` POST (the create/append/send path, line 140) uses `resolveLocationContext`
+(D-5: session.active_location_id → staff primary staff_locations → exactly-one staff_locations
+→ else null → **400 NO_LOCATION_CONTEXT**). **Live evidence:** every real staff
+(superadmin, kitchen, cashier, Kassir, Tural Memmedov, Admin Updated, …) has **0 rows in
+`staff_locations`**, and their ACTIVE sessions have `active_location_id = NULL`
+(`login_commit` sets it from staff_locations → NULL when unbound). So the create/send path
+returns 400 for **all** real staff → Send to Kitchen is fully broken.
+**The asymmetry:** the READ path (`/api/kitchen/orders` GET, `/api/orders` GET) uses
+`resolveReadLocationScope`, which has a **single-location-with-data fallback** (orders exist
+only in `Main Location` = 707 rows; tables 17+1+0) → reads work, writes don't.
+**Fix (server-side, NOT client-supplied):** either (a) bind real staff to their location
+(`staff_locations` data + `login_commit` sets `active_location_id` for single-active), and/or
+(b) give the create path the same org-single-location-with-data fallback the read path has.
+Both are server/session-derived. Regression-test both locations.
+
+### L1-4 ROOT CAUSE #3 ("Dismiss table failed")
+`dismiss_table_atomic` guards (in order): `floor.manage` permission (manager+);
+`G_DISMISS_INVALID_FINAL`; reserved; merged; `G_NO_ACTIVE_ORDER` (no open order);
+`G_TABLE_MULTIPLE_ORDERS`; `G_DISMISS_ORDER_PAID` (order has payments);
+`G_DISMISS_KITCHEN_ACTIVE` (items past pending). The UI (`ActionSheet`) **hides**
+`dismiss_table` when the order is paid (offers `release_table` instead →
+`release_paid_table_atomic`, which closes paid orders + frees the table). Because of
+**ROOT CAUSE #1** the table is stuck `occupied` (not `paid`) after payment, so the
+paid-vs-occupied branching in the UI is driven by `activeOrder.status` (correct) but the
+visible table state is wrong → users hit dismiss on a table that then fails a guard
+(`G_DISMISS_ORDER_PAID` / `G_NO_ACTIVE_ORDER` / `floor.manage` for non-managers). The exact
+SQLSTATE/error is captured in the L4 live repro. **Fix:** resolving ROOT CAUSE #1 makes the
+table reach its correct state so the right action (dismiss vs release) is offered; the guards
+themselves are correct and stay.
+
+### L1-5 ~3s table pulse — PRESENTATION-ONLY (compliant, no fix)
+`TableCard.tsx:89-136`: the 3000ms `occupied→free` label flash + seat-ring + tap-pulse are
+local `useState`/`setTimeout` with **no DB write, no RPC, no realtime mutation**. Opening/
+closing the modal never mutates canonical state. Confirmed compliant with §9.
+
+### L1-6 Kitchen READY ≠ SERVED (holds; Serve is explicit)
+Kitchen item READY is `order_items.kitchen_status='ready'`. SERVE is an explicit operation
+(`mark_served_atomic` / order `ready→served` via the O transition) — not auto-derived from
+kitchen ready. The conflation is at the **table** level (ROOT CAUSE #1 writes kitchen/service
+states into table.status), not the order/kitchen level. Decoupling table from order (L1-2
+fix) restores the intended separation.
+
+### L1-7 Minimal-fix plan (by boundary)
+1. **F (lifecycle registry + data)** — reconcile `occupied`: add it as a valid table state
+   with forward edges (`occupied→{ordering,in_kitchen,ready,dining,bill_requested,
+   payment_pending,cleaning,empty}`) or map seating to `seated`; backfill stuck `occupied`
+   tables to their correct derived state from the live order. Preserves F security/perm/
+   atomicity/location (registry edges only). **Requires a formal F lifecycle exception.**
+2. **O (create-path location)** — add the org-single-location-with-data fallback to the
+   create/send path (mirror `resolveReadLocationScope`), and/or seed `staff_locations` +
+   `login_commit` active_location for single-active. Server-derived only.
+3. **Data hygiene** — 89/9/2 `order_items.kitchen_status` rows holding station values
+   (`hot`/`bar`/`sushi`) → reclassify (station is a separate column). Non-frozen data fix.
+4. **No new state machine** — table stays the occupancy SSOT; order/kitchen/service/payment
+   stay in their own columns; the derived table↔order relationship is the only coupling.
+
+### L1-8 Decision needed before fix
+ROOT CAUSE #1 is a **proven F-boundary regression** (stuck tables, 39 silent failures).
+Fixing it reopens the F **lifecycle registry** (edges only — not F security/permission/
+atomicity/location). Confirm: proceed with the F lifecycle-registry exception as scoped in
+L1-7.1, then L2 (P0 location) + L3 (dismiss/release validation) + L4 (tests + regression).
+
+---
+*K-0 audit: no code/DB changed during K-0/K-3. A/E/S/F/O remain 🔒 FROZEN pending the L1-8 F-lifecycle exception. `idx_orders_active_table` residual stays an F-boundary note.*

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { validateCsrfToken } from '@/lib/csrf';
 
 function svc() {
@@ -11,7 +11,9 @@ function svc() {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth();
+    // F-01 (frozen): transfer is a manager-level floor op (`floor.manage`).
+    // F-02 (frozen): p_token = session identity; the RPC enforces permission + location.
+    const auth = await requirePermission('floor.manage');
     if (!auth.authenticated) return auth;
 
     if (!validateCsrfToken(request, auth.authenticated)) {
@@ -29,6 +31,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: s.headers,
       body: JSON.stringify({
+        p_token: auth.token,
         p_from_table: Number(from_table),
         p_to_table: Number(to_table),
         p_performed_by: auth.user?.id || null,
@@ -40,7 +43,9 @@ export async function POST(request: NextRequest) {
     if (!rpcRes.ok || !rpcData?.success) {
       const message = rpcData?.error || 'Transfer failed';
       console.error('[API /orders/transfer] RPC error:', message);
-      return NextResponse.json({ error: message }, { status: rpcRes.ok ? 400 : rpcRes.status });
+      const status = rpcData?.error === 'PERMISSION_DENIED' || rpcData?.error === 'FORBIDDEN_LOCATION' ? 403
+        : rpcData?.error === 'FORBIDDEN' ? 401 : rpcRes.ok ? 400 : rpcRes.status;
+      return NextResponse.json({ error: message }, { status });
     }
 
     return NextResponse.json({
@@ -64,7 +69,11 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await requireAuth();
+    // F-01 (frozen): transfer-undo is a manager-level floor op (`floor.manage`).
+    // NOTE (F-10, separate fix): this handler rewrites table_floors/orders via
+    // raw client PATCH — bypassing the state machine/locks/audit/outbox. The
+    // permission gate is applied here; the unsafe rewrite is addressed in F-10.
+    const auth = await requirePermission('floor.manage');
     if (!auth.authenticated) return auth;
 
     if (!validateCsrfToken(request, auth.authenticated)) {

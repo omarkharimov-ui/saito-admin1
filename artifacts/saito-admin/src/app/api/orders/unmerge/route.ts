@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { validateCsrfToken } from '@/lib/csrf';
 
 function svc() {
@@ -11,7 +11,9 @@ function svc() {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    // F-01 (frozen): unmerge is a manager-level floor op (`floor.manage`).
+    // F-02 (frozen): p_token = session identity; the RPC enforces permission + location.
+    const auth = await requirePermission('floor.manage');
     if (!auth.authenticated) return auth;
 
     if (!validateCsrfToken(req, auth.authenticated)) {
@@ -28,6 +30,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: s.headers,
       body: JSON.stringify({
+        p_token: auth.token,
         p_parent_table_number: Number(primary_table_number),
         p_child_table_numbers: child_table_numbers.map(Number),
         p_performed_by: auth.user?.id || null,
@@ -39,7 +42,9 @@ export async function POST(req: NextRequest) {
     if (!rpcRes.ok || !rpcData?.success) {
       const message = rpcData?.error || 'Unmerge failed';
       console.error('[API /orders/unmerge] RPC error:', message);
-      return NextResponse.json({ error: message }, { status: rpcRes.ok ? 400 : rpcRes.status });
+      const status = rpcData?.error === 'PERMISSION_DENIED' || rpcData?.error === 'FORBIDDEN_LOCATION' ? 403
+        : rpcData?.error === 'FORBIDDEN' ? 401 : rpcRes.ok ? 400 : rpcRes.status;
+      return NextResponse.json({ error: message }, { status });
     }
 
     return NextResponse.json({

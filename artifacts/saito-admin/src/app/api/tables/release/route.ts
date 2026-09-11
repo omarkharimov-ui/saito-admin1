@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { validateCsrfToken } from '@/lib/csrf';
 import { paymentRateLimit } from '@/lib/rate-limit';
 
@@ -20,7 +20,9 @@ function svc() {
  */
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    // F-01 (frozen): release frees a settled table → manager-level `floor.manage`.
+    // F-02 (frozen): p_token = session identity; the RPC enforces permission + location.
+    const auth = await requirePermission('floor.manage');
     if (!auth.authenticated) return auth;
 
     if (!validateCsrfToken(req, auth.authenticated)) {
@@ -40,6 +42,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: s.headers,
       body: JSON.stringify({
+        p_token: auth.token,
         p_table_number: Number(table_number),
         p_final_status: final_status === 'cleaning' ? 'cleaning' : 'empty',
         p_performed_by: auth.user.id,
@@ -51,7 +54,9 @@ export async function POST(req: NextRequest) {
     if (!rpcRes.ok || !rpcData?.success) {
       const message = rpcData?.error || 'Release failed';
       console.error('[API /tables/release] RPC error:', message);
-      return NextResponse.json({ error: message }, { status: rpcRes.ok ? 400 : rpcRes.status });
+      const status = rpcData?.error === 'PERMISSION_DENIED' || rpcData?.error === 'FORBIDDEN_LOCATION' ? 403
+        : rpcData?.error === 'FORBIDDEN' ? 401 : rpcRes.ok ? 400 : rpcRes.status;
+      return NextResponse.json({ error: message }, { status });
     }
 
     return NextResponse.json({ success: true, result: rpcData });

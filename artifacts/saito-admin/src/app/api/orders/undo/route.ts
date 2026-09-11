@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { runOrderAction } from '@/lib/transaction';
 
 function svc() {
@@ -10,7 +10,14 @@ function svc() {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth();
+    // F-01 (frozen): undo/split actions (merge/unmerge/transfer/seat/dismiss)
+    // are manager-level floor ops (`floor.manage`) — same tier as the forward
+    // operations they reverse.
+    // NOTE (F-10, separate fix): the merge/unmerge/transfer/seat cases rewrite
+    // table_floors/orders via raw client PATCH, bypassing atomic RPCs, the
+    // state machine, locks, audit and outbox. The permission gate is applied
+    // here; the unsafe rewrite is addressed in the F-10 fix.
+    const auth = await requirePermission('floor.manage');
     if (!auth.authenticated) return auth;
 
     const { action, data } = await request.json();
@@ -166,7 +173,7 @@ export async function POST(request: NextRequest) {
             const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/dismiss_undo_atomic`, {
               method: 'POST',
               headers: svc().headers,
-              body: JSON.stringify({ p_table_number: tn, p_performed_by: auth.user.id }),
+              body: JSON.stringify({ p_token: auth.token, p_table_number: tn, p_performed_by: auth.user.id }),
             });
             if (!rpcRes.ok) {
               const errText = await rpcRes.text();

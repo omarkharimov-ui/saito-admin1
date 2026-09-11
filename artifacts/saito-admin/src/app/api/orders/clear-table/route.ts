@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { requireActiveShift } from '@/lib/shiftLock';
 
 function svc() {
@@ -11,7 +11,10 @@ function svc() {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    // F-01 (frozen): clear is a manager-level floor op (`floor.manage`).
+    // F-02 (frozen): p_token = session identity; the RPC enforces permission +
+    // location isolation server-side.
+    const auth = await requirePermission('floor.manage');
     if (!auth.authenticated) return auth;
 
     const shiftCheck = await requireActiveShift();
@@ -29,6 +32,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: s.headers,
       body: JSON.stringify({
+        p_token: auth.token,
         p_table_number: table_number,
         p_performed_by: auth.user?.id || null,
         p_terminal_id: terminal_id || null,
@@ -39,7 +43,9 @@ export async function POST(req: NextRequest) {
     if (!res.ok || !data?.success) {
       const message = data?.error || data?.message || 'Table clear failed';
       console.error('[API /orders/clear-table] RPC error:', message);
-      return NextResponse.json({ error: message }, { status: res.ok ? 500 : res.status });
+      const status = data?.error === 'PERMISSION_DENIED' || data?.error === 'FORBIDDEN_LOCATION' ? 403
+        : data?.error === 'FORBIDDEN' ? 401 : res.ok ? 500 : res.status;
+      return NextResponse.json({ error: message }, { status });
     }
 
     return NextResponse.json({ success: true });

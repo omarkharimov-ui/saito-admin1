@@ -31,16 +31,17 @@ export async function POST(request: NextRequest) {
 
     const s = svc();
 
-    // Use atomic DB RPC for status transitions — no fallback, RPC is the single entry point
+    // Use atomic DB RPC for status transitions — no fallback, RPC is the single entry point.
+    // G1: token-first (identity from the session), caller-supplied performed_by removed.
     const rpcRes = await fetch(`${s.url}/rest/v1/rpc/transition_delivery_status`, {
       method: 'POST',
       headers: s.headers,
       body: JSON.stringify({
+        p_token: auth.token,
         p_order_id: order_id,
         p_new_status: status,
         p_courier_id: courier_id || null,
         p_courier_name: courier_name || null,
-        p_performed_by: auth.user?.id || null,
         p_performed_by_terminal_id: terminal_id || null,
       }),
     });

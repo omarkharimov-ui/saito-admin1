@@ -158,23 +158,30 @@ export async function POST(request: Request) {
       }
 
       if (action === 'delete') {
-        // Guard: cannot cancel already-paid or already-cancelled orders
-        const checkRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=status`, { headers: svc().headers });
-        const checkData = checkRes.ok ? await checkRes.json() : [];
-        const checkOrder = Array.isArray(checkData) ? checkData[0] : null;
-        if (checkOrder && ['paid', 'cancelled', 'refunded'].includes(checkOrder.status)) {
-          throw new Error(`Cannot cancel order in '${checkOrder.status}' status`);
-        }
-        const res = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}`, {
-          method: 'PATCH',
+        // G5 (O frozen contract): cancel goes through the canonical permissioned
+        // atomic RPC (orders.cancel + location authz + FOR UPDATE row lock —
+        // TOCTOU closed). Raw service-role PATCH removed.
+        const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/transition_order_atomic`, {
+          method: 'POST',
           headers: svc().headers,
-          body: JSON.stringify({ 
-            status: 'cancelled', 
-            cancelled_at: new Date().toISOString() 
+          body: JSON.stringify({
+            p_token: auth.token,
+            p_order_id: id,
+            p_new_status: 'cancelled',
+            p_reason: 'order_delete_action',
           }),
         });
-        if (!res.ok) throw new Error('Soft-delete failed');
-        return { success: true };
+        const rpcData = await rpcRes.json().catch(() => ({}));
+        if (!rpcRes.ok) {
+          const msg = (rpcData?.error || (typeof rpcData?.message === 'string' ? rpcData.message : 'Soft-delete failed')) as string;
+          if (msg.includes('PERMISSION_DENIED') || msg.includes('MANAGER_OVERRIDE_REQUIRED')) {
+            const err = new Error(msg) as any;
+            err.status = 403;
+            throw err;
+          }
+          throw new Error(msg);
+        }
+        return { success: true, data: rpcData };
       }
 
       const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id, order_source, customer_phone, delivery_address, delivery_district, delivery_street, delivery_building, delivery_floor, delivery_apartment, delivery_intercom, delivery_zone, delivery_fee, estimated_delivery_time, scheduled_date, payment_method, is_rush, assigned_to, terminal_id } = body;
@@ -496,6 +503,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // G5: permission denials on the cancel path surface as 403 (not 500)
+    const status = Number.isInteger((error as any)?.status) ? (error as any).status : 500;
+    return NextResponse.json({ error: error.message }, { status });
   }
 }

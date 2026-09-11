@@ -571,6 +571,8 @@ export default function KitchenPage() {
   const soundOnRef                    = useRef(soundOn);
   const lastItemToastRef              = useRef<number>(0);
   const recentlyInsertedRef           = useRef<Set<string>>(new Set());
+  // G6: outbox delivery-spine cursor (composite created_at + id, dup-safe)
+  const kdsCursorRef                  = useRef<{ created_at: string; id: string } | null>(null);
   soundOnRef.current = soundOn;
 
   const [viewMode, setViewMode] = useState<'cards' | 'map'>(() => {
@@ -791,7 +793,63 @@ export default function KitchenPage() {
     });
   }, [fetchOrders]);
 
-  // ── Supabase Realtime subscription — with debounce for CPU relief
+  // ── G6: KDS realtime — outbox delivery spine (PRIMARY, location-scoped, dup-safe) ──
+  // The `kds_ticket` outbox event is the canonical, location/station-scoped,
+  // REPLAYABLE KDS event. This poll is the SECURITY BOUNDARY for "did kitchen
+  // state change for MY location": the server applies payload.location_id = the
+  // operator's active location (resolveReadLocationScope); the client NEVER
+  // filters location itself and never sees another location's events.
+  //   - first load / cursor gap -> resync_required -> FULL rebuild from /api/kitchen/orders
+  //   - new events since cursor -> FULL rebuild (DB = SSOT; the event is a wake, not state)
+  //   - composite (created_at,id) cursor -> duplicate events are ignored (no double state)
+  // The raw postgres_changes CDC below is kept ONLY as a secondary wake for
+  // order-level toasts (merge/reset); it is RLS-scoped (post-G1) and is NOT the
+  // security boundary.
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const tick = async () => {
+      try {
+        const q = new URLSearchParams();
+        if (kdsCursorRef.current) {
+          q.set('since_created_at', kdsCursorRef.current.created_at);
+          q.set('since_id', kdsCursorRef.current.id);
+        }
+        const res = await fetch(`/api/kitchen/realtime?${q.toString()}`, { cache: 'no-store' });
+        if (cancelled) return;
+        if (res.ok) {
+          const body: any = await res.json();
+          if (cancelled) return;
+          const hasEvents = Array.isArray(body?.events) && body.events.length > 0;
+          const resync = !!body?.resync_required;
+          const MIN_UUID = '00000000-0000-0000-0000-000000000000';
+          if (resync) {
+            // gap or first load -> full rebuild, then re-anchor to now (don't
+            // try to stream a window we already rebuilt from the DB)
+            await fetchOrdersRef.current();
+            if (body?.anchor) kdsCursorRef.current = { created_at: body.anchor, id: MIN_UUID };
+          } else if (hasEvents) {
+            // new events for MY location since the cursor -> rebuild from DB
+            await fetchOrdersRef.current();
+            if (body?.cursor && body.cursor.id) kdsCursorRef.current = body.cursor; // advance
+          } else if (!kdsCursorRef.current && body?.anchor) {
+            // first load, nothing new yet -> anchor to now
+            kdsCursorRef.current = { created_at: body.anchor, id: MIN_UUID };
+          }
+        } else {
+          try { await fetchOrdersRef.current(); } catch { /* keep polling */ }
+        }
+      } catch {
+        try { if (!cancelled) await fetchOrdersRef.current(); } catch { /* ignore */ }
+      } finally {
+        if (!cancelled) timer = setTimeout(tick, 1500);
+      }
+    };
+    tick();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, []);
+
+  // ── Secondary wake (RLS-scoped, NOT the security boundary): order-level toasts ──
   useEffect(() => {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const debouncedFetch = () => {

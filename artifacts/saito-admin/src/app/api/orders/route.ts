@@ -583,9 +583,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Order modified by another user' }, { status: 409 });
     }
 
+    // G5/G4: runOrderAction swallows thrown business errors into {success:false}.
+    // Map the message to the correct HTTP status so callers (and the client) see
+    // a real 403 (permission) / 400-404 (not-found / cross-location) / 409, not 200.
+    if (!result.success && result.error) {
+      const msg = String(result.error);
+      let status = 400;
+      if (/PERMISSION_DENIED|MANAGER_OVERRIDE_REQUIRED/.test(msg)) status = 403;
+      else if (/not found in your active location/i.test(msg)) status = 400;
+      else if (/Order not found in your active location/i.test(msg)) status = 404;
+      else if (/ORDER_NOT_FOUND/.test(msg)) status = 404;
+      else if (/INVALID_TRANSITION/.test(msg)) status = 422;
+      return NextResponse.json({ success: false, error: msg }, { status });
+    }
+
     return NextResponse.json(result);
   } catch (error: any) {
-    // G5: permission denials on the cancel path surface as 403 (not 500)
+    // Errors that escape runOrderAction (env, network, validation before it):
+    // surface the intended status (G5 sets error.status) else 500.
     const status = Number.isInteger((error as any)?.status) ? (error as any).status : 500;
     return NextResponse.json({ error: error.message }, { status });
   }

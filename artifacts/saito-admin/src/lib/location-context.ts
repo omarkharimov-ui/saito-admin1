@@ -128,11 +128,68 @@ export async function resolveReadLocationScope(staffId: string): Promise<{
         .maybeSingle();
       return { locationId, organizationId: orgRow?.organization_id || '' };
     }
-    // distinct.size === 0 -> no orders anywhere -> nothing to scope to (caller
-    // returns an empty, location-agnostic result is fine; return null => 400 is
-    // too strict for "no data", so we let callers treat null-as-empty for reads).
-    return null;
+  // distinct.size === 0 -> no orders anywhere -> nothing to scope to (caller
+  // returns an empty, location-agnostic result is fine; return null => 400 is
+  // too strict for "no data", so we let callers treat null-as-empty for reads).
+  return null;
   } catch {
     return null;
   }
+}
+
+/**
+ * L2 (P0 fix, 2026-09-12): resolves the location context for WRITE paths
+ * (order create/append/send, walk-in, takeaway, delivery) — the create/send
+ * side of the D-5 contract.
+ *
+ * Root cause (evidence, L1-3): the create path used resolveLocationContext
+ * (authoritative chain only: session.active_location_id -> staff primary ->
+ * exactly-one staff_locations -> else 400). Real staff have 0 staff_locations
+ * rows + NULL active_location_id, while the org operates in exactly ONE
+ * location with data (all orders/tables) -> Send to Kitchen 400
+ * NO_LOCATION_CONTEXT for every real staff, while the READ path
+ * (resolveReadLocationScope) worked via its single-location-with-data
+ * fallback. Asymmetric: same session could read but not write.
+ *
+ * Resolution (server/session-derived, NEVER client-supplied):
+ *   1. authoritative D-5 chain (resolveLocationContext) — unchanged, first;
+ *   2. FALLBACK (only when the org has data in EXACTLY ONE location): scope to
+ *      it — the same single-location-with-data rule the read path applies, so a
+ *      correctly-readable deployment is also writable;
+ *   3. otherwise null -> caller returns 400 NO_LOCATION_CONTEXT (fail closed:
+ *      a genuinely multi-location org with an unbound staff must NOT have a
+ *      write location guessed — wrong location would mis-route inventory,
+ *      reporting, kitchen and cash/shift data, per D-5).
+ */
+export async function resolveWriteLocationContext(staffId: string): Promise<{
+  locationId: string;
+  organizationId: string;
+} | null> {
+  // 1) authoritative (session active location -> staff primary -> single active)
+  const authoritative = await resolveLocationContext(staffId);
+  if (authoritative) return authoritative;
+
+  // 2) single-location-with-data fallback (mirror of the read-path rule)
+  const svc = await createAuthClient();
+  if (!svc) return null;
+  try {
+    const { data } = await svc
+      .from('orders')
+      .select('location_id')
+      .not('location_id', 'is', null);
+    const distinct = new Set((data || []).map((r: any) => r.location_id).filter(Boolean));
+    if (distinct.size === 1) {
+      const locationId = [...distinct][0];
+      const { data: orgRow } = await svc
+        .from('locations')
+        .select('organization_id')
+        .eq('id', locationId)
+        .maybeSingle();
+      return { locationId, organizationId: orgRow?.organization_id || '' };
+    }
+  } catch {
+    // fall through -> fail closed
+  }
+  // 3) ambiguous (multi-location data) or none -> caller returns 400
+  return null;
 }

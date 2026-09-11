@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requirePermission } from '@/lib/api-auth';
 import { runOrderAction } from '@/lib/transaction';
 import { FINAL_ORDER_STATUSES } from '@/lib/pos-tables';
-import { resolveLocationContext, resolveReadLocationScope } from '@/lib/location-context';
+import { resolveReadLocationScope, resolveWriteLocationContext } from '@/lib/location-context';
 
 // A table's "active" order excludes ALL terminal states — must match the DB
 // aggregate (sync_table_order_aggregates) and the floor view exactly. The old
@@ -137,7 +137,10 @@ export async function POST(request: Request) {
     // context. Every create/append/update/addItems below is scoped to it; a client
     // can never redirect an order to another location via table_number (the request
     // body carries no location_id/organization_id — they are resolved server-side).
-    const lctx = auth.user?.id ? await resolveLocationContext(auth.user.id) : null;
+    // L2 (P0): resolveWriteLocationContext = authoritative D-5 chain + the same
+    // server-derived single-location-with-data fallback the read path uses (reads
+    // and writes now agree; genuinely multi-location orgs still fail closed).
+    const lctx = auth.user?.id ? await resolveWriteLocationContext(auth.user.id) : null;
     if (!lctx?.locationId) {
       return NextResponse.json({ error: 'NO_LOCATION_CONTEXT' }, { status: 400 });
     }

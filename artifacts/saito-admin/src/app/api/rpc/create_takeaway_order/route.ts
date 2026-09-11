@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createAuthClient } from '@/lib/api-auth';
-import { resolveLocationContext } from '@/lib/location-context';
+import { resolveWriteLocationContext } from '@/lib/location-context';
 
 /**
  * Creates a new takeaway (Gel-Al) order via DB RPC.
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createAuthClient();
 
     const staffId = auth.user?.id || null;
-    const ctx = staffId ? await resolveLocationContext(staffId) : null;
+    const ctx = staffId ? await resolveWriteLocationContext(staffId) : null;
     if (!ctx || !ctx.locationId) {
       return NextResponse.json({ error: 'NO_LOCATION_CONTEXT' }, { status: 400 });
     }

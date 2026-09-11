@@ -551,12 +551,34 @@ export async function POST(request: Request) {
         body: JSON.stringify(itemInserts),
       });
       if (!itemRes.ok) {
-        // Rollback: soft-delete the order (status=cancelled) instead of hard delete
-        await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}`, {
-          method: 'PATCH',
+        // Compensating rollback (system cleanup of THIS request's just-created
+        // order — NOT a user-facing cancel; user cancel goes through
+        // transition_order_atomic with orders.cancel, see action='delete').
+        // Token-first: if the creator holds orders.cancel the canonical atomic
+        // path is used; otherwise (waiter/cashier — 96% of creators) the creator
+        // cannot cancel, so the system performs the compensating soft-cancel
+        // directly to avoid leaving a dangling order.
+        const rbRes = await fetch(`${svc().url}/rest/v1/rpc/transition_order_atomic`, {
+          method: 'POST',
           headers: svc().headers,
-          body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }),
+          body: JSON.stringify({
+            p_token: auth.token,
+            p_order_id: activeOrderId,
+            p_new_status: 'cancelled',
+            p_reason: 'create_rollback_item_insert_failed',
+          }),
         });
+        if (!rbRes.ok) {
+          const rbErr = await rbRes.text().catch(() => '');
+          if (!/PERMISSION_DENIED/.test(rbErr)) {
+            console.error('[POST /api/orders] create rollback atomic failed:', rbErr.slice(0, 200));
+          }
+          await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}`, {
+            method: 'PATCH',
+            headers: svc().headers,
+            body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }),
+          });
+        }
         throw new Error(`Order item insert failed: ${await itemRes.text()}`);
       }
 

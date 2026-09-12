@@ -30,12 +30,19 @@ export async function POST(req: NextRequest) {
     }
 
     const s = svc();
+    // L3 (D3 fix): dismiss_table_atomic (F01/F03 signature) requires ALL 6
+    // params — no defaults. The route previously passed only 4 -> PGRST202 ->
+    // every dismiss 404'd with "Dismiss failed" (the user-visible bug).
+    // p_final_status='empty' is the canonical dismiss semantics (customer gone,
+    // order cancelled, table freed); 'cleaning' is a separate mark-dirty flow.
     const rpcRes = await fetch(`${s.url}/rest/v1/rpc/dismiss_table_atomic`, {
       method: 'POST',
       headers: s.headers,
       body: JSON.stringify({
         p_token: auth.token,
         p_table_number: Number(table_number),
+        p_reason: 'dismiss_table',
+        p_final_status: 'empty',
         p_performed_by: auth.user.id,
         p_terminal_id: null,
       }),

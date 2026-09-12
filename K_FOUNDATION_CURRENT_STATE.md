@@ -523,11 +523,49 @@ fix) restores the intended separation.
 4. **No new state machine** — table stays the occupancy SSOT; order/kitchen/service/payment
    stay in their own columns; the derived table↔order relationship is the only coupling.
 
-### L1-8 Decision needed before fix
-ROOT CAUSE #1 is a **proven F-boundary regression** (stuck tables, 39 silent failures).
-Fixing it reopens the F **lifecycle registry** (edges only — not F security/permission/
-atomicity/location). Confirm: proceed with the F lifecycle-registry exception as scoped in
-L1-7.1, then L2 (P0 location) + L3 (dismiss/release validation) + L4 (tests + regression).
+### L1-8 Decision — RESOLVED: user ratified **Decision A** (O touch, NOT the F registry)
+The user's critical principle: do **NOT** add `occupied→in_kitchen/ready/...` edges to the
+F registry (that would only make the churn "succeed" with the wrong architecture). Instead
+the **O floor-sync** (`transition_order_atomic` 6c) was reconciled to keep the table
+`occupied` for the whole meal (042, L5). Table = exactly empty/occupied/reserved; the other
+lifecycles derive/sync but never redefine table.status. Executed: **L2** (P0 location, 042-era
+resolver, 9/9), **L5** (042 floor-sync, 9/9), **L6** (043 orphan repair 8/401/402), **L7** (044
+K3-6 finalized guards + KDS table-write removal, K3-6 now refuses paid). Then **L3** (below).
+
+### L3 — D3 "Dismiss table failed" — ROOT CAUSE + FIX (proven)
+**The user-visible bug was a REAL route bug, not a UX issue.** `dismiss_table_atomic`
+(after the F01/F03 multi-location migration) has a **6-param, no-defaults** signature
+`(p_token, p_table_number, p_reason, p_final_status, p_performed_by, p_terminal_id)`, but
+`/api/orders/dismiss` passed only **4** (missing `p_reason` + `p_final_status`) → **PGRST202
+"no matches in schema cache"** → the route mapped the non-200 to **404 "Dismiss failed"**.
+So EVERY dismiss (any valid state) failed. **Fix (smallest layer, route only, no DB contract
+change):** the route now passes all 6 (`p_reason='dismiss_table'`, `p_final_status='empty'` —
+the canonical dismiss semantics; the guard accepts only `empty`/`cleaning`).
+**Proven (.k-l3-probe.cjs, 8/8, zero-residue):** D3-1/1b dismiss on an ACTIVE-order table →
+200, table EMPTY; D3-2 pay → order PAID + table NOT auto-emptied; D3-2b dismiss on a PAID
+table → 400 BY DESIGN (the paid path is `release`; `G_NO_ACTIVE_ORDER` fires — NOT to be
+changed); D3-2c **release** on a PAID table → 200, table EMPTY (the correct paid-path action
+works end-to-end; `release_paid_table_atomic` passes all 5 params — never broken); D3-3 no
+forbidden final state (order PAID + table OCCUPIED + pointer→paid order) = 0; D3-4 waiter
+(no floor.manage) dismiss → 403 (F-01 intact). UI routing was already correct
+(ActionSheet: paid→release, active→dismiss); only the route's missing params were the defect.
+
+### L3-NEW FINDING — DECISION NEEDED: payment writes a 4th table state `dirty`
+`complete_payment_atomic` (the O **payment** function — DISTINCT from the reconciled
+`transition_order_atomic`) writes **`table_floors.status='dirty'`** on full payment (when no
+other active order) + clears guest_count/total/pointer. `dirty` is a **4th state** outside the
+ratified empty/occupied/reserved model, and the POS UI treats `dirty` as **non-occupied +
+clear-able** (`isOccupied = status!=='empty' && status!=='dirty'`; shows a "Clear" action).
+So the LIVE paid flow is `occupied → paid → dirty → [Clear] → empty` — a customer can CLEAR
+the table immediately after paying, contradicting the ratified "PAID + OCCUPIED = valid
+(customer still sitting)". Live: 0 tables currently `dirty` (transient), but every completed
+payment produces one. **This is an O payment-boundary decision** (like the 042 O exception):
+(1) keep `dirty` (it encodes "bill paid, needs wiping" — a real F&B state + how the table is
+cleared today), or (2) remove it (paid table stays `occupied` until an explicit release,
+matching the 3-state model exactly). **Surfaced to the user before L4 — not silently changed.**
 
 ---
-*K-0 audit: no code/DB changed during K-0/K-3. A/E/S/F/O remain 🔒 FROZEN pending the L1-8 F-lifecycle exception. `idx_orders_active_table` residual stays an F-boundary note.*
+*K lifecycle reconciliation: A/E/S/F security+perm+atomicity+location+RLS unchanged. Touches were:
+O floor-sync (042, decision A), O create-path location resolver (L2), F DATA repair only (043,
+no contract change), K legacy KDS fns (044, K-boundary). O payment `dirty` write (complete_payment_atomic)
+is the single OPEN decision before L4. `idx_orders_active_table` residual stays an F-boundary note.*

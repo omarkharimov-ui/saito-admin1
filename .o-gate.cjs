@@ -189,8 +189,13 @@ const CLEANUP_SQL = `
   check('G3r', 'no session -> 401 on both reads', (await api('GET', '/api/orders')).status === 401 && (await api('GET', '/api/kitchen/orders')).status === 401);
 
   console.log('----- G3: QR live DB proof (re-run) -----');
-  // Use table 312 — its only order was cancelled by C1, so the active-order slot
-  // (idx_orders_active_table) is free for a fresh qr_order.
+  // Use table 312 — its only order was cancelled by C1. Post-042 (decision A) the
+  // cancel correctly frees the table to 'empty' (pre-042 it stayed stuck 'occupied').
+  // The real QR flow is SEAT -> ORDER, so re-seat 312 (occupied) before the bare
+  // qr_order insert — otherwise the F-05 table_release_guard correctly rejects an
+  // order onto an empty table. Same thing validated: a qr_order insert with the
+  // server-trusted table location passes the triggers.
+  S(`UPDATE table_floors SET status='occupied', current_order_id=NULL, guest_count=1 WHERE table_number=312 AND location_id=${q(LOC_A)}`);
   let qrOk;
   try {
     qrOk = S(`

@@ -46,6 +46,13 @@ export async function POST(req: NextRequest) {
     if (tables.some((t: any) => t.status === 'reserved')) {
       return NextResponse.json({ error: 'Table is reserved' }, { status: 409 });
     }
+    // L4 invariant (ratified 2026-09-12, "dirty preserved"): `dirty` is the
+    // post-payment cleanup state — the table must NEVER be (re)seated while
+    // dirty; the only dirty -> empty path is the canonical Clear operation
+    // (/api/orders/clear-table -> clear_table_atomic). DIRTY -> NEW SEAT denied.
+    if (tables.some((t: any) => t.status === 'dirty')) {
+      return NextResponse.json({ error: 'Table is dirty — clear it before seating' }, { status: 409 });
+    }
 
     // Same-location + non-archived scope on the PATCH (service role bypasses RLS).
     const patchRes = await fetch(

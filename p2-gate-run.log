@@ -1,0 +1,15 @@
+PASS S1-1 entity='table' rows = 0 (orphaned registry dropped)
+PASS S2-1 entity='payment' registry = 22 active rules (single SSOT)
+PASS S2-2 payment registry spans 12 states
+PASS S2-3 exactly 4 terminal payment states (settled/refunded/voided/cancelled)
+PASS S3-1 guard trigger present on order_payments
+PASS S3-2 all 11 sampled LEGAL payment transitions PASS the guard (table-level)
+PASS S3-3 all 9 ILLEGAL payment transitions REJECTED at table level (value unchanged)
+PASS S3-4 NULL -> captured (init) allowed
+PASS S3-5 captured -> NULL (unset) REJECTED
+PASS S3-6 legacy NULL-status rows intact (not mutated by guard/migration)
+PASS S3-7 P-1 reflow: cross-location pay still DENIED (location assertion intact)
+PASS S3-8 P-1 reflow: same-location pay still ALLOWED (no over-block)
+PASS S4-1 zero residue: P2_ staff + probe orders/payments gone
+
+===== P2 STATE GATE: 13/13 PASS =====

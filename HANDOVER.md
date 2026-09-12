@@ -1,7 +1,7 @@
 # HANDOVER — Saito Admin POS (K → P)
 
 **Date:** 2026-09-12 · **Head:** see `git log --oneline -1` (post-K freeze)
-**Checkpoint:** `A 🔒 → E/S 🔒 → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2..P-12 NEXT`
+**Checkpoint:** `A 🔒 → E/S 🔒 → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3..P-12 NEXT`
 
 This document is the operating baseline for the next agent. It is NOT "K is done"
 — it is **frozen baseline + exact remaining architecture + next module (P) entry
@@ -41,7 +41,22 @@ M6 override tables + `/api/permissions/overrides` retired (0 rows, gate never
 consulted them, broken writer, dead UI); M4 `/api/orders/void` gated on `pos.void`,
 legacy `/api/orders/complete-payment` + `/api/order-payments` retired (0 UI callers;
 UI pays only via `/api/orders/pay`). Rollback refs:
-`supabase/migrations/_p1_rollback_20260912/`. Evidence:
+`supabase/migrations/_p1_rollback_20260912/`.
+
+**P-2 (2026-09-12, batch `20260912000002_p2_state_batch.sql`)** — frozen gate
+`.p2-gate.cjs` = **13/13** (`node .p2-gate.cjs`); O 38/38 + P-1 29/29 + K L4 16/16 +
+K L3 8/8 re-verified green post-batch. Scope (ratified): **S1** dropped the orphaned
+`state_transitions.entity='table'` rows (25, 0 consumers, model mismatch vs F — F's
+procedural `empty/occupied/reserved/dirty` model is untouched); **S2** registered the
+12-state payment machine as `entity='payment'` (22 rules, single SSOT — the map used
+to be hardcoded in `update_payment_status()`); **S2b** dropped the stale 8-state
+`order_payments_status_check` (it pre-blocked 4 of the 12 registry states); **S3**
+guard trigger `trg_payment_state_machine_guard` on `order_payments.status` (INSERTs
+unaffected; NULL→X init allowed; X→NULL rejected; X→Y must be an active registry row).
+P2-F7 verified: refunds DO transition `orders.status` (v2 writes refunded/partially_refunded
+→ enforced by the ORDER guard). NULL legacy rows untouched (data-cleanup = separate
+ratified decision). `cooking` = kitchen-aggregate alias of `preparing`, NOT an item
+state. Contract: `P2_STATE_CONTRACT_DRAFT_2026-09-12.md`. Evidence:
 `P0_INVENTORY_AUDIT_2026-09-12.md`, `P1_PERMISSION_FINDINGS_2026-09-12.md`,
 `P1_AUTHZ_CONTRACT_FREEZE_2026-09-12.md`.
 

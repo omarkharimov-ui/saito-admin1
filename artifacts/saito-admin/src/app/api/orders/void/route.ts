@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth, createAuthClient } from '@/lib/api-auth';
+import { requirePermission, createAuthClient } from '@/lib/api-auth';
 import { validateCsrfToken } from '@/lib/csrf';
 
 function svc() {
@@ -13,7 +13,10 @@ const VOID_APPROVAL_THRESHOLD = 50;
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    // P-1 M4 (ratified 2026-09-12): RBAC gate — was requireAuth()-only (any
+    // logged-in staff could reach the void path). The manager PIN-override /
+    // pending-approval logic below is unchanged.
+    const auth = await requirePermission('pos.void');
     if (!auth.authenticated) return auth;
     if (!validateCsrfToken(req, auth.authenticated)) {
       return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });

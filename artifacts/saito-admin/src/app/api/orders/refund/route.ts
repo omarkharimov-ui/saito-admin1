@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, createAuthClient } from '@/lib/api-auth';
 import { validateCsrfToken } from '@/lib/csrf';
+import { resolveWriteLocationContext } from '@/lib/location-context';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -38,6 +39,20 @@ export async function POST(request: NextRequest) {
     }
 
     const refundAmount = Number(amount) || 0;
+
+    // P-1 M2 (D-5): server-side location binding for the refund write path.
+    const { data: ordLoc } = await supabase
+      .from('orders')
+      .select('location_id')
+      .eq('id', order_id)
+      .maybeSingle();
+    const opLoc = await resolveWriteLocationContext(auth.user!.id);
+    if (!opLoc?.locationId || !ordLoc?.location_id) {
+      return NextResponse.json({ error: 'NO_LOCATION_CONTEXT' }, { status: 400 });
+    }
+    if (ordLoc.location_id !== opLoc.locationId) {
+      return NextResponse.json({ error: 'LOCATION_MISMATCH' }, { status: 403 });
+    }
 
     // ============================================================
     // MODE 1: Item-level refund with inventory fate
@@ -96,6 +111,7 @@ export async function POST(request: NextRequest) {
         p_reason: reason || 'customer_return',
         p_reason_text: reason_text || null,
         p_performed_by: auth.user?.id || null,
+        p_location_id: opLoc.locationId,
       });
 
       if (error) {
@@ -103,7 +119,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
       if (data && !data.success) {
-        return NextResponse.json(data, { status: 400 });
+        const st = /LOCATION_MISMATCH|LOCATION_ACCESS_DENIED/.test(data.error || '') ? 403 : 400;
+        return NextResponse.json(data, { status: st });
       }
 
       // Loyalty spine (OS BUILD #1b): reverse the refunded item's points.
@@ -207,20 +224,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // P-1 M2b: p_payments must be a jsonb ARRAY (was stringified — refunds had
+    // never succeeded in prod because of it).
     const { data, error } = await supabase.rpc('complete_payment_atomic_v2', {
       p_order_id: order_id,
-      p_payments: JSON.stringify([{
+      p_payments: [{
         amount: refundAmount,
         method: method || 'cash',
         is_refund: true,
-        reason_text: reason_text || reason || 'Müştəri şikayəti',
-      }]),
+      }],
       p_payment_method: method || 'cash',
       p_performed_by: auth.user?.id || null,
+      p_location_id: opLoc.locationId,
     });
 
     if (error) {
       console.error('[refund] RPC failed:', error);
+      if (error.message === 'ORDER_NOT_FOUND') {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      }
+      if (error.message === 'ORDER_ALREADY_PAID') {
+        return NextResponse.json({ error: 'Order is already paid' }, { status: 409 });
+      }
+      if (error.message.includes('LOCATION_MISMATCH') || error.message.includes('LOCATION_ACCESS_DENIED')) {
+        return NextResponse.json({ error: error.message }, { status: 403 });
+      }
+      if (error.message === 'LOCATION_CONTEXT_MISSING' || error.message === 'ORDER_LOCATION_NULL') {
+        return NextResponse.json({ error: 'NO_LOCATION_CONTEXT' }, { status: 400 });
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     if (data && !data.success) {

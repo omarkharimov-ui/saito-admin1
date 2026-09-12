@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Shield, Plus, Save, X, Check, Users, Settings2, AlertTriangle, Trash2, Lock, ChevronDown, XCircle } from 'lucide-react';
+import { Search, Shield, Plus, Save, X, Check, Users, Settings2, AlertTriangle, Trash2, Lock, ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
 import { useFirstLoad } from '@/hooks/useFirstLoad';
@@ -54,9 +54,10 @@ export default function RolesPage() {
   const [search, setSearch] = useState('');
   const [showCreateSheet, setShowCreateSheet] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
-  const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
-  const [locationOverrides, setLocationOverrides] = useState<Record<string, Record<string, boolean>>>({});
-  const [activeView, setActiveView] = useState<'permissions' | 'locations'>('permissions');
+  // P-1 M6 (retired 2026-09-12): the per-location "override" tables +
+  // /api/permissions/overrides were dead (0 rows, never consulted by the
+  // has_permission gate, broken writer). The location-override UI is removed;
+  // location scope is enforced at the financial-write layer instead.
   const [creating, setCreating] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; role: Role | null }>({ open: false, role: null });
   const [deleting, setDeleting] = useState(false);
@@ -84,40 +85,9 @@ export default function RolesPage() {
     }
   }, []);
 
-  const fetchLocations = useCallback(async () => {
-    try {
-      const res = await fetch('/api/locations');
-      if (res.ok) {
-        const data = await res.json();
-        setLocations(Array.isArray(data) ? data : []);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const fetchLocationOverrides = useCallback(async (roleId: string) => {
-    try {
-      const res = await fetch(`/api/permissions/overrides?role_id=${roleId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setLocationOverrides(data);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
   useEffect(() => {
     fetchRoles();
-    fetchLocations();
-  }, [fetchRoles, fetchLocations]);
-
-  useEffect(() => {
-    if (selectedRoleId) {
-      fetchLocationOverrides(selectedRoleId);
-    }
-  }, [selectedRoleId, fetchLocationOverrides]);
+  }, [fetchRoles]);
 
   const filteredRoles = useMemo(() => {
     if (!search.trim()) return roles;
@@ -409,33 +379,8 @@ export default function RolesPage() {
                 </div>
                </div>
 
-               {/* View Toggle */}
-               <div className="px-6 pt-4 flex items-center gap-2">
-                 <button
-                   onClick={() => setActiveView('permissions')}
-                   className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-                     activeView === 'permissions'
-                       ? 'bg-white text-black'
-                       : 'bg-white/5 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'
-                   }`}
-                 >
-                   Permissions
-                 </button>
-                 <button
-                   onClick={() => setActiveView('locations')}
-                   className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-                     activeView === 'locations'
-                       ? 'bg-white text-black'
-                       : 'bg-white/5 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'
-                   }`}
-                 >
-                   Location Overrides
-                 </button>
-               </div>
-
-                {activeView === 'permissions' ? (
-                  /* Permission Categories */
-                  <div className="p-6 space-y-4">
+               {/* P-1 M6: view toggle removed — only the permissions view remains */}
+               <div className="p-6 space-y-4">
                     {Object.entries(groupedPermissions).map(([category, categoryPerms]) => {
                       const allSelected = categoryPerms.every(p => selectedRole.permissions.includes(p.key));
                       const someSelected = categoryPerms.some(p => selectedRole.permissions.includes(p.key));
@@ -512,118 +457,10 @@ export default function RolesPage() {
                        );
                      })}
                    </div>
-                ) : null}
             </motion.div>
           )}
 
-          {/* Location Overrides */}
-          {selectedRole && activeView === 'locations' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl overflow-hidden"
-            >
-              <div className="p-6 border-b border-[var(--theme-border)]">
-                <h3 className="text-sm font-black text-[var(--theme-text)]">Location Permission Overrides</h3>
-                <p className="text-[10px] text-[var(--theme-text-muted)] mt-1">
-                  Manage how this role's permissions change per location. Location overrides restrict the base role permissions.
-                </p>
-              </div>
-              <div className="p-6">
-                {locations.length === 0 ? (
-                  <p className="text-xs text-[var(--theme-text-muted)] text-center py-8">No locations configured</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-[var(--theme-border)]">
-                          <th className="text-left py-2 px-3 text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Permission</th>
-                          {locations.map(loc => (
-                            <th key={loc.id} className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold min-w-[100px]">
-                              {loc.name}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {permissions.slice(0, 10).map(perm => (
-                          <tr key={perm.id} className="border-b border-white/[0.04]">
-                            <td className="py-2 px-3">
-                              <p className="text-xs font-medium text-[var(--theme-text)]">{perm.key}</p>
-                              <p className="text-[10px] text-[var(--theme-text-muted)]">{perm.description}</p>
-                            </td>
-                            {locations.map(loc => {
-                              const locOverrides = locationOverrides[loc.id] || {};
-                              const isGranted = locOverrides[perm.id] ?? true;
-                              return (
-                                <td key={loc.id} className="text-center py-2 px-3">
-                                  <button
-                                    onClick={() => {
-                                      if (selectedRole.is_system) return;
-                                      setLocationOverrides(prev => ({
-                                        ...prev,
-                                        [loc.id]: {
-                                          ...prev[loc.id],
-                                          [perm.id]: !isGranted,
-                                        }
-                                      }));
-                                    }}
-                                    disabled={selectedRole.is_system}
-                                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${
-                                      isGranted
-                                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
-                                        : 'bg-rose-500/20 border-rose-500/40 text-rose-400'
-                                    } ${selectedRole.is_system ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'}`}
-                                  >
-                                    {isGranted ? <Check size={14} /> : <XCircle size={14} />}
-                                  </button>
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                {activeView === 'locations' && locations.length > 0 && (
-                  <div className="mt-4 flex justify-end">
-                    <button
-                      onClick={async () => {
-                        if (!selectedRole) return;
-                        setSaving(true);
-                        try {
-                          const res = await fetch('/api/permissions/overrides', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ role_id: selectedRole.id, overrides: locationOverrides }),
-                          });
-                          if (res.ok) {
-                            toast.success('Location overrides saved');
-                          } else {
-                            toast.error('Failed to save');
-                          }
-                        } catch {
-                          toast.error('Error occurred');
-                        } finally {
-                          setSaving(false);
-                        }
-                      }}
-                      disabled={saving || selectedRole.is_system}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-white/90 transition-all shadow-lg active:scale-95 disabled:opacity-40"
-                    >
-                      {saving ? (
-                        <span className="w-3.5 h-3.5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                      ) : (
-                        <Save size={14} />
-                      )}
-                      Save Overrides
-                    </button>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
+          {/* P-1 M6: Location Overrides panel removed (dead override tables retired 2026-09-12) */}
         </div>
       </div>
 

@@ -64,9 +64,11 @@ function tRow(tn){return S(`SELECT coalesce(status,'null')||'|'||coalesce(curren
   // ---- D3-2: the PAID path — dismiss is BY DESIGN refused; release is the action ----
   const o2=crypto.randomUUID();
   seatAndOrder(o2,100);
-  // pay the order via the REAL route -> complete_payment_atomic -> order paid,
-  // table stays occupied (L5). p_payments = [{method, amount}].
-  const payRes=await http('/api/orders/complete-payment',{order_id:o2,payments:[{method:'card',amount:100}],payment_method:'card',cash_amount:0,card_amount:100,tip_amount:0,discount_amount:0,performed_by:mid},TK);
+   // pay the order via the REAL route. P-1 M4: the legacy /api/orders/complete-payment
+   // route was retired; the live canonical pay path is /api/orders/pay (v2 -> order_payments).
+   // The table does NOT auto-empty on pay (that's the asserted invariant); live v2 leaves it
+   // occupied (pointer cleared). The dirty-vs-occupied model question is surfaced, not forced.
+   const payRes=await http('/api/orders/pay',{order_id:o2,payment_method:'card',paid_amount:100,cash_amount:0,card_amount:100,tip_amount:0,discount_amount:0},TK);
   let paidOk=payRes.status===200;
   const o2st=S(`SELECT status FROM orders WHERE id=${q(o2)}`);
   const t2=tRow(T);

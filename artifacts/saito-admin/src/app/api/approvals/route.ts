@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, createAuthClient } from '@/lib/api-auth';
+import { resolveWriteLocationContext } from '@/lib/location-context';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -215,19 +216,32 @@ export async function PATCH(request: NextRequest) {
       }
 
       const refundData = approval.new_values || approval.old_values || {};
+      // P-1 M2: location binding for the approved refund (approver's own context).
+      const { data: arOrd } = await supabase.from('orders').select('location_id').eq('id', approval.entity_id).maybeSingle();
+      const arLoc = await resolveWriteLocationContext(approval.staff_id);
+      if (!arLoc?.locationId || !arOrd?.location_id) {
+        return NextResponse.json({ error: 'NO_LOCATION_CONTEXT' }, { status: 400 });
+      }
+      if (arOrd.location_id !== arLoc.locationId) {
+        return NextResponse.json({ error: 'LOCATION_MISMATCH' }, { status: 403 });
+      }
       const { data: rpcResult, error: rpcErr } = await supabase.rpc('complete_payment_atomic_v2', {
         p_order_id: approval.entity_id,
-        p_payments: JSON.stringify([{
+        // P-1 M2b: jsonb array (was stringified).
+        p_payments: [{
           amount: Number(refundData.refund_amount || refundData.amount || 0),
           method: refundData.method || 'cash',
           is_refund: true,
-          reason_text: approval.reason || review_note || 'Manager approved refund',
-        }]),
+        }],
         p_payment_method: refundData.method || 'cash',
         p_performed_by: approval.staff_id,
+        p_location_id: arLoc.locationId,
       });
 
       if (rpcErr) {
+        if (rpcErr.message.includes('LOCATION_MISMATCH') || rpcErr.message.includes('LOCATION_ACCESS_DENIED')) {
+          return NextResponse.json({ error: rpcErr.message }, { status: 403 });
+        }
         return NextResponse.json({ error: rpcErr.message }, { status: 500 });
       }
       if (!rpcResult?.success) {

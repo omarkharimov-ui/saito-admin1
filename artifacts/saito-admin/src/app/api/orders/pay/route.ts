@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, createAuthClient } from '@/lib/api-auth';
 import { paymentRateLimit } from '@/lib/rate-limit';
 import { validateCsrfToken } from '@/lib/csrf';
+import { resolveWriteLocationContext } from '@/lib/location-context';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -27,6 +28,24 @@ export async function POST(request: NextRequest) {
     const { order_id, payment_method, cash_amount, card_amount, paid_amount, tip_amount, campaign_id, discount_amount, discount_type, per_item_allocations, cash_received, idempotency_key } = await request.json();
     if (!order_id) {
       return NextResponse.json({ error: 'order_id is required' }, { status: 400 });
+    }
+
+    // P-1 M2 (D-5): server-side location binding. The operator's allowed write
+    // location is resolved from the SESSION (never client-supplied) and must match
+    // the order's location before any financial mutation. The DB re-asserts both
+    // (complete_payment_atomic_v2: order location == p_location_id AND actor
+    // allowed at that location) — fail closed.
+    const { data: ordRow } = await supabase
+      .from('orders')
+      .select('location_id')
+      .eq('id', order_id)
+      .maybeSingle();
+    const operatorLocation = await resolveWriteLocationContext(auth.user!.id);
+    if (!operatorLocation?.locationId || !ordRow?.location_id) {
+      return NextResponse.json({ error: 'NO_LOCATION_CONTEXT' }, { status: 400 });
+    }
+    if (ordRow.location_id !== operatorLocation.locationId) {
+      return NextResponse.json({ error: 'LOCATION_MISMATCH' }, { status: 403 });
     }
 
     const requestedTotal = Number(paid_amount) || 0;
@@ -110,6 +129,7 @@ export async function POST(request: NextRequest) {
       p_cash_drawer_session_id: cashDrawerSessionId,
       p_cash_received: cash_received || null,
       p_idempotency_key: idempotency_key || null,
+      p_location_id: operatorLocation.locationId,
     });
 
     if (error) {
@@ -119,6 +139,12 @@ export async function POST(request: NextRequest) {
       }
       if (error.message === 'ORDER_ALREADY_PAID') {
         return NextResponse.json({ error: 'Order is already paid' }, { status: 409 });
+      }
+      if (error.message.includes('LOCATION_MISMATCH') || error.message.includes('LOCATION_ACCESS_DENIED')) {
+        return NextResponse.json({ error: error.message }, { status: 403 });
+      }
+      if (error.message === 'LOCATION_CONTEXT_MISSING' || error.message === 'ORDER_LOCATION_NULL') {
+        return NextResponse.json({ error: 'NO_LOCATION_CONTEXT' }, { status: 400 });
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }

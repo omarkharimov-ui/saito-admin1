@@ -135,7 +135,7 @@
     "id": "Z-2",
     "name": "LOC_B staff authorize on own LOC_B (payments.refund) -> allowed=true (mgr has perm)",
     "pass": true,
-    "evidence": "{\"allowed\": true, \"role_id\": \"bb579b8a-022d-4f89-99c7-56eebcec3032\", \"staff_id\": \"89a65e08"
+    "evidence": "{\"allowed\": true, \"role_id\": \"bb579b8a-022d-4f89-99c7-56eebcec3032\", \"staff_id\": \"19ac09e4"
   },
   {
     "id": "Z-3",
@@ -171,7 +171,7 @@
     "id": "A22",
     "name": "successful login audited",
     "pass": true,
-    "evidence": "login=125"
+    "evidence": "login=126"
   },
   {
     "id": "A23",
@@ -183,13 +183,13 @@
     "id": "A24",
     "name": "role/status change audited (staff_suspended/enabled events)",
     "pass": true,
-    "evidence": "lifecycle events=96"
+    "evidence": "lifecycle events=114"
   },
   {
     "id": "A25",
     "name": "permission denied audited",
     "pass": true,
-    "evidence": "permission_denied=44"
+    "evidence": "permission_denied=56"
   },
   {
     "id": "A26",

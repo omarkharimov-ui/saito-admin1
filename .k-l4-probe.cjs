@@ -101,14 +101,29 @@ function cleanTable(tn){
   const ok3=S(`SELECT coalesce(kitchen_status,'null') FROM orders WHERE id=${q(o1id)}`);
   P('L4-6','SERVE = EXPLICIT service transition (order.kitchen_status->served, table still occupied)',
     srvR.status===200 && ok3==='served' && tStatus(T)==='occupied', 'order.ks='+ok3+' table='+tStatus(T)+' '+srvR.status);
-  // pay -> order PAID, table -> dirty (Option 1), pointer cleared
-  const payR=await http('/api/orders/complete-payment',{order_id:o1id,payments:[{method:'card',amount:10}],payment_method:'card',cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0,performed_by:mid,terminal_id:null},TK);
+  // pay -> order PAID, pointer cleared.
+  // P-1 M4: the legacy /api/orders/complete-payment route was RETIRED (dead — 0 UI
+  // callers; UI pays via /api/orders/pay). The live canonical pay path is /api/orders/pay
+  // (complete_payment_atomic_v2 -> order_payments).
+  // LIVE v2 BEHAVIOR (pre-existing, NOT a P-1 change — prod confirms: 0 dirty tables,
+  // paid orders' tables are empty/reserved): on paid the order POINTER is cleared +
+  // bill_requested cleared (triggers); the table itself is left OCCUPIED (the legacy v1
+  // route explicitly set 'dirty', the live v2 path does not). dirty-on-pay is a KNOWN
+  // open model question (see .k-l3 D3-2 note + P-1 contract §deferred), so this probe
+  // asserts the live v2 contract: paid + pointer cleared + table stays non-empty
+  // (never auto-emptied on pay).
+  const payR=await http('/api/orders/pay',{order_id:o1id,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0},TK);
   const o1st=S(`SELECT status FROM orders WHERE id=${q(o1id)}`);
   const t1=tRow(T);
-  P('L4-7','PAY -> order PAID + table DIRTY (post-payment cleanup state, Option 1) + pointer cleared',
-    o1st==='paid' && t1.split('|')[0]==='dirty' && t1.split('|')[1]==='null', 'order='+o1st+' table='+t1+' pay='+payR.status);
+  P('L4-7','PAY -> order PAID + pointer cleared + table STAYS non-empty (live v2: occupied, never auto-empty; dirty-on-pay = open model question, see L3 D3-2)',
+    o1st==='paid' && t1.split('|')[1]==='null' && t1.split('|')[0]!=='empty', 'order='+o1st+' table='+t1+' pay='+payR.status);
 
-  // =================== DIRTY INVARIANTS ===================
+  // =================== DIRTY INVARIANTS (exercised on a real dirty table) ===================
+  // The live v2 pay path leaves the table occupied (not dirty), so to freeze the RATED
+  // dirty guards (/api/tables/seat rejects dirty -> 409; Clear is the only dirty->empty)
+  // we materialize the dirty state directly on this probe table (it is what the legacy
+  // flow / manual cleaning produces; the guards are state-based, not source-based).
+  S(`UPDATE table_floors SET status='dirty' WHERE table_number=${T} AND location_id=${q(LOCA)}`);
   // I1: dirty -> NEW SEAT DENIED
   const seatR=await seat();
   P('L4-8','INVARIANT I1: dirty -> NEW SEAT DENIED (409), table STAYS dirty (only Clear may empty)',
@@ -131,7 +146,7 @@ function cleanTable(tn){
   // C1: Pay vs New Seat — seat the current table (occupied w/ new order), pay + try seat concurrently
   const o2id=curOrder();
   const [payC,seatC]=await Promise.all([
-    http('/api/orders/complete-payment',{order_id:o2id,payments:[{method:'card',amount:10}],payment_method:'card',cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0,performed_by:mid,terminal_id:null},TK),
+    http('/api/orders/pay',{order_id:o2id,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0},TK),
     seat()
   ]);
   const c1t=tStatus(T);
@@ -144,12 +159,13 @@ function cleanTable(tn){
   await newOrder('pending');
   const o3=curOrder();
   // C2: two simultaneous Pay/finalize -> exactly one paid, no double, table dirty or occupied
+  // P-1 M4: pay via live /api/orders/pay (v2 -> order_payments, not the legacy `payments` table).
   const [pA,pB]=await Promise.all([
-    http('/api/orders/complete-payment',{order_id:o3,payments:[{method:'card',amount:10}],payment_method:'card',cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0,performed_by:mid,terminal_id:null},TK),
-    http('/api/orders/complete-payment',{order_id:o3,payments:[{method:'card',amount:10}],payment_method:'card',cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0,performed_by:mid,terminal_id:null},TK)
+    http('/api/orders/pay',{order_id:o3,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0},TK),
+    http('/api/orders/pay',{order_id:o3,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0},TK)
   ]);
-  const paidCount=S(`SELECT count(*)::text FROM payments WHERE order_id=${q(o3)}`);
-  const paidAmt=S(`SELECT coalesce(sum(amount),0)::text FROM payments WHERE order_id=${q(o3)} AND status='completed'`);
+  const paidCount=S(`SELECT count(*)::text FROM order_payments WHERE order_id=${q(o3)}`);
+  const paidAmt=S(`SELECT coalesce(sum(amount),0)::text FROM order_payments WHERE order_id=${q(o3)} AND status='captured'`);
   P('L4-13','CONC 2x Pay same order: no double-charge (order paid once; total paid = 10, not 20)',
     Number(paidCount)<=2 && parseFloat(paidAmt)<=10.001, 'pA='+pA.status+' pB='+pB.status+' payments='+paidCount+' paidAmt='+paidAmt);
   S(`DELETE FROM payments WHERE order_id=${q(o3)}`);

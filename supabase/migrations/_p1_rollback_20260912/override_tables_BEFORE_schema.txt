@@ -1,0 +1,16 @@
+┌───────────────────────────────┬────────────────┬──────────────────────────┬─────────────┬───────────────────┐
+│ table_name                    │ column_name    │ data_type                │ is_nullable │ column_default    │
+├───────────────────────────────┼────────────────┼──────────────────────────┼─────────────┼───────────────────┤
+│ location_permission_overrides │ id             │ uuid                     │ NO          │ gen_random_uuid() │
+│ location_permission_overrides │ location_id    │ uuid                     │ NO          │ NULL              │
+│ location_permission_overrides │ permission_id  │ uuid                     │ NO          │ NULL              │
+│ location_permission_overrides │ is_granted     │ boolean                  │ NO          │ true              │
+│ location_permission_overrides │ created_at     │ timestamp with time zone │ YES         │ now()             │
+│ staff_permission_overrides    │ id             │ uuid                     │ NO          │ gen_random_uuid() │
+│ staff_permission_overrides    │ staff_id       │ uuid                     │ YES         │ NULL              │
+│ staff_permission_overrides    │ permission_key │ text                     │ NO          │ NULL              │
+│ staff_permission_overrides    │ is_allowed     │ boolean                  │ NO          │ NULL              │
+│ staff_permission_overrides    │ reason         │ text                     │ YES         │ NULL              │
+│ staff_permission_overrides    │ created_by     │ uuid                     │ YES         │ NULL              │
+│ staff_permission_overrides    │ created_at     │ timestamp with time zone │ YES         │ now()             │
+└───────────────────────────────┴────────────────┴──────────────────────────┴─────────────┴───────────────────┘

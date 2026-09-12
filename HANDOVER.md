@@ -1,7 +1,7 @@
 # HANDOVER — Saito Admin POS (K → P)
 
 **Date:** 2026-09-12 · **Head:** see `git log --oneline -1` (post-K freeze)
-**Checkpoint:** `A 🔒 → E/S 🔒 → F 🔒 → O 🔒 → K 🔒 → P NEXT`
+**Checkpoint:** `A 🔒 → E/S 🔒 → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2..P-12 NEXT`
 
 This document is the operating baseline for the next agent. It is NOT "K is done"
 — it is **frozen baseline + exact remaining architecture + next module (P) entry
@@ -23,6 +23,27 @@ point**. Read `K_FROZEN.md` for the K freeze record and
 K suites: `.k-g3g4-probe.cjs` (14) · `.k-k3-probe.cjs` (8) · `.k-g7-probe.cjs` (12) ·
 `.k-l2-probe.cjs` (9) · `.k-l3-probe.cjs` (8) · `.k-l5-probe.cjs` (9) ·
 `.k-l4-probe.cjs` (16). Plus `.k-g6-probe.cjs` / `.k-g6-delivery-probe.cjs` (outbox).
+
+**P-1 (2026-09-12, batch `20260912000001_p1_authz_batch.sql`)** — frozen gate
+`.p1-gate.cjs` = **29/29** (`node .p1-gate.cjs`), all A/E/S/F/O/K re-verified green
+above. Scope: M1 `has_permission(uuid,text)` = permission SSOT (contract); M2
+**fail-closed location assertion on the financial write path** —
+`complete_payment_atomic_v2` (13→14 args, `p_location_id`) + `refund_with_inventory`
+(9→10) + helper `p1_actor_allowed_at_location` (order location == session location,
+actor allowed: active `staff_locations` ∪ superadmin/owner ∪ documented
+single-location-with-data fallback; NULL location = deny); pay/refund/approvals routes
+resolve location server-side (`resolveWriteLocationContext`), client location ignored;
+**bonus fix** refund Mode 2 + approvals passed `p_payments` as stringified JSON (never
+worked — prod refunds = 0); M3 retired 4 broken/dead RPCs
+(`has_permission_v2`, `get_effective_permissions`, `get_effective_permissions_v2`,
+`check_permission` — 0 consumers, 3 hit `42703 ep.code`); M5 owner role seeded 65/65;
+M6 override tables + `/api/permissions/overrides` retired (0 rows, gate never
+consulted them, broken writer, dead UI); M4 `/api/orders/void` gated on `pos.void`,
+legacy `/api/orders/complete-payment` + `/api/order-payments` retired (0 UI callers;
+UI pays only via `/api/orders/pay`). Rollback refs:
+`supabase/migrations/_p1_rollback_20260912/`. Evidence:
+`P0_INVENTORY_AUDIT_2026-09-12.md`, `P1_PERMISSION_FINDINGS_2026-09-12.md`,
+`P1_AUTHZ_CONTRACT_FREEZE_2026-09-12.md`.
 
 Build: `cd artifacts/saito-admin && npx next build` (exit 0, 270 static).
 Types: `npx --no-install tsc --noEmit` → 0 errors (non-test).

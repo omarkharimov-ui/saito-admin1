@@ -21,37 +21,37 @@
     "id": "E4",
     "name": "clock-in self → success + shift + report_date",
     "pass": true,
-    "evidence": "{\"success\":true,\"shift_id\":\"cf5095b8-8969-490d-a45b-bd0e2ae99d97\",\"staff_name\":\"G2mtyry4co_CASH\",\"location_id\":\"f1f830b3-cf15-47e3-a538-01abd8222c6d\",\"report_date\":\"2026-09-12\",\"override\":false,\"timestamp\":\"2026-09-12T19"
+    "evidence": "{\"success\":true,\"shift_id\":\"11fc2f94-00a4-4d0e-b5a0-504831299250\",\"staff_name\":\"G2mtyvv21g_CASH\",\"location_id\":\"f1f830b3-cf15-47e3-a538-01abd8222c6d\",\"report_date\":\"2026-09-13\",\"override\":false,\"timestamp\":\"2026-09-12T21"
   },
   {
     "id": "E5",
     "name": "break start → success + break_id (G-1/G-3 fixed)",
     "pass": true,
-    "evidence": "{\"success\":true,\"break_id\":\"d83b0686-9183-4d1b-b620-bdf2ebd9c68f\",\"override\":false,\"started_at\":\"2026-09-12T19:25:11.860198+00:00\"}"
+    "evidence": "{\"success\":true,\"break_id\":\"89490276-9006-4cb0-bb41-62ab8152657c\",\"override\":false,\"started_at\":\"2026-09-12T21:14:46.405133+00:00\"}"
   },
   {
     "id": "E6",
     "name": "break end → success + duration",
     "pass": true,
-    "evidence": "{\"success\":true,\"duration_minutes\":0,\"override\":false,\"ended_at\":\"2026-09-12T19:25:13.755551+00:00\"}"
+    "evidence": "{\"success\":true,\"duration_minutes\":0,\"override\":false,\"ended_at\":\"2026-09-12T21:14:48.2829+00:00\"}"
   },
   {
     "id": "E7",
     "name": "drawer open → success + bound to shift (S-08 1:1)",
     "pass": true,
-    "evidence": "{\"id\":\"64722a7f-2f2e-4466-9739-11811785e492\",\"success\":true,\"shift_id\":\"cf5095b8-8969-490d-a45b-bd0e2ae99d97\",\"opening_balance\":200}"
+    "evidence": "{\"id\":\"347cc561-df01-4874-bdd0-9ee53cda4834\",\"success\":true,\"shift_id\":\"11fc2f94-00a4-4d0e-b5a0-504831299250\",\"opening_balance\":200}"
   },
   {
     "id": "E8",
     "name": "cash movement (cash_in 150) → success",
     "pass": true,
-    "evidence": "{\"type\":\"cash_in\",\"amount\":150,\"success\":true,\"created_at\":\"2026-09-12T19:25:15.008345+00:00\",\"session_id\":\"64722a7f-2f2e-4466-9739-11811785e492\"}"
+    "evidence": "{\"type\":\"cash_in\",\"amount\":150,\"success\":true,\"created_at\":\"2026-09-12T21:14:49.27514+00:00\",\"session_id\":\"347cc561-df01-4874-bdd0-9ee53cda4834\"}"
   },
   {
     "id": "E9",
     "name": "drawer close by MANAGER (cash.close) → success + shift auto-closed",
     "pass": true,
-    "evidence": "{\"success\":true,\"overtime\":{\"success\":true,\"shift_id\":\"cf5095b8-8969-490d-a45b-bd0e2ae99d97\",\"day_worked\":0.001,\"hourly_rate\":5,\"week_worked\":0.001,\"worked_hours\":0.001,\"business_date\":\"2026-09-12\",\"daily_ot_hours\":0,\"do"
+    "evidence": "{\"success\":true,\"overtime\":{\"success\":true,\"shift_id\":\"11fc2f94-00a4-4d0e-b5a0-504831299250\",\"day_worked\":0.001,\"hourly_rate\":5,\"week_worked\":0.001,\"worked_hours\":0.001,\"business_date\":\"2026-09-13\",\"daily_ot_hours\":0,\"do"
   },
   {
     "id": "E10",
@@ -93,7 +93,7 @@
     "id": "X3",
     "name": "manager override clock-in other staff → success override=true",
     "pass": true,
-    "evidence": "{\"success\":true,\"shift_id\":\"6382e472-c588-4e11-952e-830a67d67a70\",\"staff_name\":\"G2mtyry4co_WTR\",\"location_id\":\"f1f830b3-cf15-47e3-a538-01abd8222c6d\",\"report_date\":\"2026-09-12\",\"override\":true,\"timestamp\":\"2026-09-12T19:2"
+    "evidence": "{\"success\":true,\"shift_id\":\"5dda76d0-3a2b-45b7-9b59-4e1c43bd337a\",\"staff_name\":\"G2mtyvv21g_WTR\",\"location_id\":\"f1f830b3-cf15-47e3-a538-01abd8222c6d\",\"report_date\":\"2026-09-13\",\"override\":true,\"timestamp\":\"2026-09-12T21:1"
   },
   {
     "id": "X4",

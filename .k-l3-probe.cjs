@@ -28,7 +28,9 @@ function tRow(tn){return S(`SELECT coalesce(status,'null')||'|'||coalesce(curren
   S(`DELETE FROM audit_logs_canonical WHERE entity_id IN (SELECT id::text FROM orders WHERE table_number=${T})`);
   S(`DELETE FROM operation_logs WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T})`);
   S(`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T})`);
-  S(`DELETE FROM orders WHERE table_number=${T}`);
+  // P-3: order_payments are append-only; the cascade from DELETE orders is blocked, so
+  // remove them via the trusted full-reversal flag (test-teardown only).
+  S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_payments WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T}); DELETE FROM orders WHERE table_number=${T}; SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);
   S(`UPDATE table_floors SET status='empty', current_order_id=NULL, total_amount=0, guest_count=NULL, order_count=0, has_pending=false, bill_requested=false WHERE table_number=${T} AND location_id=${q(LOCA)}`);
   S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'L3_%')`);
   S(`DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'L3_%')`);
@@ -118,7 +120,7 @@ function tRow(tn){return S(`SELECT coalesce(status,'null')||'|'||coalesce(curren
   S(`DELETE FROM operation_logs WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T})`);
   S(`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T})`);
   S(`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T})`);
-  S(`DELETE FROM orders WHERE table_number=${T}`);
+  S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_payments WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T}); DELETE FROM orders WHERE table_number=${T}; SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);
   S(`UPDATE table_floors SET status='empty', current_order_id=NULL, total_amount=0, guest_count=NULL, order_count=0, has_pending=false, bill_requested=false WHERE table_number=${T} AND location_id=${q(LOCA)}`);
   S(`DELETE FROM sessions WHERE user_id IN (${q(mid)},${q(wid)})`);
   S(`DELETE FROM staff_locations WHERE staff_id IN (${q(mid)},${q(wid)})`);

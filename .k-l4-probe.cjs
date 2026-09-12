@@ -39,7 +39,10 @@ function cleanTable(tn){
     S(`DELETE FROM operation_logs WHERE order_id IN (SELECT id FROM orders WHERE table_number=${tn})`);
     S(`DELETE FROM inventory_logs WHERE order_item_id IN (SELECT id FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_number=${tn}))`);
     S(`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_number=${tn})`);
-    S(`DELETE FROM orders WHERE table_number=${tn}`);
+    // P-3: order_payments rows are append-only (immutability trigger) — the cascade
+    // from DELETE orders is blocked, so remove them via the trusted full-reversal flag
+    // (test-teardown only; this is the sanctioned path, not a contract change).
+    S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_payments WHERE order_id IN (SELECT id FROM orders WHERE table_number=${tn}); DELETE FROM orders WHERE table_number=${tn}; SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);
     S(`UPDATE table_floors SET status='empty',current_order_id=NULL,total_amount=0,guest_count=NULL,order_count=0,has_pending=false,bill_requested=false WHERE table_number=${tn} AND location_id=${q(LOCA)}`);
   } finally {
     S(`ALTER TABLE public.inventory_logs ENABLE TRIGGER trg_inventory_logs_immutable`);

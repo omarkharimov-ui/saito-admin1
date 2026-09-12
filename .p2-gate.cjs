@@ -35,10 +35,18 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
     // PRE-FLIGHT residue sweep (idempotent, conservative): killed prior runs leave
     // NULL-table probe orders + their payments; each order delete fires ~10 cascade
     // triggers (measured 10s+ under contention), which accumulates into apparent hangs.
-    // 30-min window: my runs create/delete within seconds; any NULL-table order older
-    // than 30 min is left untouched (pre-existing production/test data is out of scope).
-    S(`DELETE FROM order_payments WHERE order_id IN (SELECT id FROM orders WHERE table_number IS NULL AND created_at > now()-interval '30 minutes')`);
-    S(`DELETE FROM orders WHERE table_number IS NULL AND created_at > now()-interval '30 minutes'`);
+    // 30-min window + 0-item filter (real NULL-table orders (QR) carry items) so this
+    // never touches production. P-3 immutability blocks order_payments DELETE, so the
+    // sweep sets the trusted flag in one txn (same pattern as .p3-gate.cjs).
+    const sub2 = `(SELECT id FROM orders WHERE table_number IS NULL AND created_at > now()-interval '30 minutes' AND NOT EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id=orders.id))`;
+    S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false);
+        DELETE FROM order_payments WHERE order_id IN ${sub2};
+        DELETE FROM payment_idempotency_keys WHERE order_id IN ${sub2};
+        DELETE FROM outbox_events WHERE aggregate_id IN ${sub2};
+        DELETE FROM audit_logs WHERE order_id IN ${sub2};
+        DELETE FROM operation_logs WHERE order_id IN ${sub2};
+        DELETE FROM orders WHERE id IN ${sub2};
+        SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);
     const roleById = n => S(`SELECT id::text FROM roles WHERE name='${n}'`);
     const mkStaff = (name, rl) => { const id = crypto.randomUUID(); S(`INSERT INTO staff(id,name,full_name,role_id,is_active,status,pin_hash,organization_id) VALUES(${q(id)},${q(name)},${q(name)},${q(roleById(rl))},true,'ACTIVE','pbkdf2_sha256$260000$00$00',${q(ORG)})`); return id; };
     const bindLoc = (sid, loc) => S(`INSERT INTO staff_locations(staff_id,location_id,is_primary,active,organization_id) VALUES(${q(sid)},${q(loc)},true,true,${q(ORG)})`);
@@ -50,7 +58,7 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
     // fires ~10 cascade triggers (10s+ each under load); reusing carriers keeps the
     // battery fast. Carriers are deleted with the full cascade in cleanup.
     const O_A = mkOrder(LOC_A, 100); const O_B = mkOrder(LOC_B, 100);
-    const cleanupOids = () => { if (!OIDS.length) return; const list = OIDS.map(q).join(','); S(`DELETE FROM order_payments WHERE order_id IN (${list})`); S(`DELETE FROM payment_idempotency_keys WHERE order_id IN (${list})`); S(`DELETE FROM outbox_events WHERE aggregate_id IN (${list})`); S(`DELETE FROM audit_logs WHERE order_id IN (${list})`); S(`DELETE FROM operation_logs WHERE order_id IN (${list})`); S(`DELETE FROM order_items WHERE order_id IN (${list})`); S(`DELETE FROM orders WHERE id IN (${list})`); OIDS.length = 0; };
+    const cleanupOids = () => { if (!OIDS.length) return; const list = OIDS.map(q).join(','); S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_payments WHERE order_id IN (${list}); DELETE FROM payment_idempotency_keys WHERE order_id IN (${list}); DELETE FROM outbox_events WHERE aggregate_id IN (${list}); DELETE FROM audit_logs WHERE order_id IN (${list}); DELETE FROM operation_logs WHERE order_id IN (${list}); DELETE FROM order_items WHERE order_id IN (${list}); DELETE FROM orders WHERE id IN (${list}); SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`); OIDS.length = 0; };
 
     // payment-row fixture helper (direct INSERT status='captured', then test transitions)
     let PAY_FIX = null;
@@ -75,8 +83,11 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
         t text; from_s text; to_s text; oid uuid; pid uuid; cur text; err text;
         legal_ok int := 0; ill_ok int := 0; legal_ev text := ''; ill_ev text := '';
         init_after text; unset_after text; unset_err text := '';
-      BEGIN
+       BEGIN
         oid := ${q(O_A)}::uuid;
+        -- P-3: the battery cleans up its own probe payment rows; set the trusted
+        -- full-reversal flag so those DELETEs pass the P-3 immutability guard.
+        PERFORM set_config('app.payment_ledger_reopen','on',true);
         -- LEGAL: insert at from-state (INSERT bypasses guard), update to to-state (guard must allow)
         FOREACH t IN ARRAY string_to_array('${LEGAL}', ',') LOOP
           from_s := split_part(t,':',1); to_s := split_part(t,':',2);
@@ -157,7 +168,7 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
     P('S3-8', 'P-1 reflow: same-location pay still ALLOWED (no over-block)', rSame.status === 200 && /paid/.test(rSame.body), 'status=' + rSame.status + ' ' + rSame.body.slice(0, 60));
 
     // ============ zero-residue cleanup ============
-    if (PIDS.length) S(`DELETE FROM order_payments WHERE id IN (${PIDS.map(q).join(',')})`);
+    if (PIDS.length) S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_payments WHERE id IN (${PIDS.map(q).join(',')}); SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);
     cleanupOids();
     S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'P2_%')`);
     S(`DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'P2_%')`);
@@ -173,7 +184,7 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
     try { fs.writeFileSync('.p2-gate-report.json', JSON.stringify({ date: new Date().toISOString(), results, total: results.length, failed: failed.length, crashed: false }, null, 2)); } catch (e) {}
     process.exit(failed.length ? 1 : 0);
   } catch (e) {
-    try { cleanupOids(); S(`DELETE FROM order_payments WHERE id=${q(PAY_FIX ? PAY_FIX.pid : '00000000-0000-0000-0000-000000000000')}`); if (PAY_FIX) S(`DELETE FROM orders WHERE id=${q(PAY_FIX.oid)}`); S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'P2_%')`); S(`DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'P2_%')`); S(`DELETE FROM approval_requests WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'P2_%') OR reviewed_by IN (SELECT id FROM staff WHERE name LIKE 'P2_%')`); S(`ALTER TABLE public.staff DISABLE TRIGGER trg_staff_prevent_delete`); S(`DELETE FROM staff WHERE name LIKE 'P2_%'`); S(`ALTER TABLE public.staff ENABLE TRIGGER trg_staff_prevent_delete`); } catch (e2) {}
+    try { cleanupOids(); S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_payments WHERE id=${q(PAY_FIX ? PAY_FIX.pid : '00000000-0000-0000-0000-000000000000')}; DELETE FROM orders WHERE id=${q(PAY_FIX ? PAY_FIX.oid : '00000000-0000-0000-0000-000000000000')}; SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`); S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'P2_%')`); S(`DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'P2_%')`); S(`DELETE FROM approval_requests WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'P2_%') OR reviewed_by IN (SELECT id FROM staff WHERE name LIKE 'P2_%')`); S(`ALTER TABLE public.staff DISABLE TRIGGER trg_staff_prevent_delete`); S(`DELETE FROM staff WHERE name LIKE 'P2_%'`); S(`ALTER TABLE public.staff ENABLE TRIGGER trg_staff_prevent_delete`); } catch (e2) {}
     try { fs.writeFileSync('.p2-gate-report.json', JSON.stringify({ total: results.length, failed: results.filter(r => !r.pass).length, crashed: true, error: String(e && e.message || e) }, null, 2)); } catch (e2) {}
     console.error('P2 GATE HARNESS ERROR:', e && e.message || e);
     process.exit(2);

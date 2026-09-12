@@ -1,7 +1,11 @@
 # HANDOVER — Saito Admin POS (K → P)
 
 **Date:** 2026-09-12 · **Head:** see `git log --oneline -1` (post-K freeze)
-**Checkpoint:** `A 🔒 → E/S 🔒 → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3..P-12 NEXT`
+**Checkpoint:** `A ⚠️ → E/S ⚠️ → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3 🔒 → P-4 NEXT`
+
+> **A / E/S are ⚠️ pre-existing blockers, NOT P regressions** (bisection-proven: the
+> failures persist with P-3 triggers disabled). See the disposition block after the P-3
+> record below. Do NOT re-open P-1/P-2/P-3 on account of A/E/S.
 
 This document is the operating baseline for the next agent. It is NOT "K is done"
 — it is **frozen baseline + exact remaining architecture + next module (P) entry
@@ -59,6 +63,50 @@ ratified decision). `cooking` = kitchen-aggregate alias of `preparing`, NOT an i
 state. Contract: `P2_STATE_CONTRACT_DRAFT_2026-09-12.md`. Evidence:
 `P0_INVENTORY_AUDIT_2026-09-12.md`, `P1_PERMISSION_FINDINGS_2026-09-12.md`,
 `P1_AUTHZ_CONTRACT_FREEZE_2026-09-12.md`.
+
+**P-3 (2026-09-13, batch `20260912000003_p3_amount_immutable.sql`)** — frozen gate
+`.p3-gate.cjs` = **25/25** (`node .p3-gate.cjs`, zero-residue); re-verified post-batch
+green: P-1 29/29, P-2 13/13, O 38/38, F 35/35, K L3 8/8, K L4 16/16. Scope (ratified):
+- **P3-F3 financial immutability** — `trg_order_payment_immutable` on
+  `order_payments`: INSERT ok; UPDATE `status` → P-2 guard (separate); UPDATE
+  `amount`/`method`/`is_refund` → **BLOCKED** (`PAYMENT_RECORD_IMMUTABLE`); DELETE →
+  **BLOCKED** except the trusted path. `payment_method` is deliberately NOT blocked
+  (`saito_reverse_payment` uses `payment_method='reversed'` as its soft-delete marker).
+  `orders.paid_amount` remains a derived aggregate; corrections are new refund/reverse
+  rows (append-only), already the code model.
+- **P3-F4(b) underpayment = BLOCK** — `trg_order_underpayment_guard` on `orders`:
+  an order may not enter `paid`/`closed` while `0 < paid_amount < total_amount`
+  (→ `PAYMENT_INCOMPLETE`, order stays open). Full-amount and zero-amount (void) closes
+  + `cancelled` are unaffected; legacy underpaid-closed rows untouched (UPDATE-only).
+- **Trusted reopen exception** — `reopen_order_atomic` (the single authorized,
+  actor-validated, audited full-reversal path) sets a **transaction-scoped**
+  `app.payment_ledger_reopen` flag so it alone can remove an order's payment records.
+  External callers cannot forge it (it is set inside the SECURITY DEFINER fn only).
+- **TG_NESTED cascade exemption REJECTED** — a bare `DELETE FROM orders` would
+  otherwise cascade-wipe payment rows un-audited (a tamper loophole). Strict trigger
+  kept. Consequence: the **P-2 gate + K L3/L4** test-teardown `DELETE FROM orders` now
+  removes probe `order_payments` via the trusted flag (test-only, assertions frozen).
+- P3-F1 historical reconciliation gap (342 paid-without-record + 42 mismatch, all
+  pre-2026-09-09) = **FREEZE / NO BACKFILL** (separate ratified data decision).
+  P3-F2 cash→drawer scoping = **P-8**. P3-F6 atomicity (FOR UPDATE lock-first,
+  idempotency dedup, in-fn amount invariants, `PAYMENT_EXCEEDS_REMAINING`) = sound,
+  frozen. Contract: `P3_AMOUNT_CONTRACT_DRAFT_2026-09-12.md`.
+
+### P-3 freeze — A / E-S pre-existing blocker disposition (NOT P regressions)
+**Proof (bisection):** with both P-3 triggers `DISABLE TRIGGER`, A and E/S fail
+**identically**; re-enabled, P-1/P-2/O/F/K all green. So A/E-S are independent of P-3.
+- **E/S (E4–E9):** `cash_in_atomic` / `close_cash_register_v2` now resolve to a
+  **new signature with a leading `p_session_id`** (live PostgREST: "Expected 4 arguments,
+  got 3" for `cash_in_atomic`; `close_cash_register_v2` = 5-arg). The frozen E/S gate +
+  `cash-drawer/route.ts` still call the old arg list. **None of the P-1/P-2/P-3
+  migrations touch these RPCs** — the drift came from another session/agent. DO NOT edit
+  the E/S gate blind: first attribute the cash-RPC signature change to a ratified task.
+- **A (O-1, C-2):** module-A-specific. O-1 = `invalid input syntax for type uuid: ""`
+  (a fixture/override id lookup returning empty); C-2 = login-then-disable race
+  (`auth-after=200`). Neither produces a P-3 error signature. Remains an **A
+  investigation**, out of P-3 scope.
+- **System is NOT globally frozen until A/E-S are resolved**, but **P-1/P-2/P-3 are
+  individually frozen** and must not be re-opened on account of A/E-S.
 
 Build: `cd artifacts/saito-admin && npx next build` (exit 0, 270 static).
 Types: `npx --no-install tsc --noEmit` → 0 errors (non-test).

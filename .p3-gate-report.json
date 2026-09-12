@@ -1,0 +1,108 @@
+{
+  "date": "2026-09-12T20:22:52.767Z",
+  "results": [
+    {
+      "id": "A1",
+      "pass": true
+    },
+    {
+      "id": "A2",
+      "pass": true
+    },
+    {
+      "id": "A4",
+      "pass": true
+    },
+    {
+      "id": "A5",
+      "pass": true
+    },
+    {
+      "id": "A6",
+      "pass": true
+    },
+    {
+      "id": "A8",
+      "pass": true
+    },
+    {
+      "id": "A7a",
+      "pass": true
+    },
+    {
+      "id": "A7b",
+      "pass": true
+    },
+    {
+      "id": "A4b",
+      "pass": true
+    },
+    {
+      "id": "A9",
+      "pass": true
+    },
+    {
+      "id": "A10",
+      "pass": true
+    },
+    {
+      "id": "B1",
+      "pass": true
+    },
+    {
+      "id": "B2",
+      "pass": true
+    },
+    {
+      "id": "B3",
+      "pass": true
+    },
+    {
+      "id": "B4",
+      "pass": true
+    },
+    {
+      "id": "B5",
+      "pass": true
+    },
+    {
+      "id": "B6",
+      "pass": true
+    },
+    {
+      "id": "C1",
+      "pass": true
+    },
+    {
+      "id": "H1",
+      "pass": true
+    },
+    {
+      "id": "H2",
+      "pass": true
+    },
+    {
+      "id": "H3",
+      "pass": true
+    },
+    {
+      "id": "H4",
+      "pass": true
+    },
+    {
+      "id": "H5a",
+      "pass": true
+    },
+    {
+      "id": "H5b",
+      "pass": true
+    },
+    {
+      "id": "Z1",
+      "pass": true
+    }
+  ],
+  "total": 25,
+  "failed": 0,
+  "crashed": false
+}

@@ -1,6 +1,6 @@
 {
-  "startTotal": 16,
-  "endTotal": 16,
+  "startTotal": 27,
+  "endTotal": 27,
   "results": [
     {
       "id": "M1",
@@ -84,7 +84,7 @@
       "id": "F10-3",
       "name": "undo-merge outbox event exists (count increased)",
       "pass": true,
-      "evidence": "outbox table.*: 596 -> 604"
+      "evidence": "outbox table.*: 1092 -> 1100"
     },
     {
       "id": "F10-4",
@@ -198,7 +198,7 @@
       "id": "Z3",
       "name": "production table count restored to baseline",
       "pass": true,
-      "evidence": "baseline=16 end=16"
+      "evidence": "baseline=27 end=27"
     },
     {
       "id": "Z4",

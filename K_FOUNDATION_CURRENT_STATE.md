@@ -550,6 +550,34 @@ forbidden final state (order PAID + table OCCUPIED + pointer→paid order) = 0; 
 (no floor.manage) dismiss → 403 (F-01 intact). UI routing was already correct
 (ActionSheet: paid→release, active→dismiss); only the route's missing params were the defect.
 
+### L4 — DIRTY RESOLVED (Option 1 ratified) + FULL LIFECYCLE VALIDATED (16/16)
+**Decision (user, ratified 2026-09-12): Option 1 — preserve `dirty`, classified as a
+POST-PAYMENT CLEANUP/SERVICE state, NOT a 4th occupancy state.** Real F&B model:
+`EMPTY → OCCUPIED → ORDER/KITCHEN/SERVICE → PAID → DIRTY/NEEDS_CLEANUP → CLEAR → EMPTY`.
+PAID+OCCUPIED stays VALID (customer still sitting). Three invariants enforced + proven
+(.k-l4-probe.cjs, 16/16, real HTTP+CSRF+session, zero-residue):
+1. **`dirty` → NEW SEAT is DENIED.** Fix: `/api/tables/seat` now 409s on `dirty`
+   (pre-fix it only blocked `reserved`, so a paid table could be re-seated = the exact
+   "payment → new seat" confusion). Only Clear may dirty→empty.
+2. **`dirty` is shown (not hidden as available)** — TableCard renders it with the
+   Clear (trash) affordance; the NEW-SEAT path is server-blocked regardless.
+3. **Clear = canonical DIRTY→EMPTY** (`clear_table_atomic`: floor.manage + session
+   location scope + open-order/pointer guards, idempotent, no active-order
+   resurrection). Proven: Pay→Dirty→Clear→Empty works; Pay→Dirty→New Seat denied.
+**Full lifecycle proven:** empty→NEW SEAT→order→send(kitchen)→KITCHEN READY
+(table stays occupied; READY≠SERVED)→SERVE (explicit `mark_served_atomic`)→PAY
+(order paid, table DIRTY, pointer cleared)→CLEAR (empty)→NEW SEAT again. Concurrency:
+pay-vs-seat (no lost update), 2×pay (no double-charge, total 10 not 20), 2×serve
+(consistent). Cross-location seat denied. 0 residue.
+
+### E/S-045 — Z10 close_shift status regression FIXED (E/S restored to 54/54)
+Migration 019 fixed `clock_out_token`+`clock_out_atomic_token` to set
+`shifts.status='CLOSED'` on close, but **missed two close paths**: `auto_clockout_staff`
+(12h auto-close) and `close_shift_atomic` (service-role close) — both set `closed_at` but
+NOT `status`, leaving shifts `OPEN`+closed which `trg_shift_no_overlap` still counts as
+open → staff could **never re-clock-in** (019's own warning) and violated E/S gate Z10.
+045 adds `status='CLOSED'` to both + one-time repair of the 4 live violating rows. E/S 54/54.
+
 ### L3-NEW FINDING — DECISION NEEDED: payment writes a 4th table state `dirty`
 `complete_payment_atomic` (the O **payment** function — DISTINCT from the reconciled
 `transition_order_atomic`) writes **`table_floors.status='dirty'`** on full payment (when no

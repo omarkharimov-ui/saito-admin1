@@ -88,9 +88,30 @@ green: P-1 29/29, P-2 13/13, O 38/38, F 35/35, K L3 8/8, K L4 16/16. Scope (rati
   removes probe `order_payments` via the trusted flag (test-only, assertions frozen).
 - P3-F1 historical reconciliation gap (342 paid-without-record + 42 mismatch, all
   pre-2026-09-09) = **FREEZE / NO BACKFILL** (separate ratified data decision).
-  P3-F2 cash→drawer scoping = **P-8**. P3-F6 atomicity (FOR UPDATE lock-first,
-  idempotency dedup, in-fn amount invariants, `PAYMENT_EXCEEDS_REMAINING`) = sound,
-  frozen. Contract: `P3_AMOUNT_CONTRACT_DRAFT_2026-09-12.md`.
+   P3-F2 cash→drawer scoping = **P-8**. P3-F6 atomicity (FOR UPDATE lock-first,
+   idempotency dedup, in-fn amount invariants, `PAYMENT_EXCEEDS_REMAINING`) = sound,
+   frozen. Contract: `P3_AMOUNT_CONTRACT_DRAFT_2026-09-12.md`.
+
+### P-1 / P-3 baseline integrity — RATIFIED (2026-09-13)
+**Test-residue cleanup + P-1 harness compatibility fix only — no production logic
+changed** (no `.ts` route, no migration, no RPC signature). Details + raw evidence:
+`P1_P3_BASELINE_INTEGRITY_2026-09-13.md`.
+- `.p1-gate.cjs` `cleanupOids` + error-handler now teardown probe payments in ONE
+  transaction under the P-3 trusted `app.payment_ledger_reopen` flag (P-3 patched
+  `.p2-gate.cjs` + K probes but **missed** `.p1-gate.cjs`; the miss made P-1 runs crash
+  post-functional and P1-25 unreachable). `.o-gate.cjs` deliberately NOT patched (0
+  `order_payments` references).
+- Live probe residue removed (trusted flag, single txn each): LOC_B twin `a4d0f34f` +
+  1 item; LOC_A twins `bcb69ece`/`0968de09`/`19995ae2`/`d204e1c5` + 1 item each (all
+  `created_by IS NULL`, `product_name='P'`/NULL, 0 payments). `P1_` fixtures
+  INACTIVATED (never deleted — F-contract). 1 orphan `inventory_logs` row retained
+  intentionally (append-only immutable ledger, not residue). `created_by IS NULL`
+  orders: **4 → 0**.
+- Location single-location-with-data fallback restored:
+  `Kassir`/`Tural Memmedov` `p1_actor_allowed_at_location` = true (live).
+- **Green chain (live, 2026-09-13): P-1 29/29 → P-2 13/13 → P-3 25/25 → O 38/38,
+  F 35/35, K L3 8/8, K L4 16/16, zero residue.** P-1→P-3 foundation chain = clean
+  ratified baseline; no P-side blocker remains for **P-4 (Idempotency) NEXT**.
 
 ### P-3 freeze — A / E-S pre-existing blocker disposition (NOT P regressions)
 **Proof (bisection):** with both P-3 triggers `DISABLE TRIGGER`, A and E/S fail

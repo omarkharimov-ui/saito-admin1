@@ -33,13 +33,20 @@ const cleanupOids=()=>{
   const list=OIDS.map(q).join(',');
   S(`ALTER TABLE public.inventory_logs DISABLE TRIGGER trg_inventory_logs_immutable`);
   try {
-    S(`DELETE FROM order_payments WHERE order_id IN (${list})`);
-    S(`DELETE FROM payment_idempotency_keys WHERE order_id IN (${list})`);
-    S(`DELETE FROM outbox_events WHERE aggregate_id IN (${list})`);
-    S(`DELETE FROM audit_logs WHERE order_id IN (${list})`);
-    S(`DELETE FROM operation_logs WHERE order_id IN (${list})`);
-    S(`DELETE FROM order_items WHERE order_id IN (${list})`);
-    S(`DELETE FROM orders WHERE id IN (${list})`);
+    // P-3 contract: order_payments rows are immutable — teardown MUST run in one
+    // transaction under the trusted app.payment_ledger_reopen flag (same pattern
+    // as .p2-gate.cjs / .p3-gate.cjs; P-3 patched those, this harness was missed).
+    S(`BEGIN;
+        SELECT set_config('app.payment_ledger_reopen','on',false);
+        DELETE FROM order_payments WHERE order_id IN (${list});
+        DELETE FROM payment_idempotency_keys WHERE order_id IN (${list});
+        DELETE FROM outbox_events WHERE aggregate_id IN (${list});
+        DELETE FROM audit_logs WHERE order_id IN (${list});
+        DELETE FROM operation_logs WHERE order_id IN (${list});
+        DELETE FROM order_items WHERE order_id IN (${list});
+        DELETE FROM orders WHERE id IN (${list});
+        SELECT set_config('app.payment_ledger_reopen','off',false);
+        COMMIT;`);
   } finally {
     S(`ALTER TABLE public.inventory_logs ENABLE TRIGGER trg_inventory_logs_immutable`);
   }
@@ -161,6 +168,6 @@ const cleanupOids=()=>{
   process.exit(failed.length?1:0);
 })().catch(e=>{
   // best-effort residue cleanup even on error
-  try{const list=ALL_OIDS.map(q).join(',');if(list){S(`DELETE FROM order_payments WHERE order_id IN (${list})`);S(`DELETE FROM payment_idempotency_keys WHERE order_id IN (${list})`);S(`DELETE FROM outbox_events WHERE aggregate_id IN (${list})`);S(`DELETE FROM audit_logs WHERE order_id IN (${list})`);S(`DELETE FROM operation_logs WHERE order_id IN (${list})`);S(`DELETE FROM order_items WHERE order_id IN (${list})`);S(`DELETE FROM orders WHERE id IN (${list})`);}S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'P1_%')`);S(`DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'P1_%')`);S(`DELETE FROM approval_requests WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'P1_%') OR reviewed_by IN (SELECT id FROM staff WHERE name LIKE 'P1_%')`);S(`UPDATE staff SET is_active=false, status='INACTIVE' WHERE name LIKE 'P1_%'`);S(`ALTER TABLE public.staff DISABLE TRIGGER trg_staff_prevent_delete`);try{S(`DELETE FROM staff WHERE name LIKE 'P1_%'`);}finally{S(`ALTER TABLE public.staff ENABLE TRIGGER trg_staff_prevent_delete`);}fs.writeFileSync('.p1-gate-report.json',JSON.stringify({at:new Date().toISOString(),crashed:true,total:results.length,failed:results.filter(x=>!x.pass).length,results,error:String(e).slice(0,300)},null,2));}catch{}
+  try{const list=ALL_OIDS.map(q).join(',');if(list){S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_payments WHERE order_id IN (${list}); DELETE FROM payment_idempotency_keys WHERE order_id IN (${list}); DELETE FROM outbox_events WHERE aggregate_id IN (${list}); DELETE FROM audit_logs WHERE order_id IN (${list}); DELETE FROM operation_logs WHERE order_id IN (${list}); DELETE FROM order_items WHERE order_id IN (${list}); DELETE FROM orders WHERE id IN (${list}); SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);}S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'P1_%')`);S(`DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'P1_%')`);S(`DELETE FROM approval_requests WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'P1_%') OR reviewed_by IN (SELECT id FROM staff WHERE name LIKE 'P1_%')`);S(`UPDATE staff SET is_active=false, status='INACTIVE' WHERE name LIKE 'P1_%'`);S(`ALTER TABLE public.staff DISABLE TRIGGER trg_staff_prevent_delete`);try{S(`DELETE FROM staff WHERE name LIKE 'P1_%'`);}finally{S(`ALTER TABLE public.staff ENABLE TRIGGER trg_staff_prevent_delete`);}fs.writeFileSync('.p1-gate-report.json',JSON.stringify({at:new Date().toISOString(),crashed:true,total:results.length,failed:results.filter(x=>!x.pass).length,results,error:String(e).slice(0,300)},null,2));}catch{}
   console.error('PROBE ERROR',e);process.exit(2);
 });

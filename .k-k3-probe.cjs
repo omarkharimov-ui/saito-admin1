@@ -153,20 +153,24 @@ const OK=r=>r.status===200;
     S(`DELETE FROM outbox_events WHERE payload->>'table_number'='505'`);
   }
 
-  // ---- K3-6 (GAP DETECTION): legacy order-level fns on a PAID order (no finalized guard) ----
-  // These are the fns G7 preserved for stock-safety. They lack the paid/closed/cancelled
-  // guard the canonical path has. K-3 documents actual behavior (expected: they still
-  // mutate -> GAP). Reported honestly; business fix (add guard) is a separate gate decision.
+  // ---- K3-6 (FIXED by 044, ratified): legacy order-level fns now REFUSE a PAID order ----
+  // Before 044 these fns (G7 stock-safe targets) mutated paid/closed/cancelled orders with
+  // no finalized guard (the double-stock-consumption gap). 044 adds the ORDER_FINALIZED
+  // guard to all 4 (mark_order_ready / prepare_order_items / mark_order_completed /
+  // update_order_item_status), preserving mark_order_ready's stock consumption for
+  // NON-finalized orders. Expected now: refuse, NO mutation, NO stock change.
   {
     const O=mkOrder(506,'paid','preparing');
     const stockB=parseFloat(S(`SELECT current_stock::text FROM ingredients WHERE id=${q(ingId)}`));
     const r=await rpc('mark_order_ready',{p_order_id:O.o});
+    let b={}; try{b=JSON.parse(r.body);}catch{}
     const st=S(`SELECT kitchen_status FROM order_items WHERE id=${q(O.it)}`);
     const logs=S(`SELECT count(*)::text FROM inventory_logs WHERE order_item_id=${q(O.it)} AND type='order_consumption'`);
-    const mutated = (r.status===200 && st==='ready'); // legacy fn mutated a paid order
-    P('K3-6','LEGACY GAP: mark_order_ready on PAID order STILL mutates (no finalized guard) -> GAP flagged',
-      true, 'status='+r.status+' item='+st+' stocklog='+logs+' (mutated='+mutated+'). Canonical path refuses (K3-3); legacy order-level fns do NOT. Recommend: add finalized guard to mark_order_ready/prepare_order_items/update_order_item_status.');
-    if(logs==='1') S(`SELECT public.reverse_stock_for_items('[{"order_item_id":"${O.it}","reverse_qty":2}]')`);
+    const stockA=parseFloat(S(`SELECT current_stock::text FROM ingredients WHERE id=${q(ingId)}`));
+    const refused = (b && b.success===false && b.error==='ORDER_FINALIZED');
+    P('K3-6','legacy mark_order_ready on PAID order -> ORDER_FINALIZED refuse, NO mutation, NO stock change (044 guard; parity w/ K3-3)',
+      refused && st==='preparing' && logs==='0' && stockA===stockB, 'status='+r.status+' refused='+refused+' item='+st+' stocklog='+logs+' stock '+stockB+'->'+stockA);
+    if(logs!=='0') S(`SELECT public.reverse_stock_for_items('[{"order_item_id":"${O.it}","reverse_qty":2}]')`);
     S(`ALTER TABLE public.inventory_logs DISABLE TRIGGER trg_inventory_logs_immutable`);
     S(`DELETE FROM inventory_logs WHERE order_item_id=${q(O.it)}`);
     S(`ALTER TABLE public.inventory_logs ENABLE TRIGGER trg_inventory_logs_immutable`);

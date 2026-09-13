@@ -1,0 +1,230 @@
+CREATE OR REPLACE FUNCTION public.complete_payment_atomic_v2(p_order_id uuid, p_payments jsonb DEFAULT '[]'::jsonb, p_payment_method text DEFAULT 'cash'::text, p_cash_amount numeric DEFAULT 0, p_card_amount numeric DEFAULT 0, p_tip_amount numeric DEFAULT 0, p_discount_amount numeric DEFAULT 0, p_discount_type text DEFAULT NULL::text, p_performed_by uuid DEFAULT NULL::uuid, p_performed_by_terminal_id text DEFAULT NULL::text, p_cash_drawer_session_id uuid DEFAULT NULL::uuid, p_cash_received numeric DEFAULT NULL::numeric, p_idempotency_key text DEFAULT NULL::text, p_location_id uuid DEFAULT NULL::uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_order RECORD;
+  v_payment JSONB;
+  v_amount NUMERIC;
+  v_is_refund BOOLEAN;
+  v_method TEXT;
+  v_non_refund_total NUMERIC := 0;
+  v_refund_total NUMERIC := 0;
+  v_cash_total NUMERIC := 0;
+  v_card_total NUMERIC := 0;
+  v_now TIMESTAMPTZ := NOW();
+  v_payment_ids UUID[] := '{}';
+  v_new_paid NUMERIC;
+  v_new_refund NUMERIC;
+  v_new_status TEXT;
+  v_remaining NUMERIC;
+  v_change NUMERIC := 0;
+  v_performer_name TEXT;
+  v_idem_result JSONB;
+  v_result JSONB;
+  v_ledger_id UUID;
+  v_order_loc uuid;
+BEGIN
+  PERFORM public.validate_actor(p_performed_by);
+  -- ═══ P-1 M2: LOCATION ASSERTION (fail-closed, D-5; ratified 2026-09-12) ═══
+  -- p_location_id = the operator's SESSION-RESOLVED location (server-derived in the
+  -- route via resolveWriteLocationContext — never client-supplied). The order must
+  -- sit at exactly that location, and the actor must be allowed there
+  -- (active staff_locations binding ∪ superadmin/owner ∪ documented
+  -- single-location-with-data fallback). No location context => fail closed.
+  IF p_location_id IS NULL THEN
+    RAISE EXCEPTION 'LOCATION_CONTEXT_MISSING' USING ERRCODE = 'P0001';
+  END IF;
+  SELECT location_id INTO v_order_loc FROM orders WHERE id = p_order_id;
+  IF v_order_loc IS NULL THEN
+    RAISE EXCEPTION 'ORDER_LOCATION_NULL' USING ERRCODE = 'P0001';
+  END IF;
+  IF v_order_loc IS DISTINCT FROM p_location_id THEN
+    RAISE EXCEPTION 'LOCATION_MISMATCH: order location % != operator session location %',
+      v_order_loc, p_location_id USING ERRCODE = '42501';
+  END IF;
+  IF p_performed_by IS NOT NULL
+     AND NOT public.p1_actor_allowed_at_location(p_performed_by, p_location_id) THEN
+    RAISE EXCEPTION 'LOCATION_ACCESS_DENIED: actor not allowed at location %',
+      p_location_id USING ERRCODE = '42501';
+  END IF;
+  SELECT name INTO v_performer_name FROM staff WHERE id = p_performed_by;
+
+  -- ═══ 1. LOCK ORDER (serialization point for concurrency) ═══
+  SELECT * INTO v_order FROM orders WHERE id = p_order_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'ORDER_NOT_FOUND');
+  END IF;
+
+  -- ═══ 2. D-6: IDEMPOTENCY DEDUPE (same key → prior result, no new charge) ═══
+  -- AFTER the lock, so concurrent same-key calls serialize; the loser sees the
+  -- winner's committed key row and returns the prior result.
+  IF p_idempotency_key IS NOT NULL THEN
+    SELECT result INTO v_idem_result
+    FROM payment_idempotency_keys WHERE key = p_idempotency_key;
+    IF FOUND THEN
+      RETURN (COALESCE(v_idem_result, jsonb_build_object('success', false, 'error', 'IDEMPOTENCY_DATA_MISSING')))
+        || jsonb_build_object('idempotent', true, 'duplicate', true);
+    END IF;
+  END IF;
+
+  -- ═══ 3. PARSE PAYMENTS (split non-refund vs refund) ═══
+  FOR v_payment IN SELECT * FROM jsonb_array_elements(p_payments) LOOP
+    v_amount := COALESCE((v_payment->>'amount')::NUMERIC, 0);
+    v_is_refund := COALESCE((v_payment->>'is_refund')::BOOLEAN, false);
+    v_method := COALESCE((v_payment->>'method')::TEXT, 'cash');
+
+    IF v_is_refund THEN
+      v_refund_total := v_refund_total + v_amount;
+    ELSE
+      v_non_refund_total := v_non_refund_total + v_amount;
+      IF v_method = 'cash' THEN
+        v_cash_total := v_cash_total + v_amount;
+      ELSE
+        v_card_total := v_card_total + v_amount;
+      END IF;
+    END IF;
+  END LOOP;
+
+  -- ═══ 4. REFUND GUARD (refund ≤ net paid) ═══
+  IF v_refund_total > 0 THEN
+    IF v_refund_total > COALESCE(v_order.paid_amount, 0) - COALESCE(v_order.refund_amount, 0) + 0.01 THEN
+      RAISE EXCEPTION 'REFUND_EXCEEDS_PAID: refund % > net_paid % (paid % - refunded %)',
+        v_refund_total,
+        COALESCE(v_order.paid_amount, 0) - COALESCE(v_order.refund_amount, 0),
+        v_order.paid_amount, COALESCE(v_order.refund_amount, 0);
+    END IF;
+  END IF;
+
+  -- ═══ 5. ALREADY-PAID GUARD (non-refund on a fully-paid order → reject) ═══
+  -- Placed BEFORE the overpay guard so a full re-pay of a paid order surfaces
+  -- ORDER_ALREADY_PAID (route maps it to HTTP 409) rather than a generic
+  -- overpay error. Refunds are exempt (v_non_refund_total = 0) and still flow
+  -- into the already-paid order below.
+  IF v_non_refund_total > 0
+     AND v_order.status = 'paid'
+     AND COALESCE(v_order.paid_amount, 0) >= COALESCE(v_order.total_amount, 0) - 0.01 THEN
+    RAISE EXCEPTION 'ORDER_ALREADY_PAID';
+  END IF;
+
+  -- ═══ 6. OVERPAY GUARD (DB-enforced; holds under race via FOR UPDATE) ═══
+  -- Catches partial overpay (paid < total but payment > remaining).
+  v_remaining := COALESCE(v_order.total_amount, 0) - COALESCE(v_order.paid_amount, 0);
+  IF v_non_refund_total > v_remaining + 0.01 THEN
+    RAISE EXCEPTION 'PAYMENT_EXCEEDS_REMAINING: payment % > remaining % (total %)',
+      v_non_refund_total, v_remaining, v_order.total_amount;
+  END IF;
+
+  -- ═══ 7a. COMPUTE NEW VALUES ═══
+  v_new_paid := COALESCE(v_order.paid_amount, 0) + v_non_refund_total - v_refund_total;
+  v_new_refund := COALESCE(v_order.refund_amount, 0) + v_refund_total;
+
+  IF v_refund_total > 0 THEN
+    v_new_status := CASE
+      WHEN v_new_paid <= 0.01 THEN 'refunded'
+      ELSE 'partially_refunded'
+    END;
+  ELSE
+    v_new_status := CASE
+      WHEN v_new_paid >= COALESCE(v_order.total_amount, 0) - 0.01 THEN 'paid'
+      ELSE v_order.status
+    END;
+  END IF;
+
+  -- ═══ 7b. D-7: WRITE ORDER_PAYMENTS LEDGER ROWS (atomic, same txn) ═══
+  -- validate_payment_order_balance trigger adds a second overpay layer.
+  FOR v_payment IN SELECT * FROM jsonb_array_elements(p_payments) LOOP
+    v_amount := COALESCE((v_payment->>'amount')::NUMERIC, 0);
+    IF v_amount <= 0 THEN CONTINUE; END IF;
+    v_is_refund := COALESCE((v_payment->>'is_refund')::BOOLEAN, false);
+    v_method := COALESCE((v_payment->>'method')::TEXT, 'cash');
+
+    INSERT INTO order_payments (
+      order_id, payment_method, method, amount, status,
+      is_refund, is_partial, created_by, reference, split_group_id, currency
+    ) VALUES (
+      p_order_id, v_method, v_method, v_amount, 'captured',
+      v_is_refund,
+      COALESCE((v_payment->>'is_partial')::BOOLEAN, false),
+      p_performed_by, p_idempotency_key,
+      (v_payment->>'split_group_id')::UUID,
+      COALESCE((v_payment->>'currency')::TEXT, 'AZN')
+    ) RETURNING id INTO v_ledger_id;
+
+    v_payment_ids := array_append(v_payment_ids, v_ledger_id);
+  END LOOP;
+
+  -- ═══ 7c. UPDATE ORDER ═══
+  UPDATE orders SET
+    paid_amount = v_new_paid,
+    refund_amount = v_new_refund,
+    cash_amount = COALESCE(cash_amount, 0) + v_cash_total,
+    card_amount = COALESCE(card_amount, 0) + v_card_total,
+    tip_amount = COALESCE(tip_amount, 0) + p_tip_amount,
+    discount_amount = p_discount_amount,
+    discount_type = p_discount_type,
+    payment_method = p_payment_method,
+    status = v_new_status,
+    cash_received = COALESCE(cash_received, 0) + COALESCE(p_cash_received, v_cash_total),
+    change_amount = COALESCE(change_amount, 0) + v_change,
+    paid_at = CASE WHEN v_new_status = 'paid' AND v_order.status != 'paid' THEN v_now ELSE paid_at END,
+    updated_at = v_now,
+    version = COALESCE(version, 0) + 1
+  WHERE id = p_order_id;
+
+  -- ═══ 7d. BUILD RESULT ═══
+  v_result := jsonb_build_object(
+    'success', true,
+    'action', CASE WHEN v_refund_total > 0 THEN 'refund' ELSE 'payment' END,
+    'paid_amount', v_new_paid,
+    'refund_amount', v_new_refund,
+    'total_amount', v_order.total_amount,
+    'remaining', GREATEST(0, COALESCE(v_order.total_amount, 0) - v_new_paid),
+    'is_fully_paid', v_new_paid >= COALESCE(v_order.total_amount, 0) - 0.01,
+    'status', v_new_status,
+    'cash_received', p_cash_received,
+    'change', v_change,
+    'tip_amount', p_tip_amount,
+    'payment_ids', to_jsonb(v_payment_ids),
+    'idempotent', false,
+    'table_number', v_order.table_number,
+    'timestamp', v_now
+  );
+
+  -- ═══ 7e. D-6: STORE IDEMPOTENCY KEY + RESULT (atomic) ═══
+  IF p_idempotency_key IS NOT NULL THEN
+    INSERT INTO payment_idempotency_keys (key, order_id, amount, status, result)
+    VALUES (p_idempotency_key, p_order_id, v_non_refund_total - v_refund_total, 'completed', v_result);
+  END IF;
+
+  -- ═══ 7f. AUDIT ═══
+  PERFORM public.log_audit(
+    CASE WHEN v_refund_total > 0 THEN 'refund' ELSE 'payment' END,
+    'order', p_order_id::text,
+    p_performed_by, v_performer_name,
+    jsonb_build_object(
+      'status', v_order.status,
+      'paid_amount', v_order.paid_amount,
+      'refund_amount', COALESCE(v_order.refund_amount, 0)
+    ),
+    jsonb_build_object(
+      'status', v_new_status,
+      'paid_amount', v_new_paid,
+      'refund_amount', v_new_refund,
+      'payment_method', p_payment_method,
+      'amount', v_non_refund_total - v_refund_total
+    ),
+    jsonb_build_object(
+      'payments', p_payments,
+      'cash_received', p_cash_received,
+      'change', v_change,
+      'idempotency_key', p_idempotency_key
+    ),
+    NULL
+  );
+
+  RETURN v_result;
+END;
+$function$;

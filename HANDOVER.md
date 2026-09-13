@@ -1,7 +1,7 @@
 # HANDOVER — Saito Admin POS (K → P)
 
 **Date:** 2026-09-12 · **Head:** see `git log --oneline -1` (post-K freeze)
-**Checkpoint:** `A ⚠️ → E/S ⚠️ → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3 🔒 → P-4 NEXT`
+**Checkpoint:** `A ⚠️ → E/S ⚠️ → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3 🔒 → P-4 🔒 → P-5 NEXT`
 
 > **A / E/S are ⚠️ pre-existing blockers, NOT P regressions** (bisection-proven: the
 > failures persist with P-3 triggers disabled). See the disposition block after the P-3
@@ -112,6 +112,39 @@ changed** (no `.ts` route, no migration, no RPC signature). Details + raw eviden
 - **Green chain (live, 2026-09-13): P-1 29/29 → P-2 13/13 → P-3 25/25 → O 38/38,
   F 35/35, K L3 8/8, K L4 16/16, zero residue.** P-1→P-3 foundation chain = clean
   ratified baseline; no P-side blocker remains for **P-4 (Idempotency) NEXT**.
+
+### P-4 Idempotency — 🔒 (2026-09-13, migration `20260913000001_p4_idempotency_contract.sql`)
+Ratified decisions **D-1…D-8** (server-minted keys, `(namespace,key)` scope, 409 on
+same-key-diff-payload, refund namespace, D-5 replay freshness, TTL+pruner, D-7
+failed-attempt no-consume, D-8 webhook N/A). Scope: exactly-once for payment + refund.
+- **Schema:** `payment_idempotency_keys` += `namespace`('payment'|'refund')+`expires_at`(30d);
+  PK now `(namespace,key)`; redundant global `key_unique` dropped; 9 legacy keys backfilled.
+  `complete_payment_atomic_v2`(14-arg) + `refund_with_inventory`(11-arg, `p_idempotency_key`)
+  dedupe under `FOR UPDATE`; mismatch → `IDEMPOTENCY_CONFLICT` (409, zero mutation);
+  replay returns **top-level `original` + `current`** (live re-read). `prune_expired_idempotency_keys()`
+  (service_role). **Keyless pay/refund now 400 `IDEMPOTENCY_KEY_REQUIRED`** (D-1).
+- **ROOT-CAUSE FIX found+applied during verification:** the conflict `RAISE` originally used
+  `USING ERRCODE='40001'` (serialization_failure), which **hangs the PostgREST→pgbouncer
+  gateway** (backend observed `idle in transaction (aborted)`, `ClientRead`; error never
+  reached the client → 500/504/120s timeout). Defaulting to **P0001** (same as the proven
+  `ORDER_ALREADY_PAID` path) fixes it → **real HTTP 409** confirmed. Stripped from live fns +
+  the committed migration.
+- **Harness compatibility (not production logic):** `.k-l3-probe.cjs` + `.k-l4-probe.cjs`
+  teardown now delete `payment_idempotency_keys` rows (FK on `order_id`) before `DELETE FROM
+  orders` — same sanctioned class as the P-1 harness patch. Also a prior killed O-gate had
+  left `trg_orders_sync_table_floors`/`trg_order_table_location` DISABLED (O-gate pauses them
+  inline, not in `finally`); re-enabled — that, not P-4, caused a transient L4 12/16.
+- **Gate `.p4-gate.cjs` = 19/19** (`node .p4-gate.cjs`): keyed dup, keyless-400, double-click,
+  retry, same-key-diff-amount 409, cross-order 409, diff-key independent, refund double-click,
+  D-5 replay-freshness, concurrent identical/diff, D-7 failed-retry, zero-mutation, exactly-once,
+  PK `(namespace,key)` + namespace isolation, TTL pruner, index hygiene, zero residue.
+- **Frozen ecosystem reflow (all re-run, none assumed-green):** **P-1 29/29 · P-2 13/13 ·
+  P-3 25/25 · O 38/38 · F 35/35 · K L3 8/8 · K L4 16/16**, zero residue.
+- **Pre-existing (out of scope, flag for a future security pass, NOT a P-4 blocker):**
+  `payment_idempotency_keys` is world-readable (`anon`/`authenticated` SELECT) incl. the
+  `result` jsonb that carries financial data. Replay detection uses the route's service_role
+  client (RLS off), so the functional contract is unaffected.
+- **NOT yet committed to a processor/webhook (D-8 frozen N/A).** Next module: **P-5**.
 
 ### P-3 freeze — A / E-S pre-existing blocker disposition (NOT P regressions)
 **Proof (bisection):** with both P-3 triggers `DISABLE TRIGGER`, A and E/S fail

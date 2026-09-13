@@ -30,6 +30,8 @@ function tRow(tn){return S(`SELECT coalesce(status,'null')||'|'||coalesce(curren
   S(`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T})`);
   // P-3: order_payments are append-only; the cascade from DELETE orders is blocked, so
   // remove them via the trusted full-reversal flag (test-teardown only).
+  // P-4: payment_idempotency_keys rows FK-reference orders — remove first (metadata table, not ledger).
+  S(`DELETE FROM payment_idempotency_keys WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T})`);
   S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_payments WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T}); DELETE FROM orders WHERE table_number=${T}; SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);
   S(`UPDATE table_floors SET status='empty', current_order_id=NULL, total_amount=0, guest_count=NULL, order_count=0, has_pending=false, bill_requested=false WHERE table_number=${T} AND location_id=${q(LOCA)}`);
   S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'L3_%')`);
@@ -70,7 +72,7 @@ function tRow(tn){return S(`SELECT coalesce(status,'null')||'|'||coalesce(curren
    // route was retired; the live canonical pay path is /api/orders/pay (v2 -> order_payments).
    // The table does NOT auto-empty on pay (that's the asserted invariant); live v2 leaves it
    // occupied (pointer cleared). The dirty-vs-occupied model question is surfaced, not forced.
-   const payRes=await http('/api/orders/pay',{order_id:o2,payment_method:'card',paid_amount:100,cash_amount:0,card_amount:100,tip_amount:0,discount_amount:0},TK);
+   const payRes=await http('/api/orders/pay',{order_id:o2,payment_method:'card',paid_amount:100,cash_amount:0,card_amount:100,tip_amount:0,discount_amount:0,idempotency_key:'k3:'+crypto.randomUUID()},TK);
   let paidOk=payRes.status===200;
   const o2st=S(`SELECT status FROM orders WHERE id=${q(o2)}`);
   const t2=tRow(T);
@@ -120,6 +122,7 @@ function tRow(tn){return S(`SELECT coalesce(status,'null')||'|'||coalesce(curren
   S(`DELETE FROM operation_logs WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T})`);
   S(`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T})`);
   S(`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T})`);
+  S(`DELETE FROM payment_idempotency_keys WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T})`);
   S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_payments WHERE order_id IN (SELECT id FROM orders WHERE table_number=${T}); DELETE FROM orders WHERE table_number=${T}; SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);
   S(`UPDATE table_floors SET status='empty', current_order_id=NULL, total_amount=0, guest_count=NULL, order_count=0, has_pending=false, bill_requested=false WHERE table_number=${T} AND location_id=${q(LOCA)}`);
   S(`DELETE FROM sessions WHERE user_id IN (${q(mid)},${q(wid)})`);

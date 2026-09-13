@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RotateCcw, Wallet, CreditCard, X } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -27,6 +27,23 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
   const [reason, setReason] = useState('');
   const [method, setMethod] = useState<'cash' | 'card'>(paymentMethod === 'card' ? 'card' : 'cash');
   const [loading, setLoading] = useState(false);
+  // P-4 (D-1/D-4): refund retry token memoized per (order, amount) for this
+  // modal instance. A double-click / lost-response retry of the SAME amount
+  // reuses the SAME key → the DB replays the stored result (one refund row).
+  // A different amount gets a different key → independent refund. Sending the
+  // same key with a different amount is a 409 IDEMPOTENCY_CONFLICT at the
+  // boundary. Key text is opaque to the boundary; namespace 'refund' + the
+  // order/amount binding are enforced server-side.
+  const refundKeyRef = useRef<Map<string, string>>(new Map());
+  const refundKey = useCallback(() => {
+    const k = `${orderId}|${refundAmount}`;
+    let tok = refundKeyRef.current.get(k);
+    if (!tok) {
+      tok = `refund:${orderId}:${refundAmount}:${crypto.randomUUID()}`;
+      refundKeyRef.current.set(k, tok);
+    }
+    return tok;
+  }, [orderId, refundAmount]);
 
   useEffect(() => {
     if (open) {
@@ -52,6 +69,7 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
           amount: refundAmount,
           method,
           reason: reason || 'Müştəri şikayəti',
+          idempotency_key: refundKey(),
         }),
       });
 

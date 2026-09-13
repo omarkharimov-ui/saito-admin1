@@ -30,6 +30,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'order_id is required' }, { status: 400 });
     }
 
+    // P-4 C-1 (ratified D-1): the payment boundary REFUSES keyless financial
+    // mutations. The key is a client retry token; the DB enforces scope
+    // (namespace,key) + order/amount binding. Keyless direct RPC is a
+    // service-role-internal path only — it must not be reachable from the app.
+    if (typeof idempotency_key !== 'string' || idempotency_key.trim().length === 0) {
+      return NextResponse.json({ error: 'IDEMPOTENCY_KEY_REQUIRED' }, { status: 400 });
+    }
+    if (idempotency_key.length > 128) {
+      return NextResponse.json({ error: 'IDEMPOTENCY_KEY_INVALID' }, { status: 400 });
+    }
+
     // P-1 M2 (D-5): server-side location binding. The operator's allowed write
     // location is resolved from the SESSION (never client-supplied) and must match
     // the order's location before any financial mutation. The DB re-asserts both
@@ -140,6 +151,10 @@ export async function POST(request: NextRequest) {
       if (error.message === 'ORDER_ALREADY_PAID') {
         return NextResponse.json({ error: 'Order is already paid' }, { status: 409 });
       }
+      // P-4 C-3 (ratified D-3): same key bound to a different order/amount → 409.
+      if (error.message.startsWith('IDEMPOTENCY_CONFLICT')) {
+        return NextResponse.json({ error: error.message, idempotent_conflict: true }, { status: 409 });
+      }
       if (error.message.includes('LOCATION_MISMATCH') || error.message.includes('LOCATION_ACCESS_DENIED')) {
         return NextResponse.json({ error: error.message }, { status: 403 });
       }
@@ -147,6 +162,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'NO_LOCATION_CONTEXT' }, { status: 400 });
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // P-4 C-6 (ratified D-6): best-effort prune of expired key metadata
+    // (30-day retention). Advisory-locked + idempotent; failure NEVER blocks
+    // a payment. The financial ledger is untouched by the pruner.
+    try {
+      await supabase.rpc('prune_expired_idempotency_keys');
+    } catch (pruneErr) {
+      console.warn('[pay] prune_expired_idempotency_keys (non-blocking):', pruneErr);
     }
 
     return NextResponse.json({
@@ -160,7 +184,17 @@ export async function POST(request: NextRequest) {
       cash_received: data.cash_received,
       change: data.change,
       payment_ids: data.payment_ids,
+      // P-4 C-5 (ratified D-5): replay carries BOTH layers — `original` (what
+      // the request did when it first succeeded) and `current` (live order
+      // state, re-read under the lock). A replay of a since-refunded order is
+      // visible as such — the stored snapshot never masquerades as current truth.
       idempotent: data.idempotent || false,
+      duplicate: data.duplicate || false,
+      replay: data.current ? {
+        current: data.current,
+        original_status: data.original?.status ?? null,
+        original_paid_amount: data.original?.paid_amount ?? null,
+      } : null,
       table_number: data.table_number,
       campaign: autoCampaignName ? {
         id: effectiveCampaignId,

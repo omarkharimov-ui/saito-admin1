@@ -1,0 +1,8 @@
+=== payment_idempotency_keys DDL (pre) ===
+CREATE UNIQUE INDEX payment_idempotency_keys_pkey ON public.payment_idempotency_keys USING btree (key)
+CREATE INDEX idx_payment_idempotency_keys_order ON public.payment_idempotency_keys USING btree (order_id)
+CREATE UNIQUE INDEX payment_idempotency_keys_key_unique ON public.payment_idempotency_keys USING btree (key)
+row_count_pre=9
+psql:/tmp/p4_presetate.sql:4: ERROR:  column "namespace" does not exist
+LINE 1: ...namespaces_pre: ' || coalesce(string_agg(distinct namespace:...
+                                                             ^

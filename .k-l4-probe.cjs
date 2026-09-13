@@ -42,6 +42,8 @@ function cleanTable(tn){
     // P-3: order_payments rows are append-only (immutability trigger) — the cascade
     // from DELETE orders is blocked, so remove them via the trusted full-reversal flag
     // (test-teardown only; this is the sanctioned path, not a contract change).
+    // P-4: payment_idempotency_keys rows FK-reference orders — remove first (metadata table, not ledger).
+    S(`DELETE FROM payment_idempotency_keys WHERE order_id IN (SELECT id FROM orders WHERE table_number=${tn})`);
     S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_payments WHERE order_id IN (SELECT id FROM orders WHERE table_number=${tn}); DELETE FROM orders WHERE table_number=${tn}; SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);
     S(`UPDATE table_floors SET status='empty',current_order_id=NULL,total_amount=0,guest_count=NULL,order_count=0,has_pending=false,bill_requested=false WHERE table_number=${tn} AND location_id=${q(LOCA)}`);
   } finally {
@@ -115,7 +117,7 @@ function cleanTable(tn){
   // open model question (see .k-l3 D3-2 note + P-1 contract §deferred), so this probe
   // asserts the live v2 contract: paid + pointer cleared + table stays non-empty
   // (never auto-emptied on pay).
-  const payR=await http('/api/orders/pay',{order_id:o1id,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0},TK);
+  const payR=await http('/api/orders/pay',{order_id:o1id,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0,idempotency_key:'k4:'+crypto.randomUUID()},TK);
   const o1st=S(`SELECT status FROM orders WHERE id=${q(o1id)}`);
   const t1=tRow(T);
   P('L4-7','PAY -> order PAID + pointer cleared + table STAYS non-empty (live v2: occupied, never auto-empty; dirty-on-pay = open model question, see L3 D3-2)',
@@ -149,7 +151,7 @@ function cleanTable(tn){
   // C1: Pay vs New Seat — seat the current table (occupied w/ new order), pay + try seat concurrently
   const o2id=curOrder();
   const [payC,seatC]=await Promise.all([
-    http('/api/orders/pay',{order_id:o2id,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0},TK),
+    http('/api/orders/pay',{order_id:o2id,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0,idempotency_key:'k4:'+crypto.randomUUID()},TK),
     seat()
   ]);
   const c1t=tStatus(T);
@@ -163,9 +165,11 @@ function cleanTable(tn){
   const o3=curOrder();
   // C2: two simultaneous Pay/finalize -> exactly one paid, no double, table dirty or occupied
   // P-1 M4: pay via live /api/orders/pay (v2 -> order_payments, not the legacy `payments` table).
+  // P-4: concurrent pay uses DIFFERENT keys (battery item 12) — the FOR UPDATE
+  // order lock + ORDER_ALREADY_PAID guard still guarantees at most one charge.
   const [pA,pB]=await Promise.all([
-    http('/api/orders/pay',{order_id:o3,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0},TK),
-    http('/api/orders/pay',{order_id:o3,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0},TK)
+    http('/api/orders/pay',{order_id:o3,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0,idempotency_key:'k4:'+crypto.randomUUID()},TK),
+    http('/api/orders/pay',{order_id:o3,payment_method:'card',paid_amount:10,cash_amount:0,card_amount:10,tip_amount:0,discount_amount:0,idempotency_key:'k4:'+crypto.randomUUID()},TK)
   ]);
   const paidCount=S(`SELECT count(*)::text FROM order_payments WHERE order_id=${q(o3)}`);
   const paidAmt=S(`SELECT coalesce(sum(amount),0)::text FROM order_payments WHERE order_id=${q(o3)} AND status='captured'`);

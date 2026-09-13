@@ -69,11 +69,13 @@ const cleanupOids=()=>{
   const inact=mkStaff('P1_INACT','cashier'); S(`UPDATE staff SET is_active=false,status='INACTIVE' WHERE id=${q(inact)}`); const tInact=mkSess(inact,'cashier',LOC_A);
   const ownr=mkStaff('P1_OWNER','owner');    const tOwnr=mkSess(ownr,'owner',LOC_A);
 
-  // paymentRateLimit = 5 req/60s/(ip:token). tMgrA makes 6 pay-route calls
-  // (P1-01, P1-07x2, P1-08, P1-10, P1-11) -> pause 15s after the 6th resets the window.
+  // paymentRateLimit = 5 req/60s/(ip:token). tMgrA makes 7 pay-route calls
+  // (P1-01, P1-02, P1-07x2, P1-08, P1-09, P1-14) -> the 7th is P1-07's same-key
+  // REPLAY; pause 15s before it resets the window so the replay isn't 429'd.
   let mgrACalls=0;
-  const payMgrA=async body=>{mgrACalls++;const res=await api('POST','/api/orders/pay',{cookie:tMgrA,csrf:CSRF,body});if(mgrACalls===6)await sleep(15000);return res;};
-  const payBody=(id,extra={})=>({order_id:id,payment_method:'cash',paid_amount:100,cash_amount:100,...extra});
+  const payMgrA=async body=>{mgrACalls++;if(mgrACalls===7)await sleep(15000);const res=await api('POST','/api/orders/pay',{cookie:tMgrA,csrf:CSRF,body});return res;};
+  // P-4 contract: the pay route REQUIRES idempotency_key — unique per test call.
+  const payBody=(id,extra={})=>({order_id:id,payment_method:'cash',paid_amount:100,cash_amount:100,idempotency_key:'p1:'+crypto.randomUUID(),...extra});
 
   // ===================== M2: location assertion =====================
   let r=await payMgrA(payBody(oA));
@@ -100,9 +102,10 @@ const cleanupOids=()=>{
   check('P1-08','overpay: 150 > 100 -> 500 PAYMENT_EXCEEDS_REMAINING', r.status===500 && /PAYMENT_EXCEEDS_REMAINING/.test(r.data?.error||''), r.status+' '+(r.data?.error||''));
   r=await api('POST','/api/orders/pay',{cookie:tMgrA2,csrf:CSRF,body:payBody(oA)});
   check('P1-09','already-paid: re-pay -> 409 (order already paid)', r.status===409 && /already paid|ORDER_ALREADY_PAID/.test(r.data?.error||''), r.status+' '+(r.data?.error||''));
-  let rf=await api('POST','/api/orders/refund',{cookie:tMgrA,csrf:CSRF,body:{order_id:oA,amount:40,method:'cash'}});
+  // P-4 contract: refund route REQUIRES idempotency_key (keyless -> 400).
+  let rf=await api('POST','/api/orders/refund',{cookie:tMgrA,csrf:CSRF,body:{order_id:oA,amount:40,method:'cash',idempotency_key:'p1ref:'+crypto.randomUUID()}});
   check('P1-10','refund within cap: 40 on paid-100 -> success', rf.status===200, rf.status+' '+JSON.stringify(rf.data).slice(0,120));
-  rf=await api('POST','/api/orders/refund',{cookie:tMgrA,csrf:CSRF,body:{order_id:oA,amount:61,method:'cash'}});
+  rf=await api('POST','/api/orders/refund',{cookie:tMgrA,csrf:CSRF,body:{order_id:oA,amount:61,method:'cash',idempotency_key:'p1ref:'+crypto.randomUUID()}});
   check('P1-11','refund cap: 61 more (total 101>100) -> 400 exceeds remaining', rf.status===400 && /exceeds remaining|REFUND_EXCEEDS_PAID|Can only refund/.test(rf.data?.error||''), rf.status+' '+(rf.data?.error||''));
 
   // ===================== M5: owner seed =====================

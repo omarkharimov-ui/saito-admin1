@@ -236,6 +236,11 @@ export async function PATCH(request: NextRequest) {
         p_payment_method: refundData.method || 'cash',
         p_performed_by: approval.staff_id,
         p_location_id: arLoc.locationId,
+        // P-4 C-1 (ratified D-1): server-initiated execution mints its own
+        // canonical key — deterministic per approval row, so re-executing the
+        // same approval (double-click / retry) refunds AT MOST ONCE
+        // (replay of the stored result), namespace 'refund'.
+        p_idempotency_key: `approval:${id}`,
       });
 
       if (rpcErr) {

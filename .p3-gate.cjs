@@ -151,16 +151,18 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
     let mgrACalls = 0;
     const payMgrA = async body => { mgrACalls++; const r = await httpPay(tMgrA, body); if (mgrACalls === 5) await new Promise(r2 => setTimeout(r2, 65000)); return r; };
     // exact
-    const rEx = await payMgrA({ order_id: OEX, payment_method: 'card', paid_amount: 100, cash_amount: 0, card_amount: 100 });
+    // P-4 contract: pay route REQUIRES idempotency_key (keyless -> 400); each
+    // independent call gets a unique key. H4 keeps its SHARED key (the idempotency test).
+    const rEx = await payMgrA({ order_id: OEX, payment_method: 'card', paid_amount: 100, cash_amount: 0, card_amount: 100, idempotency_key: 'p3:' + crypto.randomUUID() });
     P('H1', 'pay exact (100/100) -> 200 paid', rEx.status === 200 && /paid/.test(rEx.body), rEx.status + ' ' + rEx.body.slice(0, 80));
     // overpay — route surfaces the RPC exception as 500 w/ the domain error; the REJECTION
     // (PAYMENT_EXCEEDS_REMAINING, 0 rows, order not paid) is what the gate proves.
-    const rOv = await payMgrA({ order_id: OOVR, payment_method: 'card', paid_amount: 150, cash_amount: 0, card_amount: 150 });
+    const rOv = await payMgrA({ order_id: OOVR, payment_method: 'card', paid_amount: 150, cash_amount: 0, card_amount: 150, idempotency_key: 'p3:' + crypto.randomUUID() });
     const ovRows = Sx(`SELECT count(*)::text FROM order_payments WHERE order_id=${q(OOVR)}`).out;
     const ovSt = Sx(`SELECT status::text FROM orders WHERE id=${q(OOVR)}`).out;
     P('H2', 'pay overpay (150/100) -> rejected: PAYMENT_EXCEEDS_REMAINING, 0 rows, order not paid', /PAYMENT_EXCEEDS_REMAINING|EXCEEDS|exceed/i.test(rOv.body) && ovRows === '0' && ovSt !== 'paid', 'status=' + rOv.status + ' rows=' + ovRows + ' ord=' + ovSt + ' ' + rOv.body.slice(0, 55));
     // underpay partial -> partial row recorded, order stays OPEN (cannot enter paid)
-    const rUi = await payMgrA({ order_id: OUIN, payment_method: 'cash', paid_amount: 23, cash_amount: 23 });
+    const rUi = await payMgrA({ order_id: OUIN, payment_method: 'cash', paid_amount: 23, cash_amount: 23, idempotency_key: 'p3:' + crypto.randomUUID() });
     const uiStatus = Sx(`SELECT status||'|'||paid_amount::text FROM orders WHERE id=${q(OUIN)}`).out;
     const uiPaidRows = Sx(`SELECT count(*)::text FROM order_payments WHERE order_id=${q(OUIN)} AND is_refund=false`).out;
     P('H3', 'pay underpay (23/100) -> partial row recorded BUT order stays OPEN (confirmed, not paid)', rUi.status === 200 && (uiStatus || '').startsWith('confirmed|23') && uiPaidRows === '1', 'route=' + rUi.status + ' order=' + uiStatus + ' payrows=' + uiPaidRows);
@@ -174,7 +176,7 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
     // P-1 location reflow — use tCashB's own rate-limit bucket (avoid tMgrA's now-limited window).
     // H5a: loc-B cashier pays a loc-B order -> ALLOWED (no over-block).
     const OXB = mkOrder(LOC_B, 100);
-    const rXB = await httpPay(tCashB, { order_id: OXB, payment_method: 'card', paid_amount: 100, cash_amount: 0, card_amount: 100 });
+    const rXB = await httpPay(tCashB, { order_id: OXB, payment_method: 'card', paid_amount: 100, cash_amount: 0, card_amount: 100, idempotency_key: 'p3:' + crypto.randomUUID() });
     P('H5a', 'P-1 reflow: loc-B cashier -> loc-B order ALLOWED (no over-block)', rXB.status === 200 && /paid/.test(rXB.body), rXB.status + ' ' + rXB.body.slice(0, 55));
     // H5b: a fresh loc-A cashier (own token) pays a loc-B order -> DENIED 403 LOCATION_MISMATCH.
     const cashA = crypto.randomUUID();
@@ -182,7 +184,7 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
     Sx(`INSERT INTO staff_locations(staff_id,location_id,is_primary,active,organization_id) VALUES(${q(cashA)},${q(LOC_A)},true,true,${q(ORG)})`);
     const tCashA = crypto.randomUUID(); Sx(`INSERT INTO sessions(token,user_id,role,expires_at,status,organization_id,active_location_id) VALUES(${q(tCashA)},${q(cashA)},${q('cashier')},now()+interval '3h','ACTIVE',${q(ORG)},${q(LOC_A)})`);
     const OXB3 = mkOrder(LOC_B, 100);
-    const rX = await httpPay(tCashA, { order_id: OXB3, payment_method: 'card', paid_amount: 100, cash_amount: 0, card_amount: 100 });
+    const rX = await httpPay(tCashA, { order_id: OXB3, payment_method: 'card', paid_amount: 100, cash_amount: 0, card_amount: 100, idempotency_key: 'p3:' + crypto.randomUUID() });
     P('H5b', 'P-1 reflow: loc-A cashier -> loc-B order DENIED (403 LOCATION_MISMATCH)', rX.status === 403 && /LOCATION_MISMATCH/.test(rX.body), rX.status + ' ' + rX.body.slice(0, 60));
 
     // ===================== zero-residue cleanup (ALL populated as orders were created) =====================

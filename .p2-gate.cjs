@@ -162,9 +162,9 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
     const oB = O_B; // shared carrier @ LOC_B
     const csrf = 'p2csrf';
     const pay = async (cookie, body) => new Promise(res => { const u = new URL(APP + '/api/orders/pay'); const h = { 'Content-Type': 'application/json', Cookie: `saito_token=${cookie}; saito_csrf=${csrf}` }; if (body) h['x-csrf-token'] = csrf; const r = require('http').request({ hostname: u.hostname, port: u.port, path: u.pathname, method: 'POST', headers: h }, resp => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => res({ status: resp.statusCode, body: d })); }); r.on('error', e => res({ status: 0, body: e.message })); r.write(JSON.stringify(body || {})); r.end(); });
-    const rCross = await pay(tMgrA, { order_id: oB, payment_method: 'card', paid_amount: 100, cash_amount: 0, card_amount: 100 });
+    const rCross = await pay(tMgrA, { order_id: oB, payment_method: 'card', paid_amount: 100, cash_amount: 0, card_amount: 100, idempotency_key: 'p2:' + crypto.randomUUID() });
     P('S3-7', 'P-1 reflow: cross-location pay still DENIED (location assertion intact)', rCross.status === 403 && /LOCATION_MISMATCH/.test(rCross.body), 'status=' + rCross.status + ' ' + rCross.body.slice(0, 60));
-    const rSame = await pay(tMgrA, { order_id: O_A, payment_method: 'card', paid_amount: 100, cash_amount: 0, card_amount: 100 });
+    const rSame = await pay(tMgrA, { order_id: O_A, payment_method: 'card', paid_amount: 100, cash_amount: 0, card_amount: 100, idempotency_key: 'p2:' + crypto.randomUUID() });
     P('S3-8', 'P-1 reflow: same-location pay still ALLOWED (no over-block)', rSame.status === 200 && /paid/.test(rSame.body), 'status=' + rSame.status + ' ' + rSame.body.slice(0, 60));
 
     // ============ zero-residue cleanup ============

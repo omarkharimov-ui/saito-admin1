@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Printer, X, ChevronLeft, Search, CalendarDays, RefreshCw, Split, Receipt, User, Users, Wallet, CreditCard, Package, AlertTriangle, ChevronRight, Minus } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -762,6 +762,21 @@ function RefundView({
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // P-4 (D-1/D-4): memoized refund retry tokens per (order, op) for this view
+  // instance. A double-click / lost-response retry of the SAME refund reuses
+  // the SAME key → the boundary replays the stored result (one refund row).
+  // A different refund (other item/qty/amount) gets a different key →
+  // independent. Reusing a key with a different amount is a 409 at the DB.
+  const refundKeyRef = useRef<Map<string, string>>(new Map());
+  const refundKeyFor = useCallback((op: string) => {
+    let tok = refundKeyRef.current.get(op);
+    if (!tok) {
+      tok = `refund:${order.id}:${op}:${crypto.randomUUID()}`;
+      refundKeyRef.current.set(op, tok);
+    }
+    return tok;
+  }, [order.id]);
+
   const [selectedItems, setSelectedItems] = useState<Record<string, { qty: number; fate: 'return_to_stock' | 'waste' | 'none' }>>({});
 
   const paidAmount = Number(order.paid_amount || order.total_amount) || 0;
@@ -824,16 +839,17 @@ function RefundView({
           const itemAmount = Number(item.unit_price) * sel.qty;
 
           if (sel.fate === 'none') {
-            const res = await apiFetch('/api/orders/refund', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                order_id: order.id,
-                amount: itemAmount,
-                method: order.payment_method || 'cash',
-                reason: reason || 'customer_return',
-              }),
-            });
+              const res = await apiFetch('/api/orders/refund', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  order_id: order.id,
+                  amount: itemAmount,
+                  method: order.payment_method || 'cash',
+                  reason: reason || 'customer_return',
+                  idempotency_key: refundKeyFor(`item:${itemId}:none:${itemAmount}`),
+                }),
+              });
             if (!res.ok) {
               const err = await res.json();
               toast.error(err.error || 'Refund uğursuz oldu');
@@ -852,6 +868,7 @@ function RefundView({
                 method: order.payment_method || 'cash',
                 item_fate: sel.fate,
                 reason: reason || 'customer_return',
+                idempotency_key: refundKeyFor(`item:${itemId}:${sel.fate}:${sel.qty}`),
               }),
             });
             if (!res.ok) {
@@ -881,6 +898,7 @@ function RefundView({
             amount: refundAmount,
             method: order.payment_method || 'cash',
             reason: reason || 'Refund',
+            idempotency_key: refundKeyFor(`order:${mode}:${refundAmount}`),
           }),
         });
         const data = await res.json();

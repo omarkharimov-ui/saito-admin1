@@ -1,0 +1,122 @@
+{
+ "at": "2026-09-13T11:08:50.935Z",
+ "total": 19,
+ "passed": 19,
+ "failed": 0,
+ "results": [
+  {
+   "id": "P4-01",
+   "name": "keyed exact duplicate -> one effect; replay has idempotent+current layers",
+   "pass": true,
+   "evidence": "a=200 b=200 rows=1 replay={\"current\":{\"status\":\"paid\",\"remaining\":0,\"paid_amount\":100,\"replayed_at\":\"2026-"
+  },
+  {
+   "id": "P4-02",
+   "name": "keyless pay -> 400 IDEMPOTENCY_KEY_REQUIRED + zero mutation",
+   "pass": true,
+   "evidence": "status=400 rows=0 {\"error\":\"IDEMPOTENCY_KEY_REQUIRED\"}"
+  },
+  {
+   "id": "P4-03",
+   "name": "double-click (concurrent same key) -> exactly one effect, one replay",
+   "pass": true,
+   "evidence": "rows=1 replays=1 a=200 b=200"
+  },
+  {
+   "id": "P4-04",
+   "name": "network retry (same key, sim lost response) -> replay, still one effect",
+   "pass": true,
+   "evidence": "a=200 b=200 rows=1"
+  },
+  {
+   "id": "P4-06",
+   "name": "same key + different amount -> 409 IDEMPOTENCY_CONFLICT + zero mutation",
+   "pass": true,
+   "evidence": "a=200 b=409 before=23|0|2|confirmed after=23|0|2|confirmed rows=1 {\"error\":\"IDEMPOTENCY_CONFLICT: key p4:amt:3841a957-d5af-416"
+  },
+  {
+   "id": "P4-07",
+   "name": "same key + different order -> 409 + zero mutation on order B",
+   "pass": true,
+   "evidence": "a=200 b=409 rowsB=0 {\"error\":\"IDEMPOTENCY_CONFLICT: key p4:ord:3fb1e99a-b499-465"
+  },
+  {
+   "id": "P4-08",
+   "name": "different keys -> independent (both charged, full 100, 2 rows)",
+   "pass": true,
+   "evidence": "a=200 b=200 rows=2"
+  },
+  {
+   "id": "P4-09",
+   "name": "refund double-click (same key) -> one refund row, second = replay",
+   "pass": true,
+   "evidence": "p=200 r1=200 r2=200 refRows=1 {\"action\":\"refund\",\"change\":0,\"status\":\"partially_"
+  },
+  {
+   "id": "P4-10",
+   "name": "refund same-key replay AFTER state change -> current=LIVE (refund_amount=60), original=frozen snapshot (D-5 freshness)",
+   "pass": true,
+   "evidence": "r3a=200 r4=200 current.refund_amount=60 current.status=partially_refunded original.remaining=40 orig.action=refund"
+  },
+  {
+   "id": "P4-11",
+   "name": "concurrent IDENTICAL (same key) -> one effect, one replay",
+   "pass": true,
+   "evidence": "rows=1 replays=1 a=200 b=200"
+  },
+  {
+   "id": "P4-12",
+   "name": "concurrent DIFFERENT keys (full 100 x2) -> no double-charge (paid=100)",
+   "pass": true,
+   "evidence": "paid=100 a=200 b=409"
+  },
+  {
+   "id": "P4-13",
+   "name": "failed (overpay) does NOT consume key; corrected retry same key succeeds (D-7)",
+   "pass": true,
+   "evidence": "a=500 b=200 rows=1 keyrow=1 {\"error\":\"PAYMENT_EXCEEDS_REMAINING: pay"
+  },
+  {
+   "id": "P4-15",
+   "name": "replay + rejected mismatch -> order ledger/version UNCHANGED (zero mutation)",
+   "pass": true,
+   "evidence": "before=100|0|2|paid after=100|0|2|paid replay=200 reject=409"
+  },
+  {
+   "id": "P4-16",
+   "name": "exactly-once ledger effect across all duplicate tests",
+   "pass": true,
+   "evidence": "see P4-01/03/04/06/09/11"
+  },
+  {
+   "id": "P4-17",
+   "name": "PK (namespace,key): duplicate insert REJECTED (PK violation)",
+   "pass": true,
+   "evidence": "status=1 err=ERROR:  duplicate key value violates unique constraint \"payment_idempotency_keys"
+  },
+  {
+   "id": "P4-17b",
+   "name": "namespace isolation: same key in refund namespace = independent (allowed)",
+   "pass": true,
+   "evidence": "status=0 err="
+  },
+  {
+   "id": "P4-18",
+   "name": "TTL pruner: expired key deleted, live key kept",
+   "pass": true,
+   "evidence": "pruned=1 expiredGone=0 liveKept=1"
+  },
+  {
+   "id": "P4-19",
+   "name": "redundant key_unique GONE + scoped PK (namespace,key) present",
+   "pass": true,
+   "evidence": "dupIdx=0 pk=CREATE UNIQUE INDEX payment_idempotency_keys_ns_key_pkey ON public.payment_idempotency_keys USING btree (namespace, key)"
+  },
+  {
+   "id": "P4-90",
+   "name": "zero residue: P4_ staff inactive, probe orders + p4: keys gone",
+   "pass": true,
+   "evidence": "staff=0 orders=0 keys=0"
+  }
+ ]
+}

@@ -135,14 +135,22 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
     const ORO = crypto.randomUUID(); ALL.push(ORO);
     Sx(`INSERT INTO orders(id,table_number,status,guest_count,paid_amount,total_amount,location_id,organization_id,kitchen_status,paid_at,is_draft,created_at,updated_at,version) VALUES(${q(ORO)},NULL,'paid',1,100,100,${q(LOC_A)},${q(ORG)},'pending',now(),false,now(),now(),1)`);
     Sx(`INSERT INTO order_payments(order_id,payment_method,method,amount,status,created_at,currency) VALUES(${q(ORO)},'card','card',100,'captured',now(),'AZN')`);
-    const rp = Sx(`SELECT (public.reopen_order_atomic(${q(ORO)}, 'p3 gate reopen test', ${q(mgr)}))->>'success'`);
+    // P-6 (ratified 2026-09-13): reopen_order_atomic now has a 5-arg (session-token,
+    // authorized) form alongside the 4-arg trusted form. C1 tests the TRUSTED
+    // DELETE path, so it targets the 4-arg overload explicitly (4th arg NULL::text
+    // disambiguates the literals, which would otherwise be ambiguous across overloads).
+    const rp = Sx(`SELECT (public.reopen_order_atomic(${q(ORO)}::uuid, 'p3 gate reopen test'::text, ${q(mgr)}::uuid, NULL::text))->>'success'`);
     const roPay = Sx(`SELECT count(*)::text FROM order_payments WHERE order_id=${q(ORO)}`).out;
     const roSt = Sx(`SELECT status::text FROM orders WHERE id=${q(ORO)}`).out;
     P('C1', 'reopen_order_atomic trusted DELETE works (P-3 exception path, no regression)', rp.out === 'true' && roPay === '0' && roSt === 'new', `success=${rp.out} pay_after=${roPay} status=${roSt} err=${(rp.err || '').slice(0, 60)}`);
 
     // ===================== HTTP: pay route (v2) — exact / overpay / underpay / dup / concurrent / P-1 reflow =====================
     const csrf = 'p3csrf';
-    const httpPay = (cookie, body) => new Promise(res => { const r = http.request({ hostname: 'localhost', port: 3000, path: '/api/orders/pay', method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: `saito_token=${cookie}; saito_csrf=${csrf}`, 'x-csrf-token': csrf } }, resp => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => res({ status: resp.statusCode, body: d })); }); r.on('error', e => res({ status: 0, body: e.message })); r.write(JSON.stringify(body)); r.end(); });
+    const httpPayOnce = (cookie, body) => new Promise(res => { const r = http.request({ hostname: 'localhost', port: 3000, path: '/api/orders/pay', method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: `saito_token=${cookie}; saito_csrf=${csrf}`, 'x-csrf-token': csrf } }, resp => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => res({ status: resp.statusCode, body: d })); }); r.on('error', e => res({ status: 0, body: e.message })); r.write(JSON.stringify(body)); r.end(); });
+    // P-6 reflow (2026-09-13): dev server occasionally drops a connection under a
+    // full battery (ECONNRESET / socket hang up); retry 3x (HANDOVER convention).
+    // Pay is idempotent-by-key in this gate, so a transport retry is safe.
+    const httpPay = async (cookie, body) => { let out; for (let i = 0; i < 3; i++) { out = await httpPayOnce(cookie, body); if (out.status !== 0 && !/socket hang up|ECONNRESET/i.test(out.body)) return out; await new Promise(x => setTimeout(x, 700 * (i + 1))); } return out; };
     // fixtures for route: mgrA bound A (session A), cashier B (session B)
     const bindLoc = sid => Sx(`INSERT INTO staff_locations(staff_id,location_id,is_primary,active,organization_id) VALUES(${q(sid)},${q(LOC_A)},true,true,${q(ORG)})`);
     const mgrA = crypto.randomUUID();

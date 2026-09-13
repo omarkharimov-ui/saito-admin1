@@ -1,0 +1,98 @@
+{
+ "at": "2026-09-13T20:12:03.221Z",
+ "total": 15,
+ "passed": 15,
+ "failed": 0,
+ "results": [
+  {
+   "id": "P6-01",
+   "name": "refund an UNPAID (confirmed) order -> rejected, no mutation",
+   "pass": true,
+   "evidence": "status=400 st=confirmed oprows=0 {\"error\":\"Can only refund paid orders. Current: confirmed\"}"
+  },
+  {
+   "id": "P6-02",
+   "name": "item refund (Mode 1, waste, 50) -> 1 is_refund row, order partially_refunded, canonical audit",
+   "pass": true,
+   "evidence": "status=200 refrows=1 st=partially_refunded audit=1 {\"action\":\"refund_with_inventory\",\"success\":true,\"order_id\":\"f12c9aaf-4b9e-4b39-"
+  },
+  {
+   "id": "P6-03",
+   "name": "order-level full refund (Mode 2) -> refunded, 1 is_refund row",
+   "pass": true,
+   "evidence": "status=200 st=refunded refrows=1 {\"action\":\"refund\",\"change\":0,\"status\":\"refunded\",\"success\":true,\"remaining\":100"
+  },
+  {
+   "id": "P6-04",
+   "name": "over-refund (250 > 100 net) -> rejected REFUND_EXCEEDS_PAID, zero mutation",
+   "pass": true,
+   "evidence": "status=400 before=100|0|paid after=100|0|paid refrows=0 {\"error\":\"Refund amount (250) exceeds remaining (100)\"}"
+  },
+  {
+   "id": "P6-05",
+   "name": "concurrent 2x refund(50) on 100 order -> never over-refunds (net <= 100, cap holds under row lock)",
+   "pass": true,
+   "evidence": "a=200 b=500 netRefunded=50.00 st=partially_refunded aBody={\"action\":\"refund\",\"change\":0,\"status\":\"partially_"
+  },
+  {
+   "id": "P6-06",
+   "name": "reopen by cashier (no override perm) -> 403 MANAGER_OVERRIDE_REQUIRED, order still paid, payments intact",
+   "pass": true,
+   "evidence": "status=403 st=paid oprows=1 {\"error\":\"MANAGER_OVERRIDE_REQUIRED: reopening a paid order requires refund.approve / void.approve / an approv"
+  },
+  {
+   "id": "P6-07",
+   "name": "direct PostgREST RPC cashier-token reopen -> MANAGER_OVERRIDE_REQUIRED (RBAC holds bare-PostgREST too)",
+   "pass": true,
+   "evidence": "body={\"error\":\"MANAGER_OVERRIDE_REQUIRED: reopening a paid order requires refund.approve / void.approve / an approv st=paid"
+  },
+  {
+   "id": "P6-08",
+   "name": "identity spoof (cashier token + p_performed_by=manager) -> IDENTITY_MISMATCH",
+   "pass": true,
+   "evidence": "body={\"error\":\"IDENTITY_MISMATCH: p_performed_by must match the session staff (identity comes from the session)\",\"s st=paid"
+  },
+  {
+   "id": "P6-09",
+   "name": "authorized manager reopen -> status new, payments deleted, audit + order outbox present (D-1/D-2 atomic)",
+   "pass": true,
+   "evidence": "status=200 st=new oprows=1->0 audit=1 outbox=1"
+  },
+  {
+   "id": "P6-10",
+   "name": "second reopen on now-new order -> rejected (no double reversal, no orphan)",
+   "pass": true,
+   "evidence": "status=400 st=new oprows=0 {\"error\":\"Order is not paid/completed/refunded\",\"code\":\"REOPEN_FAILED\"}"
+  },
+  {
+   "id": "P6-11",
+   "name": "partial refund (->partially_refunded) then reopen -> ALL op rows (payment+refund) cleared, status new",
+   "pass": true,
+   "evidence": "partial=200(partially_refunded) reopen=200(new) allOpRows=0"
+  },
+  {
+   "id": "P6-12",
+   "name": "D-5/D-6: dead RPCs frozen (EXECUTE = postgres only)",
+   "pass": true,
+   "evidence": "void_acl={postgres=X/postgres} refund_acl={postgres=X/postgres}"
+  },
+  {
+   "id": "P6-13",
+   "name": "void un-paid order -> cancelled + order.status_changed outbox emitted (D-4)",
+   "pass": true,
+   "evidence": "status=200 st=cancelled void_outbox=1 {\"action\":\"void\",\"success\":true,\"order_id\":\"a1752983-cc49-4080-ab66-b9f20800ceca"
+  },
+  {
+   "id": "P6-13b",
+   "name": "void a PAID order (direct fn) -> rejected (V1 guard), order stays paid, item not voided",
+   "pass": true,
+   "evidence": "rr={\"error\": \"Cannot void paid/closed/refunded orders\", \"success\": false} st=paid"
+  },
+  {
+   "id": "P6-14",
+   "name": "zero NEW drift (baseline restored after cleanup) + zero residue",
+   "pass": true,
+   "evidence": "base=0/0/0/0/4 final=0/0/0/0/4 staff=0 orders=0 keys=0 oprows=0 items=0"
+  }
+ ]
+}

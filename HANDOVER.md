@@ -1,7 +1,7 @@
 # HANDOVER — Saito Admin POS (K → P)
 
 **Date:** 2026-09-12 · **Head:** see `git log --oneline -1` (post-K freeze)
-**Checkpoint:** `A ⚠️ → E/S ⚠️ → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3 🔒 → P-4 🔒 → P-5 🔒 → P-6 NEXT`
+**Checkpoint:** `A ⚠️ → E/S ⚠️ → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3 🔒 → P-4 🔒 → P-5 🔒 → P-6 🔒 → P-7 NEXT`
 
 > **A / E/S are ⚠️ pre-existing blockers, NOT P regressions** (bisection-proven: the
 > failures persist with P-3 triggers disabled). See the disposition block after the P-3
@@ -182,7 +182,59 @@ inventory + raw baseline evidence). Core invariants:
 - **Frozen ecosystem reflow (all re-run):** **P-1 29/29 · P-2 13/13 · P-3 25/25 · P-4 19/19 ·
   O 38/38 · F 35/35 · K L3 8/8 · K L4 16/16**, zero residue, baseline 274 preserved.
   (O-gate kill-hazard re-checked: both paused triggers back to `O` after the O-gate.)
-- Next module: **P-6 Refund / void / reopen**.
+ - Next module: **P-6 Refund / void / reopen**.
+
+### P-6 Refund / Void / Reopen — 🔒 (2026-09-13, migration `20260914000002_p6_refund_void_reopen_contract.sql`)
+Ratified decisions **D-1…D-9** (inventory + raw baseline: `P6_REFUND_VOID_REOPEN_INVENTORY_2026-09-13.md`).
+The refund/void/reopen state space had **zero live production rows** at audit time
+(`refunded=0, partially_refunded=0, voided=0, is_refund rows=0`), so P-6 set the forward
+contract airtight with no backfill (the 4 legacy `refund_amount>paid_amount` rows stay a P-9 residual).
+- **D-1 (the critical fix) — reopen = FULL financial reversal is now authorized server-side:**
+  `reopen_order_atomic` gained a leading **`p_token`** arg (5-arg form); identity is re-derived
+  from the session (O-01: never the caller-supplied `p_performed_by`, which is now
+  cross-checked → `IDENTITY_MISMATCH`). Requires **`orders.edit`** + **location scope (P-1)**
+  + **MANAGER OVERRIDE** (`refund.approve` ∨ `void.approve` ∨ approved `manager_overrides`;
+  registry ovr=true for `paid→new`/`refunded→new`/`closed→new`/`partially_refunded→new`).
+  The route `/api/orders/reopen` adds `requirePermission('orders.edit')` and maps
+  `PERMISSION_DENIED`/`MANAGER_OVERRIDE_REQUIRED`/`IDENTITY_MISMATCH` to **403**. The **legacy
+  4-arg overload is frozen to postgres-only** (REVOKE), so a bare PostgREST service_role call
+  cannot bypass it; the new 5-arg form has EXECUTE = postgres/authenticated/service_role
+  (anon/PUBLIC revoked). A cashier reopen is 403 both via the route AND via direct RPC.
+- **D-2** — reopen now emits canonical **`log_audit('reopen_order')` + `order.status_changed`
+  outbox** (was `operation_logs` only — a full money reversal with no audit/sync).
+- **D-3** — reopen's trusted `DELETE FROM order_payments` **stays** (the ratified P-3
+  full-reversal path). The delete-vs-append ledger model is a **P-9** decision, untouched.
+- **D-4** — `void_items_state_aware` now emits an **`order.status_changed` outbox** on a
+  successful void (was audit-only).
+- **D-5/D-6 (frozen-dead)** — `void_payment_atomic_v2` (stale `active/ready` guard, no route)
+  and `refund_payment_atomic` (`status='success'` not in the payment registry, no route) →
+  **REVOKE EXECUTE** (postgres keeps both; `EXECUTE` = `{postgres}` verified).
+- **D-7/D-8 (verify-only, no change)** — concurrent order-level refund: the net-paid cap
+  (`REFUND_EXCEEDS_PAID`) holds under the `FOR UPDATE` row lock (2× concurrent `refund(50)`
+  on a 100 order → exactly one succeeds, net ≤ 100, **no over-refund**); reopen is naturally
+  idempotent (a 2nd reopen on the now-`new` order is rejected — no double reversal / orphan
+  stock) and a partial-refunded reopen clears **both** the payment and the refund rows.
+- **D-9** — legacy `/api/payments/void` → `update_payment_status` (legacy `payments`, 2 rows)
+  untouched (P-9).
+- **Pre-existing, out of P-6 scope (noted, not changed):** the refund route maps a
+  `REFUND_EXCEEDS_PAID` DB error to **500** (not a 4xx) — a route-mapping choice; the
+  invariant (no over-refund) is enforced and proven. Candidate cleanup for a future pass.
+- **Harness compat (not production logic):** `.p3-gate.cjs` C1 now calls the **4-arg trusted**
+  `reopen_order_atomic` with explicit `::uuid`/`::text` casts (the new 5-arg token overload
+  made the old 3-literal call ambiguous), and `.p3-gate.cjs` `httpPay` gained the 3×
+  transport-retry wrapper (dev ECONNRESET under load). `.p6-gate.cjs` fixtures: an active
+  **shift** is required (reopen/refund routes gate on `requireActiveShift`; `shifts.status`
+  is the `shift_status` ENUM `'OPEN'`, and only ACTIVE staff may open one) and
+  `order_items.product_id` is nullable (no `organization_id` column — org derives via order).
+- **Gate `.p6-gate.cjs` = 15/15** (`node .p6-gate.cjs`): refund-needs-paid, item-refund
+  (partial + audit), order-level full refund, over-refund block, concurrent-refund no-over,
+  cashier reopen 403 (route + direct RPC), identity-spoof reject, authorized manager reopen
+  (reversal + audit + outbox atomic), reopen idempotency, partial-refund→reopen clears both,
+  dead-RPC frozen, void un-paid (outbox), void paid (guard), zero-NEW-drift, zero residue.
+- **Frozen ecosystem reflow (all re-run):** **P-1 29/29 · P-2 13/13 · P-3 25/25 · P-4 19/19 ·
+  P-5 10/10 · O 38/38 · F 35/35 · K L3 8/8 · K L4 16/16**, zero residue, baseline preserved.
+  (O-gate kill-hazard re-checked: both paused triggers back to `O`.)
+- Next module: **P-7 Concurrency** (roadmap §2: pay/pay, pay/cancel, pay/new-seat dirty guard, …).
 
 ### P-3 freeze — A / E-S pre-existing blocker disposition (NOT P regressions)
 **Proof (bisection):** with both P-3 triggers `DISABLE TRIGGER`, A and E/S fail

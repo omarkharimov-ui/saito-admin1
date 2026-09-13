@@ -1,0 +1,68 @@
+{
+ "at": "2026-09-13T18:30:30.712Z",
+ "total": 10,
+ "passed": 10,
+ "failed": 0,
+ "results": [
+  {
+   "id": "P5-01",
+   "name": "fresh pay -> 1 captured row, paid_amount=SUM(captured), status paid, table occupied",
+   "pass": true,
+   "evidence": "status=200 oprows=1 sum=100.00 paid_amount=100 order=paid table=occupied"
+  },
+  {
+   "id": "P5-02",
+   "name": "route: p_new_status=paid -> 422 PAYMENT_STATE_FORBIDDEN, order unchanged, no record",
+   "pass": true,
+   "evidence": "status=422 st=confirmed oprows=0 {\"success\":false,\"error\":\"PAYMENT_STATE_FORBIDDEN\",\"detail\":\"PAYMENT_STATE_FORBIDDEN: conf"
+  },
+  {
+   "id": "P5-03",
+   "name": "route: p_new_status=refunded -> rejected (PAYMENT_STATE_FORBIDDEN), order unchanged",
+   "pass": true,
+   "evidence": "status=422 st=confirmed {\"success\":false,\"error\":\"PAYMENT_STATE_FORBIDDEN\",\"detail\":\"PAYMENT_STATE_FORBIDDEN: conf"
+  },
+  {
+   "id": "P5-04",
+   "name": "DB: UPDATE orders ->paid with NO record -> PAID_WITHOUT_RECORD, order stays confirmed",
+   "pass": true,
+   "evidence": "state=confirmed oprows=0"
+  },
+  {
+   "id": "P5-05",
+   "name": "DB: record->paid ok, paid->closed ok; order_id re-attach BLOCKED (D-3)",
+   "pass": true,
+   "evidence": "closed=closed attach_rc=1 err=ERROR:  PAYMENT_RECORD_IMMUTABLE: amount/method/is keep=1 moved=0"
+  },
+  {
+   "id": "P5-06",
+   "name": "v1 complete_payment_atomic EXECUTE = postgres only (D-2 frozen-dead)",
+   "pass": true,
+   "evidence": "a10={postgres=X/postgres} a11={postgres=X/postgres}"
+  },
+  {
+   "id": "P5-07",
+   "name": "D-4: authenticated INSERT=NO, insert_loc policy dropped, service_role INSERT still ok, ACL shows no INSERT for authenticated",
+   "pass": true,
+   "evidence": "insert_priv=false policy=0 svc_insert=ok acl={postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=rwdDxtm/postgres,service_role=arwdDxtm/postgres,test_rls_role=arwd/postgres}"
+  },
+  {
+   "id": "P5-08",
+   "name": "PAID+OCCUPIED valid: table stays occupied after pay (no auto-empty/dirty), paid-order pointer cleared (K-L3 D3-3)",
+   "pass": true,
+   "evidence": "tf=occupied|false"
+  },
+  {
+   "id": "P5-09",
+   "name": "zero NEW drift: baseline (paid_without_record/mismatch/overpay/refgt) unchanged after all P5 ops",
+   "pass": true,
+   "evidence": "before=274/54/13/4 after=274/54/13/4"
+  },
+  {
+   "id": "P5-10",
+   "name": "zero residue: P5_ staff inactive, probe orders/op-rows/keys gone, table 995 reset",
+   "pass": true,
+   "evidence": "staff=0 orders=0 keys=0 oprows=0"
+  }
+ ]
+}

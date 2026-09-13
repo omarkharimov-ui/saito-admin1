@@ -92,6 +92,12 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
         INSERT INTO orders(id,table_number,status,guest_count,total_amount,location_id,organization_id,kitchen_status,is_draft,created_at,updated_at,version) VALUES (gen_random_uuid(),NULL,'confirmed',1,40,${q(LOC_A)},${q(ORG)},'pending',false,now(),now(),1) RETURNING id INTO o4;
         BEGIN UPDATE orders SET status='paid', paid_amount=23 WHERE id=o1; INSERT INTO _p3u VALUES('B1=BAD_ACCEPT'); EXCEPTION WHEN OTHERS THEN INSERT INTO _p3u VALUES('B1=REJ '||SQLSTATE::text); END;
         BEGIN UPDATE orders SET status='closed', paid_amount=23 WHERE id=o1; INSERT INTO _p3u VALUES('B2=BAD_ACCEPT'); EXCEPTION WHEN OTHERS THEN INSERT INTO _p3u VALUES('B2=REJ '||SQLSTATE::text); END;
+        -- P-5 (D-1c, ratified 2026-09-13): a bare UPDATE ->paid with no payment
+        -- record is now blocked by the P-5 atomicity trigger, so B3/B4 seed the
+        -- record FIRST (amount=40=total) and keep testing the UNDERPAYMENT guard
+        -- (P-3's subject) on full payment — the P-5 record trigger is satisfied
+        -- and silent; only the underpayment logic is exercised here.
+        INSERT INTO order_payments(order_id,payment_method,method,amount,status,is_refund) VALUES (o2,'card','card',40,'captured',false);
         BEGIN UPDATE orders SET status='paid', paid_amount=40 WHERE id=o2; INSERT INTO _p3u VALUES('B3=OK'); EXCEPTION WHEN OTHERS THEN INSERT INTO _p3u VALUES('B3=REJ '||SQLSTATE::text); END;
         BEGIN UPDATE orders SET status='closed', paid_amount=40 WHERE id=o2; INSERT INTO _p3u VALUES('B4=OK'); EXCEPTION WHEN OTHERS THEN INSERT INTO _p3u VALUES('B4=REJ '||SQLSTATE::text); END;
         -- B5: the underpayment guard must NOT over-block a zero-remainder close.
@@ -100,7 +106,13 @@ function P(id, name, pass, ev) { results.push({ id, pass: !!pass }); console.log
         BEGIN UPDATE orders SET status='cancelled', paid_amount=0 WHERE id=o3; INSERT INTO _p3u VALUES('B5=OK'); EXCEPTION WHEN OTHERS THEN INSERT INTO _p3u VALUES('B5=REJ '||SQLSTATE::text||' '||left(SQLERRM,60)); END;
         -- B6: the 0.01 tolerance boundary — 39/40 (under by 1.00) must still BLOCK.
         BEGIN UPDATE orders SET status='paid', paid_amount=39 WHERE id=o4; INSERT INTO _p3u VALUES('B6=BAD_ACCEPT'); EXCEPTION WHEN OTHERS THEN INSERT INTO _p3u VALUES('B6=REJ '||SQLSTATE::text); END;
+        -- P-5: seed's order_payments rows are ledger rows — delete via the
+        -- trusted reopen flag (sanctioned teardown path) before the orders DELETE
+        -- (FK order_payments_order_id_fkey).
+        PERFORM set_config('app.payment_ledger_reopen','on',false);
+        DELETE FROM order_payments WHERE order_id IN (o1,o2,o3,o4);
         DELETE FROM orders WHERE id IN (o1,o2,o3,o4);
+        PERFORM set_config('app.payment_ledger_reopen','off',false);
       END $$;
       SELECT line FROM _p3u;
       DROP TABLE _p3u;

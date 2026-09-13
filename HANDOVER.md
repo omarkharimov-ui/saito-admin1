@@ -1,7 +1,7 @@
 # HANDOVER — Saito Admin POS (K → P)
 
 **Date:** 2026-09-12 · **Head:** see `git log --oneline -1` (post-K freeze)
-**Checkpoint:** `A ⚠️ → E/S ⚠️ → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3 🔒 → P-4 🔒 → P-5 NEXT`
+**Checkpoint:** `A ⚠️ → E/S ⚠️ → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3 🔒 → P-4 🔒 → P-5 🔒 → P-6 NEXT`
 
 > **A / E/S are ⚠️ pre-existing blockers, NOT P regressions** (bisection-proven: the
 > failures persist with P-3 triggers disabled). See the disposition block after the P-3
@@ -145,6 +145,44 @@ failed-attempt no-consume, D-8 webhook N/A). Scope: exactly-once for payment + r
   `result` jsonb that carries financial data. Replay detection uses the route's service_role
   client (RLS off), so the functional contract is unaffected.
 - **NOT yet committed to a processor/webhook (D-8 frozen N/A).** Next module: **P-5**.
+
+### P-5 Atomicity — 🔒 (2026-09-13, migration `20260914000001_p5_atomicity_contract.sql`)
+Ratified decisions **D-1…D-7** (see `P5_ATOMICITY_INVENTORY_2026-09-13.md` for the full
+inventory + raw baseline evidence). Core invariants:
+1. **No paid-without-record** — an order enters `paid`/`refunded` ONLY via the payment RPCs
+   (`complete_payment_atomic_v2` / `refund_with_inventory`) that atomically create the
+   `order_payments` record. Enforced by **(a)** `transition_order_atomic` now REJECTS
+   `p_new_status IN ('paid','refunded','partially_refunded')` (clean
+   `PAYMENT_STATE_FORBIDDEN`), and **(c)** a new `BEFORE UPDATE` trigger
+   `trg_order_paid_requires_record` on `orders` asserting a non-refund `captured`
+   `order_payments` row exists on `→paid` (belt+suspenders; the trigger is the DB invariant).
+   The route `/api/rpc/transition_order_status` now maps that error to `422
+   PAYMENT_STATE_FORBIDDEN`.
+2. **No paid-wrong-order** — `trg_order_payment_immutable` (P-3) extended to also guard
+   `order_id` (D-3): a captured payment cannot be re-attached to a different order.
+- **D-2 (frozen-dead):** legacy `complete_payment_atomic` (10/11-arg) — no live route, no
+  `p_location_id` (P-1), no `p_idempotency_key` (P-4). `REVOKE EXECUTE` from
+  `authenticated`/`service_role`/`test_rls_role` (postgres keeps it).
+- **D-4:** `REVOKE INSERT ON order_payments FROM authenticated` + drop the
+  `order_payments_insert_loc` policy — the ledger is written only by the payment RPCs
+  (service_role). (Pre-existing note, out of scope: the table ACL still grants `anon`
+  rwd + `service_role` full — same world-readable class flagged in P-4.)
+- **D-5 (NO backfill):** the legacy drift is a **frozen residual carried to P-9** —
+  `paid_without_record=274`, `paid_amount≠Σcaptured=54`, `overpay=13`, `refund>paid=4`
+  (pre-existing). P-5 proves **zero NEW drift** (gate asserts the baseline counts are
+  unchanged after a full pay/refund cycle).
+- **D-6/D-7 (kept / deferred):** `payment_pending→paid` stays (legit intermediate); dead
+  `refund_payment_atomic` (`status='success'` not in the payment registry) untouched,
+  flagged for P-6/P-11.
+- **Harness compat (not production logic):** `.p3-gate.cjs` B3/B4 now seed the payment
+  record before the `→paid` UPDATE (the P-5 trigger superseded their old
+  bare-UPDATE-expects-OK); `.k-l3-probe.cjs` gained the 3× transport-retry wrapper it was
+  missing (dev-server ECONNRESET under load — HANDOVER convention "retry 3×"; L4 already had it).
+- **Gate `.p5-gate.cjs` = 10/10** (`node .p5-gate.cjs`).
+- **Frozen ecosystem reflow (all re-run):** **P-1 29/29 · P-2 13/13 · P-3 25/25 · P-4 19/19 ·
+  O 38/38 · F 35/35 · K L3 8/8 · K L4 16/16**, zero residue, baseline 274 preserved.
+  (O-gate kill-hazard re-checked: both paused triggers back to `O` after the O-gate.)
+- Next module: **P-6 Refund / void / reopen**.
 
 ### P-3 freeze — A / E-S pre-existing blocker disposition (NOT P regressions)
 **Proof (bisection):** with both P-3 triggers `DISABLE TRIGGER`, A and E/S fail

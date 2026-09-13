@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       let code = 'TRANSITION_FAILED';
       if (msg.includes('PERMISSION_DENIED')) { status = 403; code = 'PERMISSION_DENIED'; }
       else if (msg.includes('MANAGER_OVERRIDE_REQUIRED')) { status = 403; code = 'MANAGER_OVERRIDE_REQUIRED'; }
+      else if (msg.includes('PAYMENT_STATE_FORBIDDEN')) { status = 422; code = 'PAYMENT_STATE_FORBIDDEN'; }
       else if (msg.includes('INVALID_TRANSITION')) { status = 422; code = 'INVALID_TRANSITION'; }
       else if (msg.includes('ORDER_NOT_FOUND')) { status = 404; code = 'ORDER_NOT_FOUND'; }
       else if (msg.includes('Session expired') || msg.includes('Session revoked')) { status = 401; code = 'SESSION_INVALID'; }

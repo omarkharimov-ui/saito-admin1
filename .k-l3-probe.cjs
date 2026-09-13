@@ -17,7 +17,12 @@ const q=s=>`'${s}'`;
 const results=[];
 function P(id,name,pass,ev){results.push({id,pass:!!pass});console.log((pass?'PASS':'FAIL')+' '+id+' '+name+(pass?'':' -> '+String(ev).slice(0,170)));}
 const CSRF=crypto.randomUUID(); // double-submit: x-csrf-token header == saito_csrf cookie
-function http(path,body,cookie){return new Promise((res,rej)=>{const r=require('http').request({hostname:'localhost',port:3000,path,method:'POST',headers:{'Content-Type':'application/json','x-csrf-token':CSRF,'Cookie':`saito_token=${cookie}; saito_csrf=${CSRF}`}},resp=>{let d='';resp.on('data',c=>d+=c);resp.on('end',()=>res({status:resp.statusCode,body:d}));});r.on('error',rej);r.write(JSON.stringify(body||{}));r.end();});}
+// transport (P-5 reflow, 2026-09-13): the dev server occasionally drops a
+// connection under the load of a full battery; every call retries 3x — our test
+// actions are idempotent. (Same wrapper as .k-l4-probe.cjs; L3 was missing it.)
+function postOnce(mod,opts,payload){return new Promise((res,rej)=>{let d='';const r=mod.request(opts,resp=>{resp.on('data',c=>d+=c);resp.on('end',()=>res({status:resp.statusCode,body:d}));});r.on('error',rej);r.write(payload);r.end();});}
+async function post(mod,opts,payload){let last;for(let i=0;i<3;i++){try{return await postOnce(mod,opts,payload);}catch(e){last=e;await new Promise(x=>setTimeout(x,700*(i+1)));}}throw last;}
+const http=(path,body,cookie)=>post(require('http'),{hostname:'localhost',port:3000,path,method:'POST',headers:{'Content-Type':'application/json','x-csrf-token':CSRF,'Cookie':`saito_token=${cookie}; saito_csrf=${CSRF}`}},JSON.stringify(body||{}));
 function tRow(tn){return S(`SELECT coalesce(status,'null')||'|'||coalesce(current_order_id::text,'null')||'|'||coalesce(total_amount::text,'null')||'|'||coalesce(guest_count::text,'null') FROM table_floors WHERE table_number=${tn} AND location_id=${q(LOCA)}`);}
 (async()=>{
   const T=993;

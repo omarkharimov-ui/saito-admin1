@@ -1,0 +1,273 @@
+-- P-5 Atomicity contract (D-1..D-7, ratified 2026-09-13).
+-- Invariants: (1) an order enters paid/refunded only via the payment RPCs that
+-- atomically create the order_payments record (no paid-without-record);
+-- (2) a payment record's order_id is immutable once written (no paid-wrong-order).
+-- D-2/D-4: freeze the legacy v1 paid-writer + close the authenticated direct-
+-- ledger-INSERT path. D-5: NO backfill (legacy drift is a P-9 frozen residual).
+-- Pre-state: _p5_rollback_20260913/. All RAISE use P0001 (P-4 lesson: never 40001).
+BEGIN;
+
+-- ═══ D-1a: transition_order_atomic — reject payment-state targets ═══
+CREATE OR REPLACE FUNCTION public.transition_order_atomic(p_token text, p_order_id uuid, p_new_status text, p_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT NULL::jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_allowed jsonb;
+  v_rule jsonb;
+  v_order RECORD;
+  v_old_status text;
+  v_old_kitchen text;
+  v_staff_id uuid;
+  v_table_number int;
+  v_current_table_status text;
+  v_approver_key text;
+  v_has_approver boolean := false;
+  v_overr boolean := false;
+BEGIN
+  -- 1. AUTH (identity ONLY from the session token)
+  PERFORM set_session_staff(p_token);
+  v_staff_id := current_staff_id();
+
+  -- 2. Lock order
+  SELECT * INTO v_order FROM orders WHERE id = p_order_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'ORDER_NOT_FOUND' USING ERRCODE='P0001';
+  END IF;
+  -- P-5 (D-1a, ratified 2026-09-13): payment-state targets are owned by the
+  -- payment RPCs (complete_payment_atomic_v2 / refund_with_inventory), which
+  -- atomically create the order_payments record. A generic transition to a
+  -- payment state would leave the order paid/refunded with NO payment record.
+  IF p_new_status IN ('paid','refunded','partially_refunded')
+     AND p_new_status IS DISTINCT FROM v_order.status THEN
+    RAISE EXCEPTION 'PAYMENT_STATE_FORBIDDEN: % -> % must go through the payment RPCs (complete_payment_atomic_v2 / refund_with_inventory); this path creates no order_payments record [order=%]', v_order.status, p_new_status, p_order_id USING ERRCODE='P0001';
+  END IF;
+
+  v_old_status  := v_order.status;
+  v_old_kitchen := v_order.kitchen_status;
+  v_table_number := v_order.table_number;
+
+  IF v_old_status IS DISTINCT FROM p_new_status THEN
+    -- 3. TRANSITION VALIDATION (registry = source of truth)
+    v_rule := validate_transition('order', v_old_status, p_new_status);
+    IF NOT (v_rule->>'valid')::boolean THEN
+      RAISE EXCEPTION 'INVALID_TRANSITION: %', v_rule->>'error' USING ERRCODE='P0001';
+    END IF;
+
+    -- 4. AUTHORIZATION (session + staff + org + location-scope permission)
+    v_allowed := authorize(
+      p_token,
+      COALESCE(v_rule->>'requires_permission', 'orders.edit'),
+      v_order.location_id
+    );
+    IF NOT (v_allowed->>'allowed')::boolean THEN
+      RAISE EXCEPTION 'PERMISSION_DENIED: % → % requires [%] at location % (reason: %)',
+        v_old_status, p_new_status,
+        COALESCE(v_rule->>'requires_permission','orders.edit'),
+        v_order.location_id, v_allowed->>'reason' USING ERRCODE='P0001';
+    END IF;
+
+    -- 5. MANAGER OVERRIDE GATE
+    IF COALESCE(v_rule->>'requires_manager_override','false')::boolean THEN
+      v_approver_key := CASE WHEN COALESCE(v_rule->>'requires_permission','') LIKE '%refund%'
+                             THEN 'refund.approve' ELSE 'void.approve' END;
+      v_has_approver := COALESCE((SELECT has_permission(v_staff_id, v_approver_key)), false);
+      IF NOT v_has_approver THEN
+        SELECT EXISTS(
+          SELECT 1 FROM manager_overrides mo
+          WHERE mo.requested_by = v_staff_id
+            AND mo.permission = COALESCE(v_rule->>'requires_permission','orders.edit')
+            AND mo.location_id = v_order.location_id
+            AND mo.status = 'APPROVED'
+            AND mo.expires_at > now()
+        ) INTO v_overr;
+        IF NOT v_overr THEN
+          RAISE EXCEPTION 'MANAGER_OVERRIDE_REQUIRED: % → % (approver perm [%])',
+            v_old_status, p_new_status, v_approver_key USING ERRCODE='P0001';
+        END IF;
+      END IF;
+    END IF;
+
+    -- 6. ATOMIC UPDATE (guard trigger re-validates + sets canonical timestamps)
+    UPDATE orders SET
+      status = p_new_status,
+      version = COALESCE(version, 0) + 1,
+      updated_at = now()
+    WHERE id = p_order_id;
+
+    -- 6a. kitchen_status sync (parity with the pre-G1 live path)
+    CASE p_new_status
+      WHEN 'in_kitchen' THEN
+        UPDATE orders SET kitchen_status = 'preparing' WHERE id = p_order_id AND kitchen_status IS DISTINCT FROM 'preparing';
+      WHEN 'ready' THEN
+        UPDATE orders SET kitchen_status = 'ready' WHERE id = p_order_id;
+      WHEN 'served' THEN
+        UPDATE orders SET kitchen_status = 'completed' WHERE id = p_order_id;
+      WHEN 'paid','closed' THEN
+        UPDATE orders SET kitchen_status = 'completed' WHERE id = p_order_id AND kitchen_status NOT IN ('completed','cancelled');
+      WHEN 'cancelled' THEN
+        UPDATE orders SET kitchen_status = 'cancelled' WHERE id = p_order_id AND kitchen_status IS DISTINCT FROM 'cancelled';
+      ELSE NULL;
+    END CASE;
+
+    -- 6b. kitchen_schedule parity
+    IF p_new_status IN ('paid','closed','cancelled') THEN
+      DELETE FROM public.kitchen_schedule WHERE order_id = p_order_id;
+    ELSIF p_new_status = 'in_kitchen' THEN
+      INSERT INTO public.kitchen_schedule (order_id, table_number, status, created_at, updated_at)
+      SELECT p_order_id, v_table_number, 'preparing', NOW(), NOW()
+      WHERE v_table_number IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM public.kitchen_schedule WHERE order_id = p_order_id);
+    END IF;
+
+    -- 6c. floor sync (L5/A, 2026-09-12, ratified): the table lifecycle is
+    --     exactly empty / occupied / reserved. An active meal — including
+    --     paid — KEEPS the table occupied (PAID+OCCUPIED is valid; kitchen/
+    --     service progress lives in orders/order_items.kitchen_status +
+    --     table.kitchen_status, never table.status). The ONLY transition this
+    --     block performs is terminal cancellation freeing the table, and only
+    --     when no other open order remains on this (table, location).
+    --     'closed' is released by release_paid_table_atomic (explicit UI
+    --     departure action) — never auto-emptied here.
+    IF v_table_number IS NOT NULL AND v_table_number > 0 THEN
+      IF p_new_status = 'cancelled' THEN
+        SELECT status INTO v_current_table_status FROM table_floors
+         WHERE table_number = v_table_number AND location_id = v_order.location_id FOR UPDATE;
+        IF v_current_table_status = 'occupied'
+           AND NOT EXISTS (SELECT 1 FROM orders o2
+                           WHERE o2.table_number = v_table_number
+                             AND o2.location_id = v_order.location_id
+                             AND o2.status NOT IN ('paid','cancelled','closed','refunded','partially_refunded','voided'))
+        THEN
+          -- Guarded: table_release_guard (BEFORE trigger on table_floors)
+          -- re-validates no-active-pointer / no-open-orders for the empty state.
+          UPDATE table_floors SET
+            status = 'empty',
+            current_order_id = NULL,
+            total_amount = 0,
+            guest_count = NULL,
+            order_count = 0,
+            has_pending = false,
+            oldest_pending_at = NULL,
+            bill_requested = false,
+            updated_at = now()
+          WHERE table_number = v_table_number AND location_id = v_order.location_id;
+          PERFORM public.sync_table_order_aggregates(v_table_number);
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+  -- 7. AUDIT + 8. OUTBOX (only when status actually changed)
+  IF v_old_status IS DISTINCT FROM p_new_status THEN
+    PERFORM log_order_event(
+      p_order_id, 'status_changed',
+      jsonb_build_object('status', v_old_status, 'kitchen_status', v_old_kitchen),
+      jsonb_build_object('status', p_new_status, 'kitchen_status',
+        (SELECT kitchen_status FROM orders WHERE id = p_order_id),
+        'reason', p_reason),
+      COALESCE(p_metadata, '{}'::jsonb),
+      v_staff_id, NULL, NULL, NULL
+    );
+
+    INSERT INTO audit_logs (table_name, record_id, action, old_data, new_data, performed_by, created_at)
+    VALUES ('orders', p_order_id, 'order.transition',
+      jsonb_build_object('status', v_old_status),
+      jsonb_build_object('status', p_new_status, 'reason', p_reason),
+      v_staff_id, now());
+
+    INSERT INTO operation_logs (operation, order_id, performed_by, reason, old_state, new_state,
+                                location_id, organization_id, metadata)
+    VALUES ('order.transition', p_order_id, v_staff_id, p_reason,
+      jsonb_build_object('status', v_old_status),
+      jsonb_build_object('status', p_new_status),
+      v_order.location_id, v_order.organization_id,
+      jsonb_build_object('reopened', p_new_status IN ('new','open','confirmed','in_kitchen') AND v_old_status NOT IN ('new','open','confirmed','in_kitchen')));
+
+    INSERT INTO outbox_events (aggregate_type, aggregate_id, event_type, payload, status)
+    VALUES ('order', p_order_id, 'order.status_changed',
+      jsonb_build_object('old_status', v_old_status, 'new_status', p_new_status,
+                         'reason', p_reason, 'performed_by', v_staff_id),
+      'pending');
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'order_id', p_order_id,
+    'old_status', v_old_status,
+    'new_status', p_new_status,
+    'kitchen_status', (SELECT kitchen_status FROM orders WHERE id = p_order_id)
+  );
+END;
+$function$;
+
+-- ═══ D-1c: BEFORE trigger on orders — ->paid requires a captured record ═══
+CREATE OR REPLACE FUNCTION public.enforce_payment_record_on_paid()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+  -- P-5 D-1c (ratified 2026-09-13): the financial invariant lives in the DB,
+  -- not in one RPC. An order may enter 'paid' only when a non-refund CAPTURED
+  -- order_payments row already exists in the same transaction (the payment
+  -- RPCs INSERT the row BEFORE they UPDATE the order).
+  IF NOT EXISTS (SELECT 1 FROM public.order_payments p
+                 WHERE p.order_id = NEW.id
+                   AND p.status = 'captured'
+                   AND NOT p.is_refund) THEN
+    RAISE EXCEPTION 'PAID_WITHOUT_RECORD: order % entered paid with no captured order_payments row; payment state can only be set by complete_payment_atomic_v2 / refund_with_inventory', NEW.id USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_order_paid_requires_record ON public.orders;
+CREATE TRIGGER trg_order_paid_requires_record
+BEFORE UPDATE ON public.orders
+FOR EACH ROW
+WHEN (NEW.status = 'paid' AND OLD.status IS DISTINCT FROM 'paid')
+EXECUTE FUNCTION public.enforce_payment_record_on_paid();
+
+-- ═══ D-2: v1 complete_payment_atomic (10/11-arg) — frozen-dead ═══
+-- No live route calls it; it lacks p_location_id (P-1) and p_idempotency_key
+-- (P-4). REVOKE EXECUTE from all non-postgres roles so a bare PostgREST caller
+-- cannot use it as an unguarded paid-writer.
+REVOKE EXECUTE ON FUNCTION public.complete_payment_atomic(p_order_id uuid, p_payments jsonb, p_payment_method text, p_cash_amount numeric, p_card_amount numeric, p_tip_amount numeric, p_discount_amount numeric, p_discount_type text, p_performed_by uuid, p_performed_by_terminal_id text) FROM authenticated, service_role, test_rls_role;
+REVOKE EXECUTE ON FUNCTION public.complete_payment_atomic(p_order_id uuid, p_payments jsonb, p_payment_method text, p_cash_amount numeric, p_card_amount numeric, p_tip_amount numeric, p_discount_amount numeric, p_discount_type text, p_performed_by uuid, p_performed_by_terminal_id text, p_cash_drawer_session_id uuid) FROM authenticated, service_role, test_rls_role;
+
+-- ═══ D-3: order_payments immutability — extend to order_id ═══
+CREATE OR REPLACE FUNCTION public.trg_order_payment_immutable()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    -- Trusted exception: reopen_order_atomic's authorized, actor-validated,
+    -- audited FULL order reversal (order -> new, paid_amount -> 0, inventory
+    -- reversed). It is transaction-scoped (set_config ... , true) and set only
+    -- inside that SECURITY DEFINER fn, so external callers cannot forge it.
+    IF coalesce(current_setting('app.payment_ledger_reopen', true), 'off') <> 'on' THEN
+      RAISE EXCEPTION 'PAYMENT_RECORD_IMMUTABLE: order_payments rows cannot be deleted (corrections are new refund/reverse rows) [order=%]', OLD.order_id USING ERRCODE = 'P0001';
+    END IF;
+    RETURN OLD;
+  END IF;
+  -- UPDATE: the financial identity is immutable; status is handled by the
+  -- separate P-2 state-machine guard (trg_payment_state_machine_guard).
+  IF (OLD.amount   IS DISTINCT FROM NEW.amount)
+     OR (OLD.method IS DISTINCT FROM NEW.method)
+     OR (OLD.is_refund IS DISTINCT FROM NEW.is_refund)
+     OR (OLD.order_id IS DISTINCT FROM NEW.order_id) THEN
+    RAISE EXCEPTION 'PAYMENT_RECORD_IMMUTABLE: amount/method/is_refund/order_id are immutable (P-5 D-3: a payment record cannot be re-attached to a different order) [payment=%, order=% -> %]', NEW.id, OLD.order_id, NEW.order_id USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+-- ═══ D-4: authenticated cannot INSERT ledger rows directly ═══
+-- All legit payment creation goes through the payment RPCs (service_role).
+REVOKE INSERT ON public.order_payments FROM authenticated;
+DROP POLICY IF EXISTS order_payments_insert_loc ON public.order_payments;
+
+COMMIT;

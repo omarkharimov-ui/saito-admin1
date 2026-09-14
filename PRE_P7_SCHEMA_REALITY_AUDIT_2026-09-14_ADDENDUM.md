@@ -102,3 +102,30 @@ Ratified order (user): ref-scan FIRST, then drop. Executed:
    is stateless now, and an anon 410 "use staff-login" beats a 401 redirect for old clients.
 6. Live smoke: `pin-login → 410`; `POST /api/expenses` (unauth) → **401** (auth gate first,
    not a 500 — the createAuthClient() switch in S-4a is intact).
+
+### C-class 47→61 empty-object sweep — freeze, drop of 32, 29 retained (DONE 2026-09-14)
+
+Ratified: freeze -> full dependency scan -> reflow -> DROP (dependency order) ->
+post-drop catalog + runtime verification. Key process note: **the original "47"
+count came from a `.from()`-only ref scan; the comprehensive scan (`.from()`,
+`.rpc()`, REST `/rest/v1/<table>` URLs, raw SQL, fn bodies, triggers, views,
+incoming/outgoing FKs, gates) re-derived the set from the 61 empty objects and
+rescued 11 live REST-URL tables the first scan missed** (couriers, daily_reports,
+app_settings, payroll_exports, payroll_webhook_configs, shift_swap_requests,
+staff_announcements, tip_distributions, customer_addresses, notification_read_state,
+loyalty_product_rules). Outcome:
+
+| Set | Count | Disposition |
+|---|---|---|
+| Empty 0-row objects scanned | 61 | — |
+| Live app refs (`.from()` 17 + REST-URL 11 + view 1) | 28 | **retained, no change** |
+| FK from live `orders.group_id` | 1 (`dining_groups`) | **retained**; freeze tested then ACL restored (P-9 candidate, drop only with its FK) |
+| Frozen for reflow (mig `20260914000005`) | 33 | REVOKE DML anon/authenticated/service_role (SELECT kept) |
+| **DROPPED (mig `20260914000006`, child-first)** | **32** | denomination_counts, job_permissions, review_scores, onboarding_tasks (C2C children first) + 28 standalone |
+
+**Reflow with frozen 33 (pre-drop):** A 39/39, P-1 29/29, P-2 13/13, P-3 25/25,
+P-4 19/19, P-5 10/10, P-6 15/15, O 38/38, F 35/15→35/35, K-L3 8/8, K-L4 16/16 — no
+frozen object was written by any live path (the freeze proved the ref-scan under
+traffic). **Post-drop catalog:** 0 of the 32 remain; 169→137 objects (122 tables +
+15 views); FKs 233→183; `dining_groups` + its `orders.group_id` FK intact.
+**Post-drop runtime:** P-6 15/15, O 38/38, A 39/39. Zero residue (total_keys=9).

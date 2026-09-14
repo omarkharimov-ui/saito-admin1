@@ -407,7 +407,15 @@ preserved to `.env.local` (gitignored) as SETTINGS_LEGACY_* first (0 printed). M
 0 credential cols on settings, 1 row intact; live 410 smoke OK; expenses POST → 401 (auth
 gate, service client intact).
 
-**Ratified order:** S-1 ✅ done · S-3/S-8 ✅ done (read-only, in addendum) · S-4a ✅ done · S-4b ✅ done · S-2 ⏸ (route
+**C-class DONE (2026-09-14, ratified):** of 61 empty objects the comprehensive
+dependency scan (`.from()` + REST `/rest/v1/<t>` URLs + raw SQL + fn/trigger/view +
+FKs + gates) kept 29 live-referenced (incl. 11 rescued by the REST-URL pass) and
+**dropped 32** (migrations `20260914000005` freeze → full reflow green →
+`20260914000006` child-first DROP CASCADE). `dining_groups` retained (live FK
+`orders.group_id`; P-9 candidate). Post-drop: 169→137 objects, FKs 233→183,
+P-6/O/A re-verified green, zero residue. **P-7 UNPAUSE is now authorized.**
+
+**Ratified order:** S-1 ✅ · S-3/S-8 ✅ · S-4a ✅ · S-4b ✅ · C-class ✅ — all done · S-2 ⏸ (route
 exposure now proven — secrets→env + drop 5 columns, next phase) · S-4 ⏸ (freeze C → reflow →
 drop) · S-5/S-6/S-7/S-9 ⏸ (P-9 / cleanup) · S-10 ✅ KEEP (240 never-written columns, no touch).
 **Cleanup phase (next)** = the anon-grant revocation + settings-secrets migration + C freeze,

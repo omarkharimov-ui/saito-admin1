@@ -431,7 +431,19 @@ Awaiting ratification.
 
 **Ratified order:** S-1 ✅ · S-3/S-8 ✅ · S-4a ✅ · S-4b ✅ · C-class ✅ — all done · S-10 ✅ KEEP
 (240 never-written columns, no touch) · S-5/S-6/S-7/S-9 ⏸ (P-9 / cleanup backlog).
-**P-7 (next)** = ratify D-Q4 + D-Q6 dispositions → canonical writer inventory →
+**P-7 inventory + decision matrix (2026-09-15, read-only, for ratification):**
+`P7_WRITER_INVENTORY_DECISION_MATRIX_2026-09-15.md`. Live A-class writer surface
+mapped (route→RPC→lock-order): all money/state writers lock `orders` FIRST; the only
+cross-table order is `orders → table_floors` (single direction — no 2-cycle; `dismiss`
+locks only `table_floors`). Keyed idempotency writers = exactly 2 (pay v2, refund
+v11 — P-4). Cancel UI verified = `transition_order_atomic('cancelled')` (canonical
+machine). 16-test concurrency battery (C-1..C-16: pay∥pay/cancel/add/seat/dismiss/
+drawer, transition∥transition, refund∥refund/pay + D-Q4 mirror parity, reopen∥pay,
+duplicate-RPC, stale-state, deadlock smoke, rollback-atomicity) + P7-1..P7-8
+verify/fix decision rows. **Awaiting user ratification of the battery → step 4 live
+concurrency proof.**
+
+**P-7 (next)** = ratify C-1..C-16 battery → live concurrency proof (`.p7-gate.cjs`) →
 decision matrix → ratification → live concurrency proof → gate/reflow → commit.
 each followed by the P-1..P-6 reflow. THEN P-7 (A-class writer surface only).
 

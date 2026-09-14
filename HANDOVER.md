@@ -363,6 +363,37 @@ deleted); test tables `997/998/...`; `cleanTable()` pattern must disable
 
 ---
 
+## 5.5.5 — PRE-P7 CHECKPOINT: schema reality audit (2026-09-14, ratified)
+
+**P-7 is PAUSED** until the schema cleanup below lands (user ratification 2026-09-14).
+The full audit: `PRE_P7_SCHEMA_REALITY_AUDIT_2026-09-14.md` (+ `_ADDENDUM.md` for
+S-1/S-3/S-8 + login). Headline, with raw counts:
+
+- **H-1 FIXED:** repo migrations never recreated the live schema (167/169 tables
+  LIVE_ONLY). Now `supabase/baseline_live_schema_2026-09-14.sql` (pg_dump --schema-only,
+  154 tables + 437 fns, 36.6k lines) is the **reconstruction baseline** (outside
+  `supabase/migrations/`, NOT a migration replay). Fresh-DB restore = baseline → then
+  P-1..P-6 deltas.
+- **H-2/D (PRIORITY, not yet fixed):** **152 tables grant FULL DML to `anon`**; 39 of them
+  are also RLS-OFF (25 with live data — anon can write via PostgREST). `settings` holds
+  ≥5 plaintext credential columns (no route exposes them — live-verified). S-8: all 324
+  SECURITY DEFINER fns have pinned `search_path` (no escalation found).
+- **H-4:** 47 empty tables with zero app + zero DB-fn refs (C-candidates, frozen-not-dropped).
+- **H-5:** 7 duplicate/parallel structures (3 audit tables, 4 op-logs, 2 ledgers, …) → P-9.
+- **Login surface (fixed):** 3 un-authenticatable active staff (2 null `pin_hash`, 1 weak
+  hash — test residue: `edefdfas`, `Security Test`, `GATE_T`) INACTIVATED (F-contract) + 1
+  orphan session REVOKED; now **0** active staff left un-authenticatable. Old 2–3-digit
+  short codes are **gone by design** (A-freeze rotated to 4-digit PBKDF2; `staff-login`
+  rejects non-4-digit). Working account-login = `/staff/login` → `staff-login` (4-digit
+  PIN only). `.a-regression.cjs` re-run 39/39 (A03 correct-PIN→200). Legacy `pin-login`
+  is an unused weaker parallel path → freeze in cleanup.
+
+**Ratified order:** S-1 ✅ done · S-3/S-8 ✅ done (read-only, in addendum) · S-2 ⏸ (route
+exposure now proven — secrets→env + drop 5 columns, next phase) · S-4 ⏸ (freeze C → reflow →
+drop) · S-5/S-6/S-7/S-9 ⏸ (P-9 / cleanup) · S-10 ✅ KEEP (240 never-written columns, no touch).
+**Cleanup phase (next)** = the anon-grant revocation + settings-secrets migration + C freeze,
+each followed by the P-1..P-6 reflow. THEN P-7 (A-class writer surface only).
+
 ## 5. NEXT MODULE: **P-7 — CONCURRENT MUTATION** (the financial SSOT boundary, continued)
 
 **Where we left off (2026-09-14):** P-1…P-6 are **all frozen, committed, and pushed**

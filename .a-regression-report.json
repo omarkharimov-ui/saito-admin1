@@ -135,7 +135,7 @@
     "id": "Z-2",
     "name": "LOC_B staff authorize on own LOC_B (payments.refund) -> allowed=true (mgr has perm)",
     "pass": true,
-    "evidence": "{\"allowed\": true, \"role_id\": \"bb579b8a-022d-4f89-99c7-56eebcec3032\", \"staff_id\": \"40307e80"
+    "evidence": "{\"allowed\": true, \"role_id\": \"bb579b8a-022d-4f89-99c7-56eebcec3032\", \"staff_id\": \"549cd471"
   },
   {
     "id": "Z-3",
@@ -146,8 +146,8 @@
   {
     "id": "O-1",
     "name": "self-approve override -> DENIED",
-    "pass": false,
-    "evidence": "SQL: ERROR:  invalid input syntax for type uuid: \"\"\nLINE 1: ....approve_override"
+    "pass": true,
+    "evidence": "SQL: ERROR:  Self-approval is not allowed\nCONTEXT:  PL/pgSQL function approve_ov"
   },
   {
     "id": "O-2",
@@ -165,31 +165,31 @@
     "id": "A21",
     "name": "failed login audited",
     "pass": true,
-    "evidence": "login_failed=137"
+    "evidence": "login_failed=125"
   },
   {
     "id": "A22",
     "name": "successful login audited",
     "pass": true,
-    "evidence": "login=164"
+    "evidence": "login=134"
   },
   {
     "id": "A23",
     "name": "lockout audited",
     "pass": true,
-    "evidence": "lockout=3"
+    "evidence": "lockout=1"
   },
   {
     "id": "A24",
     "name": "role/status change audited (staff_suspended/enabled events)",
     "pass": true,
-    "evidence": "lifecycle events=171"
+    "evidence": "lifecycle events=177"
   },
   {
     "id": "A25",
     "name": "permission denied audited",
     "pass": true,
-    "evidence": "permission_denied=81"
+    "evidence": "permission_denied=103"
   },
   {
     "id": "A26",
@@ -218,8 +218,8 @@
   {
     "id": "C-2",
     "name": "login+disable race -> invariant holds (token cannot authenticate after disable)",
-    "pass": false,
-    "evidence": "login=200 auth-after=200"
+    "pass": true,
+    "evidence": "login=401 auth-after=401"
   },
   {
     "id": "C-3",

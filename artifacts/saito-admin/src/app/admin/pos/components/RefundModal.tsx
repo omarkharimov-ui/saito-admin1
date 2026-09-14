@@ -34,6 +34,13 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
   // same key with a different amount is a 409 IDEMPOTENCY_CONFLICT at the
   // boundary. Key text is opaque to the boundary; namespace 'refund' + the
   // order/amount binding are enforced server-side.
+  // Derived money values are computed BEFORE refundKey (below) so the callback
+  // and its dependency array never reference a block-scoped const before its
+  // declaration (TDZ — this was a build-breaking TS error on Vercel).
+  const refundAmount = parseFloat(amount) || 0;
+  const isFullRefund = Math.abs(refundAmount - paidAmount) < 0.01;
+  const isValid = refundAmount > 0 && refundAmount <= paidAmount + 0.01;
+
   const refundKeyRef = useRef<Map<string, string>>(new Map());
   const refundKey = useCallback(() => {
     const k = `${orderId}|${refundAmount}`;
@@ -52,10 +59,6 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
       setMethod(paymentMethod === 'card' ? 'card' : 'cash');
     }
   }, [open, paymentMethod]);
-
-  const refundAmount = parseFloat(amount) || 0;
-  const isFullRefund = Math.abs(refundAmount - paidAmount) < 0.01;
-  const isValid = refundAmount > 0 && refundAmount <= paidAmount + 0.01;
 
   const handleRefund = async () => {
     if (!isValid) return;

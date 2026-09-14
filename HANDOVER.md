@@ -399,7 +399,15 @@ anon = SELECT/INSERT/TRUNCATE/REF/TRIGGER (no UPDATE/DELETE), 6 triggers — NOT
 the 39; separate decision needed (client anon INSERT to a RLS-ON table = blocked by
 RLS unless a policy allows it → check before any change).
 
-**Ratified order:** S-1 ✅ done · S-3/S-8 ✅ done (read-only, in addendum) · S-4a ✅ done · S-2 ⏸ (route
+**S-4b DONE (2026-09-14, ratified):** settings plaintext-credential columns dropped — the set
+was **8, not 5** (smtp_host/port/from_name are also dead; email = Supabase Auth). Values
+preserved to `.env.local` (gitignored) as SETTINGS_LEGACY_* first (0 printed). Migration
+`20260914000004`. Dead `useReports.createExpense` deleted (never called). `pin-login` FROZEN
+→ 410 (weak legacy login: no CSRF/rate-limit/audit; canonical = staff-login). Post-verify:
+0 credential cols on settings, 1 row intact; live 410 smoke OK; expenses POST → 401 (auth
+gate, service client intact).
+
+**Ratified order:** S-1 ✅ done · S-3/S-8 ✅ done (read-only, in addendum) · S-4a ✅ done · S-4b ✅ done · S-2 ⏸ (route
 exposure now proven — secrets→env + drop 5 columns, next phase) · S-4 ⏸ (freeze C → reflow →
 drop) · S-5/S-6/S-7/S-9 ⏸ (P-9 / cleanup) · S-10 ✅ KEEP (240 never-written columns, no touch).
 **Cleanup phase (next)** = the anon-grant revocation + settings-secrets migration + C freeze,

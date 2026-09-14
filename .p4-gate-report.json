@@ -1,5 +1,5 @@
 {
- "at": "2026-09-14T16:55:44.895Z",
+ "at": "2026-09-14T18:31:52.416Z",
  "total": 19,
  "passed": 19,
  "failed": 0,
@@ -32,13 +32,13 @@
    "id": "P4-06",
    "name": "same key + different amount -> 409 IDEMPOTENCY_CONFLICT + zero mutation",
    "pass": true,
-   "evidence": "a=200 b=409 before=23|0|2|confirmed after=23|0|2|confirmed rows=1 {\"error\":\"IDEMPOTENCY_CONFLICT: key p4:amt:36300f3e-9e0d-41c"
+   "evidence": "a=200 b=409 before=23|0|2|confirmed after=23|0|2|confirmed rows=1 {\"error\":\"IDEMPOTENCY_CONFLICT: key p4:amt:c4aade76-a687-46d"
   },
   {
    "id": "P4-07",
    "name": "same key + different order -> 409 + zero mutation on order B",
    "pass": true,
-   "evidence": "a=200 b=409 rowsB=0 {\"error\":\"IDEMPOTENCY_CONFLICT: key p4:ord:153c52ae-9c8a-410"
+   "evidence": "a=200 b=409 rowsB=0 {\"error\":\"IDEMPOTENCY_CONFLICT: key p4:ord:29db380d-82e1-419"
   },
   {
    "id": "P4-08",

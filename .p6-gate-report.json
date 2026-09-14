@@ -1,5 +1,5 @@
 {
- "at": "2026-09-14T16:59:40.422Z",
+ "at": "2026-09-14T18:37:08.484Z",
  "total": 15,
  "passed": 15,
  "failed": 0,
@@ -14,7 +14,7 @@
    "id": "P6-02",
    "name": "item refund (Mode 1, waste, 50) -> 1 is_refund row, order partially_refunded, canonical audit",
    "pass": true,
-   "evidence": "status=200 refrows=1 st=partially_refunded audit=1 {\"action\":\"refund_with_inventory\",\"success\":true,\"order_id\":\"310b5860-ebe8-465a-"
+   "evidence": "status=200 refrows=1 st=partially_refunded audit=1 {\"action\":\"refund_with_inventory\",\"success\":true,\"order_id\":\"119b7048-f520-407a-"
   },
   {
    "id": "P6-03",
@@ -32,7 +32,7 @@
    "id": "P6-05",
    "name": "concurrent 2x refund(50) on 100 order -> never over-refunds (net <= 100, cap holds under row lock)",
    "pass": true,
-   "evidence": "a=200 b=500 netRefunded=50.00 st=partially_refunded aBody={\"action\":\"refund\",\"change\":0,\"status\":\"partially_"
+   "evidence": "a=500 b=200 netRefunded=50.00 st=partially_refunded aBody={\"error\":\"REFUND_EXCEEDS_PAID: refund 50 > net_pai"
   },
   {
    "id": "P6-06",
@@ -80,7 +80,7 @@
    "id": "P6-13",
    "name": "void un-paid order -> cancelled + order.status_changed outbox emitted (D-4)",
    "pass": true,
-   "evidence": "status=200 st=cancelled void_outbox=1 {\"action\":\"void\",\"success\":true,\"order_id\":\"c65b46d8-7bff-4f1d-96a6-52d853734eab"
+   "evidence": "status=200 st=cancelled void_outbox=1 {\"action\":\"void\",\"success\":true,\"order_id\":\"ffac7f74-2c4b-45c1-8fe9-c687d8a717ab"
   },
   {
    "id": "P6-13b",

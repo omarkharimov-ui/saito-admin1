@@ -80,3 +80,25 @@ by any UI** — an unused weaker parallel path) and `verify-pin` (4–6 digit, a
 used by `PinGuard.tsx`/`CashDrawerPanel.tsx` for mid-session privileged actions — a different
 purpose, not account login). `migrate-admin-pin` is already a 410 stub. Recommend: keep `staff-login`
 as the single account-login path, freeze `pin-login` (unused, weaker) in cleanup.
+
+### S-4b — settings secrets → env + drop, dead code removal, pin-login freeze (DONE 2026-09-14)
+
+Ratified order (user): ref-scan FIRST, then drop. Executed:
+
+1. **Reference scan (step 1/6, moved first per ratification):** 0 code/DB/UI references to the
+   8 credential columns (only i18n label strings + a doc comment in settings-svc.ts; 0 fn/
+   trigger bodies; 0 route exposure re-confirmed). **The set is 8 columns, not 5** — the
+   sweep showed `smtp_host`, `smtp_port`, `smtp_from_name` alongside `smtp_user`/`smtp_pass`
+   (email goes through Supabase Auth, not SMTP — `send-code` is the auth flow; all smtp_* dead).
+2. **Values preserved** to `artifacts/saito-admin/.env.local` (gitignored, untracked) as
+   `SETTINGS_LEGACY_*` (8/8 non-empty) BEFORE the drop. Values never printed to chat/logs.
+3. **Migration `20260914000004`**: `ALTER TABLE settings DROP COLUMN` ×8. Post-verify:
+   `credential cols remaining = 0`, settings still 1 row, 51 cols.
+4. **Dead code removed**: `useReports.createExpense` (never called; anon-key write that S-4a
+   would have broken) deleted; `fetchExpenses` (read) retained.
+5. **`pin-login` FROZEN**: route now returns **410** with a pointer to `/api/auth/staff-login`
+   (previously: no CSRF, no rate-limit/lockout, no audit, 1000-staff client-side scan).
+   0 UI callers, 0 gate callers. Middleware PUBLIC_PATHS entry KEPT deliberately: the route
+   is stateless now, and an anon 410 "use staff-login" beats a 401 redirect for old clients.
+6. Live smoke: `pin-login → 410`; `POST /api/expenses` (unauth) → **401** (auth gate first,
+   not a 500 — the createAuthClient() switch in S-4a is intact).

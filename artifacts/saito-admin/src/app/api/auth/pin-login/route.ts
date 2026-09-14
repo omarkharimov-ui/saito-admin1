@@ -1,64 +1,18 @@
-import { createClient } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyPin } from '@/lib/crypto';
-import crypto from 'crypto';
+import { NextResponse } from 'next/server';
 
-function svc() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+// S-4b (Pre-P7 cleanup, ratified 2026-09-14): this legacy PIN login is FROZEN.
+// It was the pre-A-freeze weak path: no CSRF check, no rate-limit/lockout, no
+// security_events / audit_logs_canonical writes, no active_location_id on the
+// session, and it matched a PIN against a client-side scanned list of up to 1000
+// staff (timing/leak surface). The canonical login is /api/auth/staff-login
+// (CSRF + rate-limit + lockout + audit + location). 0 UI callers and 0 gate
+// callers existed at freeze time (verified 2026-09-14). Returns 410 Gone.
+export async function POST() {
+  return NextResponse.json(
+    {
+      error:
+        'pin-login is deprecated and frozen (S-4b, 2026-09-14). Use /api/auth/staff-login.',
+    },
+    { status: 410 }
   );
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const { pin } = await req.json();
-    if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-      return NextResponse.json({ error: '4 rəqəmli PIN tələb olunur' }, { status: 400 });
-    }
-
-    const supabase = svc();
-
-    const { data: users } = await supabase
-      .from('staff')
-      .select('id, role_id, pin_hash')
-      .eq('is_active', true)
-      .limit(1000);
-
-    const user = (users || []).find((u: any) => u.pin_hash && verifyPin(pin, u.pin_hash));
-
-    if (!user) {
-      return NextResponse.json({ error: 'PIN yanlışdır' }, { status: 401 });
-    }
-
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    let role = 'cashier';
-    if (user.role_id) {
-      const { data: roleRow } = await supabase.from('roles').select('name').eq('id', user.role_id).maybeSingle();
-      if (roleRow?.name) role = roleRow.name;
-    }
-
-    await supabase.from('sessions').insert({
-      token,
-      user_id: user.id,
-      role,
-      expires_at: expiresAt,
-    });
-
-    const cookieStore = await cookies();
-    cookieStore.set('saito_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 86400,
-    });
-
-    return NextResponse.json({ success: true, role });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  }
 }

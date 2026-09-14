@@ -84,7 +84,7 @@
       "id": "F10-3",
       "name": "undo-merge outbox event exists (count increased)",
       "pass": true,
-      "evidence": "outbox table.*: 2361 -> 2369"
+      "evidence": "outbox table.*: 2456 -> 2464"
     },
     {
       "id": "F10-4",

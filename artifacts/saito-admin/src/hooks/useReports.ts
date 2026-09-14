@@ -204,32 +204,13 @@ export function useReports() {
       console.error('Failed to fetch expenses:', err);
       return [];
     }
-    return (data || []) as Expense[];
+      return (data || []) as Expense[];
   }, []);
 
-  // ─── Create expense ───
-  const createExpense = useCallback(async (params: {
-    category: string;
-    amount: number;
-    note?: string;
-    expense_date?: string;
-    staff_id?: string;
-  }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error: err } = await supabase.from('expenses').insert({
-        category: params.category,
-        amount: params.amount,
-        note: params.note || null,
-        expense_date: params.expense_date || new Date().toISOString().split('T')[0],
-        staff_id: params.staff_id || null,
-      }).select().single();
-
-      if (err) { setError(err.message); return null; }
-      return data;
-    } finally { setLoading(false); }
-  }, []);
+  // NOTE (S-4b, 2026-09-14): the former client-side `createExpense` was dead code
+  // (never called by any component) and it wrote to `expenses` with the anon-key
+  // client — a path S-4a's anon-DML revoke would have broken. Removed. The live
+  // write path is POST /api/expenses (service_role via createAuthClient).
 
   return {
     loading,
@@ -240,6 +221,5 @@ export function useReports() {
     getStaffPerformance,
     closeCashRegister,
     fetchExpenses,
-    createExpense,
   };
 }

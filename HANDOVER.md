@@ -1,32 +1,51 @@
-# HANDOVER — Saito Admin POS (K → P)
+# HANDOVER — Saito Admin POS (P-series)
 
-**Date:** 2026-09-12 · **Head:** see `git log --oneline -1` (post-K freeze)
+**Date:** 2026-09-14 · **Head:** `0c59227` (post-P-6 freeze; `main == origin`)
 **Checkpoint:** `A ⚠️ → E/S ⚠️ → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3 🔒 → P-4 🔒 → P-5 🔒 → P-6 🔒 → P-7 NEXT`
 
 > **A / E/S are ⚠️ pre-existing blockers, NOT P regressions** (bisection-proven: the
 > failures persist with P-3 triggers disabled). See the disposition block after the P-3
-> record below. Do NOT re-open P-1/P-2/P-3 on account of A/E/S.
+> record below. Do NOT re-open P-1…P-6 on account of A/E/S.
 
-This document is the operating baseline for the next agent. It is NOT "K is done"
-— it is **frozen baseline + exact remaining architecture + next module (P) entry
-point**. Read `K_FROZEN.md` for the K freeze record and
-`K_FOUNDATION_CURRENT_STATE.md` for the lifecycle audit evidence.
+This document is the operating baseline for the next agent. It is the **frozen baseline
++ exact remaining architecture + next module (P-7) entry point**. The P-0…P-6 per-module
+contracts/inventories (the source-of-truth for each ratified decision) are the
+`P?_*.md` files next to this file; the K/A/E-S freeze records were archived out of the
+repo (they live in git history if ever needed).
 
 ---
 
 ## 1. FROZEN BASELINE (do not regress)
 
+Latest full reflow (2026-09-13, after P-6) — **all re-run green, zero residue**:
+
 | Module | Gate | Result | Re-verify command (repo root) |
 |---|---|---|---|
-| **A** — Auth/sessions | `.a-regression.cjs` | **39/39** | `node .a-regression.cjs` |
-| **E/S** — Staff/roles/timeclock/shifts | `.es-gate.cjs` | **54/54** | `node .es-gate.cjs` |
+| **A** — Auth/sessions | `.a-regression.cjs` | **39/39** ⚠️* | `node .a-regression.cjs` |
+| **E/S** — Staff/roles/timeclock/shifts | `.es-gate.cjs` | **54/54** ⚠️* | `node .es-gate.cjs` |
 | **F** — Floor/tables/registry/guards | `.f-gate.cjs` | **35/35** | `node .f-gate.cjs` |
 | **O** — Orders/transitions/payments-create | `.o-gate.cjs` | **38/38** | `O_ROUTE="$(pwd)/artifacts/saito-admin/src/app/api/orders/route.ts" node .o-gate.cjs` |
 | **K** — Kitchen/KDS (full freeze) | 7 suites | all green | see below |
+| **P-1** — Authorization (location scope, permission SSOT) | `.p1-gate.cjs` | **29/29** | `node .p1-gate.cjs` |
+| **P-2** — State machine (registry, payment 12-state) | `.p2-gate.cjs` | **13/13** | `node .p2-gate.cjs` |
+| **P-3** — Amount immutability (ledger, underpayment) | `.p3-gate.cjs` | **25/25** | `node .p3-gate.cjs` |
+| **P-4** — Idempotency (exactly-once payment/refund) | `.p4-gate.cjs` | **19/19** | `node .p4-gate.cjs` |
+| **P-5** — Atomicity (paid requires a record) | `.p5-gate.cjs` | **10/10** | `node .p5-gate.cjs` |
+| **P-6** — Refund/Void/Reopen (authorized full reversal) | `.p6-gate.cjs` | **15/15** | `node .p6-gate.cjs` |
+
+⚠️* A and E/S are **pre-existing blockers** (cash-RPC signature drift + an A-specific
+fixture race) — NOT P regressions; their historical 39/39 · 54/54 were green before that
+drift. Do NOT re-open any P module because of them.
 
 K suites: `.k-g3g4-probe.cjs` (14) · `.k-k3-probe.cjs` (8) · `.k-g7-probe.cjs` (12) ·
 `.k-l2-probe.cjs` (9) · `.k-l3-probe.cjs` (8) · `.k-l5-probe.cjs` (9) ·
 `.k-l4-probe.cjs` (16). Plus `.k-g6-probe.cjs` / `.k-g6-delivery-probe.cjs` (outbox).
+
+**How to run the P chain in order (solo, drained pooler):** start the dev server
+(`cd artifacts/saito-admin && npm run dev`), then run each gate above sequentially.
+Each gate is **idempotent + zero-residue** (P6_ staff INACTIVATED, probe orders/op-rows
+removed under the P-3 trusted `app.payment_ledger_reopen` flag, idempotency keys deleted).
+See §5.3 conventions.
 
 **P-1 (2026-09-12, batch `20260912000001_p1_authz_batch.sql`)** — frozen gate
 `.p1-gate.cjs` = **29/29** (`node .p1-gate.cjs`), all A/E/S/F/O/K re-verified green
@@ -309,13 +328,14 @@ consequence. **Not a blocker; not repaired during the K audit; out of scope.**
 
 ## 4. EXACT REMAINING ARCHITECTURE (the ratified model)
 
-```
-TABLE:    empty → occupied → (paid) → dirty → empty
-ORDER:    new/open/confirmed → in_kitchen → … → paid → closed   (+cancelled/refunded/voided branches)
-KITCHEN:  pending → accepted → preparing/cooking → ready → completed   (order_items.kitchen_status)
-SERVICE:  (explicit) mark_served_atomic → kitchen_status='served'
-PAYMENT:  [P — NEXT]
-```
+ ```
+ TABLE:    empty → occupied → (paid) → dirty → empty
+ ORDER:    new/open/confirmed → in_kitchen → … → paid → closed   (+cancelled/refunded/voided branches)
+ KITCHEN:  pending → accepted → preparing/cooking → ready → completed   (order_items.kitchen_status)
+ SERVICE:  (explicit) mark_served_atomic → kitchen_status='served'
+ PAYMENT:  AUTHZ(P-1) · STATE(P-2) · IMMUTABLE(P-3) · IDEMPOTENT(P-4) · ATOMIC(P-5) ·
+          REFUND/VOID/REOPEN(P-6) — all frozen; concurrency is NEXT (P-7)
+ ```
 The four(+payment) lifecycles **derive/synchronize, they do not merge**:
 - order→table: `transition_order_atomic` keeps `occupied` (042); only last-open-order
   cancellation frees the table; `release_paid_table_atomic` owns the explicit departure.
@@ -343,60 +363,101 @@ deleted); test tables `997/998/...`; `cleanTable()` pattern must disable
 
 ---
 
-## 5. NEXT MODULE: **P — PAYMENTS** (the financial SSOT boundary)
+## 5. NEXT MODULE: **P-7 — CONCURRENT MUTATION** (the financial SSOT boundary, continued)
 
-**Position:** the lifecycle chain is `TABLE → ORDER → KITCHEN → SERVICE → PAYMENT →
-DIRTY → CLEAR → EMPTY`. Payment is the POS's most critical commerce surface; it must be
-audited as the **financial SSOT boundary**, NOT as "button → paid".
+**Where we left off (2026-09-14):** P-1…P-6 are **all frozen, committed, and pushed**
+(`main == origin == 0c59227`). The single financial-write path is now:
+**UI → API route (RBAC + CSRF + shift) → atomic RPC (session identity + location scope +
+`FOR UPDATE`) → DB triggers/guards → audit + outbox**, and each mutation class has a
+frozen gate that proves it live. The one thing **not yet proven is what happens when two
+of these race** — that is P-7. (P-4 already proved the *idempotent-replay* axis; P-6
+proved the *concurrent-refund* axis in isolation. P-7 is the general cross-mutation matrix.)
 
-### 5.1 Known entry points (verify, don't assume)
-- RPCs: `complete_payment_atomic` — **two overloads** (10-arg, token-less; 11-arg with
-  `p_cash_drawer_session_id`). Writes `payments` rows (`method`,`amount`,`status`),
-  order→`paid`, **table→`dirty`** on full payment when no other active order, outbox.
-- Route: `/api/orders/complete-payment` — currently `requireAuth` + CSRF only.
-  **P must verify the permission model** (cashier/manager/superadmin matrix,
-  `payments.create`, `pos.payment`, override for discount/refund) — do not inherit K's
-  assumption that this is fine.
-- Order registry already has `refunded` / `partially_refunded` / `voided` states —
-  the refund/void fns around them are P scope.
-- Shift linkage: `shifts.starting_cash/expected_cash/actual_cash/difference`;
-  `close_shift_atomic` flags `requires_review` when |difference|>10; 12h
-  `auto_clockout_staff`. Cash drawer ↔ payment linkage is P scope.
+### 5.1 The ratified P-7 scope (execute in this order)
+- **Pay / Pay (same order, different or same key):** two `complete_payment_atomic_v2`
+  in flight → exactly one captures; the other gets `ORDER_ALREADY_PAID`/`PAYMENT_EXCEEDS_
+  REMAINING`/`IDEMPOTENCY_CONFLICT`. No double `captured` row, no overpaid order.
+- **Pay / Cancel (same order):** pay `→paid` vs `cancel` racing → one wins; the order
+  cannot end `cancelled` with a captured payment, nor `paid` while cancelled.
+- **Pay / New-seat on a dirty table:** payment writes `dirty`+clears pointer; a concurrent
+  new-seat must be **server-blocked** (the F `dirty` guard) until Clear — prove no
+  double-occupancy of a table.
+- **Pay / Dismiss (table):** `dismiss_table_state_aware` vs an in-flight payment.
+- **Drawer close / Payment in flight (045 boundary):** `close_shift_atomic` must not
+  close a shift while a cash payment is mid-capture (the 045 OPEN+closed invariant stays).
+- **Reopen / Payment (post-P-6):** a `reopen_order_atomic` (full reversal) racing a new
+  `pay` on the just-reopened order → no lost update / no orphan payment row.
+- **Duplicate RPC across the matrix:** any two same-key calls → exactly-once (P-4 holds).
+- **Stale-state:** a mutation built on a pre-read `version` that is no longer current →
+  optimistic/lock rejection, no silent overwrite.
 
-### 5.2 P audit plan (ratified scope — execute in this order)
-- **P-0 Inventory:** every payment fn/route/table/trigger/outbox event + RLS + ACL;
-  permission matrix (who can create/capture/refund/void/discount/adjust drawer).
-- **P-1 Authorization:** cashier vs manager vs superadmin; location scope on every
-  payment path (D-5); `requireActiveShift` applicability; override gates.
-- **P-2 Capture semantics:** payment authorization vs capture; method coverage
-  (cash / card / QR); what `status` values exist on `payments` and what transitions
-  are legal (registry check — `dirty`'s lesson: no hidden 4th states).
-- **P-3 Amount edge cases:** split payment, partial payment, overpayment (change?
-  credit?), underpayment (open balance? block?), multiple payments per order.
-- **P-4 Idempotency:** duplicate submit (double-click, retry, webhook replay) →
-  exactly-once; the L4 2×pay result (no double-charge) is the baseline to extend.
-- **P-5 Atomicity:** payment ↔ order (no paid-without-record, no paid-wrong-order),
-  payment ↔ table lifecycle (`dirty` only via the ratified path; PAID+OCCUPIED stays valid).
-- **P-6 Refund / void / reopen:** full/partial refund, void, refund-after-close,
-  reopen semantics; each must map to the registry states with audit + outbox.
-- **P-7 Concurrency:** pay/pay (same order), pay/cancel, pay/new-seat (dirty guard),
-  pay/dismiss, drawer close vs payment in flight.
-- **P-8 Cash drawer:** drawer session linkage, counts, discrepancy review, shift close
-  interplay (the 045 invariant must stay green).
-- **P-9 Audit & immutability:** every financial mutation → `audit_logs`/
-  `audit_logs_canonical` + outbox; `payments` immutability model (correction = new
-  row, never UPDATE — mirror the `inventory_logs` immutable-trigger pattern);
-  reconciliation (order totals vs payments vs drawer).
-- **P-10 External processor boundary:** provider abstraction, failure modes, timeout
-  handling, webhook endpoint (auth, signature, idempotency, replay), reconciliation
-  against provider statements.
-- **P-11 Failed payment recovery:** partial-capture cleanup, stuck `pending` payments,
-  operator recovery actions, no orphaned drawer deltas.
-- **P-12 Close-out:** full P regression (own probe suite `P_%`, zero-residue) +
-  re-run A/E/S/F/O/K gates (especially E/S shift invariants and O 38/38) +
-  `next build` + tsc → **`P_FROZEN.md`** + tree clean.
+**Method (P-0…P-6 pattern, ratified):** **read-only inventory first** (map every writer
+that can reach `orders.status` / `order_payments` / `tables` concurrently + its lock +
+its guard) → **decision matrix for ratification** → **implement only ratified changes**
+→ **live proof** (a `.p7-gate.cjs` concurrency battery: N parallel workers per pair,
+assert the exact invariant + zero mutation on the loser) → **full frozen reflow**
+(P-1…P-6 + O/F/K) → **atomic commit/push**. Do **NOT** touch the DB before ratification.
 
-### 5.3 Ground rules (from K, ratified)
+### 5.2 Repo / Supabase / how-to (the practical wiring a new agent needs)
+- **App root:** `artifacts/saito-admin/` (Next.js). Routes under `src/app/api/**`.
+  Key libs: `src/lib/api-auth.ts` (`validateAuth`/`requirePermission`),
+  `src/lib/location-context.ts` (`resolveWriteLocationContext` — server-side location,
+  **never** trust a client `location_id`), `src/lib/csrf.ts`, `src/lib/shiftLock.ts`.
+- **DB (Supabase, pooler for psql):** 
+  `psql -h aws-1-eu-central-1.pooler.supabase.com -p 6543 -U postgres.jbxmlnsicbfkbsatnoej -d postgres`
+  (password in prior session notes / `.env.local`). **Use the pooler (6543), not direct.**
+  PostgREST base: `https://jbxmlnsicbfkbsatnoej.supabase.co/rest/v1/`. The
+  **service-role key** is in `artifacts/saito-admin/.env.local` (`SUPABASE_SERVICE_ROLE_KEY`).
+- **Live financial writer fns (the P surface):** `complete_payment_atomic_v2` (14-arg,
+  `p_location_id`), `refund_with_inventory` (11-arg), `reopen_order_atomic` (**5-arg**,
+  `p_token` leading — the legacy 4-arg form is frozen to postgres-only),
+  `transition_order_atomic`, `void_items_state_aware`, `recalculate_order_payment_state`,
+  `authorize()` (token→staff+location+permission SSOT), `has_permission(uuid,text)`,
+  `p1_actor_allowed_at_location`, `log_audit` (→ `audit_logs_canonical`),
+  `emit_outbox_event`.
+- **Ledger + invariants (frozen):** `order_payments` is **immutable** (UPDATE
+  `amount`/`method`/`is_refund`/DELETE blocked except the trusted
+  `app.payment_ledger_reopen` flag that `reopen_order_atomic` sets). A `→paid` order
+  **must** have a non-refund `captured` row (`trg_order_paid_requires_record`).
+  Idempotency = `payment_idempotency_keys` PK `(namespace, key)` (namespaces:
+  `payment`/`refund`); a conflict `RAISE` is **P0001** (never `40001` — see §5.4).
+- **Migrations:** `supabase/migrations/20260913000001_p4_…sql`,
+  `20260914000001_p5_…sql`, `20260914000002_p6_…sql`; pre-state backups in
+  `supabase/migrations/_p?_rollback_202609*/`.
+- **Gates:** `.p1-gate.cjs`…`.p6-gate.cjs`, `.o-gate.cjs`, `.f-gate.cjs`,
+  `.k-*-probe.cjs`. All **idempotent, zero-residue**, hit the **LIVE DB + local dev
+  server** (`http://localhost:3000`, must be running: `cd artifacts/saito-admin &&
+  npm run dev`).
+
+### 5.3 Probe conventions (follow exactly — they are load-bearing)
+1. `SUPABASE_SERVICE_ROLE_KEY` from `artifacts/saito-admin/.env.local`.
+2. Staff fixtures named `P?_%` — set **INACTIVE at teardown, never deleted** (F-contract).
+3. HTTP probes need **`x-csrf-token` == `saito_csrf` cookie** (double-submit) + a valid
+   `saito_token` session; `requireActiveShift()` is gated on an **open shift** — so
+   refund/reopen/void probes must **create an open shift** for an ACTIVE staff first.
+4. `shifts.status` is the **`shift_status` ENUM** (`'OPEN'`/`'CLOSED'`), not free text;
+   only **ACTIVE** staff may open a shift (`trg_shift_active_staff`).
+5. `order_items` has **no `organization_id` column** and a **nullable `product_id`**
+   (org derives via the order FK) — fixtures use `NULL`.
+6. **Dev server ECONNRESET / `socket hang up` under load → retry 3×** (the P-4/P-5/P-6
+   pattern). A single transient `500 "upstream request timeout"` (pooler) on one leg of
+   a *concurrency* test is infra, not a contract failure — assert the **invariant**
+   (e.g. "never over-refund"), not the exact per-leg status.
+7. **Drain the pooler + settle** between heavy gate runs (`kill` stray `psql`, wait);
+   run gates **solo** (not in parallel) and **backgrounded** (the foreground 5-min cap
+   kills long batteries).
+8. **O-gate kill-hazard:** `.o-gate.cjs` pauses `trg_orders_sync_table_floors` +
+   `trg_order_table_location` inline (not in `finally`). A **killed** O-gate leaves them
+   DISABLED → the next K-L4 shows `G_CLEAR_ORDER_POINTER` 12/16. **Re-enable both to `O`**
+   after the O-gate; verify `pg_trigger.tgenabled='O'` on `orders`.
+9. Financial teardown: remove probe `order_payments`/`orders` **in one transaction under
+   the trusted `app.payment_ledger_reopen` flag** (else the P-3 immutability trigger
+   blocks the DELETE).
+10. `log_audit` writes to **`audit_logs_canonical`** (not `audit_logs`).
+11. Build gate for any `.ts` change: `cd artifacts/saito-admin && npx next build`
+    (expect exit 0) and `npx --no-install tsc --noEmit` (0 non-test errors).
+
+### 5.4 Ground rules (from K, ratified — unchanged)
 1. DB = SSOT; outbox = scoped delivery; never a client-authoritative amount/state.
 2. Every mutation: session identity + server location + RBAC + `FOR UPDATE` + audit
    + outbox, in one atomic function.
@@ -404,8 +465,31 @@ audited as the **financial SSOT boundary**, NOT as "button → paid".
    ratified exception (the 042/045 pattern) — and the freeze document is updated.
 4. Live proof > code review: every P claim needs a zero-residue probe row, like K's.
 5. Financial immutability: amounts are never UPDATEd; corrections are append-only.
+6. **Never `RAISE … USING ERRCODE='40001'`** — `40001` (serialization_failure) **hung the
+   PostgREST→pgbouncer gateway** (backend stuck `idle in transaction (aborted)`, the error
+   never reached the client → 500/504/120s-timeout on every 409). Use the default `P0001`
+   (the proven `ORDER_ALREADY_PAID` path) → a real HTTP 409. (Root-caused + fixed in P-4.)
+
+### 5.5 Out-of-scope / deferred (do not silently pick up)
+- **P-8** cash drawer · **P-9** audit & immutability + **legacy residual reconciliation**
+  (the 4 `refund_amount>paid_amount` legacy rows + the 274/54/13/4 paid-without-record
+  drift are **frozen P-9 residuals**, not P-6 regressions) + ledger **delete-vs-append**
+  model · **P-10** external processor/webhook · **P-11** failed-payment recovery ·
+  **P-12** close-out.
+- **`git gc` warning:** pre-existing missing object `709d1c59` (commit `1b807aeb` cannot
+  resolve its parent; unreachable from `main`). **Not a blocker; do NOT `git gc`/prune
+  without user sign-off** (destructive).
+
+### 5.6 Repo hygiene (2026-09-14)
+Archived 41 superseded top-level `*.md` (A/E-S/F/O/K freeze + foundation reports, old
+POS/audit/torture reports, scratch `plan-*.md`, `.aider.chat.history.md`,
+`artifacts/saito-admin/HANDOFF.md`) — all recoverable from git history. **Kept:** this
+file, `README.md`, `replit.md`, `ARCHITECTURE.md`, `BACKEND_ROADMAP.md`,
+`MASTER_FEATURE_MAP.md`, and the P-0…P-6 contract/inventory docs. An untracked
+`ES_CASH_RPC_DRIFT_AUDIT_2026-09-13.md` (the E/S cash-RPC drift note) is left for the
+E/S blocker owner, deliberately not committed here.
 
 ---
 
-*Handover authored at K freeze. Baseline numbers are from live gate runs on 2026-09-12;
-re-run the §1 commands to re-establish them before starting P-0.*
+*Handover refreshed at P-6 freeze (2026-09-14). Baseline numbers are from live gate runs
+on 2026-09-13; re-run the §1 commands to re-establish them before starting P-7.*

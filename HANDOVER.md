@@ -415,10 +415,24 @@ FKs + gates) kept 29 live-referenced (incl. 11 rescued by the REST-URL pass) and
 `orders.group_id`; P-9 candidate). Post-drop: 169→137 objects, FKs 233→183,
 P-6/O/A re-verified green, zero residue. **P-7 UNPAUSE is now authorized.**
 
-**Ratified order:** S-1 ✅ · S-3/S-8 ✅ · S-4a ✅ · S-4b ✅ · C-class ✅ — all done · S-2 ⏸ (route
-exposure now proven — secrets→env + drop 5 columns, next phase) · S-4 ⏸ (freeze C → reflow →
-drop) · S-5/S-6/S-7/S-9 ⏸ (P-9 / cleanup) · S-10 ✅ KEEP (240 never-written columns, no touch).
-**Cleanup phase (next)** = the anon-grant revocation + settings-secrets migration + C freeze,
+**P-7 dependency-contamination gate (2026-09-15, read-only, 0 DB mutation): 4 NO /
+2 YES — writer freeze BLOCKED until D-Q4 + D-Q6 dispositioned.**
+(`P7_DEPENDENCY_CONTAMINATION_GATE_2026-09-15.md`). Method: word-boundary app scan
+(REST URLs included) + all 625 live fn bodies + triggers + row-count deltas vs the
+P-6 baseline. NO: Q1 `orders.total_price` (0 writers — all use `total_amount`), Q2
+`table_floors.payment_status` (0 decisions/writes/triggers), Q3 `staff_stats`
+(display-only join in `get_staff_directory_v2`), Q5 `inventory_status` (reads only).
+YES: **Q4** `refund_with_inventory` dual-writes canonical `order_payments` + legacy
+`payments` mirror in ONE txn (unique idempotency_key) → **D-Q4**; **Q6**
+`transition_order_atomic` writes legacy `audit_logs` in the same txn as canonical
+(audit_logs 333→357 since P-6 baseline, 182 order.transition rows/30d) → **D-Q6**.
+Recommended: (a) document-keep in the P-7 contract now, (b) structural strip in P-9.
+Awaiting ratification.
+
+**Ratified order:** S-1 ✅ · S-3/S-8 ✅ · S-4a ✅ · S-4b ✅ · C-class ✅ — all done · S-10 ✅ KEEP
+(240 never-written columns, no touch) · S-5/S-6/S-7/S-9 ⏸ (P-9 / cleanup backlog).
+**P-7 (next)** = ratify D-Q4 + D-Q6 dispositions → canonical writer inventory →
+decision matrix → ratification → live concurrency proof → gate/reflow → commit.
 each followed by the P-1..P-6 reflow. THEN P-7 (A-class writer surface only).
 
 ## 5. NEXT MODULE: **P-7 — CONCURRENT MUTATION** (the financial SSOT boundary, continued)

@@ -388,7 +388,18 @@ S-1/S-3/S-8 + login). Headline, with raw counts:
   PIN only). `.a-regression.cjs` re-run 39/39 (A03 correct-PIN→200). Legacy `pin-login`
   is an unused weaker parallel path → freeze in cleanup.
 
-**Ratified order:** S-1 ✅ done · S-3/S-8 ✅ done (read-only, in addendum) · S-2 ⏸ (route
+**S-4a DONE (2026-09-14, ratified):** anon DML revoked on the 39 RLS-OFF targets
+(migration `20260914000003_prep7_s4a_anon_dml_revoke.sql`; anon SELECT retained;
+verified: anon DML on targets 0/39, anon-fullDML schema-wide 152 → 114). Pre-check
+caught **one live anon-client write**: `POST /api/expenses` used `@/lib/supabase`
+(= anon-key client re-export) → switched to `createAuthClient()` (service_role),
+matching `/api/payment-methods`. `useReports.createExpense` is dead code (never
+called) — flagged for removal in S-4b. `inventory_logs` (ratified item 4): RLS-ON,
+anon = SELECT/INSERT/TRUNCATE/REF/TRIGGER (no UPDATE/DELETE), 6 triggers — NOT in
+the 39; separate decision needed (client anon INSERT to a RLS-ON table = blocked by
+RLS unless a policy allows it → check before any change).
+
+**Ratified order:** S-1 ✅ done · S-3/S-8 ✅ done (read-only, in addendum) · S-4a ✅ done · S-2 ⏸ (route
 exposure now proven — secrets→env + drop 5 columns, next phase) · S-4 ⏸ (freeze C → reflow →
 drop) · S-5/S-6/S-7/S-9 ⏸ (P-9 / cleanup) · S-10 ✅ KEEP (240 never-written columns, no touch).
 **Cleanup phase (next)** = the anon-grant revocation + settings-secrets migration + C freeze,

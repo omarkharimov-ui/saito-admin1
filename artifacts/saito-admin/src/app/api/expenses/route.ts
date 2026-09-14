@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { supabase } from '@/lib/supabase';
+
+// S-4a (Pre-P7 cleanup, ratified 2026-09-14): `expenses` is RLS-OFF and anon DML
+// is revoked from it. The GET above keeps working (anon SELECT retained; RLS-off
+// read posture unchanged). The POST used the anon client (`@/lib/supabase` is a
+// re-export of the anon-key client) — switched to createAuthClient() (service_role)
+// so the write survives the anon revoke, matching /api/payment-methods.
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth();
@@ -37,7 +43,8 @@ export async function POST(req: NextRequest) {
     if (!staff_id) return NextResponse.json({ error: 'staff_id required' }, { status: 400 });
     if (!amount || Number(amount) <= 0) return NextResponse.json({ error: 'amount must be positive' }, { status: 400 });
     
-    const { data, error } = await supabase.from('expenses').insert([
+    const client = await createAuthClient();
+    const { data, error } = await client.from('expenses').insert([
       {
         staff_id,
         category: category || 'salary',

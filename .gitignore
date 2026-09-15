@@ -65,3 +65,6 @@ SECRETS.local.md
 # One-off agent working scripts (not reusable)
 .pin-check.cjs
 .pin-rotate.cjs
+
+# P-7 gate runtime resume-state (not a deliverable)
+.p7-fixture.json

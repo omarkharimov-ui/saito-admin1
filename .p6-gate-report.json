@@ -1,5 +1,5 @@
 {
- "at": "2026-09-14T18:37:08.484Z",
+ "at": "2026-09-15T09:08:30.434Z",
  "total": 15,
  "passed": 15,
  "failed": 0,
@@ -14,7 +14,7 @@
    "id": "P6-02",
    "name": "item refund (Mode 1, waste, 50) -> 1 is_refund row, order partially_refunded, canonical audit",
    "pass": true,
-   "evidence": "status=200 refrows=1 st=partially_refunded audit=1 {\"action\":\"refund_with_inventory\",\"success\":true,\"order_id\":\"119b7048-f520-407a-"
+   "evidence": "status=200 refrows=1 st=partially_refunded audit=1 {\"action\":\"refund_with_inventory\",\"success\":true,\"order_id\":\"b72f1716-44de-4dc2-"
   },
   {
    "id": "P6-03",
@@ -80,7 +80,7 @@
    "id": "P6-13",
    "name": "void un-paid order -> cancelled + order.status_changed outbox emitted (D-4)",
    "pass": true,
-   "evidence": "status=200 st=cancelled void_outbox=1 {\"action\":\"void\",\"success\":true,\"order_id\":\"ffac7f74-2c4b-45c1-8fe9-c687d8a717ab"
+   "evidence": "status=200 st=cancelled void_outbox=1 {\"action\":\"void\",\"success\":true,\"order_id\":\"961d66cf-1c6b-4851-85b7-4d28eeff6a1c"
   },
   {
    "id": "P6-13b",

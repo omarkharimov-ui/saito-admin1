@@ -1,7 +1,7 @@
 # HANDOVER — Saito Admin POS (P-series)
 
 **Date:** 2026-09-14 · **Head:** `0c59227` (post-P-6 freeze; `main == origin`)
-**Checkpoint:** `A ⚠️ → E/S ⚠️ → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3 🔒 → P-4 🔒 → P-5 🔒 → P-6 🔒 → P-7 NEXT`
+**Checkpoint:** `A ⚠️ → E/S ⚠️ → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3 🔒 → P-4 🔒 → P-5 🔒 → P-6 🔒 → P-7 🔒 (16/16) → P-8 NEXT`
 
 > **A / E/S are ⚠️ pre-existing blockers, NOT P regressions** (bisection-proven: the
 > failures persist with P-3 triggers disabled). See the disposition block after the P-3
@@ -443,9 +443,50 @@ duplicate-RPC, stale-state, deadlock smoke, rollback-atomicity) + P7-1..P7-8
 verify/fix decision rows. **Awaiting user ratification of the battery → step 4 live
 concurrency proof.**
 
-**P-7 (next)** = ratify C-1..C-16 battery → live concurrency proof (`.p7-gate.cjs`) →
-decision matrix → ratification → live concurrency proof → gate/reflow → commit.
-each followed by the P-1..P-6 reflow. THEN P-7 (A-class writer surface only).
+ **P-7 (next)** = ratify C-1..C-16 battery → live concurrency proof (`.p7-gate.cjs`) →
+ decision matrix → ratification → live concurrency proof → gate/reflow → commit.
+ each followed by the P-1..P-6 reflow. THEN P-7 (A-class writer surface only).
+
+**P-7 LIVE CONCURRENCY PROOF (2026-09-15, `.p7-gate.cjs` = 16/16, GO):**
+`.p7-gate.cjs` ran the ratified C-1..C-16 battery as true-parallel HTTP
+(`Promise.allSettled`, 5 staff: MGR/CASH/MGR2/OWN/CASH2, fresh collision-free
+`table_floors` block per run, live Supabase). Asserts FINAL RELATIONAL STATE (not
+just "no deadlock"); classifies PASS / EXPECTED-CONFLICT / REAL-RISK / HARNESS-FAILURE.
+Result: **PASS=9, EXPECTED-CONFLICT=7, REAL-RISK=0, HARNESS-FAILURE=0**, zero-residue
+verified on all 10 surfaces (orders/items/op/payments-mirror/outbox/oplog/order_events/
+audit/staff/sessions/shifts/products/drawer/keys). No deadlock (40P01) in any race; the
+`orders`-first lock order + P-2 BEFORE guard + P-5 paid-requires-record hold under load.
+
+Key live-verified corrections (kept in the gate + this doc — do NOT revert):
+- **C-5 = `release_paid_table_atomic`**, NOT `activate_table_atomic`. `activate_table_atomic`
+  only fires on **reserved** tables (creates a new order); a paid `occupied` table is
+  released/closed by `release_paid_table_atomic` (floor.manage). C-5's dirty guard = a paid
+  order is never orphaned when its table is released.
+- **`transition_order_atomic` writes `order_events + audit_logs (compat) + operation_logs +
+  outbox_events` — it does NOT write `audit_logs_canonical`** (only `log_audit` does). The
+  earlier D-Q6 "canonical SSOT" assumption is superseded for this path. **C-16 asserts the
+  4 tables the transition fn actually writes** (strict rollback: illegal transition → all 4
+  unchanged); it deliberately does NOT wait for a canonical row. The discrepancy is
+  documented in the test, not hidden.
+- **`orders.paid_amount` is NET-of-refunds** (makePaid sets gross; a refund decrements it:
+  100 → refund 60 → paid_amount 40). C-10's over-refund invariant therefore compares
+  `refund_amount` against **GROSS paid** (captured non-refund `order_payments` rows), not the
+  net `paid_amount` — the first draft compared to net and false-positived (60 > 40) though
+  the product was correct (capped 60 at pre-refund gross 100). `grossPaid()` reader added.
+
+**Environmental note (root-caused, NOT a product bug):** the 2-day-old `next dev` process
+intermittently drops Supabase REST fetches under parallel load (15-way auth probe: 14×200 +
+1×500 "fetch failed"). Inside `validateAuth` a dropped session lookup → `401 "Invalid
+session"` for a VALID token (api-auth.ts:26, the `!session` branch — `security_events` stays
+empty, confirming it's not revoked/expired/disabled). The gate absorbs this via per-token
+warmup + a per-test `healthGate` (stalls until the auth path is 200) + flake-retry, and
+classifies any surviving flake as **HARNESS-FAILURE (never a hollow PASS, never a false
+REAL-RISK)** so a race that never reached the DB can never masquerade as a pass. `P7_ALL=1`
+runs all 16 in one process (no cross-process degraded window).
+
+Full frozen reflow GREEN post-P-7: **A 39/39 · E/S 54/54 · F 35/35 · O 38/38 · K L3 8/8 +
+L4 16/16 · P-1 29/29 · P-6 15/15**. **P-7 is now FROZEN.** Next module: P-8 (cash drawer)
+per the §5.5 deferred list (not silently picked up).
 
 ## 5. NEXT MODULE: **P-7 — CONCURRENT MUTATION** (the financial SSOT boundary, continued)
 
@@ -575,5 +616,5 @@ E/S blocker owner, deliberately not committed here.
 
 ---
 
-*Handover refreshed at P-6 freeze (2026-09-14). Baseline numbers are from live gate runs
-on 2026-09-13; re-run the §1 commands to re-establish them before starting P-7.*
+ *Handover refreshed at P-7 freeze (2026-09-15). Baseline numbers are from live gate runs;
+ re-run the §1 commands to re-establish them before starting P-8.*

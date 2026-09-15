@@ -1,0 +1,125 @@
+{
+  "phase": 3,
+  "PASS": 9,
+  "CONFLICT": 7,
+  "RISK": 0,
+  "HARNESS": 0,
+  "results": [
+    {
+      "id": "C-1",
+      "name": "pay∥pay same-key -> ONE captured op, paid=100, exactly-once (200/replay or 200+409)",
+      "cls": "PASS",
+      "ok": true,
+      "evidence": "a=200 b=200 opCap=1 paid=100 st=paid  {\"success\":true,\"paid_amount\":100,\"total_amount\":1|{\"success\":true,\"paid_amount\":100,\"total_amount\":1"
+    },
+    {
+      "id": "C-2",
+      "name": "pay∥pay diff-key -> ONE captured, paid=100, no overpay (2nd PAYMENT_EXCEEDS_REMAINING)",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "a=200 b=409 opCap=1 paid=100 st=paid  Order is already paid"
+    },
+    {
+      "id": "C-3",
+      "name": "pay∥cancel -> EXACTLY one outcome (paid+1op OR cancelled+0op), never paid+cancelled",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "st=cancelled opCap=0 paid=0 pay=500 cancel=200  INVALID_TRANSITION [cancelled → paid]: Invali|{\"success\":true,\"data\":{\"success\":true,\"data\""
+    },
+    {
+      "id": "C-4",
+      "name": "pay∥add_item -> serialize on orders; no overpay (paid<=total); paid requires op-row",
+      "cls": "PASS",
+      "ok": true,
+      "evidence": "st=new total=110.00 paid=100 opCap=1 pay=200 add=200 "
+    },
+    {
+      "id": "C-5",
+      "name": "pay∥release_paid_table -> paid order NOT orphaned; table+order consistent (no deadlock, disjoint locks)",
+      "cls": "PASS",
+      "ok": true,
+      "evidence": "st=paid opCap=1 tf=1:occupied pay=200 release=400  G_TABLE_HAS_ACTIVE_ORDERS"
+    },
+    {
+      "id": "C-6",
+      "name": "pay∥dismiss -> a PAID order is NEVER cancelled-with-captured-money (P-2 guard backstop)",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "st=cancelled opCap=0 paid=0 pay=500 dismiss=200   {\"success\":true,\"result\":{\"success\":true,\"order_id"
+    },
+    {
+      "id": "C-7",
+      "name": "pay∥drawer-close -> disjoint locks, no 40P01, pay unaffected",
+      "cls": "PASS",
+      "ok": true,
+      "evidence": "st=paid pay=200 close=200  {\"success\":true,\"overtime\":{\"success\":true,\"shift_id\":\"b2a57"
+    },
+    {
+      "id": "C-8",
+      "name": "reopen∥pay -> no paid+deleted-ledger ghost (never paid+0op nor new+captured-op)",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "st=paid opCap=1 reopen=403 pay=409  Smena bağlıdır. Mütəşəddim icazəsi ilə əməliy|Order is already paid"
+    },
+    {
+      "id": "C-9",
+      "name": "refund∥refund (mode-1) -> no over-refund + D-Q4 mirror parity (payments==order_payments ref)",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "refRows=1 mirror=1 refundAmt=100.00 paid=100.00 st=refunded a=200 b=400 "
+    },
+    {
+      "id": "C-10",
+      "name": "refund∥pay -> serialize on orders; no over-refund (refund<=gross_paid; net may drop below refund after a winning refund)",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "refundAmt=60 grossPaid=100.00 netPaid=40 st=partially_refunded a=200 b=409 ",
+      "note": "refund<=gross_paid is the sound invariant; paid_amount is net-of-refunds so net<refund after a winning refund is correct, not over-refund"
+    },
+    {
+      "id": "C-11",
+      "name": "transition∥transition -> one wins, stale re-validated (closed->new ∥ closed->open, cross-illegal)",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "st=open a=400 b=200  INVALID_TRANSITION: Invalid transition: open |{\"success\":true,\"order_id\":\"8a4f2017-f670-4f4"
+    },
+    {
+      "id": "C-12",
+      "name": "duplicate RPC (add_item x2, no key) -> no corrupt/partial item; count deterministic",
+      "cls": "PASS",
+      "ok": true,
+      "evidence": "before=1 after=3 added=2 corrupt=0"
+    },
+    {
+      "id": "C-13",
+      "name": "stale-state: re-pay a paid order -> rejected (re-validated after lock), still 1 op-row",
+      "cls": "PASS",
+      "ok": true,
+      "evidence": "status=409 opCap=1 st=paid Order is already paid"
+    },
+    {
+      "id": "C-14",
+      "name": "3-way deadlock smoke (pay ∥ transition ∥ dismiss) -> no 40P01 / deadlock detected",
+      "cls": "PASS",
+      "ok": true,
+      "evidence": "a=409 b=200 c=400 no deadlock marker"
+    },
+    {
+      "id": "C-15",
+      "name": "refund reject -> orders+order_payments+payments-mirror+outbox ALL unchanged (strict rollback)",
+      "cls": "PASS",
+      "ok": true,
+      "evidence": "st refunded->refunded op 2->2 mirror 1->1 outbox 0->0 ref 100.00->100.00 status=400 Can only refund paid orders. Current: refunded"
+    },
+    {
+      "id": "C-16",
+      "name": "illegal transition reject -> orders + order_events + audit_logs + operation_logs + outbox ALL absent (strict rollback)",
+      "cls": "PASS",
+      "ok": true,
+      "evidence": "st paid->paid canon 0->0 leg 0->0 outbox 0->0 evt 0->0 oplog 0->0 400 INVALID_TRANSITION: Invalid transition: paid → in_kitchen fo",
+      "note": "transition fn does not write audit_logs_canonical (only log_audit does) — canonical not in scope for this path"
+    }
+  ],
+  "baseline": "0/0/0/0/4",
+  "after": "1/1/0/2/5"
+}

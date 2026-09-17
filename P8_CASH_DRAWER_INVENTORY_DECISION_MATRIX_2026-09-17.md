@@ -174,7 +174,9 @@ and `cash_drawer_logs` — D-20 proved the gap).
 multi-location `settings` scoping (D-17), legacy-table structural strip `cash_drawer_logs`/
 `audit_logs`/`payments` mirror (P-9), `get_z_report` reporting-formula unification (P-9/P-12),
 reconciliation feature rebuild (D-8 decision), historical 138-row mis-attribution repair (P-9
-reconciliation residual).
+reconciliation residual). **Final Supabase schema normalization (user-ratified boundary,
+2026-09-17): `settings` decomposition, duplicate columns, legacy models — explicitly P-9 /
+final normalization, NOT P-8; P-8 fixes only the cash-drawer contract.**
 
 ## 8. Open questions for ratification
 

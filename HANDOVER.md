@@ -500,6 +500,20 @@ matrix → concurrency/TOCTOU plan → ratification → implementation → adver
 frozen reflow → freeze. Principle unchanged: backend/business logic fully frozen before
 any UX.
 
+**P-8 status (2026-09-17):** Phase-1 read-only audit **COMPLETE + independently VERIFIED**
+(`P8_CASH_DRAWER_INVENTORY_DECISION_MATRIX_2026-09-17.md` + `P8_PHASE1_VERIFICATION_2026-09-17.md`;
+verification verdict PARTIAL → 3 mandatory corrections applied, matrix commit `e15deda`; NO
+re-audit of Phase 1 needed). Confirmed for Phase-2 fix: **P0-1** direct-RPC EXECUTE exposure
+(anon `close_cash_register_v2`/`open_cash_register`; authenticated tokenless writers incl.
+`cash_in/out_atomic`, `close_shift_atomic`, `reopen_cash_register`, legacy `clock_out_token`);
+**P0-2** timeclock RLS (RLS-OFF `shift_reviews`/`tip_shortfalls`; `{public}` ALL policies on
+`time_clock_entries`/`time_clock_audit`); **T-3** lockless unscoped drawer selection in
+`fn_record_cash_payment` (fix: FOR UPDATE + location/org scope). **Phase-2 = WAITING FOR user
+Q1–Q6 rulings + explicit GO.** **Scope boundary (user, 2026-09-17):** final Supabase schema
+normalization — `settings` decomposition, duplicate columns, legacy models — is **OUT OF P-8**,
+stays P-9/final normalization; P-8 fixes ONLY the cash-drawer contract. P-1..P-7 remain frozen
+(verification §E: T-3 is a new P-8 finding, not a P-7 regression).
+
 ## 5. NEXT MODULE: **P-7 — CONCURRENT MUTATION** (the financial SSOT boundary, continued)
 
 **Where we left off (2026-09-14):** P-1…P-6 are **all frozen, committed, and pushed**

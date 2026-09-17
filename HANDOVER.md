@@ -485,8 +485,20 @@ REAL-RISK)** so a race that never reached the DB can never masquerade as a pass.
 runs all 16 in one process (no cross-process degraded window).
 
 Full frozen reflow GREEN post-P-7: **A 39/39 · E/S 54/54 · F 35/35 · O 38/38 · K L3 8/8 +
-L4 16/16 · P-1 29/29 · P-6 15/15**. **P-7 is now FROZEN.** Next module: P-8 (cash drawer)
-per the §5.5 deferred list (not silently picked up).
+L4 16/16 · P-1 29/29 · P-6 15/15**. **P-7 is FROZEN — formally ratified by the user on
+2026-09-17** (final: 16/16 = 9 PASS + 7 EXPECTED-CONFLICT, 0 REAL-RISK, 0 HARNESS-FAILURE,
+zero-residue, commit `09119e5`, `main == origin/main`). **Freeze boundary:** P-7 is NOT
+reopened to "fix something" — any new finding against the P-7 writer/lock/state contract
+requires its own concrete regression report + classification before any change. The three
+preserved facts are binding on all future modules: (1) C-5 = `release_paid_table_atomic`;
+(2) `transition_order_atomic` writes `order_events + audit_logs + operation_logs +
+outbox_events`, NOT `audit_logs_canonical`; (3) `orders.paid_amount` = net-of-refunds —
+C-10 asserts the GROSS refund invariant. Next module: **P-8 (cash drawer)** per the §5.5
+deferred list — **not auto-started**; it begins only on a separate user ratification.
+Sequence: read-only audit → live writer/state/permission map → invariant & atomicity
+matrix → concurrency/TOCTOU plan → ratification → implementation → adversarial gate →
+frozen reflow → freeze. Principle unchanged: backend/business logic fully frozen before
+any UX.
 
 ## 5. NEXT MODULE: **P-7 — CONCURRENT MUTATION** (the financial SSOT boundary, continued)
 
@@ -616,5 +628,5 @@ E/S blocker owner, deliberately not committed here.
 
 ---
 
- *Handover refreshed at P-7 freeze (2026-09-15). Baseline numbers are from live gate runs;
- re-run the §1 commands to re-establish them before starting P-8.*
+ *Handover refreshed at P-7 ratification (2026-09-17). Baseline numbers are from live gate
+  runs; re-run the §1 commands to re-establish them before starting P-8.*

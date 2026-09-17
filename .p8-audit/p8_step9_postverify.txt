@@ -1,0 +1,45 @@
+=== POST-REPAIR VERIFICATION 2026-09-17T16:09:58Z ===
+--- open sessions remaining (expect 0) ---
+ count 
+-------
+     0
+(1 row)
+
+--- repaired sessions ---
+                  id                  | status | opening_balance | expected_balance | closing_balance | difference |                notes                |           closed_at           
+--------------------------------------+--------+-----------------+------------------+-----------------+------------+-------------------------------------+-------------------------------
+ ab751905-bf22-42fd-aa84-43e631efc159 | closed |           32.00 |           768.00 |          768.00 |       0.00 | P-8 orphan repair (fixture session) | 2026-09-17 16:09:50.660803+00
+ ca90e940-50ea-4bce-af75-edf8a383b33f | closed |          100.00 |           354.78 |          354.78 |       0.00 | P-8 orphan repair (fixture session) | 2026-09-17 16:09:50.660803+00
+ a0ff4659-cfde-4192-81b7-2b53fd1d5e71 | closed |           50.00 |            50.00 |           50.00 |       0.00 | P-8 orphan repair (fixture session) | 2026-09-17 16:09:50.660803+00
+ 4d5aa595-880c-4efc-a32e-f83a654ffe2c | closed |           50.00 |         12950.00 |        12950.00 |       0.00 | P-8 orphan repair (fixture session) | 2026-09-17 16:09:50.660803+00
+(4 rows)
+
+--- new ledger close rows (expect 4, today) ---
+                  id                  |              session_id              | type  |  amount  |          created_at           
+--------------------------------------+--------------------------------------+-------+----------+-------------------------------
+ 298b3941-a49c-4e6b-857c-aad81faff3b6 | ab751905-bf22-42fd-aa84-43e631efc159 | close |   768.00 | 2026-09-17 16:09:50.660803+00
+ 13fd7625-6518-4efe-9125-169b7940c065 | ca90e940-50ea-4bce-af75-edf8a383b33f | close |   354.78 | 2026-09-17 16:09:50.660803+00
+ 449c7c18-c814-4d13-8e81-8a3b4ba24af2 | a0ff4659-cfde-4192-81b7-2b53fd1d5e71 | close |    50.00 | 2026-09-17 16:09:50.660803+00
+ ad72a8d7-44ef-4895-b45d-b5ee440430a1 | 4d5aa595-880c-4efc-a32e-f83a654ffe2c | close | 12950.00 | 2026-09-17 16:09:50.660803+00
+(4 rows)
+
+--- ledger total (expect 199) ---
+ count 
+-------
+   199
+(1 row)
+
+--- legacy table remainder (expect 1: bcfc9435/350.00) ---
+                  id                  | amount |                               description                               
+--------------------------------------+--------+-------------------------------------------------------------------------
+ bcfc9435-67c4-466f-bab7-bf1e1c9d2ca0 | 350.00 | Drawer close → shift close (expected from cash_drawer_session 0451bdb4)
+(1 row)
+
+--- outbox events for the 4 sessions ---
+ERROR:  relation "event_outbox" does not exist
+LINE 1: SELECT event_type, aggregate_id, COUNT(*) FROM event_outbox ...
+                                                       ^
+--- audit rows ---
+ERROR:  column "entity_type" does not exist
+LINE 1: SELECT action, entity_type, entity_id, created_at FROM audit...
+                       ^

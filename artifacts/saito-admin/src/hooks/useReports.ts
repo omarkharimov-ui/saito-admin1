@@ -168,25 +168,9 @@ export function useReports() {
   }, []);
 
   // ─── Close Cash Register ───
-  const closeCashRegister = useCallback(async (params: {
-    shift_id: string;
-    actual_cash: number;
-    notes?: string;
-    manager_id?: string;
-  }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error: err } = await supabase.rpc('close_cash_register', {
-        p_shift_id: params.shift_id,
-        p_actual_cash: params.actual_cash,
-        p_notes: params.notes || null,
-        p_manager_id: params.manager_id || null,
-      });
-      if (err) { setError(err.message); return null; }
-      return data;
-    } finally { setLoading(false); }
-  }, []);
+  // P-8 (Q3): closeCashRegister retired — it called the broken/replaced
+  // close_cash_register (v1) RPC directly from the browser. Drawer closes go
+  // through POST /api/cash-drawer {action:'close'} (v2, token-bound).
 
   // ─── Fetch expenses ───
   const fetchExpenses = useCallback(async (params?: {
@@ -219,7 +203,7 @@ export function useReports() {
     getSalesReport,
     getExpenseSummary,
     getStaffPerformance,
-    closeCashRegister,
+
     fetchExpenses,
   };
 }

@@ -223,9 +223,10 @@ export function TimeClockPanel({ staffId, staffName }: TimeClockPanelProps) {
     setLoading(true);
     setError(null);
     try {
+      const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
       const res = await fetch('/api/staff/force-clock-out', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         body: JSON.stringify({ staff_id: staffId, reason: overrideReason.trim() }),
       });
       const data = await res.json();

@@ -112,9 +112,10 @@ export default function ShiftsPage() {
   const handleClockIn = async () => {
     setClockAction('in');
     try {
+      const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
       const res = await fetch('/api/pos/staff/clock', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         body: JSON.stringify({ action: 'in' }),
       });
       if (res.ok) {
@@ -134,9 +135,10 @@ export default function ShiftsPage() {
   const handleClockOut = async () => {
     setClockAction('out');
     try {
+      const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
       const res = await fetch('/api/pos/staff/clock', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         body: JSON.stringify({ action: 'out' }),
       });
       if (res.ok) {
@@ -158,9 +160,10 @@ export default function ShiftsPage() {
 
     setClosing(true);
     try {
+      const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
       const res = await fetch('/api/pos/staff/clock', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         body: JSON.stringify({
           action: 'out',
           actual_cash: parseFloat(actualCash),

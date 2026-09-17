@@ -309,9 +309,10 @@ export default function POSPage() {
 
   const handleClockIn = async () => {
     try {
+      const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
       const res = await fetch('/api/pos/staff/clock', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         body: JSON.stringify({ action: 'in', role_id: posSession?.role }),
       });
       if (res.ok) {
@@ -331,9 +332,10 @@ export default function POSPage() {
 
   const confirmClockOut = async () => {
     try {
+      const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
       const res = await fetch('/api/pos/staff/clock', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         body: JSON.stringify({ action: 'out' }),
       });
       if (res.ok) {

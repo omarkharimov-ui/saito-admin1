@@ -1,5 +1,5 @@
 {
- "at": "2026-09-14T19:32:10.107Z",
+ "at": "2026-09-17T18:00:40.291Z",
  "total": 19,
  "passed": 19,
  "failed": 0,
@@ -32,13 +32,13 @@
    "id": "P4-06",
    "name": "same key + different amount -> 409 IDEMPOTENCY_CONFLICT + zero mutation",
    "pass": true,
-   "evidence": "a=200 b=409 before=23|0|2|confirmed after=23|0|2|confirmed rows=1 {\"error\":\"IDEMPOTENCY_CONFLICT: key p4:amt:e487c171-f659-417"
+   "evidence": "a=200 b=409 before=23|0|2|confirmed after=23|0|2|confirmed rows=1 {\"error\":\"IDEMPOTENCY_CONFLICT: key p4:amt:5b7c81e3-27ab-4d3"
   },
   {
    "id": "P4-07",
    "name": "same key + different order -> 409 + zero mutation on order B",
    "pass": true,
-   "evidence": "a=200 b=409 rowsB=0 {\"error\":\"IDEMPOTENCY_CONFLICT: key p4:ord:6938f17a-0130-4f8"
+   "evidence": "a=200 b=409 rowsB=0 {\"error\":\"IDEMPOTENCY_CONFLICT: key p4:ord:edc895b7-5c52-4d5"
   },
   {
    "id": "P4-08",
@@ -68,7 +68,7 @@
    "id": "P4-12",
    "name": "concurrent DIFFERENT keys (full 100 x2) -> no double-charge (paid=100)",
    "pass": true,
-   "evidence": "paid=100 a=409 b=200"
+   "evidence": "paid=100 a=200 b=409"
   },
   {
    "id": "P4-13",

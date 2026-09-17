@@ -202,3 +202,21 @@ Independent adversarial audit (`P8_PHASE1_VERIFICATION_2026-09-17.md`) → **PAR
 5. D-8 `operation_logs` claim corrected (columns exist; `close_day_atomic` breaks on `shifts.report_id` only).
 6. D-4 — `amount >= 0` CHECK constraint noted against the signed-reversal option (Q2).
 Overall: findings substantively sound; both P0s independently re-confirmed real.
+
+## 10. Ratification (2026-09-17)
+
+**Phase-2 = EXPLICIT GO.** Q rulings: **Q1=A** (4 orphan open sessions closed via
+`close_cash_register_v2`, actual=expected, diff 0, fixture-repair note; ledger rows **NOT deleted**;
+12,900.00 ₼ mis-attribution documented as P-9 reconciliation residual) · **Q2=A** (signed `reopen`
+reversal row; `amount < 0` permitted ONLY for `type='reopen'`; ledger stays SSOT) · **Q3=matrix
+defaults** (v1 `close_cash_register` REVOKE+retire; reconciliation trio RETIRE per Q5;
+`end_break_token` compliance branch drop; `force_clock_out` drawer branch FIXED to v2 close
+semantics; `submit_shift_review` partial-unique index ADD; `close_day_atomic` REVOKE) ·
+**Q4=A** (`/api/cron/*` → PUBLIC_PATHS + CRON_SECRET; no pg_cron) · **Q5=B** (reconciliation
+feature RETIRED in P-8: REVOKE + UI hide; rebuild = separate P-9/P-12 scope) · **Q6=A**
+(`/api/shifts/live` retired/removed; `close_shift_atomic` no longer a client writer).
+Sequence: the ratified 12 steps (REVOKEs → RLS → trigger rewrites → formula unification →
+identity/idempotency/location → state guards+outbox → auto_clockout → route cleanup → Q1 data
+repair → `.p8-gate.cjs` T-1..T-8 → full frozen reflow → P-8 FREEZE). Boundaries: **P-7 not
+reopened; P-9 schema normalization not started; no silent scope additions; ledger immutability
+preserved.**

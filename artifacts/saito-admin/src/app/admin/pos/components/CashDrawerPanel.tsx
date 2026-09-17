@@ -55,6 +55,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
   const [view, setView] = useState<'main' | 'cash-in' | 'cash-out' | 'close'>('main');
   const [managerPin, setManagerPin] = useState('');
   const [managerError, setManagerError] = useState('');
+  const [needsApproval, setNeedsApproval] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -84,7 +85,10 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
 
   const currentBalance = movements.reduce((sum, m) => {
     if (m.type === 'cash_in' || m.type === 'payment' || m.type === 'open') return sum + m.amount;
-    if (m.type === 'cash_out') return sum - m.amount;
+    // P-8 (D-4/Q2): canonical walk — cash_out/refund/void subtract positive
+    // amounts; reopen rows carry SIGNED negative amounts, so subtracting them
+    // restores the previous close amount back into the drawer balance.
+    if (m.type === 'cash_out' || m.type === 'refund' || m.type === 'void' || m.type === 'reopen') return sum - m.amount;
     return sum;
   }, 0);
 
@@ -120,7 +124,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
       const res = await apiFetch('/api/cash-drawer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: type, session_id: session.id, amount: Number(cashAmount), description: cashDesc || null }),
+        body: JSON.stringify({ action: type, session_id: session.id, amount: Number(cashAmount), description: cashDesc || null, idempotency_key: crypto.randomUUID() }),
       });
       if (res.ok) {
         toast.success(type === 'cash_in' ? t('cash_in_recorded') : t('expense_recorded'));
@@ -136,7 +140,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
     setSubmitting(false);
   };
 
-  const handleCloseDrawer = async (managerId?: string) => {
+  const handleCloseDrawer = async (managerPin?: string) => {
     if (!session) return;
     setSubmitting(true);
     setManagerError('');
@@ -149,7 +153,10 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
           session_id: session.id,
           amount: Number(cashAmount) || 0,
           description: cashDesc || null,
-          manager_id: managerId || null,
+          // P-8 (D-5): server verifies the manager PIN (verifyPin + cash.close.approve
+          // + same-org in DB). body.manager_id is no longer accepted.
+          manager_pin: managerPin || null,
+          idempotency_key: crypto.randomUUID(),
         }),
       });
       const data = await res.json();
@@ -164,10 +171,13 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
         setCashAmount('');
         setCashDesc('');
         setManagerPin('');
+        setNeedsApproval(false);
         setView('main');
         await fetchData();
       } else if (data.requires_approval) {
-        // Manager approval needed — show PIN input
+        // Manager approval needed — show PIN input (DB is authoritative; render
+        // the PIN field even if client-side variance reads 0)
+        setNeedsApproval(true);
         setManagerError(data.error || t('manager_approval_required'));
       } else {
         toast.error(data.error || t('error'));
@@ -181,24 +191,10 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
       setManagerError(t('pin_required'));
       return;
     }
-    setSubmitting(true);
     setManagerError('');
-    try {
-      const verifyRes = await apiFetch('/api/auth/verify-pin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: managerPin, action: 'cash_close' }),
-      });
-      const verifyData = await verifyRes.json();
-      if (verifyRes.ok && verifyData.valid) {
-        await handleCloseDrawer(verifyData.staffId);
-      } else {
-        setManagerError(verifyData.error || t('pin_invalid'));
-      }
-    } catch (e: any) {
-      setManagerError(e.message || t('error'));
-    }
-    setSubmitting(false);
+    // P-8 (D-5): no client-side verify-pin preflight — the API route and the
+    // DB verify the PIN authoritatively (invalid PIN → 401 'Invalid manager PIN').
+    await handleCloseDrawer(managerPin);
   };
 
   if (!open) return null;
@@ -226,6 +222,10 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
     cash_out: { labelKey: 'expense', icon: ArrowUpCircle, color: 'text-red-500' },
     payment: { labelKey: 'cash_payment', icon: DollarSign, color: 'text-emerald-500' },
     card_payment: { labelKey: 'card_payment', icon: CreditCard, color: 'text-blue-500' },
+    // P-8: ledger types written by P-6 refund/void and the reopen reversal row
+    refund: { labelKey: 'cash_refund', icon: ArrowUpCircle, color: 'text-amber-500' },
+    void: { labelKey: 'cash_void', icon: ArrowUpCircle, color: 'text-zinc-500' },
+    reopen: { labelKey: 'cash_reopen', icon: Unlock, color: 'text-amber-500' },
   };
 
   return (
@@ -430,8 +430,8 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                        className={`w-full rounded-xl px-4 py-3 text-sm outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                     />
 
-                    {/* Manager approval PIN — shown when variance != 0 */}
-                    {cashAmount && Number(cashAmount) !== currentBalance && (
+                    {/* Manager approval PIN — shown when variance != 0 or DB demanded approval */}
+                    {(cashAmount && Number(cashAmount) !== currentBalance) || needsApproval ? (
                       <div className="space-y-2">
                         <p className="text-xs font-bold text-amber-500">{t('manager_approval_required')}</p>
                         <input
@@ -445,16 +445,16 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                         />
                         {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
                       </div>
-                    )}
+                    ) : null}
 
                     <div className="flex gap-2">
-                      <button onClick={() => { setView('main'); setManagerPin(''); setManagerError(''); }} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>
+                      <button onClick={() => { setView('main'); setManagerPin(''); setManagerError(''); setNeedsApproval(false); }} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>
                         {t('back')}
                       </button>
                       <button
                         onClick={() => {
                           const hasVariance = cashAmount && Number(cashAmount) !== currentBalance;
-                          if (hasVariance) {
+                          if (hasVariance || needsApproval) {
                             handleManagerVerifyAndClose();
                           } else if (window.confirm(t('confirm_end_shift'))) {
                             handleCloseDrawer();
@@ -477,6 +477,8 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       {[...movements].reverse().map(m => {
                         const cfg = typeLabels[m.type] || typeLabels.cash_in;
                         const Icon = cfg.icon;
+                        const isDebit = m.type === 'cash_out' || m.type === 'refund' || m.type === 'void';
+                        const shownAmount = m.type === 'reopen' ? Math.abs(m.amount) : m.amount;
                         return (
                           <div key={m.id} className={`flex items-center gap-3 p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
                             <Icon size={14} className={cfg.color} />
@@ -485,9 +487,9 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                               <p className="text-xs text-[var(--theme-text-muted)]">{formatTime(m.created_at)}</p>
                             </div>
                             <span className={`text-xs font-black tabular-nums ${
-                              m.type === 'cash_out' ? 'text-red-500' : 'text-green-500'
+                              isDebit ? 'text-red-500' : 'text-green-500'
                             }`}>
-                              {m.type === 'cash_out' ? '-' : '+'}{m.amount.toFixed(2)}₼
+                              {isDebit ? '-' : '+'}{shownAmount.toFixed(2)}₼
                             </span>
                           </div>
                         );

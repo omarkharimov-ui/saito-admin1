@@ -1,17 +1,22 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { validateAuth, createAuthClient } from '@/lib/api-auth';
 import { verifyPin } from '@/lib/crypto';
+import { validateCsrfToken } from '@/lib/csrf';
 
 // /api/staff/clock  (mobile app)
 // body: { action: 'clock_in' | 'clock_out' | 'break_start' | 'break_end', pin?, break_type? }
 // S-02: identity = session token; mobile acts on SELF.
 // S-03: PIN verified in TS (A-frozen verifyPin, PBKDF2-260k) on the self pin_hash;
 //       clock_in_token/clock_out_token are PIN-agnostic. break_* never required a PIN.
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const auth = await validateAuth();
     if (!auth.authenticated) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+    // P-8 (D-6): CSRF double-submit (mobile app sends the saito_csrf cookie pair)
+    if (!validateCsrfToken(req, true)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
     }
     const id = auth.user!.id;
     const s = await createAuthClient();

@@ -1,0 +1,4 @@
+ action | target_type | target_id | staff_name | details | created_at 
+--------+-------------+-----------+------------+---------+------------
+(0 rows)
+

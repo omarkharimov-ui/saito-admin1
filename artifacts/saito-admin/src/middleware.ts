@@ -21,6 +21,9 @@ const PUBLIC_PATHS = [
   '/menu',
   '/reservation',
   '/unauthorized',
+  // P-8 (Q4): external cron trigger — called without a staff cookie; the route
+  // itself enforces Bearer CRON_SECRET.
+  '/api/cron/',
   '/api/pwa',
   '/manifest.webmanifest',
   '/manifest-staff.json',

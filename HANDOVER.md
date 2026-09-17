@@ -511,9 +511,56 @@ re-audit of Phase 1 needed). Confirmed for Phase-2 fix: **P0-1** direct-RPC EXEC
 `fn_record_cash_payment` (fix: FOR UPDATE + location/org scope). **Phase-2 = WAITING FOR user
 Q1–Q6 rulings + explicit GO.** **Scope boundary (user, 2026-09-17):** final Supabase schema
 normalization — `settings` decomposition, duplicate columns, legacy models — is **OUT OF P-8**,
-stays P-9/final normalization; P-8 fixes ONLY the cash-drawer contract. P-1..P-7 remain frozen
+ stays P-9/final normalization; P-8 fixes ONLY the cash-drawer contract. P-1..P-7 remain frozen
 (verification §E: T-3 is a new P-8 finding, not a P-7 regression).
 
+**P-8 LIVE CONCURRENCY PROOF (2026-09-17, `.p8-gate.cjs` = 8/8, GO → FROZEN):**
+Phase-2 implemented and ratified (Q1–Q6): migration `20260917000001_p8_cash_drawer_contract.sql`
+(ledger SSOT + canonical walk, state-machine guard, T-3 FOR UPDATE serialization, D-5 server-side
+`manager_pin`, D-11 drawer idempotency, D-12 outbox events, Q4 cron public paths, Q3/Q5/Q6 route
+retires, CSRF on all P-8 write routes) + gate-fix migrations `20260917000002` (D-11 FK drop +
+`emit_outbox_event` NULL-metadata COALESCE — both real defects found by gate run 1) and
+`20260917000003` (D-11 idempotency **replay checked BEFORE** the session-status check, P-4
+ordering — found by gate run 2 T-4). `.p8-gate.cjs` (P8_ALL=1, true-parallel, relational
+final-state asserts, zero-residue teardown): **PASS=2 (T-1, T-4), EXPECTED-CONFLICT=6
+(T-2/T-3/T-5/T-6/T-7/T-8 — both interleavings legal), REAL-RISK=0, HARNESS-FAILURE=0**, no
+40P01 in any race, residue 0/0/0/0/0/0/0/0 post-cleanup (evidence `.p8-audit/`).
+
+Approved Q1 data repair (single audited txn, pre/post snapshots in `.p8-audit/`): 4 orphan
+fixture sessions closed at `actual = cash_session_expected` (diff 0.00, note "P-8 orphan repair
+(fixture session)"), 6 zero-amount P-7 legacy rows deleted (D-20); ledger 195→199 append-only.
+Residual for P-9: the 12,900.00₼ misattributed fixture amount on session 4d5aa595 (closed clean;
+underlying attribution = P-9).
+
+Full frozen reflow GREEN post-P-8: **A 39/39 · E/S 54/54 · F 35/35 · O 38/38 · K L3 8/8 +
+L4 16/16 · P-1 29/29 · P-2 13/13 · P-3 25/25 · P-4 19/19 (mandatory reflow after FK drop) ·
+P-5 10/10 · P-6 15/15 · P-7 16/16 (9P+7EC)**. Two reflow incidents were root-caused as
+**environment/harness, NOT P-8 code**: (1) A gate O-1/C-2 = pre-existing `A_RT_*` staff
+residue with valid PBKDF2 hashes contaminated the `login_preflight` candidate pool (A's
+cleanup deactivates only 3 of its N ids) — fixed by a data-only purge of `A_RT_%` staff,
+A gate code untouched (re-run 39/39); (2) O gate R7 crash = missing `O_ROUTE` env in the
+reflow driver (env now documented in `.p8-audit/reflow_driver2.sh`).
+
+**P-8 is FROZEN (2026-09-17).** Freeze boundary: P-8 is NOT reopened to "fix something" — any
+new finding against the cash-drawer/timeclock writer/lock/state contract requires its own
+concrete regression report + classification first. Preserved facts (binding):
+(1) cash SSOT = `cash_drawer_log` + canonical walk `cash_session_expected` — refund/void subtract
+positive amounts; `reopen` rows carry SIGNED negative amounts (amount<0 allowed only for
+type='reopen'); (2) idempotent replay is checked BEFORE the session-status check (P-4 ordering),
+and `payment_idempotency_keys.order_id` has NO FK to orders (drawer namespace stores session ids;
+integrity = (namespace,key) unique + per-namespace binding check + P-4 key-after-write rule);
+(3) `emit_outbox_event` COALESCEs NULL jsonb args (outbox_events.metadata/payload NOT NULL);
+(4) `close_cash_register_v2`: FOR UPDATE session lock, closes bound shift inside close,
+`clock_out` is blocked by DRAWER_OPEN, `auto_clockout_staff` skips shifts with open drawers (D-2a),
+manager approval = server-verified `manager_pin` (verifyPin + cash.close.approve + same-org;
+`body.manager_id` is rejected); (5) trusted 5-arg path (`p_token NULL`) = service/postgres
+context, pre-P-8 semantics (used by E/S R5 + the Q1 repair).
+New findings for later modules (NOT P-8, no change made): `{public}`-ALL RLS on
+`overtime_records`/`schedule`/`shift_breaks`/`shift_swap_requests` (P-2 RLS-OFF class, → P-9
+regression report); A-gate cleanup weakness (→ its own hardening, A stays frozen).
+Next module: **P-9 — schema normalization** per the ratified boundary (settings decomposition,
+duplicate columns, legacy models, FK cleanup) — **not auto-started**.
+ 
 ## 5. NEXT MODULE: **P-7 — CONCURRENT MUTATION** (the financial SSOT boundary, continued)
 
 **Where we left off (2026-09-14):** P-1…P-6 are **all frozen, committed, and pushed**

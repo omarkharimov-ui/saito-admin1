@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, validateAuth, createAuthClient } from '@/lib/api-auth';
+import { validateCsrfToken } from '@/lib/csrf';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -8,11 +9,16 @@ function svc() {
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const auth = await validateAuth();
     if (!auth.authenticated) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    // P-8 (D-6): CSRF double-submit
+    if (!validateCsrfToken(request, true)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
     }
 
     const s = await createAuthClient();
@@ -44,6 +50,12 @@ export async function POST(request: Request) {
       }
 
       if (role_id && data?.shift_id) {
+        // P-8 (D-19): active_role_id must be the staff's OWN role (single-role
+        // model) — client-supplied arbitrary role uuids are rejected.
+        const { data: me } = await s.from('staff').select('role_id').eq('id', staffId).maybeSingle();
+        if (me?.role_id !== role_id) {
+          return NextResponse.json({ error: 'INVALID_ROLE' }, { status: 400 });
+        }
         const svcData = svc();
         await fetch(`${svcData.url}/rest/v1/shifts?id=eq.${data.shift_id}`, {
           method: 'PATCH',

@@ -1,0 +1,25 @@
+=== REFLOW START A 21:35:34 ===
+=== REFLOW A EXIT=0 21:39:33 ===
+  FAIL O-1 self-approve override -> DENIED — SQL: ERROR:  invalid input syntax for type uuid: ""
+LINE 1: ....approve_override
+  FAIL C-2 login+disable race -> invariant holds (token cannot authenticate after disable) — login=200 auth-after=200
+===================================================
+=== REFLOW START ES 21:39:33 ===
+=== REFLOW ES EXIT=0 21:41:19 ===
+
+========== E/S GATE v2 REPORT ==========
+TOTAL 54 | PASS 54 | FAIL 0
+ALL GREEN
+=== REFLOW START F 21:41:19 ===
+=== REFLOW F EXIT=0 21:42:32 ===
+
+========== F GATE REPORT ==========
+TOTAL 35 | PASS 35 | FAIL 0
+ALL GREEN
+=== REFLOW START O 21:42:32 ===
+=== REFLOW O EXIT=2 21:43:42 ===
+PASS R4 transition_delivery_status = 1 token-first overload, svc-only
+PASS R5 cancel_loss_table = 1 token-first overload
+PASS R6 walkin_atomic = 1 location-scoped overload, svc-only
+HARNESS ERROR: The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+!!! REFLOW HALT: O failed

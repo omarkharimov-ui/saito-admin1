@@ -1,0 +1,28 @@
+=== PRE-REPAIR SNAPSHOT 2026-09-17T16:09:14Z ===
+--- open sessions ---
+                  id                  |               shift_id               |              opened_by               |             location_id              |           organization_id            | status | opening_balance | expected_balance | computed_expected |           opened_at           
+--------------------------------------+--------------------------------------+--------------------------------------+--------------------------------------+--------------------------------------+--------+-----------------+------------------+-------------------+-------------------------------
+ ab751905-bf22-42fd-aa84-43e631efc159 |                                      |                                      | f1f830b3-cf15-47e3-a538-01abd8222c6d | 00000000-0000-0000-0000-000000000001 | open   |           32.00 |                  |            768.00 | 2026-07-26 09:36:07.738781+00
+ ca90e940-50ea-4bce-af75-edf8a383b33f |                                      |                                      | f1f830b3-cf15-47e3-a538-01abd8222c6d | 00000000-0000-0000-0000-000000000001 | open   |          100.00 |           140.00 |            354.78 | 2026-08-25 21:06:06.890487+00
+ a0ff4659-cfde-4192-81b7-2b53fd1d5e71 | 234ad6bc-96e1-4eee-a818-1a9bf7a4c941 | 3ab7b025-b264-4a93-b186-644e4c7f5f6e | f1f830b3-cf15-47e3-a538-01abd8222c6d | 00000000-0000-0000-0000-000000000001 | open   |           50.00 |                  |             50.00 | 2026-09-11 10:03:02.24788+00
+ 4d5aa595-880c-4efc-a32e-f83a654ffe2c | 1b49757b-0d5c-4f25-aaba-4345e066a04f | 2127ae5d-1923-4a84-ac48-258781bd96cf | f1f830b3-cf15-47e3-a538-01abd8222c6d | 00000000-0000-0000-0000-000000000001 | open   |           50.00 |                  |          12950.00 | 2026-09-11 11:02:10.954419+00
+(4 rows)
+
+--- legacy cash_drawer_logs (all 7) ---
+                  id                  |               shift_id               |               staff_id               |  action   | amount |                               description                               |          created_at           
+--------------------------------------+--------------------------------------+--------------------------------------+-----------+--------+-------------------------------------------------------------------------+-------------------------------
+ bcfc9435-67c4-466f-bab7-bf1e1c9d2ca0 | e30dccbf-9fdc-47d0-b324-a159ded57df9 | 2127ae5d-1923-4a84-ac48-258781bd96cf | close_day | 350.00 | Drawer close → shift close (expected from cash_drawer_session 0451bdb4) | 2026-09-11 11:01:52.041399+00
+ c90f331b-757d-4346-869f-2b650228854a | c4811bbd-20fb-4d1b-a1ec-bb5caced671e | 5c547991-3734-4d90-8364-3f5e3000da09 | close_day |      0 | Drawer close → shift close (expected from cash_drawer_session 726c7735) | 2026-09-14 22:13:21.327543+00
+ 88f499bb-9adf-4a2d-96fb-d71574c572e5 | 51d9d2df-6959-4a41-ae24-44a6c7e616e4 | 604afd7d-e9b6-4bdb-8bfa-d489eb4acdf2 | close_day |      0 | Drawer close → shift close (expected from cash_drawer_session eb4e07a2) | 2026-09-14 22:18:41.507116+00
+ c33e576f-bee2-4d53-b70c-dbaff407382b | cfdbd3cd-5078-49a9-91aa-73ba56aa9522 | 344c7f97-18a6-4dcd-b350-3fc862347fd1 | close_day |      0 | Drawer close → shift close (expected from cash_drawer_session 163ea20b) | 2026-09-15 07:17:56.426043+00
+ 43d646b9-ba1c-47f4-a990-219f87bc06b6 | eb89bf1d-6d1a-4d1b-9a73-75e7a0b2f477 | 6aa9c260-2cd0-4be0-8aa7-7c95ecfd02b2 | close_day |      0 | Drawer close → shift close (expected from cash_drawer_session c86d757a) | 2026-09-15 07:37:10.517873+00
+ 7ade096b-a3de-4170-8800-380ebb4559b7 | c0e1ae0f-fca5-42b8-bd35-06e076ce4a94 | d7defaa1-be76-4677-80ed-76999c61b5b2 | close_day |      0 | Drawer close → shift close (expected from cash_drawer_session edac6c1e) | 2026-09-15 08:13:22.07088+00
+ 536fce42-601a-4d82-96bf-950078013b5c | b2a57fdb-3435-49be-bc99-3cb444ea2a1a | 09dc9242-10ba-4078-8e40-331218012aef | close_day |      0 | Drawer close → shift close (expected from cash_drawer_session cb2fcd46) | 2026-09-15 08:35:47.147068+00
+(7 rows)
+
+--- canonical ledger row count (immutability baseline) ---
+ count 
+-------
+   195
+(1 row)
+

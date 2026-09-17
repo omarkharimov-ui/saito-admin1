@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/api-auth';
+import { validateCsrfToken } from '@/lib/csrf';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -8,10 +9,15 @@ function svc() {
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const auth = await requirePermission('timeclock.override');
     if (auth instanceof NextResponse) return auth;
+
+    // P-8 (D-6): CSRF double-submit
+    if (!validateCsrfToken(req, true)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
 
     const s = svc();
     const body = await req.json();

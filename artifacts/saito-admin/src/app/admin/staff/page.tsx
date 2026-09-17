@@ -16,7 +16,6 @@ import { DragTabSwitcher } from '@/components/ui/DragTabSwitcher';
 import { TimeClockPanel } from './components/TimeClockPanel';
 import { ScheduleCalendar } from './components/ScheduleCalendar';
 import { TipManagement } from './components/TipManagement';
-import { CashReconciliation } from './components/CashReconciliation';
 import { BreakManagement } from './components/BreakManagement';
 import { OvertimeTracking } from './components/OvertimeTracking';
 import { ShiftHandover } from './components/ShiftHandover';
@@ -174,9 +173,10 @@ export default function StaffPage() {
   const handleForceClockOut = async (member: StaffMember) => {
     if (!confirm(`Force clock out ${member.full_name || member.name}?`)) return;
     try {
+      const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
       const res = await fetch('/api/staff/force-clock-out', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         body: JSON.stringify({ staff_id: member.id, reason: 'Forced by admin' }),
       });
       if (res.ok) {
@@ -1404,20 +1404,11 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             <TipManagement staffId={staff.id} />
           )}
 
-          {activeTab === 'cash' && staff.active_shift && (
-            <CashReconciliation
-              shiftId={staff.active_shift.id}
-              staffId={staff.id}
-              startingCash={staff.active_shift.starting_cash || 0}
-              expectedCash={staff.expected_cash || 0}
-            />
-          )}
-
-          {activeTab === 'cash' && !staff.active_shift && (
+          {activeTab === 'cash' && (
             <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
               <DollarSign size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
-              <p className="text-sm text-[var(--theme-text-secondary)]">No active shift</p>
-              <p className="text-xs text-[var(--theme-text-muted)] mt-1">Cash reconciliation is available during active shifts</p>
+              <p className="text-sm text-[var(--theme-text-secondary)]">Cash reconciliation is retired (P-8, 2026-09-17)</p>
+              <p className="text-xs text-[var(--theme-text-muted)] mt-1">Rebuild is planned in a later phase (P-9/P-12)</p>
             </div>
           )}
 

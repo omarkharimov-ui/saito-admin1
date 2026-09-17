@@ -1,0 +1,69 @@
+{
+  "pass": 2,
+  "conflict": 6,
+  "risk": 0,
+  "harness": 0,
+  "results": [
+    {
+      "id": "T-1",
+      "name": "open∥open same shift -> EXACTLY ONE open drawer (loser DRAWER_ALREADY_BOUND, no raw 500)",
+      "cls": "PASS",
+      "ok": true,
+      "evidence": "a=400 b=200 oneSuccess=false!==true openDrawers=1 loserMsg=true  DRAWER_ALREADY_BOUND|{\"id\":\"17a059a1-98f5-4072-a8d4-afd7bf89b518\","
+    },
+    {
+      "id": "T-2",
+      "name": "close∥cash_in -> closed: expected==canonical(150); open: close rejected, no close row (no unaccounted cash_in)",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "st=open close=false in=true rows={\"close\":\"0\",\"cash_in\":\"1\",\"expected\":\"0\",\"canon\":\"150.00\"}  Manager approval required|{\"type\":\"cash_in\",\"amount\":50,\"success\":"
+    },
+    {
+      "id": "T-3",
+      "name": "close∥cash payment (TOCTOU) -> no orphan ledger row; closed⇒expected==canonical; order paid+1op",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "st=open close=false rows={\"payment\":\"1\",\"close\":\"0\",\"expected\":\"0\",\"canon\":\"200.00\"} ord=paid opCap=1  Manager approval required|{\"success\":true,\"paid_amount\":100,\"total",
+      "note": "open+requires_approval = close committed nothing, trigger scoped-skip (documented); closed+expected==canon = payment serialized in"
+    },
+    {
+      "id": "T-4",
+      "name": "double close + same-key replay -> ONE close row; replay idempotent:true; new key rejected (already closed)",
+      "cls": "PASS",
+      "ok": true,
+      "evidence": "1=200 2=200 3=200 closeRows=1 st=closed  {\"success\":true,\"overtime\":{\"success\":tr|Session already closed"
+    },
+    {
+      "id": "T-5",
+      "name": "clock_out∥close v2 -> no 40P01; FINAL: shift closed AND drawer closed (DRAWER_OPEN/NO_OPEN_SHIFT are the legal exclusions)",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "drawer=closed openShifts=0 out=200 close=200  NO_OPEN_SHIFT|{\"success\":true,\"overtime\":{\"success\":tr"
+    },
+    {
+      "id": "T-6",
+      "name": "auto_clockout∥clock_out (13h shift) -> no 40P01; FINAL: shift CLOSED, zero open shifts (one leg wins, other NO_OPEN_SHIFT/skip)",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "shift=CLOSED|auto=false|closed_at=true openShifts=0 auto=200 out=200  {\"success\":true,\"auto_closed_count\":1}|NO_OPEN_SHIFT",
+      "note": "D-2a guard proven indirectly: the 13h shift had NO open bound drawer, so auto-close was eligible"
+    },
+    {
+      "id": "T-7",
+      "name": "recalculate∥close -> no 40P01; FINAL: closed, expected==canonical (150.00), exactly 1 close row",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "st=closed rows={\"expected\":\"0.00\",\"canon\":\"0.00\",\"close\":\"1\"} recalc=200 close=200  0|{\"success\":true,\"overtime\":{\"success\":tr"
+    },
+    {
+      "id": "T-8",
+      "name": "break start∥end -> no 40P01; FINAL: shift open, open breaks ∈ {0,1} (never >1, never dangling on closed shift)",
+      "cls": "EXPECTED-CONFLICT",
+      "ok": true,
+      "evidence": "openBreaks=0 openShifts=1 start=200 end=200  {\"success\":true,\"break_id\":\"063485fa-54a|{\"success\":true,\"duration_minutes\":0,\"ov"
+    }
+  ],
+  "baseline": "drawer_sessions=0/drawer_log=0/shifts=0/breaks=0/tce=0/orders=1/idem=0/legacy=0",
+  "after": "drawer_sessions=6/drawer_log=15/shifts=8/breaks=1/tce=2/orders=1/idem=4/legacy=6",
+  "finalResidue": "drawer_sessions=0/drawer_log=0/shifts=0/breaks=0/tce=0/orders=0/idem=0/legacy=0"
+}

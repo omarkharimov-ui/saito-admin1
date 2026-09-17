@@ -1,0 +1,10 @@
+PASS D3-1 dismiss on ACTIVE-order table -> 200 success (valid state works; the guards are correct)
+PASS D3-1b after valid dismiss: table EMPTY, pointer cleared (business rule)
+PASS D3-2 pay the order -> order PAID + table NOT auto-emptied (settled non-empty state; live=dirty from complete_payment_atomic)
+PASS D3-2b dismiss on PAID table -> 400 BY DESIGN (G_NO_ACTIVE_ORDER; the paid path is release, UI routes it there)
+PASS D3-2c release on PAID table -> 200, table EMPTY (the correct UI action works end-to-end)
+PASS D3-3 no final state: order=PAID + table=OCCUPIED + current_order_id=paid order (forbidden end state = 0)
+PASS D3-4 waiter (no floor.manage) dismiss -> 403 (F-01 permission guard intact)
+PASS D3-5 cleanup: 0 residue
+
+8/8 L3 checks passed

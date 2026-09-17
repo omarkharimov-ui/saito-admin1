@@ -1,0 +1,66 @@
+----- HTTP E2E MAIN CHAIN (real route contract) -----
+PASS E1 PIN login (A-frozen) → session
+PASS E2 clock-in wrong PIN → 401 (TS verifyPin)
+PASS E3 clock-in missing PIN → 400 (NULL-PIN bypass closed)
+PASS E4 clock-in self → success + shift + report_date
+PASS E5 break start → success + break_id (G-1/G-3 fixed)
+PASS E6 break end → success + duration
+PASS E7 drawer open → success + bound to shift (S-08 1:1)
+PASS E8 cash movement (cash_in 150) → success
+PASS E9 drawer close by MANAGER (cash.close) → success + shift auto-closed
+PASS E10 shift expected_cash DERIVED from ledger (350), status CLOSED
+PASS E11 cash_drawer_logs audit row written
+PASS E12 time_clock_audit chain present (clock_in+breaks)
+PASS E13 cashier self-close drawer → FORBIDDEN (cash.close = manager-only)
+----- EDGE CASES -----
+PASS X1 no-location staff clock-in → NO_LOCATION_ASSIGNED
+PASS X2 inactive staff clock-in → refused (not found/inactive)
+PASS X3 manager override clock-in other staff → success override=true
+PASS X4 waiter → other staff (no override) → 403 PERMISSION_DENIED
+PASS X5 status route unauthenticated → 401 (G-2 fixed)
+PASS X6 status route self → 200 (authorized)
+PASS X7 schedule conflict 10-18+14-22 → DENY
+PASS X8 schedule boundary 10-18+18-22 → ALLOW
+PASS X9 overtime approval lock: recalc keeps exactly 1 approved row
+----- CONCURRENCY BATTERY (RPC-level, dedicated session, robust parse) -----
+PASS R1 2x clock-in (from closed) → exactly 1 success
+PASS R2 2x break-start → exactly 1 success
+PASS R3 2x break-end → exactly 1 success
+PASS R4 2x drawer-open → exactly 1 success (1:1 atomic)
+PASS R5 2x drawer-close → exactly 1 success
+PASS R6 2x clock-out → exactly 1 success
+PASS R7 2x shift-close → exactly 1 success, 1 "already closed"
+PASS R8 2x overtime calc (parallel) → exactly 1 record (advisory lock)
+PASS R9 2x overlapping schedule create → 1 success, 1 row
+PASS R10 schedule create/update race → 0 overlaps in DB
+PASS R11 override-vs-self race → 0 or 1 open shift (no corruption)
+PASS R12 approved overtime immutable under concurrent recalc
+PASS R13 2x clock-in_token (from closed) → exactly 1 success
+----- RESIDUE AUDIT (production-wide) -----
+PASS Z1 orphan shifts (staff missing) = 0
+PASS Z2 orphan drawer sessions NEW (last 24h, my code) = 0
+  NOTE Z2: 3 PRE-EXISTING drawer(s) with NULL opened_by (abandoned before S-08; NOT auto-closed — business decision). See E_S_FREEZE.md.
+PASS Z3 multiple OPEN drawers per shift = 0
+PASS Z4 shift/drawer staff mismatch = 0
+PASS Z5 overlapping schedules (any staff) = 0
+PASS Z6 duplicate unapproved overtime = 0
+PASS Z7 open breaks without open shift = 0
+PASS Z8 audit residue (performed_by not staff) = 0
+PASS Z9 cross-org leakage (shift org ≠ staff org) = 0
+PASS Z10 closed shift with status<>CLOSED = 0 (migration 19 invariant)
+----- RE-AUDIT SWEEP (old implementations unreachable) -----
+PASS A1 legacy uuid-identity clock/break RPCs DROPPED (0)
+PASS A2 old 4-arg clock_in/out_token (p_pin) gone (0)
+PASS A3 old open_cash_register(p_opened_by) gone (0)
+PASS A4 md5 in clock/break/cash fns = 0
+PASS A5 hardcoded CURRENT_DATE in S clock/close fns = 0
+PASS A6 expected_cash=0 hardcode gone from close paths
+PASS A7 TS: no legacy p_pin/p_opened_by/rpc calls (excluding p_pin_banned)
+PASS A8 TS: all 6 time-clock routes (incl status) authenticated
+PASS A9 no unauthenticated status/audit read (G-2) — status 401, audit has requirePermission
+----- CLEANUP -----
+cleanup done
+
+========== E/S GATE v2 REPORT ==========
+TOTAL 54 | PASS 54 | FAIL 0
+ALL GREEN

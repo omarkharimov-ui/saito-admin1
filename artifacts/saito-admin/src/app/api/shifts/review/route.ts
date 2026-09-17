@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
+import { validateCsrfToken } from '@/lib/csrf';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -12,6 +13,11 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
+
+    // P-8 (D-6): CSRF double-submit
+    if (!validateCsrfToken(request, true)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
 
     const body = await request.json();
     const { shift_id, declared_cash_tips, declared_tip_out, declared_notes } = body;

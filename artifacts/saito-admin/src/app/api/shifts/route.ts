@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/api-auth';
+import { validateCsrfToken } from '@/lib/csrf';
 
 type Shift = {
   id: string;
@@ -69,6 +70,11 @@ export async function POST(request: NextRequest) {
     const auth = await requirePermission('cash.open');
     if (!auth.authenticated) return auth;
 
+    // P-8 (D-6): CSRF double-submit (app pattern; see /api/orders/pay)
+    if (!validateCsrfToken(request, true)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { staff_id, notes } = body;
 
@@ -102,6 +108,11 @@ export async function PATCH(request: NextRequest) {
   try {
     const auth = await requirePermission('cash.close');
     if (!auth.authenticated) return auth;
+
+    // P-8 (D-6): CSRF double-submit (app pattern; see /api/orders/pay)
+    if (!validateCsrfToken(request, true)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
 
     const body = await request.json();
     const { id, notes } = body;

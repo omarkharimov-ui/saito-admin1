@@ -66,13 +66,18 @@ export default function ShiftsPage() {
   const handleForceClose = async (shift: Shift) => {
     if (!confirm(`Force close shift for ${shift.staff_name}?`)) return;
     try {
-      const res = await fetch(`/api/shifts/${shift.id}/close`, {
+      // P-8 (D-8): /api/shifts/[id]/close never existed (404) — the canonical
+      // force path is /api/staff/force-clock-out (timeclock.override + CSRF).
+      const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
+      const res = await fetch('/api/staff/force-clock-out', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: 'Force closed by admin' }),
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: JSON.stringify({ staff_id: shift.staff_id, reason: 'Force closed by admin' }),
       });
-      if (res.ok) { toast.success('Shift closed'); fetchShifts(); }
-      else toast.error('Failed');
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.success !== false) { toast.success('Shift closed'); fetchShifts(); }
+      else if (data?.error === 'NO_ACTIVE_SHIFT') { toast.success('No active shift'); fetchShifts(); }
+      else toast.error(data?.error || 'Failed');
     } catch { toast.error('Error'); }
   };
 

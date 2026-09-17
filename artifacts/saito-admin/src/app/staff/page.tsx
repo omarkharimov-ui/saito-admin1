@@ -128,9 +128,10 @@ export default function StaffHome() {
     setErr(null);
     setSuccess(null);
     try {
+      const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
       const res = await fetch('/api/staff/clock', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         body: JSON.stringify({ action, pin }),
       });
       const data = await res.json();
@@ -155,9 +156,10 @@ export default function StaffHome() {
     setSuccess(null);
     setBusy(true);
     try {
+      const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
       const res = await fetch('/api/staff/clock', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         body: JSON.stringify({ action: onBreak ? 'break_end' : 'break_start' }),
       });
       const data = await res.json();

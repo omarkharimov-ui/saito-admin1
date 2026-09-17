@@ -1,0 +1,46 @@
+P-8 FIXTURE: built staff P8_S0..2 (cashier/manager/owner @ f1f830b3), order bed5d0e3 table 1312
+warmup: probing all tokens...
+  WARMUP ok CASH 200
+  WARMUP ok MGR 200
+  WARMUP ok OWN 200
+P-8 CASH-DRAWER GATE — residue baseline (all should be 0): drawer_sessions=0/drawer_log=0/shifts=0/breaks=0/tce=0/orders=1/idem=0/legacy=0
+  PASS               T-1 open∥open same shift -> EXACTLY ONE open drawer (loser DRAWER_ALREADY_BOUND, no raw 500)
+  EXPECTED-CONFLICT  T-2 close∥cash_in -> closed: expected==canonical(150); open: close rejected, no close row (no unaccounted cash_in)
+  EXPECTED-CONFLICT  T-3 close∥cash payment (TOCTOU) -> no orphan ledger row; closed⇒expected==canonical; order paid+1op
+   NOTE: open+requires_approval = close committed nothing, trigger scoped-skip (documented); closed+expected==canon = payment serialized in
+!!! RISK REAL-RISK          T-4 double close + same-key replay -> ONE close row; replay idempotent:true; new key rejected (already closed)
+   -> 1=200 2=200 3=200 closeRows=1 st=closed  Session already closed|Session already closed
+  EXPECTED-CONFLICT  T-5 clock_out∥close v2 -> no 40P01; FINAL: shift closed AND drawer closed (DRAWER_OPEN/NO_OPEN_SHIFT are the legal exclusions)
+  EXPECTED-CONFLICT  T-6 auto_clockout∥clock_out (13h shift) -> no 40P01; FINAL: shift CLOSED, zero open shifts (one leg wins, other NO_OPEN_SHIFT/skip)
+   NOTE: D-2a guard proven indirectly: the 13h shift had NO open bound drawer, so auto-close was eligible
+  EXPECTED-CONFLICT  T-7 recalculate∥close -> no 40P01; FINAL: closed, expected==canonical (150.00), exactly 1 close row
+  EXPECTED-CONFLICT  T-8 break start∥end -> no 40P01; FINAL: shift open, open breaks ∈ {0,1} (never >1, never dangling on closed shift)
+
+────────────────────────────────────────────────────────────
+P-8 GATE SUMMARY: PASS=1 EXPECTED-CONFLICT=6 REAL-RISK=1 HARNESS-FAILURE=0
+residue baseline->after (all zero after cleanup): drawer_sessions=0/drawer_log=0/shifts=0/breaks=0/tce=0/orders=1/idem=0/legacy=0 -> drawer_sessions=6/drawer_log=15/shifts=8/breaks=1/tce=2/orders=1/idem=4/legacy=6
+
+!! REAL-RISK (classify + disposition, NOT auto-pass):
+   T-4 double close + same-key replay -> ONE close row; replay idempotent:true; new key rejected (already closed) :: 1=200 2=200 3=200 closeRows=1 st=closed  Session already closed|Session already closed
+cleanup ok: DELETE FROM payment_idempotency_keys WHERE key LIKE 'p8:%' OR order_id='
+cleanup ok: DELETE FROM cash_drawer_log WHERE session_id IN (SELECT id FROM cash_dra
+cleanup ok: DELETE FROM outbox_events WHERE aggregate_id IN (SELECT id FROM shifts W
+cleanup ok: DELETE FROM audit_logs_canonical WHERE entity_id IN (SELECT id::text FRO
+cleanup ok: DELETE FROM audit_logs WHERE record_id IN (SELECT id::text FROM staff WH
+cleanup ok: DELETE FROM cash_drawer_logs WHERE staff_id IN (SELECT id FROM staff WHE
+cleanup ok: DELETE FROM shift_breaks WHERE shift_id IN (SELECT id FROM shifts WHERE 
+cleanup ok: DELETE FROM time_clock_entries WHERE staff_id IN (SELECT id FROM staff W
+cleanup ok: DELETE FROM time_clock_audit WHERE performed_by IN (SELECT id FROM staff
+cleanup ok: DELETE FROM security_events WHERE staff_id IN (SELECT id FROM staff WHER
+cleanup ok: DELETE FROM audit_log WHERE record_id IN (SELECT id FROM staff WHERE id 
+cleanup ok: BEGIN;
+SELECT set_config('app.payment_ledger_reopen','on',false);
+DELETE
+cleanup ok: DELETE FROM shifts WHERE id IN (SELECT id FROM shifts WHERE staff_id IN 
+cleanup ok: DELETE FROM cash_drawer_sessions WHERE id IN (SELECT id FROM cash_drawer
+cleanup ok: DELETE FROM products WHERE id='2c887493-cee8-4d62-8129-ab08a0091cab'
+cleanup ok: UPDATE staff SET is_active=false,status='INACTIVE' WHERE id IN (SELECT i
+cleanup ok: DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE id IN 
+cleanup ok: DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHER
+post-cleanup residue (must be all zero): drawer_sessions=0/drawer_log=0/shifts=0/breaks=0/tce=0/orders=0/idem=0/legacy=0
+report: .p8-gate-report.json

@@ -1,0 +1,31 @@
+PASS P1-01 location A mgr -> location A order: pay OK (200, paid)
+PASS P1-02 location B cashier -> location A order: 403 LOCATION_MISMATCH (route)
+PASS P1-03 RPC: session@B but actor not bound to B -> 403 LOCATION_ACCESS_DENIED
+PASS P1-04 RPC: B-bound cashier -> B order: allowed (success)
+PASS P1-05 RPC: p_location_id NULL -> LOCATION_CONTEXT_MISSING (fail closed)
+PASS P1-06 denied attempts wrote nothing: oB=0, oB3=0, oB2=1
+PASS P1-07 idempotency: 2nd same-key pay -> idempotent=true, 1 row
+PASS P1-08 overpay: 150 > 100 -> 500 PAYMENT_EXCEEDS_REMAINING
+PASS P1-09 already-paid: re-pay -> 409 (order already paid)
+PASS P1-10 refund within cap: 40 on paid-100 -> success
+PASS P1-11 refund cap: 61 more (total 101>100) -> 400 exceeds remaining
+PASS P1-12 owner role has all 65 permission keys
+PASS P1-13 owner seed: owner passes payments.create + location (re-pay -> 409, not 403)
+PASS P1-14-has_permission_v2 has_permission_v2 retired (404 PGRST202)
+PASS P1-14-check_permission check_permission retired (404 PGRST202)
+PASS P1-14-get_effective_permissions get_effective_permissions retired (404 PGRST202)
+PASS P1-14-get_effective_permissions_v2 get_effective_permissions_v2 retired (404 PGRST202)
+PASS P1-15 has_permission(uuid,text) SSOT still alive
+PASS P1-16-staff_permission_overrides staff_permission_overrides retired (404 via REST)
+PASS P1-16-location_permission_overrides location_permission_overrides retired (404 via REST)
+PASS P1-17 /api/permissions/overrides route retired (404)
+PASS P1-18 legacy /api/orders/complete-payment retired (404)
+PASS P1-19 legacy /api/order-payments retired (404)
+PASS P1-20 /api/orders/void: manager (has pos.void) passes RBAC gate (not 403-Forbidden)
+PASS P1-21 /api/orders/void: waiter (no pos.void) -> 403 Forbidden
+PASS P1-22 inactive staff session -> 401
+PASS P1-23 no session -> 401
+PASS P1-24 waiter (no payments.create) -> 403 Forbidden (fails RBAC before location)
+PASS P1-25 zero residue: probe orders gone + P1_% staff inactive-cleaned
+
+==== P-1 GATE: 29/29 PASS ====

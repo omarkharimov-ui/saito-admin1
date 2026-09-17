@@ -17,7 +17,7 @@
       "name": "pay∥pay diff-key -> ONE captured, paid=100, no overpay (2nd PAYMENT_EXCEEDS_REMAINING)",
       "cls": "EXPECTED-CONFLICT",
       "ok": true,
-      "evidence": "a=200 b=409 opCap=1 paid=100 st=paid  Order is already paid"
+      "evidence": "a=409 b=200 opCap=1 paid=100 st=paid  {\"success\":true,\"paid_amount\":100,\"total_amount\":1"
     },
     {
       "id": "C-3",
@@ -52,7 +52,7 @@
       "name": "pay∥drawer-close -> disjoint locks, no 40P01, pay unaffected",
       "cls": "PASS",
       "ok": true,
-      "evidence": "st=paid pay=200 close=200  {\"success\":true,\"overtime\":{\"success\":true,\"shift_id\":\"b2a57"
+      "evidence": "st=paid pay=200 close=200  {\"success\":true,\"overtime\":{\"success\":true,\"shift_id\":\"6afcf"
     },
     {
       "id": "C-8",
@@ -66,7 +66,7 @@
       "name": "refund∥refund (mode-1) -> no over-refund + D-Q4 mirror parity (payments==order_payments ref)",
       "cls": "EXPECTED-CONFLICT",
       "ok": true,
-      "evidence": "refRows=1 mirror=1 refundAmt=100.00 paid=100.00 st=refunded a=200 b=400 "
+      "evidence": "refRows=1 mirror=1 refundAmt=100.00 paid=100.00 st=refunded a=400 b=200 "
     },
     {
       "id": "C-10",
@@ -81,7 +81,7 @@
       "name": "transition∥transition -> one wins, stale re-validated (closed->new ∥ closed->open, cross-illegal)",
       "cls": "EXPECTED-CONFLICT",
       "ok": true,
-      "evidence": "st=open a=400 b=200  INVALID_TRANSITION: Invalid transition: open |{\"success\":true,\"order_id\":\"8a4f2017-f670-4f4"
+      "evidence": "st=open a=400 b=200  INVALID_TRANSITION: Invalid transition: open |{\"success\":true,\"order_id\":\"d66ebe87-935d-4f0"
     },
     {
       "id": "C-12",

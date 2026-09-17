@@ -1,0 +1,8 @@
+   action   |     entity_type     |              entity_id               | actor_name |          created_at           
+------------+---------------------+--------------------------------------+------------+-------------------------------
+ cash_close | cash_drawer_session | ab751905-bf22-42fd-aa84-43e631efc159 |            | 2026-09-17 16:09:50.660803+00
+ cash_close | cash_drawer_session | ca90e940-50ea-4bce-af75-edf8a383b33f |            | 2026-09-17 16:09:50.660803+00
+ cash_close | cash_drawer_session | a0ff4659-cfde-4192-81b7-2b53fd1d5e71 |            | 2026-09-17 16:09:50.660803+00
+ cash_close | cash_drawer_session | 4d5aa595-880c-4efc-a32e-f83a654ffe2c |            | 2026-09-17 16:09:50.660803+00
+(4 rows)
+

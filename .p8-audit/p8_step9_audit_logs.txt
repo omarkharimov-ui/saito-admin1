@@ -1,0 +1,32 @@
+  column_name   
+----------------
+ id
+ action
+ order_id
+ item_id
+ user_id
+ old_amount
+ new_amount
+ discount_type
+ discount_value
+ reason
+ approved_by
+ snapshot
+ created_at
+ table_name
+ record_id
+ old_data
+ new_data
+ performed_by
+ ip_address
+ staff_id
+ staff_name
+ target_type
+ target_id
+ details
+(24 rows)
+
+ id | action | order_id | item_id | user_id | old_amount | new_amount | discount_type | discount_value | reason | approved_by | snapshot | created_at | table_name | record_id | old_data | new_data | performed_by | ip_address | staff_id | staff_name | target_type | target_id | details 
+----+--------+----------+---------+---------+------------+------------+---------------+----------------+--------+-------------+----------+------------+------------+-----------+----------+----------+--------------+------------+----------+------------+-------------+-----------+---------
+(0 rows)
+

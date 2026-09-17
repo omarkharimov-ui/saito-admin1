@@ -1,0 +1,34 @@
+P-8 FIXTURE: built staff P8_S0..2 (cashier/manager/owner @ f1f830b3), order 2d29db32 table 1312
+warmup: probing all tokens...
+  WARMUP ok CASH 200
+  WARMUP ok MGR 200
+  WARMUP ok OWN 200
+P-8 CASH-DRAWER GATE — residue baseline (all should be 0): 
+  PASS               T-1 open∥open same shift -> EXACTLY ONE open drawer (loser DRAWER_ALREADY_BOUND, no raw 500)
+  EXPECTED-CONFLICT  T-2 close∥cash_in -> closed: expected==canonical(150); open: close rejected, no close row (no unaccounted cash_in)
+  EXPECTED-CONFLICT  T-3 close∥cash payment (TOCTOU) -> no orphan ledger row; closed⇒expected==canonical; order paid+1op
+   NOTE: open+requires_approval = close committed nothing, trigger scoped-skip (documented); closed+expected==canon = payment serialized in
+!!! RISK REAL-RISK          T-4 double close + same-key replay -> ONE close row; replay idempotent:true; new key rejected (already closed)
+   -> 1=409 2=409 3=409 closeRows=0 st=open  insert or update on table "payment_idemp|insert or update on table "payment_idemp
+  EXPECTED-CONFLICT  T-5 clock_out∥close v2 -> no 40P01; FINAL: shift closed AND drawer closed (DRAWER_OPEN/NO_OPEN_SHIFT are the legal exclusions)
+!!! RISK REAL-RISK          T-6 auto_clockout∥clock_out (13h shift) -> no 40P01; FINAL: shift CLOSED, zero open shifts (one leg wins, other NO_OPEN_SHIFT/skip)
+   -> shift= openShifts=0 auto=400 out=200  null value in column "metadata" of relat|{"success":true,"override":false,"overti
+   NOTE: D-2a guard proven indirectly: the 13h shift had NO open bound drawer, so auto-close was eligible
+  HARNESS-FAILURE    T-7 recalc∥close -> canonical 150 preserved
+   -> cash_in fixture failed: insert or update on table "payment_idempotency_keys" violates foreign key constraint "payment_idempotency_keys_order_id_fkey"
+  HARNESS-FAILURE    T-8 break start∥end -> consistent break state
+   -> clock_in fixture failed: ALREADY_CLOCKED_IN
+
+────────────────────────────────────────────────────────────
+P-8 GATE SUMMARY: PASS=1 EXPECTED-CONFLICT=3 REAL-RISK=2 HARNESS-FAILURE=2
+residue baseline->after (all zero after cleanup):  -> 
+
+!! REAL-RISK (classify + disposition, NOT auto-pass):
+   T-4 double close + same-key replay -> ONE close row; replay idempotent:true; new key rejected (already closed) :: 1=409 2=409 3=409 closeRows=0 st=open  insert or update on table "payment_idemp|insert or update on table "payment_idemp
+   T-6 auto_clockout∥clock_out (13h shift) -> no 40P01; FINAL: shift CLOSED, zero open shifts (one leg wins, other NO_OPEN_SHIFT/skip) :: shift= openShifts=0 auto=400 out=200  null value in column "metadata" of relat|{"success":true,"override":false,"overti
+
+!! HARNESS-FAILURE (transport/fixture, re-run):
+   T-7 :: cash_in fixture failed: insert or update on table "payment_idempotency_keys" violates foreign key constraint "payment_idempotency_keys_order_id_fkey"
+   T-8 :: clock_in fixture failed: ALREADY_CLOCKED_IN
+post-cleanup residue (must be all zero): 
+report: .p8-gate-report.json

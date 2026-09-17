@@ -1,0 +1,30 @@
+P-7 FIXTURE: built half-1 (C-1..C-8) tables 1312-1324; state in .p7-fixture.json
+warmup: probing all tokens...
+  WARMUP ok MGR 200
+  WARMUP ok CASH 200
+  WARMUP ok MGR2 200
+  WARMUP ok OWN 200
+  WARMUP ok CASH2 200
+P-7 CONCURRENCY GATE — baseline refunded/partial/voided/refrows/overref = 0/0/0/0/4 (half C-1..C-8 )
+  PASS               C-1 pay∥pay same-key -> ONE captured op, paid=100, exactly-once (200/replay or 200+409)
+  EXPECTED-CONFLICT  C-2 pay∥pay diff-key -> ONE captured, paid=100, no overpay (2nd PAYMENT_EXCEEDS_REMAINING)
+  EXPECTED-CONFLICT  C-3 pay∥cancel -> EXACTLY one outcome (paid+1op OR cancelled+0op), never paid+cancelled
+  PASS               C-4 pay∥add_item -> serialize on orders; no overpay (paid<=total); paid requires op-row
+  PASS               C-5 pay∥release_paid_table -> paid order NOT orphaned; table+order consistent (no deadlock, disjoint locks)
+  EXPECTED-CONFLICT  C-6 pay∥dismiss -> a PAID order is NEVER cancelled-with-captured-money (P-2 guard backstop)
+  PASS               C-7 pay∥drawer-close -> disjoint locks, no 40P01, pay unaffected
+  EXPECTED-CONFLICT  C-8 reopen∥pay -> no paid+deleted-ledger ghost (never paid+0op nor new+captured-op)
+  EXPECTED-CONFLICT  C-9 refund∥refund (mode-1) -> no over-refund + D-Q4 mirror parity (payments==order_payments ref)
+  EXPECTED-CONFLICT  C-10 refund∥pay -> serialize on orders; no over-refund (refund<=gross_paid; net may drop below refund after a winning refund)
+   NOTE: refund<=gross_paid is the sound invariant; paid_amount is net-of-refunds so net<refund after a winning refund is correct, not over-refund
+  EXPECTED-CONFLICT  C-11 transition∥transition -> one wins, stale re-validated (closed->new ∥ closed->open, cross-illegal)
+  PASS               C-12 duplicate RPC (add_item x2, no key) -> no corrupt/partial item; count deterministic
+  PASS               C-13 stale-state: re-pay a paid order -> rejected (re-validated after lock), still 1 op-row
+  PASS               C-14 3-way deadlock smoke (pay ∥ transition ∥ dismiss) -> no 40P01 / deadlock detected
+  PASS               C-15 refund reject -> orders+order_payments+payments-mirror+outbox ALL unchanged (strict rollback)
+  PASS               C-16 illegal transition reject -> orders + order_events + audit_logs + operation_logs + outbox ALL absent (strict rollback)
+   NOTE: transition fn does not write audit_logs_canonical (only log_audit does) — canonical not in scope for this path
+
+────────────────────────────────────────────────────────────
+P-7 GATE SUMMARY (half 1): PASS=9 EXPECTED-CONFLICT=7 REAL-RISK=0 HARNESS-FAILURE=0
+baseline->after refunded/partial/voided/refrows/overref = 0/0/0/0/4 -> 1/1/0/2/5

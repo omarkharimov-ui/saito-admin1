@@ -11,6 +11,14 @@
 > orders=706, reservations=86, staff=22, products=14, recipes=60, customers=7,
 > loyalty_accounts=0, gift_cards=0.
 >
+> **P-9 status (2026-09-18):** Schema normalization **FROZEN** — 8 migration (M1a, M2–M7,
+> M1b), 10 yeni FK (1 RESTRICT), staff fixture purge (1,108→53 real, pool=9), 14 frozen
+> gate + P-9 gate re-run **GREEN** (zero residue). Sənəd: `P9_FREEZE_REPORT_2026-09-18.md`.
+>
+> **Menecer map sync (2026-09-19):** ChatGPT "menecer" A–Z master feature map + SAITO OS
+> architecture istifadəçi tərəfindən təsdiqləndi və bu fayla xalça edildi (§0.3 A–Z
+> cross-reference, §8.1 must-have checklist). Bu fayl = yeganə canonical plan map.
+>
 > **Status qəbulu:**
 > - ✅ **LIVE/FROZEN** — DB + RPC + API + UI var, işləyir (FROZEN olanlar: regression yoxlaması istisna, toxunma)
 > - 🟡 **PARTIAL** — DB/RPC var amma UI yox/əksik, və ya UI var amma workflow yarımçıq
@@ -120,6 +128,40 @@ dən kənarda, idempotent outbox** ilə (`outbox_events` + `emit_outbox_event`).
 > **Backbone:** `outbox_events` + **`outbox_pump` consumer LIVE (2.1, 2026-09-11)** —
 > pg_cron */30s pump; handler dispatch; dead-letter `status='dead'`. Yeni event tipi
 > əlavə edəndə `outbox_dispatch()`-də handler qur.
+
+### 0.3 Manager A–Z letter index (ChatGPT "menecer" map → Saito modul cross-reference)
+
+> 2026-09-19 ChatGPT "menecer" A–Z master feature map-inin (istifadəçi təsdiqli) bu
+> faylın modullarına aid edilməsi. Hər hərfin statusu aşağıdakı §1–§7 cədvəllərindən.
+
+| Hərf | Domen (menecer) | Saito modul | REAL status |
+|---|---|---|---|
+| A | Authentication / Access / Accounts | 19 Staff/RBAC + 27 Security | ✅ FROZEN |
+| B | Billing (check, split, void, refund, comp, discount, tax) | 5 Billing+Payments | ✅ core FROZEN |
+| C | Customers / CRM | 6 CRM | ✅ profile / 🟡 history+marketing |
+| D | Discounts | 9 Discounts/Promotions | ✅ engine / 🟡 coupon+BOGO UI |
+| E | Employees (roles, clock, tips, payroll) | 20 Shifts/Labor + 19 | ✅ parity |
+| F | Floor / Tables | 3 Table Management | ✅ FROZEN |
+| G | Gift Cards | 8 Gift Cards | 🟡 engine / ❌ UI (Q3) |
+| H | Hardware / Devices | 28 Devices | 🟡 print jobs / ❌ registry+health |
+| I | Inventory (stock, recipes, purchasing, waste) | 16 Inventory | ✅ parity |
+| J | Jobs / Tasks / Checklists | 21 Tasks/Checklists | ✅ onboarding / ❌ daily checklists |
+| K | Kitchen / KDS | 15 Kitchen/KDS | ✅ FROZEN |
+| L | Loyalty | 7 Loyalty | ✅ engine / ⚪ tiers+UI (Q2) |
+| M | Menu Management | 10 Menu Engine | ✅ |
+| N | Notifications | 23 Notifications | ✅ in-app+WhatsApp / ❌ SMS+email |
+| O | Orders (types + lifecycle) | 4 Orders | ✅ FROZEN |
+| P | Payments (tenders, refund, reconciliation) | 5 Billing+Payments | ✅ core FROZEN / ❌ offline+terminal (Q7) |
+| Q | QR Ordering | 30 Website/QR | ✅ QR (anon access = Wave A) |
+| R | Reservations | 11 Reservations | ✅ core / 🟡 waitlist SMS |
+| S | Staff / Shifts | 20 Shifts/Labor | ✅ |
+| T | Tableside (waiter handheld) | 12 Tableside | ✅ tablet POS / ❌ hardware (Q7) |
+| U | Upselling | 14 Upselling | 🟡 campaign / ✅ Sensei AI |
+| V | Voids / Refunds / Corrections | 5 + P-6 | ✅ FROZEN |
+| W | Waitlist | 13 Waitlist | 🟡 core (UI+SMS = Addım 2) |
+| X | xtraCHEF / Back Office (AP, accounting) | 25 Back Office + 17 Procurement | ✅ PO+OCR / ❌ accounting push |
+| Y | Analytics / Reporting | 24 Analytics | ✅ core+Sensei / 🟡 advanced |
+| Z | Multi-location / Enterprise | §7 Multi-Location | 🟡 foundation / ❌ central |
 
 ---
 
@@ -542,6 +584,76 @@ Order, customer, address, zone, fee, driver; status RECEIVED→ACCEPTED→PREPAR
 
 **Güclü nöqtələri qorumaq üçün FROZEN:** payment core, merge/transfer V2, order state machine, auth core, KDS, table state, audit.
 
+### 8.1 Manager "must-have" master checklist (core POS + parity bloklar)
+
+> 2026-09-19 ChatGPT "menecer" checklist-i; Saito REAL statusu ilə işlənib. Menecerin
+> ☐ qoyduğu bir neçə element Saito-da artıq ✅-dir (rəqib parity).
+
+**Core POS (menecer: ☑ — Saito REAL):**
+
+| Feature | Saito REAL |
+|---|---|
+| Tables | ✅ FROZEN |
+| Orders | ✅ FROZEN |
+| Payments | ✅ FROZEN (core) |
+| Split | ✅ |
+| Transfer | ✅ FROZEN |
+| Merge | ✅ FROZEN |
+| Reservations | ✅ |
+| Staff | ✅ FROZEN |
+| Roles | ✅ FROZEN |
+| KDS | ✅ FROZEN |
+| Inventory | ✅ |
+| Products | ✅ |
+| Recipes | ✅ |
+| Promotions | ✅ engine |
+| Reports | ✅ + Sensei AI |
+| Printing | 🟡 print jobs var (device registry = Addım 2) |
+
+**Toast/Square/Lightspeed parity bloklar (menecer: ☐ — Saito REAL):**
+
+| Feature | Saito REAL |
+|---|---|
+| Tip pooling | ✅ (parity-dən əvvəlcədən var — qorunacaq) |
+| Staff scheduling | ✅ (templates + swap requests) |
+| Payroll | ✅ (periods, export, webhooks) |
+| Supplier management | ✅ + invoice OCR (xtraCHEF bərabəri) |
+| Purchase orders | ✅ (draft→sent→received) |
+| Receiving | ✅ (atomic) |
+| Inventory counts / stocktake | ✅ (variance daxil) |
+| Waste management | ✅ (standards + order-item waste) |
+| Advanced recipe costing | ✅ (margin + waste analysis) |
+| Task/checklist (onboarding) | ✅ (daily operating = Addım 2) |
+| Customer CRM | ✅ profile / 🟡 marketing |
+| Loyalty | ✅ engine / ⚪ tiers+UI (Q2) |
+| Gift cards | 🟡 engine / ❌ UI (Q3) |
+| QR order/pay | ✅ QR (anon customer = Wave A) |
+| Online ordering | 🟡 (customer UI = Addım 2) |
+| Kiosk | ❌ (Addım 3) |
+| Delivery aggregation | ❌ (Wave C) |
+| Waitlist | 🟡 (SMS+UI = Addım 2) |
+| Advanced reservations | 🟡 (reminder/confirmation yox) |
+| Seat-based ordering | ✅ (seats + split_by_seat) |
+| Advanced coursing | ✅ (fire_course_atomic, hold, recall) |
+| Full refund/void/comp authorization | ✅ FROZEN (P-6) |
+| Advanced cash drawer | ✅ FROZEN (P-8) |
+| Marketing / SMS / email campaigns | ❌ (yalnız WhatsApp) |
+| Customer segmentation | 🟡 |
+| Accounting integration | ❌ (Wave C) |
+| Multi-location | 🟡 foundation / ❌ central (Addım 3) |
+| Central menu / central inventory | ❌ (Addım 3) |
+| Advanced analytics | 🟡 (Addım 2/3) |
+| API/webhooks (outbound) | ❌ (Wave C) |
+| Integration marketplace | ❌ (Wave C) |
+| Monitoring / disaster recovery | ⚪ (Supabase default backup; Wave C) |
+| Audit/forensics | ✅ (fərqləndirici güclü nöqtə) |
+| Offline-first POS | ❌ (Q8) |
+| Device management | 🟡 (registry+health = Addım 2) |
+
+**Nəticə:** Core POS siyahısının 15/16 elementi Saito-da ✅/FROZEN (yalnız Printing 🟡).
+Parity bloklarında da Saito tip pooling, payroll, purchasing/OCR, waste, audit sahələrində
+menecerin ☐ siyahısından əvvəlcədən gedir — bunlar yeni iş deyil, qorunacaq core-dir.
+
 ---
 
 ## 9. ROADMAP — WAVELƏR (nərdən başlayırıq)
@@ -584,6 +696,19 @@ Order, customer, address, zone, fee, driver; status RECEIVED→ACCEPTED→PREPAR
 | Q7 Terminal provider | Wave C #1 + bar tab pre-auth + pay-at-table | **kritik — çəkiliş** |
 | Q8 Offline-first | Wave C #2 + sync_operations | gözləyir |
 | Q10 Push token | Wave C #3 | gözləyir |
+
+### 9.1 Backend P-fazaları (governance görünüşü — HANDOVER §5.5)
+
+Backend hardening fazaları (freeze-and-audit loop) və wave-lərlə uyğunluğu:
+
+| P-faza | Scope | Uyğun Wave | Status |
+|---|---|---|---|
+| P-10 | External payment processor + webhook | Wave C #1 | Q7 provider qərarı gözləyir |
+| P-11 | Failed payment recovery | P-10-dan sonra | planlanmayıb |
+| P-12 | Close-out (end-of-day final settlement) | Wave C | planlanmayıb |
+
+P-10/11/12 yalnız backend payment sərhədini qoruyur; UI feature-ləri Wave A/B üzərində
+aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından asılıdır.
 
 ---
 

@@ -1,0 +1,73 @@
+=== P1: pg_attribute OID of drop candidates ===
+psql:.p9-audit/p9_preflight.sql:5: ERROR:  column a.attoid does not exist
+LINE 1: SELECT 'orders.items' AS target, a.attoid FROM pg_attribute ...
+                                         ^
+psql:.p9-audit/p9_preflight.sql:6: ERROR:  column a.attoid does not exist
+LINE 1: SELECT 'app_settings.'||a.attname AS target, a.attoid FROM p...
+                                                     ^
+=== P2: who depends on those columns (pg_depend, exact) ===
+psql:.p9-audit/p9_preflight.sql:23: ERROR:  column a.attoid does not exist
+LINE 4:   SELECT a.attoid AS oid, 'orders.items' AS target FROM pg_a...
+                 ^
+=== P3: table-level deps for dead-table candidates ===
+psql:.p9-audit/p9_preflight.sql:39: ERROR:  column "oid" does not exist
+LINE 8:   UNION ALL SELECT oid, viewname FROM pg_views
+                           ^
+DETAIL:  There are columns named "oid", but they are in tables that cannot be referenced from this part of the query.
+HINT:  Try using a table-qualified name.
+=== P4: FK-orphan counts for the 16 safe-FK candidates ===
+                fk                 | orphans 
+-----------------------------------+---------
+ current_stock.ingredient_id       |       0
+ expenses.staff_id                 |       0
+ order_items.variant_id            |       0
+ reservations.floor_id             |       0
+ table_floors.current_order_id     |       0
+ payments.refund_of_payment_id     |       0
+ price_overrides.order_item_id     |       0
+ price_overrides.product_id        |       0
+ staff_metrics.staff_id            |       0
+ staff_stats.staff_id              |       0
+ labor_summaries.staff_id          |       0
+ login_attempts.staff_id           |       0
+ notification_read_state.user_id   |       0
+ combos.category_id                |       0
+ recipe_items.ingredient_id        |       0
+ recipe_items.product_id           |       5
+ cash_drawer_log.order_id          |     154
+ order_payments.reference_order_id |       0
+(18 rows)
+
+=== P5: staff fixture purge preflight (FK residue per child table) ===
+psql:.p9-audit/p9_preflight.sql:75: ERROR:  column r.created_by does not exist
+LINE 14: ...rts', (SELECT count(*) FROM daily_reports r WHERE r.created_...
+                                                              ^
+HINT:  Perhaps you meant to reference the column "r.created_at".
+=== P6: who writes/reads audit stores ===
+                  k                  |                                                                                                                                                                        string_agg                                                                                                                                                                         
+-------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ audit_logs_canonical sample actions | admin, cash_close, cash_in, cash_register_opened, clock_in, clock_out, create_staff, discount, dismiss_table, force_logout, item_waste, loss, manager_approval, mark_ready, payment, refund, shift_closed_via_drawer, sync_add_to_cart, sync_bogus_type, sync_update_cart, table_archived, table_hard_delete, test, test_clock_in, test2, vat, void_items
+(1 row)
+
+                 k                  |                                                                                                                                                string_agg                                                                                                                                                
+------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ audit_logs (compat) sample actions | cancel, cash_register_open, dismiss, loss, merge, mirror_test, order.transition, orphan_repair, payment, status_change, status_change_failed, status_change:confirmed→cancelled, status_change:confirmed→checked_in, status_change:confirmed→waiting, status_change:pending→cancelled, transfer, unmerge
+(1 row)
+
+                k                |                    string_agg                     
+---------------------------------+---------------------------------------------------
+ audit_log (dead) sample actions | cancel, dismiss_undo, merge, mirror_test, payment
+(1 row)
+
+=== P7: popular_queries writer (function refs) ===
+       coalesce       
+----------------------
+ upsert_popular_query
+(1 row)
+
+=== P8: P-2 gate test_rls_role usage ===
+             note              
+-------------------------------
+ grep below (see shell output)
+(1 row)
+

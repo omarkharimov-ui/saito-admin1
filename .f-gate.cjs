@@ -32,8 +32,8 @@ const succ = (r) => r.filter((x) => x.out === 't' || x.out === 'true').length;
 
 const CLEANUP_SQL = `
   ALTER TABLE public.table_floors DISABLE TRIGGER trg_table_archive_guard;
-  DELETE FROM orders WHERE table_number IN (${TEST_TABLES.join(',')});
   DELETE FROM table_floors WHERE table_number IN (${TEST_TABLES.join(',')});
+  DELETE FROM orders WHERE table_number IN (${TEST_TABLES.join(',')});
   ALTER TABLE public.table_floors ENABLE TRIGGER trg_table_archive_guard;
   DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'FG_%');
   DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'FG_%');

@@ -1,0 +1,18 @@
+PASS L4-1 lifecycle START: table empty
+PASS L4-2 EMPTY -> NEW SEAT -> occupied (genuine seating action)
+PASS L4-3 SEATED -> ORDER CREATED / SENT TO KITCHEN (order exists, items pending, table pointer set)
+PASS L4-4 SENT TO KITCHEN: order active (confirmed), table STAYS occupied (send does not redefine table lifecycle)
+PASS L4-5 KITCHEN READY (order.kitchen_status=ready, table STAYS occupied — READY != SERVED)
+PASS L4-6 SERVE = EXPLICIT service transition (order.kitchen_status->served, table still occupied)
+PASS L4-7 PAY -> order PAID + pointer cleared + table STAYS non-empty (live v2: occupied, never auto-empty; dirty-on-pay = open model question, see L3 D3-2)
+PASS L4-8 INVARIANT I1: dirty -> NEW SEAT DENIED (409), table STAYS dirty (only Clear may empty)
+PASS L4-9 INVARIANT I3: Clear (canonical) dirty -> EMPTY (floor.manage + location-scoped)
+PASS L4-10 INVARIANT I3b: Clear on an EMPTY table is safe/idempotent (table stays empty, NO open order resurrected)
+PASS L4-11 EMPTY -> NEW SEAT (again, genuine seating) after full lifecycle
+PASS L4-12 CONC Pay vs New Seat: no lost update — table ends in a valid state (occupied or dirty), NOT empty/corrupt
+PASS L4-13 CONC 2x Pay same order: no double-charge (order paid once; total paid = 10, not 20)
+PASS L4-14 CONC 2x Serve same order -> consistent (kitchen_status served), no corrupt/partial
+PASS L4-15 cross-location: LOCB-bound staff cannot seat this LOCA table (404/403, no leak)
+FATAL BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_paymen: ERROR:  update or delete on table "orders" violates foreign key constraint "p9_fk_table_floors_current_order_id" on table "table_floors"
+DETAIL:  Key (id)=(5ac95853-7c40-4c62-945c-3ed1e073500f) is still referenced from table "table_floors".
+

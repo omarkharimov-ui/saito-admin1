@@ -1,0 +1,52 @@
+=== P2b: column-level deps (pg_depend refobjid=table, refobjsubid=attnum) ===
+                   target                   |  dependents   
+--------------------------------------------+---------------
+ app_settings.cash_close_manager_required   | NO_DEPENDENTS
+ app_settings.cash_close_variance_threshold | NO_DEPENDENTS
+ app_settings.receipt_payment_method        | NO_DEPENDENTS
+ app_settings.receipt_staff_name            | NO_DEPENDENTS
+ orders.items                               | NO_DEPENDENTS
+(5 rows)
+
+=== P3b: table-level deps (fixed) ===
+        target        |  dependents   
+----------------------+---------------
+ audit_log            | NO_DEPENDENTS
+ dining_groups        | NO_DEPENDENTS
+ popular_queries      | NO_DEPENDENTS
+ reservations_archive | NO_DEPENDENTS
+ sync_operations      | NO_DEPENDENTS
+ waiter_assignments   | NO_DEPENDENTS
+(6 rows)
+
+=== P5b: staff fixture FK residue (fixed daily_reports col) ===
+        metric        | count 
+----------------------+-------
+ fixture staff count  | 1025
+ shifts               | 39
+ time_clock_entries   | 0
+ time_clock_audit     | 1
+ sessions             | 1
+ staff_locations      | 88
+ shift_breaks         | 0
+ cash_drawer_sessions | 0
+ cash_drawer_log      | 0
+ security_events      | 257
+ overtime_records     | 0
+ orders.created_by    | 0
+ labor_summaries      | 39
+ staff_metrics        | 0
+ shift_reviews        | 0
+ login_attempts       | 67
+ payroll_entries      | 0
+(17 rows)
+
+=== P9: test_rls_role — policies + grants referencing it ===
+psql:.p9-audit/p9_preflight2.sql:57: ERROR:  operator does not exist: oid[] = oid
+LINE 1: ...on role: '||count(*) FROM pg_policy WHERE polroles=(SELECT o...
+                                                             ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+psql:.p9-audit/p9_preflight2.sql:58: ERROR:  operator does not exist: oid[] = oid
+LINE 1: ...IN pg_class c ON c.oid=p.polrelid WHERE p.polroles=(SELECT o...
+                                                             ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.

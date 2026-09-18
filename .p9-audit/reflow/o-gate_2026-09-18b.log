@@ -1,0 +1,50 @@
+----- START CLEANUP OK -----
+----- R: reachability = 0 (frozen functions) -----
+PASS R1 transition_order_status overloads = 0
+PASS R2 create_or_append_order + create_order_with_items = 0
+PASS R3 transition_order_atomic = 1 overload, service-role-only (anon blocked)
+PASS R4 transition_delivery_status = 1 token-first overload, svc-only
+PASS R5 cancel_loss_table = 1 token-first overload
+PASS R6 walkin_atomic = 1 location-scoped overload, svc-only
+PASS R7 old raw cancel PATCH removed from orders/route.ts (source)
+----- P: O-01/G1 permission + location (atomic live path) -----
+PASS P1 waiter confirmed->in_kitchen = PERMISSION_DENIED (no orders.edit)
+PASS P2 P1 left order state untouched (confirmed)
+PASS P3 waiter confirmed->cancelled = PERMISSION_DENIED (orders.cancel admin-only)
+PASS P4 cashier confirmed->in_kitchen = ALLOWED (orders.edit)
+PASS P5 cashier confirmed->cancelled = PERMISSION_DENIED
+PASS P6 admin confirmed->cancelled = ALLOWED (orders.cancel)
+PASS P7 identity from session: audit performed_by = cashier staff id
+PASS P8 LOC_A cashier -> LOC_B order (dup table 301) = location_denied
+PASS P9 P8 left LOC_B order untouched (confirmed)
+PASS P10 invalid token -> BLOCKED + order untouched
+PASS P11 kitchen sync parity: in_kitchen order got kitchen_status=preparing
+PASS P12 floor sync guarded: table 303 still a valid state (no corruption/crash)
+----- I: route-level identity spoofing rejected (G1) -----
+PASS I1 route rejects caller p_performed_by (400)
+PASS I2 route rejects caller p_employee_name (400)
+PASS I3 route happy path: cashier -> in_kitchen ok via atomic
+----- G5: cancel via route = permissioned atomic (raw PATCH gone) -----
+PASS C0 waiter route cancel = 403 (orders.cancel denied)
+PASS C1 admin route cancel = success + status=cancelled
+----- CONCURRENCY: cancel-vs-pay race (G5 TOCTOU) -----
+PASS CC1 cancel-vs-pay race -> exactly 1 winner, final in {cancelled,paid}
+PASS CC2 no cash recorded for a lost pay (order_payments only if paid)
+PASS CC3 cancel-vs-transition -> exactly 1 winner, state consistent
+----- CONCURRENCY: create (G4) -----
+PASS CA1 2 concurrent create -> no 500, final active=1, pointer set (dup blocked or appended)
+PASS CA2 all orders on table 311 are LOC_A (no cross-location create)
+PASS CA3 sequential append to active order 311 = 200, still 1 active order
+----- G4: cross-location create via route = DENIED -----
+PASS X1 LOC_A cashier -> LOC_B-only table 313 = 400 (not created)
+PASS X2 duplicate table number 301: LOC_A order unaffected by LOC_B order
+----- G7: read scope (leakage = 0) -----
+PASS G1r /api/orders: cashier reads 200, 0 LOC_B rows
+PASS G2r /api/kitchen/orders: 200 + 0 LOC_B rows
+PASS G3r no session -> 401 on both reads
+----- G3: QR live DB proof (re-run) -----
+PASS QR1 QR order insert with server-trusted table location passes triggers (server-side, matches route)
+PASS Z1 END residue = 0 (orders/tables/sessions)
+PASS Z2 archive guard re-enabled after cleanup
+
+===== O GATE: 38/38 PASS =====

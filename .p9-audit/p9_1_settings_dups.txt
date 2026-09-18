@@ -1,0 +1,118 @@
+=== (1) settings table: columns + value sizes ===
+id text null=NO
+restaurant_name text null=YES
+address text null=YES
+phone text null=YES
+opening_hours text null=YES
+is_open boolean null=YES
+min_order_amount numeric null=YES
+delivery_fee numeric null=YES
+free_delivery_threshold numeric null=YES
+payment_cash boolean null=YES
+payment_card boolean null=YES
+updated_at timestamp with time zone null=YES
+instagram_url text null=YES
+whatsapp_number text null=YES
+footer_text text null=YES
+working_hours text null=YES
+qr_table_count integer null=YES
+order_delay_minutes integer null=YES
+city text null=YES
+ai_target_revenue text null=YES
+ai_insight_depth text null=YES
+receipt_title text null=YES
+receipt_currency text null=YES
+receipt_service_fee_pct numeric null=YES
+receipt_show_service_fee boolean null=YES
+receipt_footer_text text null=YES
+contact_email text null=YES
+morning_greeting_enabled boolean null=YES
+kitchen_accept_timeout_minutes integer null=NO
+timezone text null=YES
+avg_meal_duration integer null=YES
+revenue_limit numeric null=YES
+inventory_mode text null=YES
+printer_name text null=YES
+printer_type text null=YES
+printer_paper_width text null=YES
+printer_interface text null=YES
+auto_print_receipt boolean null=YES
+auto_print_kitchen boolean null=YES
+print_copies integer null=YES
+receipt_staff_name boolean null=YES
+receipt_payment_method boolean null=YES
+cash_close_variance_threshold numeric null=YES
+cash_close_manager_required boolean null=YES
+vat_enabled boolean null=YES
+vat_percentage numeric null=YES
+auto_apply_vat boolean null=YES
+loyalty_enabled boolean null=YES
+loyalty_points_per_manat numeric null=YES
+loyalty_point_value numeric null=YES
+loyalty_min_redeem integer null=YES
+--- settings row: non-null cols + length ---
+1
+=== app_settings columns ===
+key text
+value text
+updated_at timestamp with time zone
+receipt_staff_name boolean
+receipt_payment_method boolean
+cash_close_variance_threshold numeric
+cash_close_manager_required boolean
+=== orders.items legacy column ===
+items|jsonb|YES
+=== table_floors snapshot columns ===
+id|uuid
+table_number|integer
+floor_name|text
+sort_order|integer
+merged_into_table|integer
+reservation_id|uuid
+reservation_name|text
+reservation_time|text
+status|text
+last_activity_at|timestamp with time zone
+opened_at|timestamp with time zone
+total_amount|numeric
+order_count|integer
+order_ids|ARRAY
+has_pending|boolean
+oldest_pending_at|timestamp with time zone
+merged_orders|jsonb
+capacity|integer
+x_pos|numeric
+y_pos|numeric
+shape|text
+width|numeric
+height|numeric
+reserved_at|timestamp with time zone
+reserved_until|timestamp with time zone
+reservation_status_snapshot|text
+reservation_updated_at|timestamp with time zone
+updated_at|timestamp with time zone
+reservation_phone|text
+guest_count|integer
+bill_requested|boolean
+current_order_id|uuid
+updated_by_terminal_id|text
+kitchen_status|text
+table_name|text
+area|text
+priority|text
+connection_status|text
+printer_status|text
+course_status|text
+cleaning_status|text
+waiter_id|uuid
+waiter_name|text
+started_at|timestamp with time zone
+payment_status|text
+notes|text
+metadata|jsonb
+version|integer
+location_id|uuid
+organization_id|uuid
+floor_id|uuid
+is_archived|boolean
+archived_at|timestamp with time zone

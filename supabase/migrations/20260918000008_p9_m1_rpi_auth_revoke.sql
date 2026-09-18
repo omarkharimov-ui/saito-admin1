@@ -1,0 +1,17 @@
+-- =============================================================================
+-- P-9 M1-R1 — reservation_preorder_items: complete M1 Section A for RPI
+-- (ratified plan line: authenticated → "REVOKE; service-only (app writes via
+-- service RPC)"). M1 as applied left a pre-existing `authenticated=SELECT`
+-- grant because its REVOKE list omitted RPI (header assumption "authenticated
+-- had no grant" was factually wrong).
+--
+-- Evidence (2026-09-18, P9 gate S1 run):
+--   * live ACL: {postgres=full, service_role=full, anon=r, authenticated=r}
+--   * app: all 4 RPI routes (pre-order-items, save-preorder, reserve-table,
+--     send-kitchen) read/write via SERVICE_ROLE only — the authenticated
+--     grant is vestigial (0 app use).
+--   * RLS stays enabled with its 3 pre-existing policies (anon access
+--     unchanged, policy-bounded); service_role BYPASSRLS + full = unchanged.
+-- Rollback: 20260918000008_p9_m1_rpi_auth_revoke_rollback.sql
+-- =============================================================================
+REVOKE ALL ON public.reservation_preorder_items FROM authenticated;

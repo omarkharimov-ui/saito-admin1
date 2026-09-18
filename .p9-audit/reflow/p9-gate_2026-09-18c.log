@@ -1,0 +1,59 @@
+
+=== P-9 GATE (S1..S7) — schema normalization verification ===
+
+[S1] grant/RLS matrix (15 tables × roles, M1 map)
+  PASS               S1.1 grant map: FULL11 × 3 roles = ∅; RPI × {authenticated,test_rls_role} = ∅ (M1-R1); CAT3 × {authenticated,test_rls_role} = ∅
+   NOTE: M1 + M1-R1 revokes in place
+  PASS               S1.2 grant map: anon keeps SELECT on CAT3 + RPI (M1 design: catalogs/preorder readable by anon, policy-bounded)
+  PASS               S1.3 functional: 52 denied probes (FULL11×2r×2v + RPI×auth×2v + CAT3×auth×2v) all permission-denied
+  PASS               S1.4 functional: anon SELECT on CAT3 + RPI succeeds (policy-bounded reads by design)
+  PASS               S1.5 RLS4: relrowsecurity + policies + 0 rows visible as authenticated (no session → self-scope empty)
+  PASS               S1.6 RPI: RLS enabled + 3 pre-existing policies (M1 Section B)
+
+[S2] settings views equivalence (DB)
+  PASS               S2.1 10 v_settings_* views ≡ settings rows (jsonb equality, all columns)
+
+[S3] post-drop smoke (orders/items, v_closed_orders, popular_queries)
+  PASS               S3.1 orders.items column dropped (M4)
+  PASS               S3.2 INSERT orders without items works (M4 regression-proof, rolled back)
+  PASS               S3.3 v_closed_orders.item_count ≡ order_items count (ALL rows, M4 rewrite)
+  PASS               S3.4 upsert_popular_query works (table kept, M5 exclusion) — 0 residue
+
+[S4] M6 FK tripwires (orphan INSERT → 23503; clean → ok)
+  PASS               S4.1 tripwires: 3 orphans blocked (23503) + 3 clean inserts ok (all rolled back)
+
+[S5] purge proof (fixture=0, real=53/9, pool≤9, denylist, fresh login)
+!!! RISK REAL-RISK          S5.1 fixture-pattern staff all inert (neutralize contract: 0 active/pinned among pattern rows)
+   -> patternRows=9 activePinnedAmongThem=9
+!!! RISK REAL-RISK          S5.2 active staff = 9 (all real)
+   -> active=10
+!!! RISK REAL-RISK          S5.3 login_preflight pool ≤ 9 (was 39)
+   -> pool=10
+  PASS               S5.4a All 53 DENY53 IDs present (real staff byte-verified)
+!!! RISK REAL-RISK          S5.4b 0 active/ACTIVE/pinned rows outside denylist (real-staff identity protection; would catch pool=12)
+   -> dangerousExtra=1
+  PASS               S5.4c All non-denylist rows are fixture-styled (alnum prefix + underscored tail; no real-looking names outside denylist)
+!!! RISK REAL-RISK          S5.4d login_preflight pool = exactly 9
+   -> pool=10
+  PASS               S5.5 FRESH fixture login: 200 + token + session row (post-purge login path intact)
+
+[S2b] settings/* routes (200 unchanged, owner token)
+  PASS               S2.2 8 GET /api/settings/* routes → 200 (owner cookie token, post-M1/M2, warmup for cold compile)
+  PASS               S2.3 /api/settings/geo has no GET by design (404/405, PATCH-only route)
+
+[S6] test_rls_role state
+  PASS               S6.1 test_rls_role exists with 0 grants on 15 tables (P-8 carry → M1)
+
+[S7] P-8 canary (T-4 exact shape: manager fixture, open → close v2 keyed → same-key idempotent → new-key rejected)
+  PASS               S7.1 P-8 canary (T-4 shape): close→idempotent:true→new-key rejected; ledger close-row=1; status closed
+  PASS               T.1 zero residue: no P9GATE_* staff remain
+
+========================================================================
+P-9 GATE SUMMARY: PASS=20  CONFLICT=0  REAL-RISK=5  HARNESS=0
+NON-PASS rows:
+  REAL-RISK S5.1 fixture-pattern staff all inert (neutralize contract: 0 active/pinned among pattern rows) -> patternRows=9 activePinnedAmongThem=9
+  REAL-RISK S5.2 active staff = 9 (all real) -> active=10
+  REAL-RISK S5.3 login_preflight pool ≤ 9 (was 39) -> pool=10
+  REAL-RISK S5.4b 0 active/ACTIVE/pinned rows outside denylist (real-staff identity protection; would catch pool=12) -> dangerousExtra=1
+  REAL-RISK S5.4d login_preflight pool = exactly 9 -> pool=10
+========================================================================

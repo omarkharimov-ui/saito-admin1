@@ -560,7 +560,34 @@ New findings for later modules (NOT P-8, no change made): `{public}`-ALL RLS on
 regression report); A-gate cleanup weakness (→ its own hardening, A stays frozen).
 Next module: **P-9 — schema normalization** per the ratified boundary (settings decomposition,
 duplicate columns, legacy models, FK cleanup) — **not auto-started**.
- 
+
+**P-9 SCHEMA NORMALIZATION — COMPLETE + FROZEN (2026-09-18):**
+8 migrations applied live (`20260918000001…0008_p9_*`, each with rollback; see
+`P9_FREEZE_REPORT_2026-09-18.md` §2): M1 RLS/GRANT + auth revokes, M2 settings views, M3
+app_settings cleanup, M4 orders_items drop, M5 dead tables **archive-then-drop** (17
+`p9_archive_%` copies retained; drops incl. `audit_log`), M6 **10 safe FKs** (7 CASCADE /
+SET-NULL class / **1 RESTRICT** = `p9_fk_table_floors_current_order_id`), M7 staff fixture
+purge (neutralize, never delete). New gate `.p9-gate.cjs` (S1–S7 + S5.4a–d, GO-2): **25/25
+PASS**. Full ratified 12-step reflow GREEN (evidence `.p9-audit/reflow/`): **A 39/39 ·
+E/S 54/54 · F 35/35 (Option A) · P-9 25/25 · O 38/38 (O-A+O-B) · K-L3 8/8 · K-L4 16/16
+(K4-A) · P-1 29/29 · P-2 13/13 · P-3 25/25 · P-4 19/19 · P-5 10/10 · P-6 15/15 · P-7 16/16
+(9P+7EC) · P-8 8/8 (2P+6EC, 0 risk)**.
+
+The one recurring conflict class (documented, resolved, frozen): **M6's RESTRICT FK vs
+pre-M6 frozen teardown order** hit three frozen gates (F, O, K-L4) — each resolved by a
+teardown-only correction with its own ratified GO (Option A 2-line swap in `.f-gate.cjs`;
+O-A swap + O-B pointer-null in `.o-gate.cjs`; K4-A 1-line pointer-null in
+`.k-l4-probe.cjs`). No assertions changed, no manual DB deletes (crash residues
+self-cleared by each gate's own START cleanup). Preserved facts (binding):
+(1) M6 FK stays `ON DELETE RESTRICT`; (2) 53-ID DENY53 staff denylist intact, active pool
+exactly 9, 0 active/pinned outside it (S5.4a–d); (3) `p9_archive_%` tables = pre-drop
+copies (drop needs a separate GO); (4) legacy drift rows (274/54/13/4 paid-without-record,
+`refund_amount>paid_amount` legacy 4, 12,900.00₼ session 4d5aa595) = frozen data
+residuals, no backfill (D-5). Calibration note: `.p8-gate.cjs` L167 `DELETE FROM
+audit_log` is a dead line after M5 (gate still 8/8, zero-residue; exit code depends on
+RISK only) — micro-fix needs its own GO. **P-9 is FROZEN (2026-09-18).** Next module:
+**P-10** (external processor/webhook) — not auto-started.
+
 ## 5. NEXT MODULE: **P-7 — CONCURRENT MUTATION** (the financial SSOT boundary, continued)
 
 **Where we left off (2026-09-14):** P-1…P-6 are **all frozen, committed, and pushed**
@@ -669,11 +696,12 @@ assert the exact invariant + zero mutation on the loser) → **full frozen reflo
    (the proven `ORDER_ALREADY_PAID` path) → a real HTTP 409. (Root-caused + fixed in P-4.)
 
 ### 5.5 Out-of-scope / deferred (do not silently pick up)
-- **P-8** cash drawer · **P-9** audit & immutability + **legacy residual reconciliation**
-  (the 4 `refund_amount>paid_amount` legacy rows + the 274/54/13/4 paid-without-record
-  drift are **frozen P-9 residuals**, not P-6 regressions) + ledger **delete-vs-append**
-  model · **P-10** external processor/webhook · **P-11** failed-payment recovery ·
-  **P-12** close-out.
+- **P-10** external processor/webhook · **P-11** failed-payment recovery · **P-12** close-out.
+  P-8 and P-9 are **FROZEN** (see their blocks above); their frozen data residuals — the 4
+  `refund_amount>paid_amount` legacy rows, the 274/54/13/4 paid-without-record drift, the
+  12,900.00₼ misattribution on session 4d5aa595 — stay deferred (no backfill, D-5); the
+  ledger **delete-vs-append** model remains an open P-9-adjacent decision; the 17
+  `p9_archive_%` tables await a separate drop-GO after a retention window.
 - **`git gc` warning:** pre-existing missing object `709d1c59` (commit `1b807aeb` cannot
   resolve its parent; unreachable from `main`). **Not a blocker; do NOT `git gc`/prune
   without user sign-off** (destructive).
@@ -689,5 +717,5 @@ E/S blocker owner, deliberately not committed here.
 
 ---
 
- *Handover refreshed at P-7 ratification (2026-09-17). Baseline numbers are from live gate
-  runs; re-run the §1 commands to re-establish them before starting P-8.*
+ *Handover refreshed at P-9 freeze (2026-09-18). Baseline numbers are from live gate runs
+  (`.p9-audit/reflow/`); re-run the §1 commands to re-establish them before starting P-10.*

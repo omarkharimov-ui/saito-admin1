@@ -1,0 +1,11 @@
+--- E5 fixed ---
+fixture=1025 shifts=39 labor=39 security=257 login=67 sessions=1 locations=88 tcaudit=1
+--- E9 fixed ---
+ERROR:  syntax error at or near ")"
+LINE 1: ...sce='||(prosrc LIKE '%COALESCE(p_metadata%')::text) FROM pg_...
+                                                             ^
+replay_first=true
+--- active gate fixtures (NOT in M7 inactive set) ---
+ERROR:  column "role" does not exist
+LINE 1: SELECT id::text, name, role, status, (pin_hash IS NOT NULL A...
+                               ^

@@ -1,0 +1,21 @@
+=== app_settings key/value rows ===
+=== legacy/dead candidates: exact rows + last write ===
+cash_drawer_logs=2 last=2026-09-17 18:06:43.83627+00
+cash_registers=3
+clock_events=0
+reservations_archive=18
+ERROR:  column "updated_at" does not exist
+LINE 1: ...tables_quarantine_2026_09)||' last='||(SELECT max(updated_at...
+                                                             ^
+HINT:  Perhaps you meant to reference the column "reservation_tables_quarantine_2026_09.created_at".
+
+order_counters=1
+popular_queries=10
+waiter_assignments=18
+dining_groups=0
+price_overrides=3
+staff_documents=4
+campaign_usage=15
+sync_operations=2
+manager_overrides=0
+organizations=1

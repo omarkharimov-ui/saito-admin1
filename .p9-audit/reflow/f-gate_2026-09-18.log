@@ -1,0 +1,48 @@
+----- START CLEANUP OK (production table baseline = 59) -----
+----- MANDATED: F-01/F-02 (permission + location) -----
+PASS M1 waiter → dismiss = PERMISSION_DENIED
+PASS M2 waiter → merge = PERMISSION_DENIED
+PASS M3 waiter → transfer = PERMISSION_DENIED
+PASS M4 waiter → own-location op NOT authz-denied (expect TABLE_NOT_RESERVED)
+PASS M5 Location A actor → Location B table = DENIED + state untouched
+PASS M6 same table number across locations coexist (101,102@A + 103@B)
+----- MANDATED: F-03 (multi-location identity) -----
+PASS M7 duplicate same-location table number = DENIED
+----- MANDATED: F-04 (archive) -----
+PASS M8 archived table → new order = BLOCKED (TABLE_ARCHIVED)
+PASS M9 hard DELETE = BLOCKED (TABLE_ARCHIVE_ONLY)
+----- MANDATED: F-05 (pointer lifecycle) -----
+PASS M10 live open order → pointer set (live wins)
+PASS M11 cancelled order → pointer cleared at runtime (=0 stale)
+----- MANDATED: F-10 (atomic, no raw PATCH) -----
+PASS F10-1 raw PATCH gone; undo-merge via route = atomic RPC SUCCESS
+PASS F10-2 undo-merge audit row exists (operation_logs)
+PASS F10-3 undo-merge outbox event exists (count increased)
+PASS F10-4 raw RPC bypass: invalid token → BLOCKED
+PASS F10-5 bypass left table 101 state unchanged (occupied)
+----- MANDATED: concurrency battery (real parallel psql) -----
+PASS C1 2x merge → exactly 1 success
+PASS C2 2x unmerge → exactly 1 success
+PASS C3 2x clear on occupied table → consistent end state (clear is idempotent no-op; no corruption)
+PASS C4 2x transfer → exactly one valid outcome (≤1 success, consistent state)
+----- RE-AUDIT SWEEP (old bypass implementations unreachable) -----
+PASS A1 F-01/02: 8 token table fns exist (p_token identity)
+PASS A2 F-01/02: 0 non-token (caller-identity) overloads remain
+PASS A3 F-01: all 8 table-op routes requirePermission (no bare requireAuth)
+PASS A4 F-10: 0 raw client PATCH to table_floors/orders in undo + transfer routes
+PASS A5 F-03: UNIQUE(location_id,table_number) present + global UNIQUE(table_number) gone
+PASS A6 F-05: 0 stale current_order_id pointers production-wide
+PASS A7 F-04: is_archived present + DELETE blocked
+PASS A8 F-06: seats + fns gone (0 dead references)
+PASS A9 F-03: table_order_contract view location-scoped
+PASS A10 tables/seat: orders.create required + location-scoped (host/cross-loc bypass CLOSED)
+----- RESIDUE CHECKS + FINAL DB SNAPSHOT -----
+PASS Z1 test residue: 0 tables 101-108, 0 FG_ staff/sessions
+PASS Z2 no NEW orphan orders (orders→table_floors) from this run
+PASS Z3 production table count restored to baseline
+PASS Z4 archive guard trigger enabled again (production protection intact)
+PASS Z5 table 1 production row untouched (status = baseline)
+
+========== F GATE REPORT ==========
+TOTAL 35 | PASS 35 | FAIL 0
+ALL GREEN

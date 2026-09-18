@@ -1,0 +1,27 @@
+=== daily_reports ===
+
+=== rtq (quarantine) ===
+8 last=2026-09-05 10:26:59.238148+00
+=== cash_registers rows ===
+ERROR:  column "is_open" does not exist
+LINE 1: SELECT id::text, location_id::text, is_open, opened_by::text...
+                                            ^
+=== cash_drawer_logs 2 rows ===
+bcfc9435-67c4-466f-bab7-bf1e1c9d2ca0|e30dccbf-9fdc-47d0-b324-a159ded57df9|2127ae5d-1923-4a84-ac48-258781bd96cf|close_day|350.00|Drawer close → shift close (expected from cash_drawer_session 0451bdb4)|2026-09-11 11:01:52.041399+00
+aa92b44f-286e-43a2-bd93-4dc027ac7981|6afcf97a-a34a-44d6-9295-94f5b4f966ff|7d72243b-454b-43ca-b2b8-99ade9099a95|close_day|0|Drawer close → shift close (expected from cash_drawer_session 46de74a6)|2026-09-17 18:06:43.83627+00
+=== popular_queries ===
+ERROR:  column "term" does not exist
+LINE 1: SELECT term||' ('||count||' '||period||')' FROM popular_quer...
+               ^
+=== waiter_assignments sample ===
+ERROR:  column "staff_id" does not exist
+LINE 1: ...LECT count(*)||' distinct staff='||count(DISTINCT staff_id) ...
+                                                             ^
+=== price_overrides ===
+ERROR:  column "price" does not exist
+LINE 1: SELECT product_id::text||' '||price||' '||location_id::text ...
+                                      ^
+=== staff_documents ===
+ERROR:  column "size_bytes" does not exist
+LINE 1: SELECT staff_id::text, file_path, size_bytes FROM staff_docu...
+                                          ^

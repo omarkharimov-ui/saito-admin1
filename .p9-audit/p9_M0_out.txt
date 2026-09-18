@@ -1,0 +1,112 @@
+--- E1: RLS-off table count (expect 15) ---
+   ?column?    
+---------------
+ E1 rls_off=15
+(1 row)
+
+--- E2: drop candidates still NO_DEPENDENTS (expect 6 rows NO_DEPENDENTS) ---
+                   target                   |  dependents   
+--------------------------------------------+---------------
+ app_settings.cash_close_manager_required   | NO_DEPENDENTS
+ app_settings.cash_close_variance_threshold | NO_DEPENDENTS
+ app_settings.receipt_payment_method        | NO_DEPENDENTS
+ app_settings.receipt_staff_name            | NO_DEPENDENTS
+ orders.items                               | NO_DEPENDENTS
+(5 rows)
+
+--- E3: dead-table deps (expect NO_DEPENDENTS for the 3 drop targets) ---
+      relname       |  dependents   
+--------------------+---------------
+ audit_log          | NO_DEPENDENTS
+ dining_groups      | NO_DEPENDENTS
+ waiter_assignments | NO_DEPENDENTS
+(3 rows)
+
+--- E4: 14 FK orphan counts (expect all 0; exceptions: recipe_items.product_id=5 SKIP, cash_drawer_log.order_id=154 EXCLUDED) ---
+               fk                | orphans 
+---------------------------------+---------
+ current_stock.ingredient_id     |       0
+ expenses.staff_id               |       0
+ order_items.variant_id          |       0
+ reservations.floor_id           |       0
+ table_floors.current_order_id   |       0
+ payments.refund_of_payment_id   |       0
+ price_overrides.order_item_id   |       0
+ price_overrides.product_id      |       0
+ staff_metrics.staff_id          |       0
+ staff_stats.staff_id            |       0
+ labor_summaries.staff_id        |       0
+ login_attempts.staff_id         |       0
+ notification_read_state.user_id |       0
+ combos.category_id              |       0
+ recipe_items.ingredient_id      |       0
+ recipe_items.product_id [SKIP]  |       5
+ cash_drawer_log.order_id [EXCL] |     154
+(17 rows)
+
+--- E5: staff fixture set + residue (expect 1025 / 39 / 39 / 257 / 67 / 1 / 88 / 1) ---
+psql:.p9-audit/p9_M0_preflight.sql:61: ERROR:  each UNION query must have the same number of columns
+LINE 3: UNION ALL SELECT 'shifts', (SELECT count(*) FROM shifts s WH...
+                         ^
+--- E6: active staff (expect 39), preflight pool (expect 56) ---
+      ?column?      
+--------------------
+ E6 active_staff=39
+(1 row)
+
+ ?column? 
+----------
+ pool=39
+(1 row)
+
+--- E7: M4 archive size — orders.items non-null (plan: archive whatever) ---
+          ?column?           
+-----------------------------
+ E7 orders_items_nonnull=226
+(1 row)
+
+--- E8: reservation_preorder_items policies still exist (expect 3) + RLS off ---
+   ?column?    
+---------------
+ E8 policies=3
+(1 row)
+
+   ?column?    
+---------------
+ rls_off=false
+(1 row)
+
+--- E9: P-8 canary (expect 0 open / 0 FK / t / t / 0) ---
+      ?column?      
+--------------------
+ E9 open_sessions=0
+(1 row)
+
+  ?column?  
+------------
+ idem_fks=0
+(1 row)
+
+psql:.p9-audit/p9_M0_preflight.sql:73: ERROR:  syntax error at or near ")"
+LINE 1: ...ta%')::text FROM pg_proc WHERE proname='emit_outbox_event');
+                                                                     ^
+psql:.p9-audit/p9_M0_preflight.sql:74: ERROR:  syntax error at or near "FROM"
+LINE 1: ...sition('Session already closed' in prosrc))::text FROM pg_pr...
+                                                             ^
+--- E10: row counts of drop targets (expect 18 / 0 / 67) ---
+       ?column?        
+-----------------------
+ waiter_assignments=18
+(1 row)
+
+    ?column?     
+-----------------
+ dining_groups=0
+(1 row)
+
+   ?column?   
+--------------
+ audit_log=67
+(1 row)
+
+M0 PREFLIGHT COMPLETE

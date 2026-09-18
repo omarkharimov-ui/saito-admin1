@@ -36,8 +36,8 @@ const CLEANUP_SQL = `
   DELETE FROM kitchen_schedule WHERE order_id IN (SELECT id FROM orders WHERE table_number IN (${TEST_TABLES_ALL.join(',')}));
   DELETE FROM outbox_events WHERE aggregate_id IN (SELECT id FROM orders WHERE table_number IN (${TEST_TABLES_ALL.join(',')}));
   DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_number IN (${TEST_TABLES_ALL.join(',')}));
-  DELETE FROM orders WHERE table_number IN (${TEST_TABLES_ALL.join(',')});
   DELETE FROM table_floors WHERE table_number IN (${TEST_TABLES_ALL.join(',')});
+  DELETE FROM orders WHERE table_number IN (${TEST_TABLES_ALL.join(',')});
   ALTER TABLE public.table_floors ENABLE TRIGGER trg_table_archive_guard;
   DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'OG_%');
   DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'OG_%');
@@ -208,6 +208,7 @@ const CLEANUP_SQL = `
     `);
   } catch (e) { qrOk = 'err:' + e.message.slice(0,60); }
   check('QR1', 'QR order insert with server-trusted table location passes triggers (server-side, matches route)', qrOk === 'ok', qrOk);
+  S(`UPDATE table_floors SET current_order_id=NULL WHERE table_number=312 AND location_id=${q(LOC_A)}`);
   S(`DELETE FROM orders WHERE order_type='qr_order' AND table_number=312`);
 
   // ===== END CLEANUP ===== (CLEANUP_SQL already covers 313 under the disabled

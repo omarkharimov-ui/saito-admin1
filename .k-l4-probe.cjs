@@ -44,6 +44,7 @@ function cleanTable(tn){
     // (test-teardown only; this is the sanctioned path, not a contract change).
     // P-4: payment_idempotency_keys rows FK-reference orders — remove first (metadata table, not ledger).
     S(`DELETE FROM payment_idempotency_keys WHERE order_id IN (SELECT id FROM orders WHERE table_number=${tn})`);
+    S(`UPDATE table_floors SET current_order_id=NULL WHERE table_number=${tn} AND location_id=${q(LOCA)}`);
     S(`BEGIN; SELECT set_config('app.payment_ledger_reopen','on',false); DELETE FROM order_payments WHERE order_id IN (SELECT id FROM orders WHERE table_number=${tn}); DELETE FROM orders WHERE table_number=${tn}; SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);
     S(`UPDATE table_floors SET status='empty',current_order_id=NULL,total_amount=0,guest_count=NULL,order_count=0,has_pending=false,bill_requested=false WHERE table_number=${tn} AND location_id=${q(LOCA)}`);
   } finally {

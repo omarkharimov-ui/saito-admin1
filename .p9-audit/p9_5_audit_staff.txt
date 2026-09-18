@@ -1,0 +1,49 @@
+=== audit model row counts + spans ===
+audit_log=67 span=2026-07-26 08:18:14.486321+00->2026-08-27 06:49:13.478712+00
+audit_logs=369 span=2026-07-04 09:42:49.750796+00->2026-09-17 17:49:00.631962+00
+audit_logs_canonical=818 span=2026-08-26 08:19:16.978815+00->2026-09-17 18:06:43.83627+00
+=== triggers writing to audit_log (trigger-based) ===
+ERROR:  argument of AND must be type boolean, not type "char"
+LINE 1: ...JOIN pg_namespace n ON n.oid=c.relnamespace WHERE tg.tgenabl...
+                                                             ^
+=== staff bloat: status/role distribution ===
+f|manager|525
+f|cashier|228
+f|waiter|191
+f|admin|47
+f|kitchen|39
+f|superadmin|18
+f|owner|16
+t|cashier|15
+t|waiter|9
+t|manager|9
+t|superadmin|3
+t|kitchen|3
+f|bartender|3
+f|host|2
+=== staff name patterns (fixture vs real) ===
+P4|196
+A|135
+P6|78
+OG|73
+P5|72
+FG|69
+P7|65
+L3|63
+G7|42
+L4|42
+KQ|32
+K3|10
+L2|10
+P8|9
+L5|6
+GD|6
+G2mtyl3eoc|5
+G2mty8g771|5
+G2mtwul5vl|5
+G2mtwswp9m|5
+G2mtyx2ncj|5
+G2mu5te0f8|5
+G2mtwsr0xc|5
+G2mtwwu5yx|5
+G2mty8r678|5

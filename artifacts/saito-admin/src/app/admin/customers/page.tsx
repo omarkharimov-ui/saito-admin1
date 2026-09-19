@@ -38,7 +38,7 @@ const STATUS_AZ: Record<string, string> = {
 };
 const METHOD_AZ: Record<string, string> = { card: 'Kart', cash: 'Nəqd' };
 const DAY = 86400000;
-const PANEL_W = 460;
+const PANEL_W = 560;
 
 function dayLabel(iso: string): string {
   const d = new Date(iso); const today = new Date();
@@ -116,13 +116,29 @@ const Ghost = ({ w, h = 12, className = '' }: { w: string; h?: number; className
     style={{ width: w, height: h }} />
 );
 
+// ── Search match highlight (first occurrence, accent pill) ─────────────────
+function Highlight({ text, q }: { text: string; q: string }) {
+  if (!q || !text) return <>{text}</>;
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, i)}
+      <mark className="rounded-[3px] bg-[var(--theme-accent-soft)] px-[2px] text-[var(--theme-accent)]">
+        {text.slice(i, i + q.length)}
+      </mark>
+      {text.slice(i + q.length)}
+    </>
+  );
+}
+
 // ── Ledger row ──────────────────────────────────────────────────────────────
 function LedgerRow({
-  c, i, stats, statsReady, active, panelOpen, onOpen, reduce,
+  c, i, stats, statsReady, active, panelOpen, q, onOpen, reduce,
 }: {
   c: CustomerRow; i: number;
   stats: RowStats | undefined; statsReady: boolean;
-  active: boolean; panelOpen: boolean;
+  active: boolean; panelOpen: boolean; q: string;
   onOpen: (c: CustomerRow) => void; reduce: boolean;
 }) {
   const nameId = `cust-name-${c.id}`;
@@ -144,7 +160,7 @@ function LedgerRow({
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(c); } }}
       className={`group relative flex items-center gap-3 px-4 sm:px-6 h-[58px] cursor-pointer select-none
         outline-none transition-colors duration-150
-        ${active ? 'bg-[var(--theme-accent-soft)]' : 'hover:bg-[var(--theme-surface-soft)]'}
+        ${active ? 'bg-[var(--theme-accent-soft)]' : 'hover:bg-[var(--theme-surface-soft)] active:bg-[var(--theme-accent-soft)]'}
         focus-visible:bg-[var(--theme-accent-soft)]`}>
       {/* selection accent bar — morphs between rows (layoutId) */}
       {active && (
@@ -160,17 +176,21 @@ function LedgerRow({
           <motion.span layoutId={nameId}
             transition={{ duration: reduce ? 0 : 0.32, ease: [0.32, 0.72, 0, 1] }}
             className="block truncate text-[15px] font-semibold text-[var(--theme-text)]">
-            {name}
+            <Highlight text={name} q={q} />
           </motion.span>
         ) : (
-          <span className="block truncate text-[15px] font-semibold text-[var(--theme-text)]" title={name}>{name}</span>
+          <span className="block truncate text-[15px] font-semibold text-[var(--theme-text)]" title={name}>
+            <Highlight text={name} q={q} />
+          </span>
         )}
       </div>
 
       {/* Telefon */}
       <div className="hidden md:block w-36 shrink-0">
         {c.phone ? (
-          <span className="text-[13px] tabular-nums text-[var(--theme-text-secondary)]">{c.phone}</span>
+          <span className="text-[13px] tabular-nums text-[var(--theme-text-secondary)] transition-colors duration-150 group-hover:text-[var(--theme-text)]">
+            <Highlight text={c.phone} q={q} />
+          </span>
         ) : (
           <span className="text-[13px] text-[var(--theme-text-muted)]">—</span>
         )}
@@ -192,7 +212,7 @@ function LedgerRow({
         {!hasS && statsReady ? <span className="text-[13px] text-[var(--theme-text-muted)]">—</span>
           : hasS ? (
             <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.3 }}
-              className={`inline-block text-[14px] tabular-nums font-semibold ${stats!.spent > 0 ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)]'}`}>
+              className={`inline-block text-[14px] tabular-nums font-semibold transition-colors duration-150 group-hover:text-[var(--theme-text)] ${stats!.spent > 0 ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)]'}`}>
               {stats!.spent > 0 ? money(stats!.spent) : '—'}
             </motion.span>
           ) : <Ghost w="56px" h={10} className="ml-auto" />}
@@ -214,7 +234,7 @@ function LedgerRow({
         {!hasS && statsReady ? <span className="text-[13px] text-[var(--theme-text-muted)]">—</span>
           : hasS ? (
             <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.3 }}
-              className={`inline-flex items-center justify-end gap-1.5 text-[13px] tabular-nums ${stats!.last ? 'text-[var(--theme-text-secondary)]' : 'text-[var(--theme-text-muted)]'}`}>
+              className={`inline-flex items-center justify-end gap-1.5 text-[13px] tabular-nums transition-colors duration-150 group-hover:text-[var(--theme-text)] ${stats!.last ? 'text-[var(--theme-text-secondary)]' : 'text-[var(--theme-text-muted)]'}`}>
               {stats!.last && isToday(stats!.last) && (
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--theme-accent)] shrink-0" />
               )}
@@ -571,9 +591,7 @@ export default function CustomersPage() {
     return () => { cancelled = true; };
   }, [rows]);
 
-  const openCustomer = useCallback(async (c: CustomerRow) => {
-    setSelected(c);
-    setPanelOpen(true);
+  const loadTimeline = useCallback(async (c: CustomerRow) => {
     setTl(null);
     setTlErr(false);
     try {
@@ -585,23 +603,62 @@ export default function CustomersPage() {
     } catch { setTlErr(true); }
   }, []);
 
+  // click / Enter — select AND open the inspector
+  const openCustomer = useCallback((c: CustomerRow) => {
+    setSelected(c);
+    setPanelOpen(true);
+    loadTimeline(c);
+  }, [loadTimeline]);
+
+  // keyboard ↑/↓ — select only (panel content swaps if already open)
+  const selectRow = useCallback((c: CustomerRow) => {
+    setSelected(c);
+    if (panelOpen) loadTimeline(c);
+  }, [panelOpen, loadTimeline]);
+
   const closePanel = useCallback(() => setPanelOpen(false), []);
 
-  // Keyboard: / = focus search · Esc = close panel / clear search
+  const scrollToActive = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = listRef.current?.querySelector('[data-cust-row="1"]');
+      el?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    });
+  }, [reduce]);
+
+  // Keyboard: / = focus search · ↑/↓ = row navigation (accent bar glides)
+  // · Enter = open highlighted · Esc = close panel / clear search
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const inSearch = e.target === searchRef.current;
       if (e.key === '/' && !isTypingTarget(e.target)) {
         e.preventDefault();
         searchRef.current?.focus();
         searchRef.current?.select();
-      } else if (e.key === 'Escape') {
+        return;
+      }
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && (inSearch || !isTypingTarget(e.target)) && rows?.length) {
+        e.preventDefault();
+        const idx = selected ? rows.findIndex(r => r.id === selected.id) : -1;
+        const next = e.key === 'ArrowDown'
+          ? Math.min(idx + 1, rows.length - 1)
+          : (idx < 0 ? 0 : Math.max(idx - 1, 0));
+        selectRow(rows[next]);
+        scrollToActive();
+        return;
+      }
+      if (e.key === 'Enter' && inSearch && rows?.length) {
+        const c = selected && rows.some(r => r.id === selected.id) ? selected : rows[0];
+        openCustomer(c);
+        return;
+      }
+      if (e.key === 'Escape') {
         if (panelOpen) closePanel();
-        else if (query) setQuery('');
+        else if (query) { setQuery(''); searchRef.current?.focus(); }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [panelOpen, query, closePanel]);
+  }, [rows, query, panelOpen, selected, closePanel, openCustomer, selectRow, scrollToActive]);
 
   // keep the selected row in view when the list re-sorts under the open panel
   useEffect(() => {
@@ -621,47 +678,57 @@ export default function CustomersPage() {
       {/* ── page header ── */}
       <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 pt-4 pb-3">
         <h1 className="text-2xl font-black tracking-tighter shrink-0">Müştərilər</h1>
-        {rows && (
-          <span className="text-[11px] font-bold tabular-nums text-[var(--theme-text-muted)] shrink-0">
-            {rows.length}
-          </span>
-        )}
+        {/* live count — ticks as the filter narrows (accent while searching) */}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            key={rows ? (query ? `q${rows.length}` : `a${rows.length}`) : 'w'}
+            initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            transition={{ duration: reduce ? 0 : 0.16, ease: 'easeOut' }}
+            className={`text-[11px] font-bold tabular-nums shrink-0 ${query ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)]'}`}>
+            {rows ? (query ? `${rows.length} nəticə` : `${rows.length} müştəri`) : ''}
+          </motion.span>
+        </AnimatePresence>
         <div className="flex-1" />
 
-        {/* Spotlight search */}
-        <div className="relative group w-44 sm:w-64 lg:w-72">
-          <Search size={14}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-150 text-[var(--theme-text-muted)] group-focus-within:text-[var(--theme-accent)]" />
+        {/* Spotlight search — expands on focus, Search↔X icon morph, live kbd hint */}
+        <div className="relative group w-44 sm:w-60 lg:w-64 transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] focus-within:w-52 sm:focus-within:w-72 lg:focus-within:w-80">
+          <button
+            tabIndex={-1}
+            aria-label={query ? 'Axtarışı təmizlə' : 'Axtar'}
+            onClick={() => { if (query) { setQuery(''); searchRef.current?.focus(); } }}
+            className={`absolute left-3 top-1/2 -translate-y-1/2 z-10 p-0.5 transition-colors duration-150
+              ${query ? 'text-[var(--theme-text-secondary)] hover:text-[var(--theme-accent)] cursor-pointer'
+                      : 'text-[var(--theme-text-muted)] group-focus-within:text-[var(--theme-accent)] cursor-default'}`}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={query ? 'x' : 's'}
+                initial={{ rotate: -70, opacity: 0, scale: 0.6 }}
+                animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                exit={{ rotate: 70, opacity: 0, scale: 0.6 }}
+                transition={{ duration: reduce ? 0 : 0.16, ease: 'easeOut' }}
+                className="flex">
+                {query ? <X size={14} strokeWidth={2.5} /> : <Search size={14} />}
+              </motion.span>
+            </AnimatePresence>
+          </button>
           <input
             ref={searchRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Axtar…"
+            placeholder="Ad və ya telefon…"
             aria-label="Müştəri axtar"
-            className="w-full rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] pl-9 pr-10 py-2 text-[13px] font-medium
+            className="w-full rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] pl-9 pr-11 py-2 text-[13px] font-medium
               text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none
-              transition-all duration-200 focus:border-[var(--theme-accent-border)] focus:ring-2 focus:ring-[var(--theme-accent-soft)]"
+              transition-[border-color,box-shadow] duration-200 focus:border-[var(--theme-accent-border)] focus:ring-2 focus:ring-[var(--theme-accent-soft)]"
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-            <AnimatePresence>
-              {query ? (
-                <motion.button
-                  key="clear"
-                  initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.6 }} transition={{ duration: reduce ? 0 : 0.12 }}
-                  onClick={() => { setQuery(''); searchRef.current?.focus(); }}
-                  aria-label="Axtarışı təmizlə"
-                  className="w-4 h-4 flex items-center justify-center rounded-full text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors duration-150">
-                  <X size={13} strokeWidth={2.5} />
-                </motion.button>
-              ) : (
-                <kbd key="kbd"
-                  className="hidden sm:block text-[10px] font-semibold text-[var(--theme-text-muted)] border border-[var(--theme-border)] rounded-md px-1.5 py-px bg-[var(--theme-bg)]">
-                  /
-                </kbd>
-              )}
-            </AnimatePresence>
-          </div>
+          <kbd
+            key={query ? 'esc' : 'slash'}
+            className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex text-[10px] font-semibold
+              text-[var(--theme-text-muted)] border border-[var(--theme-border)] rounded-md px-1.5 py-px bg-[var(--theme-bg)]"
+            aria-hidden>
+            {query ? 'esc' : '/'}
+          </kbd>
         </div>
 
         {/* theme toggle (POS capsule) */}
@@ -759,6 +826,7 @@ export default function CustomersPage() {
                 statsReady={!!statsReady[c.id]}
                 active={selected?.id === c.id}
                 panelOpen={panelOpen}
+                q={query}
                 onOpen={openCustomer}
                 reduce={reduce}
               />
@@ -784,7 +852,7 @@ export default function CustomersPage() {
               role="dialog" aria-modal="true" aria-label={selected.name || 'Müştəri'}
               initial={{ x: PANEL_W }} animate={{ x: 0 }} exit={{ x: PANEL_W }}
               transition={{ duration: dOpen, ease: [0.32, 0.72, 0, 1] }}
-              className={`absolute top-0 right-0 bottom-0 z-40 w-full max-w-[460px] flex flex-col
+              className={`absolute top-0 right-0 bottom-0 z-40 w-full max-w-[560px] flex flex-col
                 bg-[var(--theme-surface)]/95 backdrop-blur-2xl border-l border-[var(--theme-border)]
                 ${lightMode ? 'shadow-[-24px_0_60px_-30px_rgba(0,0,0,0.18)]' : 'shadow-[-24px_0_60px_-30px_rgba(0,0,0,0.55)]'}`}>
               {/* panel top bar: close */}

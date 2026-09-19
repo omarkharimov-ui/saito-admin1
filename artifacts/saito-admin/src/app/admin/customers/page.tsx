@@ -1,14 +1,17 @@
 'use client';
 
-// /admin/customers — Master-Detail (macOS Mail/Notes pattern, user spec
-// 2026-09-19 v2): left = customer list + search (380px), right = full-width
-// profile detail (KPI cards, favorites with progress bars, timeline).
-// Subtle monochrome palette: bg-white/[0.02] panels, border-white/[0.06],
-// rounded-2xl panels / rounded-xl cards, no saturated accents (amounts =
-// white semibold mono). Data layer FROZEN (W-A3 timeline RPC) — backend
-// unchanged. Note: "Düzənlə / Sifariş yarat" header actions are OMITTED —
-// no edit-customer / create-order-for-customer contract exists (frozen);
-// reported as contract gap, not silently faked.
+// /admin/customers — macOS/visionOS Master-Detail, "Liquid Glass" iteration
+// (user spec 2026-09-19 v3): NO floating template cards.
+//  - LEFT w-80 native sidebar: compact Spotlight search + native rows
+//    (selected = bg-white/10), border-r separation, subtle bg.
+//  - RIGHT full workspace: header (3xl name + Executive Metric Bar with 1px
+//    dividers) + grid-cols-3 [Activity Stream timeline (2 cols, node line,
+//    no boxes) | product visualizer (1 col, monogram tiles + share bars)].
+// Monochrome palette (white + opacity); no saturated accents.
+// Data layer FROZEN (W-A3 timeline RPC) — backend unchanged.
+// Header action buttons ("Düzənlə"/"Sifariş yarat") still OMITTED — no
+// customer-edit / create-order-for-customer contract exists (frozen;
+// reported gap, W-A4 candidate).
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -77,7 +80,7 @@ export default function CustomersPage() {
 
   useEffect(() => { const t = setTimeout(() => loadList(query), 250); return () => clearTimeout(t); }, [query, loadList]);
 
-  // Master-Detail: first customer auto-selected (detail is never empty).
+  // Master-Detail: first customer auto-selected (workspace never empty).
   useEffect(() => {
     if (rows && rows.length > 0 && !selected) setSelected(rows[0]);
   }, [rows, selected]);
@@ -115,7 +118,7 @@ export default function CustomersPage() {
     } catch { /* profile falls back to basic info */ }
   }, []);
 
-  // Timeline day-groups
+  // Timeline day-groups (for the activity stream)
   const groups: Array<{ label: string; items: NonNullable<typeof tl>['orders'] }> = [];
   if (tl) {
     for (const o of tl.orders) {
@@ -125,69 +128,72 @@ export default function CustomersPage() {
       else groups.push({ label, items: [o] });
     }
   }
-  const maxFav = tl && tl.favorites.length > 0 ? Math.max(...tl.favorites.map(f => f.qty)) : 0;
+  // Product share % for the visualizer (top items across all non-cancelled
+  // orders, as returned by the frozen contract).
+  const favTotal = tl ? tl.favorites.reduce((s, f) => s + f.qty, 0) : 0;
 
   return (
-    <div className="h-full min-h-0 flex gap-4 items-stretch py-1">
-      {/* ── LEFT: master list (macOS Mail/Notes pattern) ─────────────────── */}
-      <div className="w-[380px] shrink-0 flex flex-col rounded-2xl bg-white/[0.02] border border-white/[0.06] p-4 min-h-0">
-        <div className="flex items-center justify-between px-1">
-          <h1 className="text-xl font-bold text-white tracking-tight">Müştərilər</h1>
-          <span className="text-xs text-white/40 font-mono">{rows ? `${rows.length} kişi` : ''}</span>
+    <div className="h-full min-h-0 flex w-full overflow-hidden">
+      {/* ── LEFT: native macOS sidebar (w-80) ───────────────────────────── */}
+      <aside className="w-80 shrink-0 border-r border-white/10 bg-white/[0.01] flex flex-col min-h-0">
+        {/* Compact header + Spotlight-style search */}
+        <div className="p-4 border-b border-white/5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h1 className="text-lg font-bold text-white tracking-tight">Müştərilər</h1>
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-mono bg-white/10 text-white/60">
+              {rows ? rows.length : ''}
+            </span>
+          </div>
+          <div className="relative">
+            <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Axtar…"
+              className="w-full bg-white/[0.04] border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-white/30 focus:outline-none focus:bg-white/[0.08] transition-all"
+            />
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="relative mt-3">
-          <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Axtar (ad və ya telefon)…"
-            className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-all"
-          />
-        </div>
-
-        {/* List */}
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1 mt-3 [scrollbar-width:thin]">
-          {rows === null && <p className="text-sm text-white/40 py-4">Yüklənir…</p>}
+        {/* Native rows (no big cards) */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-0.5 [scrollbar-width:thin]">
+          {rows === null && <p className="text-xs text-white/40 py-3 px-2">Yüklənir…</p>}
           {rows !== null && rows.length === 0 && (
-            <p className="text-sm text-white/40 py-4">{query ? 'Tapılmadı.' : 'Customers yoxdur.'}</p>
+            <p className="text-xs text-white/40 py-3 px-2">{query ? 'Tapılmadı.' : 'Customers yoxdur.'}</p>
           )}
           {rows?.map(c => {
             const s = rowStats[c.id];
             const active = selected?.id === c.id;
             return (
               <button key={c.id} onClick={() => openCustomer(c)}
-                className={`w-full p-3.5 rounded-xl transition-all cursor-pointer text-left border ${
+                className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between text-xs ${
                   active
-                    ? 'bg-white/[0.08] border-white/20'
-                    : 'bg-transparent border-transparent hover:bg-white/[0.04]'
+                    ? 'bg-white/10 text-white font-medium shadow-sm'
+                    : 'text-white/60 hover:bg-white/[0.04] hover:text-white'
                 }`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{c.name || 'Customer'}</p>
-                    {c.phone && <p className="text-xs font-mono text-white/40 mt-0.5 truncate">{c.phone}</p>}
-                  </div>
-                  <div className="text-right shrink-0">
-                    {s && s.spent > 0 && <p className="text-xs font-mono font-semibold text-white/90">{money(s.spent)}</p>}
-                    {s && <p className="text-[10px] text-white/40 mt-0.5">{s.visits} ziyarət</p>}
-                  </div>
+                <div className="truncate pr-2 min-w-0">
+                  <p className="truncate font-semibold">{c.name || 'Customer'}</p>
+                  {c.phone && <p className="text-[10px] font-mono text-white/40 truncate">{c.phone}</p>}
+                </div>
+                <div className="text-right shrink-0">
+                  {s && s.spent > 0 && <p className="font-mono text-white/90 font-medium">{money(s.spent)}</p>}
+                  {s && <p className="text-[9px] text-white/40">{s.visits} ziyarət</p>}
                 </div>
               </button>
             );
           })}
         </div>
-      </div>
+      </aside>
 
-      {/* ── RIGHT: detail panel (full remaining width) ───────────────────── */}
-      <div className="flex-1 min-w-0 flex flex-col rounded-2xl bg-white/[0.02] border border-white/[0.06] min-h-0">
+      {/* ── RIGHT: full workspace (remaining width) ─────────────────────── */}
+      <main className="flex-1 min-w-0 flex flex-col overflow-y-auto bg-black/20 p-8 [scrollbar-width:thin]">
         {!selected && (
           <div className="flex-1 flex items-center justify-center text-white/30 text-sm">
             Müştəri seçilməyib
           </div>
         )}
         {selected && (
-          <div className="flex-1 min-h-0 overflow-y-auto p-6 [scrollbar-width:thin]">
+          <div className="max-w-5xl w-full mx-auto">
             <AnimatePresence mode="wait">
               <motion.div key={selected.id}
                 initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}
@@ -197,53 +203,79 @@ export default function CustomersPage() {
                   const s = tl?.stats;
                   return (
                     <>
-                      {/* Profile header */}
-                      <div className="flex items-end justify-between gap-4">
+                      {/* Header + Executive Metric Bar (no KPI boxes) */}
+                      <div className="flex items-start justify-between gap-6 border-b border-white/10 pb-6">
                         <div className="min-w-0">
-                          <h2 className="text-2xl font-semibold text-white tracking-tight truncate">{c.name || 'Customer'}</h2>
-                          {c.phone && <p className="text-sm font-mono text-white/40 mt-1">{c.phone}</p>}
+                          <h2 className="text-3xl font-bold text-white tracking-tight truncate">{c.name || 'Customer'}</h2>
+                          <div className="flex items-center gap-3 mt-1.5">
+                            {c.phone && <p className="text-sm font-mono text-white/40">{c.phone}</p>}
+                            {s && (
+                              <p className="text-xs text-white/30">
+                                ilk ziyarət {s.first_visit ? dayLabel(s.first_visit) : '—'}
+                                <span className="mx-1.5 text-white/20">·</span>
+                                {s.items_ordered} mövqe
+                              </p>
+                            )}
+                          </div>
                         </div>
                         {s && (
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="px-2.5 py-1 rounded-lg bg-white/5 text-xs text-white/70 font-medium">{s.visit_count} ziyarət</span>
-                            <span className="px-2.5 py-1 rounded-lg bg-white/5 text-xs text-white/70 font-medium">ilk: {s.first_visit ? dayLabel(s.first_visit) : '—'}</span>
+                          <div className="flex items-center gap-6 bg-white/[0.03] border border-white/10 px-6 py-3 rounded-2xl backdrop-blur-md shrink-0">
+                            <div>
+                              <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Ziyarət</p>
+                              <p className="text-lg font-bold text-white">{s.visit_count}</p>
+                            </div>
+                            <div className="h-8 w-[1px] bg-white/10" />
+                            <div>
+                              <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Ümumi Xərc</p>
+                              <p className="text-lg font-bold text-white font-mono">{money(s.total_spent)}</p>
+                            </div>
+                            <div className="h-8 w-[1px] bg-white/10" />
+                            <div>
+                              <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Ortalama</p>
+                              <p className="text-lg font-bold text-white/80 font-mono">{money(s.avg_order)}</p>
+                            </div>
                           </div>
                         )}
                       </div>
 
-                      {/* Two-column body: stats+favorites | timeline */}
-                      <div className="grid grid-cols-5 gap-4 mt-6 items-start">
-                        {/* Middle-left: KPI + favorites */}
-                        <div className="col-span-2 space-y-5">
-                          {s && (
-                            <div className="grid grid-cols-3 gap-2">
-                              <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] px-3 py-3">
-                                <p className="text-[10px] uppercase tracking-wider text-white/40">Xərçəy</p>
-                                <p className="text-lg font-mono font-semibold text-white mt-1 whitespace-nowrap">{money(s.total_spent)}</p>
-                              </div>
-                              <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] px-3 py-3">
-                                <p className="text-[10px] uppercase tracking-wider text-white/40">Orta</p>
-                                <p className="text-lg font-mono font-semibold text-white mt-1 whitespace-nowrap">{money(s.avg_order)}</p>
-                              </div>
-                              <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] px-3 py-3">
-                                <p className="text-[10px] uppercase tracking-wider text-white/40">Mövqe</p>
-                                <p className="text-lg font-mono font-semibold text-white mt-1">{s.items_ordered}</p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Favorites with quiet progress bars */}
-                          {tl && tl.favorites.length > 0 && (
-                            <div>
-                              <p className="text-xs font-bold tracking-wider uppercase text-white/40 mb-3">Ən çox aldığı məhsullar</p>
-                              <div className="space-y-2.5">
-                                {tl.favorites.slice(0, 5).map(f => (
-                                  <div key={f.name} className="flex items-center gap-3">
-                                    <p className="text-sm text-white/60 truncate w-[55%]" title={f.name}>{f.name}</p>
-                                    <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
-                                      <div className="h-full rounded-full bg-white/50" style={{ width: `${maxFav ? Math.max(8, Math.round((f.qty / maxFav) * 100)) : 8}%` }} />
+                      {/* Body: activity stream (2/3) | product visualizer (1/3) */}
+                      <div className="grid grid-cols-3 gap-8 mt-8">
+                        {/* Activity Stream */}
+                        <div className="col-span-2">
+                          <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">Sifariş Tarixçəsi</h3>
+                          {!tl && <p className="text-sm text-white/40 py-6">Yüklənir…</p>}
+                          {tl && tl.orders.length === 0 && <p className="text-sm text-white/40 py-6">Hələ sifariş yoxdur.</p>}
+                          {tl && tl.orders.length > 0 && (
+                            <div className="relative mt-5 pl-6">
+                              {/* the stream line */}
+                              <div className="absolute left-[3px] top-1.5 bottom-1.5 w-px bg-white/10" />
+                              <div className="space-y-6">
+                                {groups.map(g => (
+                                  <div key={g.label} className="relative">
+                                    {/* day node */}
+                                    <span className="absolute -left-6 top-[3px] w-[7px] h-[7px] rounded-full bg-white/40 ring-4 ring-white/[0.04]" />
+                                    <p className="text-[11px] font-bold tracking-wider uppercase text-white/50">{g.label}</p>
+                                    <div className="mt-2.5 space-y-4">
+                                      {g.items.map(o => {
+                                        const items = o.items.map(i => `${i.qty}× ${i.name}`).join(', ');
+                                        const pay = o.payments.filter(p => !p.is_refund).map(p => p.method).join('+');
+                                        return (
+                                          <div key={o.id}>
+                                            <div className="flex items-baseline justify-between gap-4">
+                                              <p className="text-xs text-white/40">
+                                                <span className="font-mono text-white/60">{hm(o.created_at)}</span>
+                                                <span className="text-white/20 mx-1.5">·</span>
+                                                {STATUS_AZ[o.status] || o.status}
+                                                {o.table_number ? <span> · cədvəl {o.table_number}</span> : null}
+                                              </p>
+                                              <p className="text-sm font-mono font-semibold text-white whitespace-nowrap">{money(o.total_amount)}</p>
+                                            </div>
+                                            {items && <p className="text-sm text-white/55 mt-1 leading-relaxed">{items}</p>}
+                                            {pay && <p className="text-[11px] text-white/25 mt-0.5">{pay}</p>}
+                                          </div>
+                                        );
+                                      })}
                                     </div>
-                                    <p className="text-xs font-mono text-white/40 w-7 text-right shrink-0">×{f.qty}</p>
                                   </div>
                                 ))}
                               </div>
@@ -251,39 +283,38 @@ export default function CustomersPage() {
                           )}
                         </div>
 
-                        {/* Right: timeline */}
-                        <div className="col-span-3">
-                          <p className="text-xs font-bold tracking-wider uppercase text-white/40 mb-3">Tarixçə</p>
-                          {!tl && <p className="text-sm text-white/40 py-4">Yüklənir…</p>}
-                          {tl && tl.orders.length === 0 && <p className="text-sm text-white/40 py-4">Hələ sifariş yoxdur.</p>}
-                          <div className="space-y-5">
-                            {groups.map(g => (
-                              <div key={g.label}>
-                                <p className="text-xs font-bold tracking-wider uppercase text-white/40 mb-2">{g.label}</p>
-                                <div className="space-y-2">
-                                  {g.items.map(o => {
-                                    const items = o.items.map(i => `${i.qty}× ${i.name}`).join(', ');
-                                    const pay = o.payments.filter(p => !p.is_refund).map(p => p.method).join('+');
-                                    return (
-                                      <div key={o.id} className="rounded-xl bg-white/[0.02] border border-white/[0.06] px-4 py-3 flex items-start justify-between gap-4">
-                                        <div className="min-w-0">
-                                          <p className="text-xs text-white/40">
-                                            <span className="font-mono">{hm(o.created_at)}</span>
-                                            <span className="text-white/25 mx-1.5">·</span>
-                                            {STATUS_AZ[o.status] || o.status}
-                                            {o.table_number ? <span> · cədvəl {o.table_number}</span> : null}
-                                          </p>
-                                          {items && <p className="text-sm text-white/60 mt-1.5 leading-relaxed">{items}</p>}
-                                          {pay && <p className="text-[11px] text-white/30 mt-1">{pay}</p>}
-                                        </div>
-                                        <p className="text-sm font-mono font-semibold text-white whitespace-nowrap pt-0.5">{money(o.total_amount)}</p>
+                        {/* Product visualizer (top items + share) */}
+                        <div>
+                          <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">Çox Sifariş Edilənlər</h3>
+                          {!tl || tl.favorites.length === 0 && (
+                            <p className="text-sm text-white/40 py-6">Yoxdur.</p>
+                          )}
+                          {tl && tl.favorites.length > 0 && (
+                            <div className="mt-4 space-y-4">
+                              {tl.favorites.slice(0, 5).map(f => {
+                                const pct = favTotal ? Math.round((f.qty / favTotal) * 100) : 0;
+                                return (
+                                  <div key={f.name} className="flex items-center gap-3">
+                                    <span className="w-9 h-9 rounded-lg bg-white/[0.06] border border-white/[0.06] flex items-center justify-center text-sm font-semibold text-white/70 shrink-0">
+                                      {(f.name || '?').charAt(0).toUpperCase()}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-baseline justify-between gap-2">
+                                        <p className="text-xs font-medium text-white/70 truncate" title={f.name}>{f.name}</p>
+                                        <p className="text-[10px] font-mono text-white/40 shrink-0">%{pct}</p>
                                       </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                                      <div className="flex items-center gap-2 mt-1.5">
+                                        <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
+                                          <div className="h-full rounded-full bg-white/50" style={{ width: `${Math.max(8, pct)}%` }} />
+                                        </div>
+                                        <p className="text-[10px] font-mono text-white/35 shrink-0">×{f.qty}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </>
@@ -293,7 +324,7 @@ export default function CustomersPage() {
             </AnimatePresence>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

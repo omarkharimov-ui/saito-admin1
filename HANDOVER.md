@@ -1,7 +1,7 @@
 # HANDOVER — Saito Admin POS (P-series)
 
 **Date:** 2026-09-14 · **Head:** `0c59227` (post-P-6 freeze; `main == origin`)
-**Checkpoint (2026-09-19):** `P-9 🔒 → W-A1 🔒 (QR guest identity + M0 loyalty repair) · full frozen reflow re-verified: A 39/39, E/S 54/54, F 35/35, O 38/38, K-L3 8/8, K-L4 16/16, P-9 25/25, P-1 29/29, P-2 13/13, P-3 25/25, P-4 19/19, P-5 10/10, P-6 15/15, W-A1 18/18 — P-7 half-2 + P-8 BLOCKED by Supabase incident 6q5902p2xd9f (API Gateway degraded; re-run commands in W_A1_FREEZE_REPORT_2026-09-19.md §4)`
+**Checkpoint (2026-09-19):** `P-9 🔒 → W-A1 🔒 (QR guest identity + M0 loyalty repair) → W-A2 🔒 (add-to-check + QR price hardening + D17 prod fix) · narrowed reflow green: W-A2 14/14, O 38/38, W-A1 18/18, F 35/35 — P-7 half-2 + P-8 BLOCKED by Supabase incident 6q5902p2xd9f (API Gateway degraded; re-run commands in W_A1_FREEZE_REPORT_2026-09-19.md §4) · W-A2 UI (menu "continue your check") = HARD STOP, user-collaborative`
 
 > **A / E/S are ⚠️ pre-existing blockers, NOT P regressions** (bisection-proven: the
 > failures persist with P-3 triggers disabled). See the disposition block after the P-3
@@ -737,11 +737,21 @@ E/S blocker owner, deliberately not committed here.
   When both land green, W-A1's freeze is complete in full; no code change expected.
 - **Secret hygiene:** `.audit-*` (09-12 audit artifacts, plaintext service_role key inside) are gitignored + never committed; junk redirect fragments trashed.
 
+### W-A2 — ADD-TO-CHECK + QR PRICE HARDENING — 🔒 (2026-09-19)
+
+**Full record:** `W_A2_FREEZE_REPORT_2026-09-19.md` · **Plan/decisions D12–D17:** `W_A2_PLAN.md`.
+
+- **Shipped:** D12 `check_token` (hash in `orders.qr_check_token_hash`, raw returned once) + `POST /api/orders/qr/add`; D13 server-sourced prices on BOTH QR paths (client `unit_price` ignored — G3 underpay gap closed); D14 `qr_add_items` RPC (FOR UPDATE, finalized reject, per-item idempotency); D16 incremental total mirroring frozen `add_item_atomic` (the SSOT-recompute draft was rejected on live VAT-18% evidence before use); **D17 latent production defect fixed** — first QR order on any `empty`/`cleaning` floor 500'd (`table_release_guard` via the F-05 sync UPDATE; 27/33 live floors are `empty`); the create route now flips released→occupied pre-insert (app layer only, triggers FROZEN).
+- **Gate evidence:** `.w-a2-gate.cjs` **14/14** route-level E2E (real HTTP, zero residue, crash self-heal via `.w-a2-fixture.json`); narrowed reflow **O 38/38 · W-A1 18/18 · F 35/35** (justification: freeze report §2).
+- **UI = HARD STOP:** menu "continue your check" (localStorage checkToken, add-to-cart UX) is designed together with the user. Backend is ready: `checkToken` in the create response, `POST /api/orders/qr/add` with 404/409/400 error contract.
+- **FOLLOW-UPs (documented, not shipped):** QR on `reserved`/`out_of_service` floors stays allowed (pre-existing); token rotation is out of scope (token dangles on finalize — lookup fails safely).
+
 ---
 
- *Handover refreshed at W-A1 freeze (2026-09-19). Baseline numbers are from live gate runs
-  (`.w-a1-audit/reflow/`); re-run the §1 commands to re-establish them before starting the
-  next wave (W-A2: add-to-check on active order — D11 product decision).*
+ *Handover refreshed at W-A2 freeze (2026-09-19). Baseline numbers are from live gate runs
+   (`.w-a1-audit/reflow/`, `.w-a2-audit/reflow/`); re-run the §1 commands to re-establish them
+   before starting the next wave (W-A2 UI collaborative session → then Wave A #2: customer
+   timeline).*
 
 ---
 

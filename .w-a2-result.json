@@ -1,0 +1,91 @@
+{
+  "pass": 14,
+  "fail": 0,
+  "base": "0/0/0/0/4",
+  "results": [
+    {
+      "id": "W2-01",
+      "name": "create on EMPTY table -> 200 (D17 flip) + checkToken (64 hex) + hash stored + floor occupied w/ pointer",
+      "ok": true,
+      "evidence": "status=200 oid=ca140257-a4ad-4f8c-9d91-37d6847addb7 floor=occupied/ca140257-a4ad-4f8c-9d91-37d6847addb7 body={\"success\":true,\"orderId\":\"ca140257-a4ad-4f8c-9d91-37d6847addb7\",\"total\":200,\"checkToken\":\"6dc854564d95897baf1d5314a72ada67d0fbdadda34583989"
+    },
+    {
+      "id": "W2-02",
+      "name": "D13 CREATE underpay-proof: client unit_price 0.01 -> DB price 100.00, total raw 200.00 (no VAT)",
+      "ok": true,
+      "evidence": "item=100.00/200 total=200.00"
+    },
+    {
+      "id": "W2-03",
+      "name": "add -> 200, itemsAdded=1, total 350.00 (200+150, D16 incremental no-VAT), version +1, item at DB price 50.00",
+      "ok": true,
+      "evidence": "status=200 item=50.00/150.00/pending/w2:add:ec3311db-7c79-4be6-900b-7e93dc8ec228:0 tot=350.00:2 body={\"success\":true,\"orderId\":\"ca140257-a4ad-4f8c-9d91-37d6847addb7\",\"status\":\"confirmed\",\"itemsAdded\":1,\"total\":350}"
+    },
+    {
+      "id": "W2-04",
+      "name": "add spine: order_events item_added +1 and KDS outbox (kds_ticket) +>=1",
+      "ok": true,
+      "evidence": "oe 0->1, kds 1->2"
+    },
+    {
+      "id": "W2-05",
+      "name": "replay same key -> itemsAdded=0, total/version/events unchanged",
+      "ok": true,
+      "evidence": "status=200 items=2 tot=350.00:2 oe=1"
+    },
+    {
+      "id": "W2-06",
+      "name": "wrong token -> 404 \"Check not found\" (no existence leak)",
+      "ok": true,
+      "evidence": "status=404 body={\"error\":\"Check not found\"}"
+    },
+    {
+      "id": "W2-07",
+      "name": "valid token + wrong table -> 404, no rows on table B",
+      "ok": true,
+      "evidence": "status=404 items=2"
+    },
+    {
+      "id": "W2-08",
+      "name": "shape: 21 items / qty 0 / bad uuid -> all 400",
+      "ok": true,
+      "evidence": "s=400/400/400"
+    },
+    {
+      "id": "W2-09",
+      "name": "no 2nd order: exactly 1 order on table A after all adds",
+      "ok": true,
+      "evidence": ""
+    },
+    {
+      "id": "W2-10",
+      "name": "pay 350 -> paid, paid_amount 350.00, exactly 1 captured op",
+      "ok": true,
+      "evidence": "pay=200 state=paid/350.00/1 body={\"success\":true,\"paid_amount\":350,\"total_amount\":350,\"remaining\":0,\"is_fully_paid\":true,\"status\":\"paid\",\"tip_amount\":0,\"cash_received\":null,"
+    },
+    {
+      "id": "W2-11",
+      "name": "add after paid -> 409 \"This check is closed\", items unchanged",
+      "ok": true,
+      "evidence": "status=409 body={\"error\":\"This check is closed\"}"
+    },
+    {
+      "id": "W2-12",
+      "name": "guest create on EMPTY table -> linked (id+phone on order); add keeps customer_* unchanged; total 200.00",
+      "ok": true,
+      "evidence": "cust=7ac2c471-2fb1-4115-ba20-789b8e033187/Qonaq 9001/11188889001 add=200 total=200.00 items=2/50.00 body={\"success\":true,\"orderId\":\"5e2f9f17-aa1e-40ce-b15d-35b1e0d6656a\",\"total\":100,\"checkToken\":\"5436b7f47097141f90ea232db5e92097b5843c79942bafb2d"
+    },
+    {
+      "id": "W2-13",
+      "name": "baseline invariants (refunded/partial/voided/refrows/overref) unchanged",
+      "ok": true,
+      "evidence": "0/0/0/0/4 -> 0/0/0/0/4"
+    },
+    {
+      "id": "W2-14",
+      "name": "teardown zero-residue (orders/items/staff-active/sessions/customer/products/unarchived)",
+      "ok": true,
+      "evidence": "residue=0/0/0/0/0/0/0 txerr="
+    }
+  ]
+}

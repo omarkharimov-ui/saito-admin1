@@ -32,7 +32,17 @@
 > + P-8 = Supabase incident 6q5902p2xd9f (API Gateway degraded) ilə BLOCKED — re-run
 > komandaları `W_A1_FREEZE_REPORT_2026-09-19.md` §4-də. Production hardening saxlanıldı:
 > `middleware.ts` (transient probe → route re-check) + `instrumentation.ts` (GET
-> socket-race retry).
+ > socket-race retry).
+>
+> **W-A2 status (2026-09-19):** Add-to-check (active QR order) **FROZEN (backend)** —
+> D12 `check_token` (hash-saxlanılır, raw bir dəfə), D13 server-sourced qiymətlər
+> (G3 underpay gap bağlandı), D14 `qr_add_items` RPC (FOR UPDATE + finalized reject +
+> idempotency), D16 incremental total (`add_item_atomic` mirror; VAT-18% ssot draft
+> istifadədən ƏVVƏL rədd olundu), **D17 production defect fix** — boş (`empty`) cədvəldə
+> ilk QR sifariş 500 verirdi (27/33 cədvəl `empty` idi); indi pre-insert occupied flip.
+> Gate **14/14** + narrowed reflow O 38/38, W-A1 18/18, F 35/35 (residue 0).
+> **UI = HARD STOP:** menu "continue your check" istifadəçilə birlikdə. Sənəd:
+> `W_A2_FREEZE_REPORT_2026-09-19.md`.
 >
 > **Menecer map sync (2026-09-19):** ChatGPT "menecer" A–Z master feature map + SAITO OS
 > architecture istifadəçi tərəfindən təsdiqləndi və bu fayla xalça edildi (§0.3 A–Z
@@ -171,7 +181,7 @@ dən kənarda, idempotent outbox** ilə (`outbox_events` + `emit_outbox_event`).
 | N | Notifications | 23 Notifications | ✅ in-app+WhatsApp / ❌ SMS+email |
 | O | Orders (types + lifecycle) | 4 Orders | ✅ FROZEN |
 | P | Payments (tenders, refund, reconciliation) | 5 Billing+Payments | ✅ core FROZEN / ❌ offline+terminal (Q7) |
-| Q | QR Ordering | 30 Website/QR | ✅ QR + **anon access + qonaq identifikasiya (W-A1, 09-19)**; add-to-check = W-A2 |
+| Q | QR Ordering | 30 Website/QR | ✅ QR + **anon access + qonaq identifikasiya (W-A1) + add-to-check (W-A2, 09-19)**; menu UI = HARD STOP |
 | R | Reservations | 11 Reservations | ✅ core / 🟡 waitlist SMS |
 | S | Staff / Shifts | 20 Shifts/Labor | ✅ |
 | T | Tableside (waiter handheld) | 12 Tableside | ✅ tablet POS / ❌ hardware (Q7) |
@@ -224,7 +234,7 @@ Exceptions: VOIDED / CANCELLED / REFUNDED / REOPENED / PARTIALLY_REFUNDED
 
 | Feature | Saito | DB | API/UI |
 |---|---|---|---|
-| Order creation (table/takeaway/delivery/reservation/walk-in) | ✅ | `create_or_append_order`, `walkin_atomic`, `create_takeaway_order`, `create_delivery_order` | `/api/orders`, `/api/orders/qr` |
+| Order creation (table/takeaway/delivery/reservation/walk-in) | ✅ | `create_or_append_order`, `walkin_atomic`, `create_takeaway_order`, `create_delivery_order` | `/api/orders`, `/api/orders/qr` (+`/qr/add` — W-A2) |
 | Item lifecycle (hold/send/prepare/ready/serve/recall) | ✅ | `item_kitchen_step`, `send_item_atomic`, `mark_item_ready_atomic`, `toggle_item_hold` | KDS + POS |
 | Split by seat / equal / item | ✅ | `split_by_seat`, `split_equal`, `split_order_by_items_atomic`, `get_seat_totals` | `/api/orders/bill-split` |
 | Refund chain (full/partial → reopen → repay, double-stock guard) | ✅ FROZEN (P0-4) | `refund_with_inventory`, `payment_refunds` | `/api/orders/refund` |
@@ -538,7 +548,7 @@ Menu, ordering, pickup, delivery, reservations, loyalty.
 
 | Feature | Saito | DB | API/UI |
 |---|---|---|---|
-| Public QR menu + QR order + QR pay | ✅ | `/api/orders/qr`, `menu/page.tsx` | Qeyd: qr route hazırda **staff-auth tələb edir** → anon customer access = Wave A |
+| Public QR menu + QR order + QR pay | ✅ | `/api/orders/qr`, `menu/page.tsx` | Anon customer access (W-A1) + **add-to-check (W-A2)**; menu "continue your check" UI = HARD STOP (birgə) |
 | Public reservation (website) | ✅ | `api/public/reservations`, `reservation/page.tsx` | — |
 | Online ordering (pickup/delivery, telefonla münasibət) | ✅ | takeaway/delivery RPC-lər | Customer-facing order UI (phone) Addım 2 |
 | Public VAT config | ✅ | `/api/public/vat-config` | — |
@@ -646,7 +656,7 @@ Order, customer, address, zone, fee, driver; status RECEIVED→ACCEPTED→PREPAR
 | Customer CRM | ✅ profile / 🟡 marketing |
 | Loyalty | ✅ engine / ⚪ tiers+UI (Q2) |
 | Gift cards | 🟡 engine / ❌ UI (Q3) |
-| QR order/pay | ✅ QR (anon customer = Wave A) |
+| QR order/pay | ✅ QR + anon + qonaq identifikasiya + add-to-check (W-A1/W-A2) |
 | Online ordering | 🟡 (customer UI = Addım 2) |
 | Kiosk | ❌ (Addım 3) |
 | Delivery aggregation | ❌ (Wave C) |
@@ -679,7 +689,7 @@ menecerin ☐ siyahısından əvvəlcədən gedir — bunlar yeni iş deyil, qor
 
 ### Wave A — "Sistemi aç" (Addım 2-in ilk yarısı)
 1. ~~**Outbox consumer**~~ ✅ **BİTİB (2.1, 2026-09-11)** — `outbox_pump` SSOT + handlers + dead-letter; pg_cron scheduler 7 job LIVE; backlog drained
-2. **QR anon customer access** (qr route staff-auth → anon; customer order/pay/loyalty açılır)
+2. ~~**QR anon customer access**~~ ✅ **BİTİB (W-A1/W-A2, 09-19)** — anon order + qonaq identifikasiya + **add-to-check** (backend 🔒; menu UI = HARD STOP, birgə)
 3. **Gift card UI** (engine ✓, UI+report yoxdur) + bar tab (pre-auth, `customers` var)
 4. **Customer timeline UI** (history/favorites/spend) + segmentation bloku
 5. **Daily operating checklists** (opening/closing/maintenance; onboarding engine mövcuddur — eyni pattern)

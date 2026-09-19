@@ -1,0 +1,4 @@
+PASS Z1 END residue = 0 (orders/tables/sessions)
+PASS Z2 archive guard re-enabled after cleanup
+
+===== O GATE: 38/38 PASS =====

@@ -1,10 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ShoppingCart, X, Send } from 'lucide-react';
+
+// SAITO UI VISUAL DIRECTION (2026-09-19, ratified): calm, content-first,
+// quiet. The sticky bar is ONE quiet line — food → total → action — never a
+// conventional cart widget (no badges, icons, gradients, heavy borders).
+// Backend contracts are FROZEN (W-A2): /api/orders/qr (create, returns
+// checkToken+checkCode once), /api/orders/qr/add (404/409/400),
+// /api/orders/qr/relink (code rotation), /api/orders/qr/status (table poll).
 
 interface Product {
   id: string;
@@ -20,34 +26,56 @@ interface CartItem extends Product {
   quantity: number;
 }
 
+interface Check {
+  token: string;
+  code: string;
+  orderId: string;
+  total: number;
+}
+
+interface TableOrder {
+  id: string;
+  status: string;
+  total: number;
+  item_count?: number;
+  customer_linked?: boolean;
+}
+
+const ACTIVE_STATUSES = ['confirmed', 'in_kitchen', 'ready'];
+const STATUS_AZ: Record<string, string> = {
+  confirmed: 'Qəbul edildi',
+  in_kitchen: 'Hazırlanır',
+  ready: 'Hazırdır',
+  paid: 'Ödənilib',
+  closed: 'Bağlanıb',
+};
+
+const checkKey = (t: number) => `saito_check_${t}`;
+
 export default function MenuPage({ searchParams }: { searchParams: Promise<{ table?: string }> }) {
   const [tableNumber, setTableNumber] = useState<number | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
-  // 1.5 — QR VAT toggle (R3: sərbəst). Display estimate only; final total = server SSOT.
-  const [vatEnabled, setVatEnabled] = useState(false);
-  const [vatPct, setVatPct] = useState(18);
-  const [applyVat, setApplyVat] = useState(false);
 
-  const fetchVatConfig = async () => {
-    try {
-      const res = await fetch('/api/public/vat-config');
-      if (res.ok) {
-        const data = await res.json();
-        setVatEnabled(!!data.vat_enabled);
-        setVatPct(Number(data.vat_percentage) || 18);
-      }
-    } catch { /* estimate falls back to 18 */ }
-  };
+  // W-A2: the live check for THIS table (token = add credential, code = re-attach).
+  const [check, setCheck] = useState<Check | null>(null);
+  const [tableOrder, setTableOrder] = useState<TableOrder | null>(null);
+  // Phone is REQUIRED at check creation (CRM/loyalty identity). Device memory:
+  // a returning customer on the same phone never re-enters it (silent reuse).
+  const [phone, setPhone] = useState('');
+  const [savedPhone, setSavedPhone] = useState('');
+  const [busy, setBusy] = useState<'' | 'create' | 'add' | 'relink'>('');
 
-  useEffect(() => {
-    searchParams.then(params => {
-      if (params.table) setTableNumber(Number(params.table));
-    });
-    fetchProducts();
-    fetchVatConfig();
-  }, [searchParams]);
+  // One-time raw-code moment (after create / after relink) — the server never
+  // re-serves the code, so it is shown exactly once per mint.
+  const [codePanel, setCodePanel] = useState<string | null>(null);
+  const [showCode, setShowCode] = useState(false); // "Kod" (from localStorage)
+  const [relinkOpen, setRelinkOpen] = useState(false);
+  const [relinkCode, setRelinkCode] = useState('');
+  const [relinkError, setRelinkError] = useState('');
+
+  const fetched = useRef(false);
 
   const fetchProducts = async () => {
     const { data } = await supabase
@@ -60,100 +88,205 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
     setLoading(false);
   };
 
+  const fetchStatus = useCallback(async (t: number) => {
+    try {
+      const r = await fetch(`/api/orders/qr/status?table=${t}`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+      setTableOrder(d?.has_order && d.order ? d.order : null);
+    } catch { /* transient; next poll retries */ }
+  }, []);
+
+  useEffect(() => {
+    searchParams.then(async (params) => {
+      const t = params.table ? Number(params.table) : null;
+      if (t) {
+        setTableNumber(t);
+        try {
+          const raw = localStorage.getItem(checkKey(t));
+          if (raw) {
+            const c: Check = JSON.parse(raw);
+            if (c?.token) setCheck(c);
+          }
+          const sp = localStorage.getItem('saito_phone');
+          if (sp) setSavedPhone(sp);
+        } catch { /* corrupt local state -> fresh start */ }
+      }
+      if (!fetched.current) { fetched.current = true; fetchProducts(); }
+    });
+  }, [searchParams]);
+
+  // Poll the table (15s) — drives the continue bar, detects foreign checks
+  // (S4), and notices when our check gets paid/closed.
+  useEffect(() => {
+    if (!tableNumber) return;
+    fetchStatus(tableNumber);
+    const iv = setInterval(() => fetchStatus(tableNumber), 15_000);
+    return () => clearInterval(iv);
+  }, [tableNumber, fetchStatus]);
+
+  // Reconcile check vs table order (token rotation, paid/closed, foreign order).
+  useEffect(() => {
+    if (!tableNumber || !tableOrder) return;
+    const active = ACTIVE_STATUSES.includes(tableOrder.status);
+    if (!check) return; // nothing to reconcile
+    if (check.orderId === tableOrder.id && !active) {
+      // Our check was paid/closed — drop the credential, quiet note.
+      setCheck(null);
+      localStorage.removeItem(checkKey(tableNumber));
+    } else if (check.orderId !== tableOrder.id) {
+      // A different check owns this table now (or ours was superseded).
+      setCheck(null);
+      localStorage.removeItem(checkKey(tableNumber));
+    }
+  }, [tableOrder, check, tableNumber]);
+
+  const persistCheck = (c: Check | null) => {
+    setCheck(c);
+    if (!c || !tableNumber) { if (tableNumber) localStorage.removeItem(checkKey(tableNumber)); return; }
+    localStorage.setItem(checkKey(tableNumber), JSON.stringify(c));
+  };
+
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      }
+      if (existing) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
       return [...prev, { ...product, quantity: 1 }];
     });
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.id !== productId));
-  };
-
-  const updateQuantity = (productId: string, delta: number) => {
-    setCart(prev => prev.map(item => {
-      if (item.id === productId) {
-        const newQty = Math.max(1, item.quantity + delta);
-        return { ...item, quantity: newQty };
-      }
-      return item;
+  const decFromCart = (productId: string) => {
+    setCart(prev => prev.flatMap(item => {
+      if (item.id !== productId) return [item];
+      const q = item.quantity - 1;
+      return q <= 0 ? [] : [{ ...item, quantity: q }];
     }));
   };
 
-  const [sending, setSending] = useState(false);
-  // W-A1: optional guest phone (loyalty/CRM) + post-order status card with polling.
-  const [phone, setPhone] = useState('');
-  const [lastOrder, setLastOrder] = useState<{ id: string; total: number } | null>(null);
-  const [statusInfo, setStatusInfo] = useState<any>(null);
+  const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
-  useEffect(() => {
-    if (!lastOrder || !tableNumber) return;
-    let alive = true;
-    const poll = async () => {
-      try {
-        const r = await fetch(`/api/orders/qr/status?table=${tableNumber}`, { cache: 'no-store' });
-        if (!r.ok) return;
-        const d = await r.json();
-        if (!alive) return;
-        if (d?.has_order && d.order?.id === lastOrder.id) setStatusInfo(d.order);
-      } catch { /* transient; next poll retries */ }
-    };
-    poll();
-    const iv = setInterval(poll, 15_000);
-    return () => { alive = false; clearInterval(iv); };
-  }, [lastOrder, tableNumber]);
+  const itemsPayload = () => cart.map(item => ({
+    product_id: item.id,
+    quantity: item.quantity,
+    unit_price: item.price, // ignored server-side (D13) — sent for contract parity
+  }));
 
-  const sendToKitchen = async () => {
-    if (!tableNumber || cart.length === 0 || sending) return;
-    setSending(true);
+  // ── CREATE (first check on the table) ────────────────────────────────────
+  const phoneClean = (s: string) => s.replace(/[\s-]/g, '');
+  const phoneValid = (s: string) => /^\+?[0-9]{8,15}$/.test(phoneClean(s));
+  const effectivePhone = phone.trim() || savedPhone;
+  const needsPhoneInput = !phoneValid(savedPhone); // first check on this device
+
+  const createCheck = async () => {
+    if (!tableNumber || cart.length === 0 || busy || !phoneValid(effectivePhone)) return;
+    setBusy('create');
     try {
-      const items = cart.map(item => ({
-        product_id: item.id,
-        product_name: item.name_az || item.name_en || item.name_ru,
-        quantity: item.quantity,
-        unit_price: item.price,
-        total_price: item.price * item.quantity,
-      }));
-
-      const phoneTrim = phone.trim();
       const res = await fetch('/api/orders/qr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           table_number: tableNumber,
-          items,
+          items: itemsPayload(),
           order_type: 'qr_order',
-          apply_vat: applyVat && vatEnabled,
-          ...(phoneTrim ? { customer_phone: phoneTrim } : {}),
+          customer_phone: phoneClean(effectivePhone),
         }),
       });
       const data = await res.json().catch(() => null);
-
-      if (res.ok) {
-        toast.success(data?.customer ? 'Sifariş qəbul edildi — bonus xallarınız yığılır!' : 'Sifarişiniz qəbul edildi!');
+      if (res.ok && data?.checkToken) {
+        persistCheck({ token: data.checkToken, code: String(data.checkCode), orderId: data.orderId, total: Number(data.total) });
+        localStorage.setItem('saito_phone', phoneClean(effectivePhone));
+        setSavedPhone(phoneClean(effectivePhone));
         setCart([]);
         setPhone('');
-        setStatusInfo(null);
-        setLastOrder({ id: data.orderId, total: data.total });
+        setCodePanel(String(data.checkCode)); // one-time raw code moment
+        if (data?.customer) toast.success('Sifariş qəbul edildi — bonus xallarınız yığılır!');
+        else toast.success('Sifarişiniz qəbul edildi!');
       } else {
         toast.error(data?.error || 'Xəta baş verdi');
       }
     } catch {
       toast.error('Xəta baş verdi');
     } finally {
-      setSending(false);
+      setBusy('');
     }
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const vatOn = applyVat && vatEnabled;
-  const vatEstimate = vatOn ? (cartTotal * vatPct) / 100 : 0;
-  const cartTotalWithVat = cartTotal + vatEstimate;
+  // ── ADD to the live check ────────────────────────────────────────────────
+  const addToCheck = async () => {
+    if (!tableNumber || !check || cart.length === 0 || busy) return;
+    setBusy('add');
+    try {
+      const res = await fetch('/api/orders/qr/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table_number: tableNumber,
+          check_token: check.token,
+          items: itemsPayload(),
+          idempotency_key: crypto.randomUUID(),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        persistCheck({ ...check, total: Number(data.total) });
+        setCart([]);
+        toast.success('Check-ə əlavə edildi');
+      } else if (res.status === 404) {
+        // Token rotated/consumed — re-attach by code.
+        persistCheck(null);
+        setRelinkOpen(true);
+        toast.error('Check yenilənib — kodu daxil edin');
+      } else if (res.status === 409) {
+        persistCheck(null);
+        toast.success('Hesab alınıb — sağ olun!');
+      } else {
+        toast.error(data?.error || 'Əlavə olunmadı');
+      }
+    } catch {
+      toast.error('Xəta baş verdi');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  // ── RELINK (lost token → 6-digit code, server rotates) ───────────────────
+  const doRelink = async () => {
+    if (!tableNumber || relinkCode.length !== 6 || busy) return;
+    setBusy('relink');
+    setRelinkError('');
+    try {
+      const res = await fetch('/api/orders/qr/relink', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_number: tableNumber, check_code: relinkCode }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        persistCheck({ token: data.checkToken, code: String(data.checkCode), orderId: data.orderId, total: Number(data.total) });
+        setRelinkOpen(false);
+        setRelinkCode('');
+        setCodePanel(String(data.checkCode)); // rotated code — show once
+      } else if (res.status === 404) {
+        setRelinkError('Kod səhvdir');
+      } else if (res.status === 409) {
+        setRelinkOpen(false);
+        toast.success('Hesab alınıb — sağ olun!');
+      } else {
+        setRelinkError(data?.error || 'Xəta baş verdi');
+      }
+    } catch {
+      setRelinkError('Xəta baş verdi');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const activeTableOrder = tableOrder && ACTIVE_STATUSES.includes(tableOrder.status) ? tableOrder : null;
+  const bar: '' | 'create' | 'add' | 'continue' | 'foreign' =
+    check && check.orderId === tableOrder?.id && activeTableOrder
+      ? (cart.length > 0 ? 'add' : 'continue')
+      : (!check && activeTableOrder ? 'foreign' : (cart.length > 0 ? 'create' : ''));
 
   const grouped = products.reduce((acc: any, p: any) => {
     const catName = p.category?.name_az || p.category?.name_en || p.category?.name_ru || 'Digər';
@@ -162,123 +295,191 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
     return acc;
   }, {});
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto p-6">
-        <h1 className="text-3xl font-bold text-center mb-2">Menyu</h1>
-        {tableNumber && <p className="text-center text-gray-500 mb-6">Masa {tableNumber}</p>}
+  const money = (n: number) => `₼${Number(n).toFixed(2)}`;
 
-        {Object.entries(grouped).map(([cat, items]: any) => (
-          <div key={cat} className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 pb-2 border-b">{cat}</h2>
-            <div className="grid gap-4">
-              {items.map((product: Product) => (
-                <div key={product.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4">
-                  {product.image_url && (
-                    <img src={product.image_url} alt="" className="w-16 h-16 rounded-xl object-cover" />
-                  )}
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{product.name_az || product.name_en || product.name_ru}</h3>
-                    <p className="text-gold font-bold">₼{Number(product.price).toFixed(2)}</p>
-                  </div>
-                  <button
-                    onClick={() => addToCart(product)}
-                    className="w-10 h-10 rounded-full bg-gold text-black flex items-center justify-center font-bold text-xl hover:bg-yellow-500 transition-all active:scale-90"
-                  >
-                    +
-                  </button>
-                </div>
-              ))}
+  return (
+    <div className="min-h-screen bg-gray-50 pb-40">
+      <div className="max-w-2xl mx-auto p-6">
+        <h1 className="text-3xl font-bold text-center mb-1">Menyu</h1>
+        {tableNumber && <p className="text-center text-gray-400 text-sm mb-6">Masa {tableNumber}</p>}
+
+        {loading ? (
+          <div className="text-center text-gray-400 text-sm py-16">Yüklənir…</div>
+        ) : (
+          Object.entries(grouped).map(([cat, items]: any) => (
+            <div key={cat} className="mb-8">
+              <h2 className="text-lg font-semibold mb-3">{cat}</h2>
+              <div className="space-y-3">
+                {items.map((product: Product) => {
+                  const inCart = cart.find(i => i.id === product.id)?.quantity || 0;
+                  return (
+                    <div key={product.id} className="bg-white rounded-2xl p-4 flex items-center gap-4">
+                      {product.image_url && (
+                        <img src={product.image_url} alt="" className="w-14 h-14 rounded-xl object-cover" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-[15px] leading-snug">{product.name_az || product.name_en || product.name_ru}</h3>
+                        <p className="text-gray-500 text-sm mt-0.5">{money(product.price)}</p>
+                      </div>
+                      {inCart === 0 ? (
+                        <button
+                          onClick={() => addToCart(product)}
+                          aria-label="Əlavə et"
+                          className="w-9 h-9 rounded-full border border-gray-300 text-gray-700 flex items-center justify-center text-lg font-light hover:border-gray-500 transition-colors active:scale-95"
+                        >+</button>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => decFromCart(product.id)} aria-label="Azalt"
+                            className="w-8 h-8 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center text-base hover:border-gray-500 transition-colors active:scale-95">−</button>
+                          <span className="w-5 text-center text-sm font-semibold">{inCart}</span>
+                          <button onClick={() => addToCart(product)} aria-label="Artır"
+                            className="w-8 h-8 rounded-full border border-gray-300 text-gray-700 flex items-center justify-center text-base hover:border-gray-500 transition-colors active:scale-95">+</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
-      {/* W-A1: post-order status card (polls every 15s) */}
-      {lastOrder && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md">
-          <div className="bg-black text-white rounded-2xl px-5 py-4 shadow-2xl">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-black text-sm tracking-wide">
-                {statusInfo
-                  ? ({ confirmed: 'Qəbul edildi ✓', in_kitchen: 'Hazırlanır…', ready: 'Hazırdır', paid: 'Ödənilib', closed: 'Bağlanıb' } as Record<string, string>)[statusInfo.status] || 'Sifariş göndərildi'
-                  : 'Sifariş göndərildi…'}
-              </span>
-              <button onClick={() => { setLastOrder(null); setStatusInfo(null); }} className="text-white/50 hover:text-white text-xs">✕</button>
-            </div>
-            {statusInfo && (
-              <div className="flex items-center justify-between text-xs text-white/70">
-                <span>
-                  #{String(lastOrder.id).slice(0, 8)} · {statusInfo.item_count ?? '—'} mövqe
-                  {statusInfo.customer_linked ? ' · bonus xallar aktiv' : ''}
-                </span>
-                <span className="font-bold text-white">₼{Number(statusInfo.total).toFixed(2)}</span>
+      {/* Quiet sticky bar — one line: context · total → action */}
+      <AnimatePresence>
+        {bar !== '' && !codePanel && !showCode && !relinkOpen && (
+          <motion.div
+            key={bar}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: 0.18 }}
+            className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-200"
+          >
+            {/* phone — required at creation; hidden on devices that already
+                know the customer (silent reuse of the saved number) */}
+            {bar === 'create' && needsPhoneInput && (
+              <div className="max-w-2xl mx-auto px-6 pt-3">
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="Telefon nömrəniz"
+                  className="w-full bg-transparent outline-none text-sm text-gray-800 placeholder:text-gray-400 pb-2 border-b border-gray-100 focus:border-gray-300 transition-colors"
+                />
+                {phone.trim() !== '' && !phoneValid(phone) && (
+                  <p className="text-[11px] text-red-500 mt-1">Düzgün nömrə daxil edin</p>
+                )}
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* W-A1: optional guest phone (shown while the cart is open) */}
-      {cart.length > 0 && !lastOrder && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md">
-          <div className="bg-white rounded-2xl px-4 py-3 shadow-xl border border-gray-200">
-            <label className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Telefon (ixtiyari — bonus xallar üçün)</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="+994 50 123 45 67"
-              className="mt-1 w-full bg-transparent outline-none text-sm font-medium text-gray-900"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Cart FAB */}
-      <AnimatePresence>
-        {!lastOrder && cart.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
-          >
-            <div className="bg-black text-white rounded-full px-6 py-4 shadow-2xl flex items-center gap-4">
-              <div className="relative">
-                <ShoppingCart size={24} />
-                <span className="absolute -top-2 -right-2 bg-gold text-black text-xs font-black rounded-full w-5 h-5 flex items-center justify-center">
-                  {cartCount}
-                </span>
+            <div className="max-w-2xl mx-auto px-6 py-3.5 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                {bar === 'create' && <span className="text-sm text-gray-800">{cartCount} mövqe · <span className="font-semibold">{money(cartTotal)}</span></span>}
+                {bar === 'add' && <span className="text-sm text-gray-800">{cartCount} mövqe · <span className="font-semibold">{money(cartTotal)}</span></span>}
+                {bar === 'continue' && check && (
+                  <div>
+                    <span className="text-sm text-gray-800">Açıq check · <span className="font-semibold">{money(tableOrder!.total)}</span></span>
+                    {tableOrder!.status && (
+                      <div className="text-[11px] text-gray-400 mt-0.5">{STATUS_AZ[tableOrder!.status] || 'Sifariş göndərildi'}{tableOrder!.customer_linked ? ' · bonus aktiv' : ''}</div>
+                    )}
+                  </div>
+                )}
+                {bar === 'foreign' && tableOrder && (
+                  <div>
+                    <span className="text-sm text-gray-800">Bu cədvəldə açıq check var · <span className="font-semibold">{money(tableOrder.total)}</span></span>
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col items-end">
-                <div className="font-bold">{vatOn ? `₼${cartTotalWithVat.toFixed(2)}` : `₼${cartTotal.toFixed(2)}`}</div>
-                {vatOn && <div className="text-[10px] text-white/60">ƏDV {vatPct}% daxil: ₼{vatEstimate.toFixed(2)}</div>}
-              </div>
-              {vatEnabled && (
-                <button
-                  onClick={() => setApplyVat(v => !v)}
-                  className={`px-3 py-2 rounded-full text-[10px] font-black uppercase tracking-wide transition-all ${vatOn ? 'bg-emerald-500 text-white' : 'bg-white/10 text-white/60'}`}
-                >
-                  ƏDV {vatOn ? 'ON' : 'OFF'}
+              {bar === 'create' && (
+                <button onClick={createCheck} disabled={busy !== '' || !phoneValid(effectivePhone)}
+                  className="text-sm font-semibold text-gray-900 hover:text-black disabled:opacity-40 transition-colors whitespace-nowrap">
+                  {busy === 'create' ? 'Göndərilir…' : 'Check aç →'}
                 </button>
               )}
-              <button
-                onClick={sendToKitchen}
-                disabled={sending}
-                className="bg-black text-white px-4 py-2 rounded-full font-black text-xs hover:bg-gray-800 transition-all active:scale-90 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {sending ? (
-                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
-                  <Send size={14} />
-                )}
-                {sending ? 'Göndərilir...' : 'Göndər'}
-              </button>
+              {bar === 'add' && (
+                <button onClick={addToCheck} disabled={busy !== ''}
+                  className="text-sm font-semibold text-gray-900 hover:text-black disabled:opacity-40 transition-colors whitespace-nowrap">
+                  {busy === 'add' ? 'Əlavə olunur…' : 'Check-ə əlavə et →'}
+                </button>
+              )}
+              {bar === 'continue' && (
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setShowCode(true)} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Kod</button>
+                  <a href="#" onClick={e => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    className="text-sm font-semibold text-gray-900 hover:text-black transition-colors whitespace-nowrap">Davam et →</a>
+                </div>
+              )}
+              {bar === 'foreign' && (
+                <button onClick={() => setRelinkOpen(true)}
+                  className="text-sm font-semibold text-gray-900 hover:text-black transition-colors whitespace-nowrap">
+                  Kodu daxil et →
+                </button>
+              )}
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* One-time code moment (after create / after relink) */}
+      <AnimatePresence>
+        {codePanel && (
+          <motion.div key="code" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/20 flex items-end sm:items-center justify-center">
+            <motion.div initial={{ y: 16 }} animate={{ y: 0 }} exit={{ y: 16, opacity: 0 }} transition={{ duration: 0.18 }}
+              className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-8 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">Check kodunuz</p>
+              <p className="text-4xl font-semibold tracking-[0.3em] text-gray-900 mt-4">{codePanel}</p>
+              <p className="text-xs text-gray-500 mt-4 leading-relaxed">Saxlayın — cihaz dəyişsə belə bu kodla check-inə qayıtsınız.</p>
+              <button onClick={() => setCodePanel(null)}
+                className="mt-6 text-sm font-semibold text-gray-900 hover:text-black transition-colors">Bağla</button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Saved code (client-side; the server never re-serves it) */}
+      <AnimatePresence>
+        {showCode && check && (
+          <motion.div key="showcode" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/20 flex items-end sm:items-center justify-center">
+            <motion.div initial={{ y: 16 }} animate={{ y: 0 }} exit={{ y: 16, opacity: 0 }} transition={{ duration: 0.18 }}
+              className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-8 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">Check kodunuz</p>
+              <p className="text-4xl font-semibold tracking-[0.3em] text-gray-900 mt-4">{check.code}</p>
+              <button onClick={() => setShowCode(false)}
+                className="mt-6 text-sm font-semibold text-gray-900 hover:text-black transition-colors">Bağla</button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Relink — code entry (6 digits) */}
+      <AnimatePresence>
+        {relinkOpen && (
+          <motion.div key="relink" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/20 flex items-end sm:items-center justify-center">
+            <motion.div initial={{ y: 16 }} animate={{ y: 0 }} exit={{ y: 16, opacity: 0 }} transition={{ duration: 0.18 }}
+              className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-8">
+              <p className="text-sm font-medium text-gray-900">Check kodunu daxil edin</p>
+              <p className="text-xs text-gray-500 mt-1">Order açılan anda göstərilən 6 rəqəmli kod.</p>
+              <input
+                value={relinkCode}
+                onChange={e => { setRelinkCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setRelinkError(''); }}
+                inputMode="numeric"
+                autoFocus
+                placeholder="••••••"
+                className="mt-5 w-full text-center text-2xl font-semibold tracking-[0.4em] outline-none border-b border-gray-200 focus:border-gray-400 pb-2 placeholder:tracking-[0.2em] placeholder:text-gray-300"
+              />
+              {relinkError && <p className="text-xs text-red-500 mt-3">{relinkError}</p>}
+              <div className="mt-6 flex items-center justify-between">
+                <button onClick={() => { setRelinkOpen(false); setRelinkCode(''); setRelinkError(''); }}
+                  className="text-sm text-gray-400 hover:text-gray-600 transition-colors">İmtina</button>
+                <button onClick={doRelink} disabled={relinkCode.length !== 6 || busy !== ''}
+                  className="text-sm font-semibold text-gray-900 hover:text-black disabled:opacity-40 transition-colors">
+                  {busy === 'relink' ? 'Qoşulur…' : 'Qoşul →'}
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

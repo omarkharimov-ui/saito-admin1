@@ -1,0 +1,11 @@
+dup phones: 0
+null phones: 0
+orphan orders.customer_id: 0
+tables 410-430 in use: 0
+customers_phone_uq exists: 0
+guest_link_customer exists: 0
+loyalty_product_rules rows: 0
+loyalty_accounts rows: 0
+settings.loyalty_enabled: true
+any 0007777% customers: 0
+any WAG_% staff: 0

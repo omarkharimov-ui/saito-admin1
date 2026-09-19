@@ -1,0 +1,3 @@
+heartbeat: on (5 tokens, 6s cadence)
+beat flake: 500 n=37
+beat flake: 500 n=40

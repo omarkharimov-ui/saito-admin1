@@ -41,7 +41,7 @@ function tRow(tn){return S(`SELECT coalesce(status,'null')||'|'||coalesce(curren
   S(`UPDATE table_floors SET status='empty', current_order_id=NULL, total_amount=0, guest_count=NULL, order_count=0, has_pending=false, bill_requested=false WHERE table_number=${T} AND location_id=${q(LOCA)}`);
   S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'L3_%')`);
   S(`DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'L3_%')`);
-  S(`UPDATE staff SET is_active=false, status='INACTIVE' WHERE name LIKE 'L3_%'`);
+  S(`UPDATE staff SET is_active=false, status='INACTIVE', pin_hash='' WHERE name LIKE 'L3_%'`); // W-A1: house neutralize contract (clear pin)
   const ex=S(`SELECT count(*)::text FROM table_floors WHERE table_number=${T} AND location_id=${q(LOCA)}`);
   if(ex==='0') S(`INSERT INTO table_floors(table_number,status,location_id,organization_id) VALUES(${T},'empty',${q(LOCA)},${q(ORG)})`);
 
@@ -132,7 +132,7 @@ function tRow(tn){return S(`SELECT coalesce(status,'null')||'|'||coalesce(curren
   S(`UPDATE table_floors SET status='empty', current_order_id=NULL, total_amount=0, guest_count=NULL, order_count=0, has_pending=false, bill_requested=false WHERE table_number=${T} AND location_id=${q(LOCA)}`);
   S(`DELETE FROM sessions WHERE user_id IN (${q(mid)},${q(wid)})`);
   S(`DELETE FROM staff_locations WHERE staff_id IN (${q(mid)},${q(wid)})`);
-  S(`UPDATE staff SET is_active=false, status='INACTIVE' WHERE id IN (${q(mid)},${q(wid)})`);
+  S(`UPDATE staff SET is_active=false, status='INACTIVE', pin_hash='' WHERE id IN (${q(mid)},${q(wid)})`); // W-A1: house neutralize contract (clear pin)
 
   const resid=S(`SELECT count(*) FROM orders WHERE table_number=${T}`);
   P('D3-5','cleanup: 0 residue', resid==='0' && tRow(T).startsWith('empty|'), 'orders='+resid+' table='+tRow(T));

@@ -1,7 +1,7 @@
 # HANDOVER — Saito Admin POS (P-series)
 
 **Date:** 2026-09-14 · **Head:** `0c59227` (post-P-6 freeze; `main == origin`)
-**Checkpoint:** `A ⚠️ → E/S ⚠️ → F 🔒 → O 🔒 → K 🔒 → P-1 🔒 → P-2 🔒 → P-3 🔒 → P-4 🔒 → P-5 🔒 → P-6 🔒 → P-7 🔒 (16/16) → P-8 NEXT`
+**Checkpoint (2026-09-19):** `P-9 🔒 → W-A1 🔒 (QR guest identity + M0 loyalty repair) · full frozen reflow re-verified: A 39/39, E/S 54/54, F 35/35, O 38/38, K-L3 8/8, K-L4 16/16, P-9 25/25, P-1 29/29, P-2 13/13, P-3 25/25, P-4 19/19, P-5 10/10, P-6 15/15, W-A1 18/18 — P-7 half-2 + P-8 BLOCKED by Supabase incident 6q5902p2xd9f (API Gateway degraded; re-run commands in W_A1_FREEZE_REPORT_2026-09-19.md §4)`
 
 > **A / E/S are ⚠️ pre-existing blockers, NOT P regressions** (bisection-proven: the
 > failures persist with P-3 triggers disabled). See the disposition block after the P-3
@@ -717,5 +717,94 @@ E/S blocker owner, deliberately not committed here.
 
 ---
 
- *Handover refreshed at P-9 freeze (2026-09-18). Baseline numbers are from live gate runs
-  (`.p9-audit/reflow/`); re-run the §1 commands to re-establish them before starting P-10.*
+## 6. W-A1 — QR GUEST IDENTITY + M0 LOYALTY REPAIR — 🔒 (2026-09-19)
+
+> **⛔ DAIMİ İCRA QAYDASI (user-ratified, 2026-09-19) — BÜTÜN WAVE-LƏRƏ KEÇƏRLİ:**
+> Backend / logic / schema / migration / gate hissələri **avtonom** icra olunur
+> (freeze-and-audit, gate, reflow, commit). **UI hissəsinə çatanda HARD STOP** —
+> UI istifadəçi ilə **BİRLİKDƏ** edilir (birgə nəzərə Alma, lay-out/qərar
+> istifadəçinin təsdiqi ilə). Agent UI-ni tək-təlikə commit etmir.
+
+**Full record:** `W_A1_FREEZE_REPORT_2026-09-19.md` · **Plan/decisions D1–D11:** `W_A1_PLAN.md`.
+
+- **Shipped:** M0 (loyalty tables repair — P-7 09-14 latent regression, earn broken since 09-14), M1 (`customers_phone_uq` + `guest_link_customer`), QR route `customer_phone` extension, new `GET /api/orders/qr/status`, menu phone capture + status card, `CustomerSelect` D10 explicit counters.
+- **Gate evidence:** W-A1 18/18 + route E2E 5/5 (residue 0); P-9 25/25 (REAL-RISK=0); full reflow re-run green on 13/15 units (table in freeze report §2).
+- **Production hardening KEPT:** `src/middleware.ts` (probe 5xx/empty → transient → route re-check; genuine revokes still hard-401) + new `src/instrumentation.ts` (GET socket-race retry, nodejs runtime). Both proven by the P-7 half-2 investigation (§3 freeze report).
+- **Harness alignment:** 7 gate teardowns now clear `pin_hash` (house contract); 66 inert 09-18 fixture rows neutralized (script + asserts in `.w-a1-audit/w_a1_staff_neutralize.cjs`); P-7 gate retry budgets env-tunable (defaults unchanged).
+- **OUTSTANDING (external blocker — Supabase incident 6q5902p2xd9f, "401 errors due to JWT rejections", API Gateway degraded; vendor rollout weekend of 09-18/19):**
+  1. `node .p7-gate.cjs && P7_HALF=2 node .p7-gate.cjs` → expect 16 accounted, 0 REAL-RISK, 0 HARNESS.
+  2. `P8_ALL=1 node .p8-gate.cjs` → expect 2 PASS + 6 EXPECTED-CONFLICT.
+  When both land green, W-A1's freeze is complete in full; no code change expected.
+- **Secret hygiene:** `.audit-*` (09-12 audit artifacts, plaintext service_role key inside) are gitignored + never committed; junk redirect fragments trashed.
+
+---
+
+ *Handover refreshed at W-A1 freeze (2026-09-19). Baseline numbers are from live gate runs
+  (`.w-a1-audit/reflow/`); re-run the §1 commands to re-establish them before starting the
+  next wave (W-A2: add-to-check on active order — D11 product decision).*
+
+---
+
+## 7. TECHNICAL MANAGER OPERATING RULES — **MUTLƏQ / MANDATORY** (user-ratified, 2026-09-19)
+
+> Hər Saito agent/sessiyası üçün bağlayıcı. Bu 12 qayda freeze-and-audit disiplin
+> üzərinə qurulur və onları əvəz ETMİR — genişləndirir.
+
+**1. NEVER DECIDE FROM SUMMARY ALONE.** Previous reports, memory, plans, feature maps,
+agent summaries, commit messages, user claims are NOT sufficient evidence for
+GO / NO-GO / migration / architecture / freeze decisions. Inspect: repository state,
+source code, migrations, live schema, functions/RPCs, triggers, RLS policies, grants,
+constraints/FKs, tests, git status/diff, runtime writer paths, dependencies.
+If evidence cannot be inspected → mark the decision **UNVERIFIED**. Never present
+inference as verified fact.
+
+**2. ALWAYS SEPARATE EVIDENCE FROM INFERENCE.** Structure important findings:
+**Evidence** (directly observed) / **Inference** (what it may mean) / **Risk**
+(what breaks if wrong) / **Decision** (GO / NO-GO / INVESTIGATE / DEFER).
+
+**3. FROZEN MEANS FROZEN.** Do not modify a frozen module/contract/migration boundary/
+business rule/backend gate merely to unblock UX; do not weaken constraints, bypass RLS,
+alter permissions, rewrite business logic, or add compatibility hacks inside the frozen
+boundary. If the boundary must change → stop; only (a) proven production regression or
+(b) a separately user-ratified decision reopens it — always with decision-log entry,
+additive migration, gate + reflow, freeze-report update.
+
+**4. INSPECT BEFORE MODIFYING.** Determine: current implementation, live state,
+dependencies, affected writers/readers, security implications, frozen-boundary impact,
+data implications, rollback/recovery path, required tests. Only then implement.
+
+**5. "TESTS PASS" IS NOT THE ONLY GO SIGNAL.** Passing tests are evidence, not proof
+of architectural correctness. Reject if: frozen-contract violation, unauthorized writer,
+RLS assumption break, migration drift, data inconsistency, unsafe rollback, live-schema
+conflict.
+
+**6. PROTECT THE SCOPE.** Do not expand the task silently. Extra discovered work is
+classified **BLOCKER / REQUIRED / FOLLOW-UP / DEFERRED**; continue only within approved
+scope.
+
+**7. CHALLENGE PREVIOUS DECISIONS WHEN EVIDENCE CHANGES.** Identify the contradiction,
+explain what changed, stop affected work if needed, reassess. Do not defend an old
+decision merely because it was approved.
+
+**8. MANAGER LOOP.** For every significant task: **INSPECT → RECONCILE → IDENTIFY
+RISKS → DECIDE → IMPLEMENT → VERIFY → REPORT.** Never PLAN → CODE directly for
+high-impact work.
+
+**9. MIGRATION DISCIPLINE.** Before changing DB structure: live schema, migration
+history, existing objects, dependencies, FKs, functions/triggers, RLS/policies, data
+state, classification (additive/destructive/corrective/conflicting), rollback path.
+Never create a migration merely because the repo appears to miss an object — the live
+database is part of the evidence.
+
+**10. SECURITY IS NOT A UI FEATURE.** Verify the complete chain: **UI → route/API →
+permission check → RPC/function → RLS/DB constraints → audit**. Missing critical layer
+→ report.
+
+**11. CORRECTNESS OVER SPEED.** A slower verified decision beats a fast migration that
+creates rework. Objective: minimum future rework + maximum correctness.
+
+**12. FINAL DECISION FORMAT.** For significant decisions report: Evidence / Inference /
+Risks / Frozen-boundary impact / Decision (GO / NO-GO / INVESTIGATE / DEFER) / Scope
+(exactly what will and will not change) / Verification (how correctness is proven).
+
+**Insufficient evidence → STOP → INSPECT → RECONCILE → DECIDE. Guessing is a defect.**

@@ -1,0 +1,18 @@
+baseline refunded/partial/voided/refrows/overref = 0/0/0/0/4
+PASS P6-01 refund an UNPAID (confirmed) order -> rejected, no mutation
+PASS P6-02 item refund (Mode 1, waste, 50) -> 1 is_refund row, order partially_refunded, canonical audit
+PASS P6-03 order-level full refund (Mode 2) -> refunded, 1 is_refund row
+PASS P6-04 over-refund (250 > 100 net) -> rejected REFUND_EXCEEDS_PAID, zero mutation
+PASS P6-05 concurrent 2x refund(50) on 100 order -> never over-refunds (net <= 100, cap holds under row lock)
+PASS P6-06 reopen by cashier (no override perm) -> 403 MANAGER_OVERRIDE_REQUIRED, order still paid, payments intact
+PASS P6-07 direct PostgREST RPC cashier-token reopen -> MANAGER_OVERRIDE_REQUIRED (RBAC holds bare-PostgREST too)
+PASS P6-08 identity spoof (cashier token + p_performed_by=manager) -> IDENTITY_MISMATCH
+PASS P6-09 authorized manager reopen -> status new, payments deleted, audit + order outbox present (D-1/D-2 atomic)
+PASS P6-10 second reopen on now-new order -> rejected (no double reversal, no orphan)
+PASS P6-11 partial refund (->partially_refunded) then reopen -> ALL op rows (payment+refund) cleared, status new
+PASS P6-12 D-5/D-6: dead RPCs frozen (EXECUTE = postgres only)
+PASS P6-13 void un-paid order -> cancelled + order.status_changed outbox emitted (D-4)
+PASS P6-13b void a PAID order (direct fn) -> rejected (V1 guard), order stays paid, item not voided
+PASS P6-14 zero NEW drift (baseline restored after cleanup) + zero residue
+
+==== P-6 GATE: 15/15 PASS (ALL GREEN) ====

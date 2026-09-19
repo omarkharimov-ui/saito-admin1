@@ -78,7 +78,40 @@ export async function POST(req: NextRequest) {
     }
 
     const totalFromItems = items.reduce((s: number, i: any) => s + ((i.unit_price || 0) * (i.quantity || 1)), 0);
-    const applyVat = !!body.apply_vat;
+    const applyVat = !!body.applyVat;
+
+    // W-A1 (delegated GO 2026-09-19, W_A1_PLAN.md D1-D5): optional guest identity.
+    // Additive — an absent customer_phone keeps the exact G3 contract (customer_id NULL).
+    let customerId: string | null = null;
+    let customerName: string | null = null;
+    let customerPhone: string | null = null;
+    const phoneIn = typeof body.customer_phone === 'string' ? body.customer_phone.trim() : '';
+    if (phoneIn) {
+      const norm = phoneIn.replace(/[\s-]/g, '');
+      if (!/^\+?[0-9]{8,15}$/.test(norm)) {
+        return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
+      }
+      const nameIn = typeof body.customer_name === 'string' ? body.customer_name.slice(0, 80) : null;
+      const linkRes = await fetch(`${s.url}/rest/v1/rpc/guest_link_customer`, {
+        method: 'POST',
+        headers: s.headers,
+        body: JSON.stringify({ p_phone: phoneIn, p_name: nameIn }),
+      });
+      if (!linkRes.ok) {
+        const t = await linkRes.text();
+        if (t.includes('GUEST_LINK_BAD_PHONE')) {
+          return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
+        }
+        return NextResponse.json({ error: `Customer link failed: ${t}` }, { status: 500 });
+      }
+      const linked = await linkRes.json();
+      if (!linked?.customer_id) {
+        return NextResponse.json({ error: 'Customer link failed: no id returned' }, { status: 500 });
+      }
+      customerId = linked.customer_id;
+      customerName = linked.name ?? null;
+      customerPhone = linked.phone ?? null;
+    }
 
     const insertRes = await fetch(`${s.url}/rest/v1/orders`, {
       method: 'POST',
@@ -94,6 +127,10 @@ export async function POST(req: NextRequest) {
         kitchen_status: 'pending',
         is_draft: false,
         order_type: 'qr_order', // forced server-side; client order_type ignored
+        // W-A1: create-time customer attach (null when no phone — G3 unchanged).
+        customer_id: customerId,
+        customer_name: customerName,
+        customer_phone: customerPhone,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         version: 1,
@@ -161,7 +198,7 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    return NextResponse.json({ success: true, orderId: activeOrderId, total: finalTotal });
+    return NextResponse.json({ success: true, orderId: activeOrderId, total: finalTotal, customer: customerId ? { id: customerId, linked: true } : null });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

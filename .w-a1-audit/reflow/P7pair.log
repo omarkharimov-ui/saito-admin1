@@ -1,0 +1,1 @@
+.w-a1-audit/w_a1_p7_pair.sh: line 15: 79625 Terminated: 15          node .w-a1-audit/w_a1_p7_heartbeat.cjs > $L/P7hb.log 2>&1

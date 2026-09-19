@@ -1,0 +1,8 @@
+M0 preflight 2026-09-19
+loyalty_transactions exists: 0
+loyalty_order_points exists: 0
+fn refs (must be >0, proving the break): 4
+loyalty_accounts rows: 0
+loyalty_accounts exists: 1
+spine trigger present: 1
+svc bypassrls: true

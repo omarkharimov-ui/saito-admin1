@@ -1,0 +1,13 @@
+baseline paid_without_record/mismatch/overpay/refgt = 274/54/13/4
+PASS P5-01 fresh pay -> 1 captured row, paid_amount=SUM(captured), status paid, table occupied
+PASS P5-02 route: p_new_status=paid -> 422 PAYMENT_STATE_FORBIDDEN, order unchanged, no record
+PASS P5-03 route: p_new_status=refunded -> rejected (PAYMENT_STATE_FORBIDDEN), order unchanged
+PASS P5-04 DB: UPDATE orders ->paid with NO record -> PAID_WITHOUT_RECORD, order stays confirmed
+PASS P5-05 DB: record->paid ok, paid->closed ok; order_id re-attach BLOCKED (D-3)
+PASS P5-06 v1 complete_payment_atomic EXECUTE = postgres only (D-2 frozen-dead)
+PASS P5-07 D-4: authenticated INSERT=NO, insert_loc policy dropped, service_role INSERT still ok, ACL shows no INSERT for authenticated
+PASS P5-08 PAID+OCCUPIED valid: table stays occupied after pay (no auto-empty/dirty), paid-order pointer cleared (K-L3 D3-3)
+PASS P5-09 zero NEW drift: baseline (paid_without_record/mismatch/overpay/refgt) unchanged after all P5 ops
+PASS P5-10 zero residue: P5_ staff inactive, probe orders/op-rows/keys gone, table 995 reset
+
+==== P-5 GATE: 10/10 PASS (ALL GREEN) ====

@@ -62,7 +62,7 @@ function cleanTable(tn){
   S(`UPDATE shifts SET closed_at=COALESCE(closed_at,now()), status='CLOSED', auto_closed=true, auto_closed_at=COALESCE(auto_closed_at,now()) WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'L4_%') AND (closed_at IS NULL OR status<>'CLOSED')`);
   S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'L4_%')`);
   S(`DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'L4_%')`);
-  S(`UPDATE staff SET is_active=false, status='INACTIVE' WHERE name LIKE 'L4_%'`);
+  S(`UPDATE staff SET is_active=false, status='INACTIVE', pin_hash='' WHERE name LIKE 'L4_%'`); // W-A1: house neutralize contract (clear pin)
   const ex=S(`SELECT count(*)::text FROM table_floors WHERE table_number=${T} AND location_id=${q(LOCA)}`);
   if(ex==='0') S(`INSERT INTO table_floors(table_number,status,location_id,organization_id) VALUES(${T},'empty',${q(LOCA)},${q(ORG)})`);
   const PROD=S('SELECT id::text FROM products ORDER BY created_at LIMIT 1').split('\n')[0].trim();
@@ -211,7 +211,7 @@ function cleanTable(tn){
   cleanTable(T);
   S(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'L4_%')`);
   S(`DELETE FROM staff_locations WHERE staff_id IN (SELECT id FROM staff WHERE name LIKE 'L4_%')`);
-  S(`UPDATE staff SET is_active=false, status='INACTIVE' WHERE name LIKE 'L4_%'`);
+  S(`UPDATE staff SET is_active=false, status='INACTIVE', pin_hash='' WHERE name LIKE 'L4_%'`); // W-A1: house neutralize contract (clear pin)
   const resid=S(`SELECT count(*)::text FROM orders WHERE table_number=${T} AND location_id=${q(LOCA)}`);
   const residT=S(`SELECT count(*)::text FROM table_floors WHERE table_number=${T} AND location_id=${q(LOCA)} AND status<>'empty'`);
   const residStaff=S(`SELECT count(*)::text FROM staff WHERE name LIKE 'L4_%' AND is_active=true`);

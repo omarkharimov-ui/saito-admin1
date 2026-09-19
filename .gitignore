@@ -68,3 +68,8 @@ SECRETS.local.md
 
 # P-7 gate runtime resume-state (not a deliverable)
 .p7-fixture.json
+
+# W-A1 (2026-09-19): legacy audit artifacts contain plaintext service_role key — NEVER commit
+.audit-*.cjs
+.audit-*.json
+.audit-*.txt

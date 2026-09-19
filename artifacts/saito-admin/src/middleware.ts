@@ -72,24 +72,50 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${supabaseUrl}/rest/v1/sessions?select=expires_at,role,status,revoked_at&token=eq.${encodeURIComponent(token)}&limit=1`, {
-      headers: {
-        'apikey': serviceRoleKey,
-        'Authorization': `Bearer ${serviceRoleKey}`,
-      },
-    });
-
+    // Session probe with one retry: the edge-runtime fetch pool races the PostgREST
+    // LB's keep-alive reaping (proven 2026-09-19: parallel probe 14x200 + 1xEPROTO;
+    // sustained false-401 wave on VALID tokens during P-7 half-2 while identical
+    // non-edge probes stayed 200). A transient probe failure must NOT be reported as
+    // "unauthorized" (that bounces live POS staff to login mid-service): retry once
+    // on a fresh connection; if it still fails, fall through to the catch contract
+    // below — the request continues and the route re-checks the session properly.
+    const probeUrl = `${supabaseUrl}/rest/v1/sessions?select=expires_at,role,status,revoked_at&token=eq.${encodeURIComponent(token)}&limit=1`;
+    const probeHeaders = { 'apikey': serviceRoleKey, 'Authorization': `Bearer ${serviceRoleKey}` };
+    let response = await fetch(probeUrl, { headers: probeHeaders });
     if (!response.ok) {
-      return isApi ? apiUnauthorized(request) : pageUnauthorized(request);
+      try { await response.body?.cancel?.(); } catch { /* noop */ }
+      response = await fetch(probeUrl, { headers: probeHeaders, cache: 'no-store' });
     }
 
-    const sessions = await response.json();
-    const session = Array.isArray(sessions) ? sessions[0] : null;
+    if (!response.ok) {
+      // Still failing after retry = transient infra (pooler/LB reset). Do NOT 401:
+      // let the request continue; the route re-checks the session and answers
+      // properly (or the client's retry handles it).
+      throw new Error(`session probe failed after retry: HTTP ${response.status}`);
+    }
+
+    let sessions = await response.json();
+    let session = Array.isArray(sessions) ? sessions[0] : null;
+
+    // Transiently EMPTY result for an existing token (edge-pool race, proven
+    // 2026-09-19) must not bounce live staff to login: retry the probe once on a
+    // fresh connection. Still empty → let the request continue; the route
+    // re-checks the session and answers properly (genuinely bad tokens still
+    // 401 at the route — security semantics preserved, middleware stays a
+    // pre-filter).
+    if (!session) {
+      try { await response.body?.cancel?.(); } catch { /* noop */ }
+      const retry = await fetch(probeUrl, { headers: probeHeaders, cache: 'no-store' });
+      if (retry.ok) {
+        const rows = await retry.json();
+        session = Array.isArray(rows) ? rows[0] : null;
+      }
+      if (!session) return NextResponse.next();
+    }
 
     // Contract §3: revoked (logout / force_logout / status-revoke) session
     // must be rejected even before it expires.
-    if (!session
-      || session.revoked_at
+    if (session.revoked_at
       || session.status === 'REVOKED'
       || new Date(session.expires_at).getTime() < Date.now()) {
       return isApi ? apiUnauthorized(request) : pageUnauthorized(request);

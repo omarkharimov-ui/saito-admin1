@@ -15,6 +15,25 @@
 > M1b), 10 yeni FK (1 RESTRICT), staff fixture purge (1,108→53 real, pool=9), 14 frozen
 > gate + P-9 gate re-run **GREEN** (zero residue). Sənəd: `P9_FREEZE_REPORT_2026-09-18.md`.
 >
+> **WAVE QƏRARLARI (user-ratified, 2026-09-19 — canonical):**
+> - **Q2 Loyalty tiers → CUT/defer.** Əsas loyalty saxlanılır (M0-da repair olundu); tiers/birthday UI deferred list-ə.
+> - **Q3 Gift cards → BUILD (minimal):** satış/redeem/balance/report + bar-tab; UI istifadəçilə birlikdə (hard-stop qaydası).
+> - **Q4 Waitlist → DEFER (provider-dependent):** backend hazırkı halda FROZEN qalır; SMS notification provider qərarından ayrılır (abstraction).
+> - **Q7 Terminal provider → INVESTIGATE, NO LOCK:** əvvəl capability matrix (API/SDK, card-present, offline-auth, pre-auth, capture/void/refund, chargeback/webhook, pay-at-table, device mgmt, country/acquirer, settlement) → sonra seçim.
+> - **Q8 Offline → BUILD (controlled offline):** `local operation → durable queue → idempotency → reconnect → sync → conflict → audit`; architecture contract İNDİ, implementation ayrıca wave (frozen backend-ə toxunmadan).
+> - **Q10 Push → BUILD (abstraction):** `device → user/customer → token → platform → consent/status`; provider sonrakı qərar.
+> - **ICRA SIRASI (user):** C-16 → commit/push → Wave A: 1) add-to-check 2) customer timeline 3) gift card minimal UI 4) daily checklists 5) device registry/print routing → loyalty/waitlist SMS deferred, push abstraction; PARALEL: Q7 provider discovery (implementation lock YOX).
+>
+> **W-A1 status (2026-09-19):** QR qonaq identifikasiyası + anon client girişi **FROZEN** —
+> M0 loyalty cədvəlləri repair (P-7 09-14 latent regression, earn 09-14-dan qırıq idi),
+> M1 `customers_phone_uq` + `guest_link_customer`, QR `customer_phone` extension, yeni
+> `GET /api/orders/qr/status`, menu phone capture + status card. W-A1 gate **18/18** +
+> route E2E **5/5** (residue 0). Full frozen reflow yenidən GREEN (13/15 vahid); P-7 half-2
+> + P-8 = Supabase incident 6q5902p2xd9f (API Gateway degraded) ilə BLOCKED — re-run
+> komandaları `W_A1_FREEZE_REPORT_2026-09-19.md` §4-də. Production hardening saxlanıldı:
+> `middleware.ts` (transient probe → route re-check) + `instrumentation.ts` (GET
+> socket-race retry).
+>
 > **Menecer map sync (2026-09-19):** ChatGPT "menecer" A–Z master feature map + SAITO OS
 > architecture istifadəçi tərəfindən təsdiqləndi və bu fayla xalça edildi (§0.3 A–Z
 > cross-reference, §8.1 must-have checklist). Bu fayl = yeganə canonical plan map.
@@ -147,12 +166,12 @@ dən kənarda, idempotent outbox** ilə (`outbox_events` + `emit_outbox_event`).
 | I | Inventory (stock, recipes, purchasing, waste) | 16 Inventory | ✅ parity |
 | J | Jobs / Tasks / Checklists | 21 Tasks/Checklists | ✅ onboarding / ❌ daily checklists |
 | K | Kitchen / KDS | 15 Kitchen/KDS | ✅ FROZEN |
-| L | Loyalty | 7 Loyalty | ✅ engine / ⚪ tiers+UI (Q2) |
+| L | Loyalty | 7 Loyalty | ✅ engine **repair M0 (09-19)** / ⚪ tiers+UI (Q2) |
 | M | Menu Management | 10 Menu Engine | ✅ |
 | N | Notifications | 23 Notifications | ✅ in-app+WhatsApp / ❌ SMS+email |
 | O | Orders (types + lifecycle) | 4 Orders | ✅ FROZEN |
 | P | Payments (tenders, refund, reconciliation) | 5 Billing+Payments | ✅ core FROZEN / ❌ offline+terminal (Q7) |
-| Q | QR Ordering | 30 Website/QR | ✅ QR (anon access = Wave A) |
+| Q | QR Ordering | 30 Website/QR | ✅ QR + **anon access + qonaq identifikasiya (W-A1, 09-19)**; add-to-check = W-A2 |
 | R | Reservations | 11 Reservations | ✅ core / 🟡 waitlist SMS |
 | S | Staff / Shifts | 20 Shifts/Labor | ✅ |
 | T | Tableside (waiter handheld) | 12 Tableside | ✅ tablet POS / ❌ hardware (Q7) |

@@ -85,6 +85,27 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
   };
 
   const [sending, setSending] = useState(false);
+  // W-A1: optional guest phone (loyalty/CRM) + post-order status card with polling.
+  const [phone, setPhone] = useState('');
+  const [lastOrder, setLastOrder] = useState<{ id: string; total: number } | null>(null);
+  const [statusInfo, setStatusInfo] = useState<any>(null);
+
+  useEffect(() => {
+    if (!lastOrder || !tableNumber) return;
+    let alive = true;
+    const poll = async () => {
+      try {
+        const r = await fetch(`/api/orders/qr/status?table=${tableNumber}`, { cache: 'no-store' });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (!alive) return;
+        if (d?.has_order && d.order?.id === lastOrder.id) setStatusInfo(d.order);
+      } catch { /* transient; next poll retries */ }
+    };
+    poll();
+    const iv = setInterval(poll, 15_000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [lastOrder, tableNumber]);
 
   const sendToKitchen = async () => {
     if (!tableNumber || cart.length === 0 || sending) return;
@@ -98,6 +119,7 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
         total_price: item.price * item.quantity,
       }));
 
+      const phoneTrim = phone.trim();
       const res = await fetch('/api/orders/qr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,14 +128,19 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
           items,
           order_type: 'qr_order',
           apply_vat: applyVat && vatEnabled,
+          ...(phoneTrim ? { customer_phone: phoneTrim } : {}),
         }),
       });
+      const data = await res.json().catch(() => null);
 
       if (res.ok) {
-        toast.success('Sifarişiniz qəbul edildi!');
+        toast.success(data?.customer ? 'Sifariş qəbul edildi — bonus xallarınız yığılır!' : 'Sifarişiniz qəbul edildi!');
         setCart([]);
+        setPhone('');
+        setStatusInfo(null);
+        setLastOrder({ id: data.orderId, total: data.total });
       } else {
-        toast.error('Xəta baş verdi');
+        toast.error(data?.error || 'Xəta baş verdi');
       }
     } catch {
       toast.error('Xəta baş verdi');
@@ -167,9 +194,50 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
         ))}
       </div>
 
+      {/* W-A1: post-order status card (polls every 15s) */}
+      {lastOrder && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md">
+          <div className="bg-black text-white rounded-2xl px-5 py-4 shadow-2xl">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-black text-sm tracking-wide">
+                {statusInfo
+                  ? ({ confirmed: 'Qəbul edildi ✓', in_kitchen: 'Hazırlanır…', ready: 'Hazırdır', paid: 'Ödənilib', closed: 'Bağlanıb' } as Record<string, string>)[statusInfo.status] || 'Sifariş göndərildi'
+                  : 'Sifariş göndərildi…'}
+              </span>
+              <button onClick={() => { setLastOrder(null); setStatusInfo(null); }} className="text-white/50 hover:text-white text-xs">✕</button>
+            </div>
+            {statusInfo && (
+              <div className="flex items-center justify-between text-xs text-white/70">
+                <span>
+                  #{String(lastOrder.id).slice(0, 8)} · {statusInfo.item_count ?? '—'} mövqe
+                  {statusInfo.customer_linked ? ' · bonus xallar aktiv' : ''}
+                </span>
+                <span className="font-bold text-white">₼{Number(statusInfo.total).toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* W-A1: optional guest phone (shown while the cart is open) */}
+      {cart.length > 0 && !lastOrder && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md">
+          <div className="bg-white rounded-2xl px-4 py-3 shadow-xl border border-gray-200">
+            <label className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Telefon (ixtiyari — bonus xallar üçün)</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="+994 50 123 45 67"
+              className="mt-1 w-full bg-transparent outline-none text-sm font-medium text-gray-900"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Cart FAB */}
       <AnimatePresence>
-        {cart.length > 0 && (
+        {!lastOrder && cart.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 100 }}
             animate={{ opacity: 1, y: 0 }}

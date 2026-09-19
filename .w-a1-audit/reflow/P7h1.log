@@ -1,0 +1,22 @@
+P-7 FIXTURE: built half-1 (C-1..C-8) tables 1504-1516; state in .p7-fixture.json
+warmup: probing all tokens...
+  WARMUP ok MGR 200
+  WARMUP ok CASH 200
+  WARMUP ok MGR2 200
+  WARMUP ok OWN 200
+  WARMUP ok CASH2 200
+P-7 CONCURRENCY GATE — baseline refunded/partial/voided/refrows/overref = 0/0/0/0/4 (half C-1..C-8 )
+  PASS               C-1 pay∥pay same-key -> ONE captured op, paid=100, exactly-once (200/replay or 200+409)
+  EXPECTED-CONFLICT  C-2 pay∥pay diff-key -> ONE captured, paid=100, no overpay (2nd PAYMENT_EXCEEDS_REMAINING)
+  EXPECTED-CONFLICT  C-3 pay∥cancel -> EXACTLY one outcome (paid+1op OR cancelled+0op), never paid+cancelled
+  PASS               C-4 pay∥add_item -> serialize on orders; no overpay (paid<=total); paid requires op-row
+  PASS               C-5 pay∥release_paid_table -> paid order NOT orphaned; table+order consistent (no deadlock, disjoint locks)
+  EXPECTED-CONFLICT  C-6 pay∥dismiss -> a PAID order is NEVER cancelled-with-captured-money (P-2 guard backstop)
+  PASS               C-7 pay∥drawer-close -> disjoint locks, no 40P01, pay unaffected
+  EXPECTED-CONFLICT  C-8 reopen∥pay -> no paid+deleted-ledger ghost (never paid+0op nor new+captured-op)
+
+────────────────────────────────────────────────────────────
+P-7 GATE SUMMARY (half 1): PASS=4 EXPECTED-CONFLICT=4 REAL-RISK=0 HARNESS-FAILURE=0
+baseline->after refunded/partial/voided/refrows/overref = 0/0/0/0/4 -> 0/0/0/0/4
+half-1: NO cleanup — residue kept for half-2 (P7_HALF=2).
+H1_EXIT=0

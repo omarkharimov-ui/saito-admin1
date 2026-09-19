@@ -1,0 +1,27 @@
+PASS A1 INSERT amount=0 rejected (amount>0 CHECK)
+PASS A2 INSERT amount<0 rejected (amount>0 CHECK)
+PASS A4 UPDATE amount rejected (PAYMENT_RECORD_IMMUTABLE)
+PASS A5 UPDATE method rejected (immutability)
+PASS A6 UPDATE is_refund rejected (immutability)
+PASS A8 UPDATE payment_method ALLOWED (soft-delete marker, not blocked)
+PASS A7a P-2 reflow: captured->settled legal (still allowed)
+PASS A7b P-2 reflow: settled->pending illegal (still rejected)
+PASS A4b UPDATE amount (post payment_method) rejected
+PASS A9 DELETE rejected without trusted flag (PAYMENT_RECORD_IMMUTABLE)
+PASS A10 correction/new refund row INSERT allowed (append-only)
+PASS B1 underpaid -> 'paid' BLOCKED (PAYMENT_INCOMPLETE)
+PASS B2 underpaid -> 'closed' BLOCKED (PAYMENT_INCOMPLETE)
+PASS B3 exact-amount -> 'paid' ALLOWED
+PASS B4 exact-amount -> 'closed' ALLOWED
+PASS B5 zero-amount (void) close NOT over-blocked (guard only hits 0<paid<total)
+PASS B6 boundary: 39/40 (under by 1.00) -> 'paid' still BLOCKED (0.01 tolerance)
+PASS C1 reopen_order_atomic trusted DELETE works (P-3 exception path, no regression)
+PASS H1 pay exact (100/100) -> 200 paid
+PASS H2 pay overpay (150/100) -> rejected: PAYMENT_EXCEEDS_REMAINING, 0 rows, order not paid
+PASS H3 pay underpay (23/100) -> partial row recorded BUT order stays OPEN (confirmed, not paid)
+PASS H4 duplicate payment (same idempotency key) -> exactly once (1 row)
+PASS H5a P-1 reflow: loc-B cashier -> loc-B order ALLOWED (no over-block)
+PASS H5b P-1 reflow: loc-A cashier -> loc-B order DENIED (403 LOCATION_MISMATCH)
+PASS Z1 zero residue: P3_ staff=0, probe orders=0, payments=0
+
+===== P3 GATE: 25/25 PASS =====

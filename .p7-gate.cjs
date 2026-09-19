@@ -58,7 +58,12 @@ const bodyOf=o=>{try{return (o&&o.data&&(o.data.error||o.data.message))||o.body|
 const AUTH_FLAKE=/Invalid or expired session|Invalid session|Session expired|Session revoked|Unauthenticated|Too many requests/i;
 const authFlake=o=>o&&((o.status===401)||(o.status===400&&AUTH_FLAKE.test(bodyOf(o)))||(o.status===500&&/fetch failed/i.test(bodyOf(o))));
 // transport WITH retry for network blips AND transient auth flakes (wait out a degraded window).
-async function http(path,body,token,method){let last;for(let i=0;i<6;i++){last=await httpRaw(path,body,token,method);const net=/ERR |ECONNRESET|socket hang up/i.test(last.body||'');const flake=!!token&&authFlake(last);if(!(net||flake))return last;await sleep(Math.min(3000,700*(i+1)));}return last;}
+ // Retry budget is env-tunable (W-A1 2026-09-19): default 6 is the frozen contract;
+ // P7_HTTP_RETRIES/P7_BACKOFF_MS let an operator out-wait a long Class-C degraded
+ // window without touching business semantics (a flake stays a flake, never a finding).
+ const HTTP_RETRIES=parseInt(process.env.P7_HTTP_RETRIES||'6',10);
+ const HTTP_BACKOFF=parseInt(process.env.P7_BACKOFF_MS||'700',10);
+ async function http(path,body,token,method){let last;for(let i=0;i<HTTP_RETRIES;i++){last=await httpRaw(path,body,token,method);const net=/ERR |ECONNRESET|socket hang up/i.test(last.body||'');const flake=!!token&&authFlake(last);if(!(net||flake))return last;await sleep(Math.min(4500,HTTP_BACKOFF*(i+1)));}return last;}
 const transErr=o=>!o||o.status===0||/ERR |ECONNRESET|socket hang up|client-timeout/i.test(o.body||'')||authFlake(o);
 // Per-test health gate (root cause fix, proven 2026-09-15): the 2-day-old `next dev` process
 // intermittently drops Supabase REST fetches under load (parallel probe: 14x200+1x500 "fetch
@@ -68,27 +73,31 @@ const transErr=o=>!o||o.status===0||/ERR |ECONNRESET|socket hang up|client-timeo
 // zero side effects) and STALL until it's healthy — never fire a race inside a measured
 // degraded window. If the window outlasts the gate, the flake guards classify HARNESS-FAILURE
 // (never hollow PASS / never false REAL-RISK).
-async function healthGate(){
-  for(let i=0;i<4;i++){
-    const p=await httpRaw('/api/orders?limit=1',undefined,MGR,'GET');
-    if(p.status!==0&&!authFlake(p))return true;
-    await sleep(5000);
-  }
-  return false;
-}
+ const HG_ATTEMPTS=parseInt(process.env.P7_HG_ATTEMPTS||'4',10);
+ const HG_GAP=parseInt(process.env.P7_HG_GAP_MS||'5000',10);
+ async function healthGate(){
+   for(let i=0;i<HG_ATTEMPTS;i++){
+     const p=await httpRaw('/api/orders?limit=1',undefined,MGR,'GET');
+     if(p.status!==0&&!authFlake(p))return true;
+     await sleep(HG_GAP);
+   }
+   return false;
+ }
 async function G(tag){if(!(await healthGate()))console.log('  [healthGate] still flaky before '+tag+' — flake guards active');}
 // Per-token auth warmup: probe GET /api/orders (orders.view, zero side effects) until each
 // known-valid token stops flaking. Pre-warms the dev-server's PostgREST/pooler connections
 // so the race legs don't start inside a degraded window (root cause of half-2's 401/400s).
 const WARM_NAMES=['MGR','CASH','MGR2','OWN','CASH2'];
-async function warmupAuth(){
-  let allOk=true;
-  for(let i=0;i<TOKS.length;i++){
-    let last;
-    for(let t=0;t<8;t++){
+ const WARM_ATTEMPTS=parseInt(process.env.P7_WARM_ATTEMPTS||'8',10);
+ const WARM_GAP=parseInt(process.env.P7_WARM_GAP_MS||'500',10);
+ async function warmupAuth(){
+   let allOk=true;
+   for(let i=0;i<TOKS.length;i++){
+     let last;
+     for(let t=0;t<WARM_ATTEMPTS;t++){
       last=await httpRaw('/api/orders?limit=1',undefined,TOKS[i],'GET');
-      if(!(authFlake(last)||last.status===0)) break;
-      await sleep(Math.min(2500,500*(t+1)));
+       if(!(authFlake(last)||last.status===0)) break;
+       await sleep(Math.min(4000,WARM_GAP*(t+1)));
     }
     const good=last.status!==0&&!authFlake(last);
     if(!good){allOk=false;console.log('  WARMUP FAIL '+WARM_NAMES[i]+' last='+last.status+' '+(last.body||'').slice(0,80));}
@@ -101,7 +110,9 @@ const SVC=(fs.readFileSync('artifacts/saito-admin/.env.local','utf8').split('\n'
 // rpc = Supabase REST direct (service role). The *_atomic fns do their own p_token session
 // lookup; under a parallel burst that lookup can transiently flake and return
 // "Invalid or expired session" for a KNOWN-VALID token -> retry it (a blip is not a finding).
-async function rpc(fn,args){let last;for(let i=0;i<4;i++){try{const r=await fetch('https://jbxmlnsicbfkbsatnoej.supabase.co/rest/v1/rpc/'+fn,{method:'POST',headers:{'apikey':SVC,'Authorization':'Bearer '+SVC,'Content-Type':'application/json'},body:JSON.stringify(args||{})});let d=null;try{d=await r.json();}catch{}last={status:r.status,data:d,body:JSON.stringify(d)};const b=last.body||'';const flake=/Invalid or expired session|Invalid session|Unauthenticated|Session expired|Session revoked|expired session/i.test(b);if(!flake)return last;}catch(e){last={status:0,body:'ERR '+e.message};if(!/ERR /.test(last.body))return last;}await sleep(650*(i+1));}return last;}
+ const RPC_RETRIES=parseInt(process.env.P7_RPC_RETRIES||'4',10);
+ const RPC_BACKOFF=parseInt(process.env.P7_RPC_BACKOFF_MS||'650',10);
+ async function rpc(fn,args){let last;for(let i=0;i<RPC_RETRIES;i++){try{const r=await fetch('https://jbxmlnsicbfkbsatnoej.supabase.co/rest/v1/rpc/'+fn,{method:'POST',headers:{'apikey':SVC,'Authorization':'Bearer '+SVC,'Content-Type':'application/json'},body:JSON.stringify(args||{})});let d=null;try{d=await r.json();}catch{}last={status:r.status,data:d,body:JSON.stringify(d)};const b=last.body||'';const flake=/Invalid or expired session|Invalid session|Unauthenticated|Session expired|Session revoked|expired session/i.test(b);if(!flake)return last;}catch(e){last={status:0,body:'ERR '+e.message};if(!/ERR /.test(last.body))return last;}await sleep(RPC_BACKOFF*(i+1));}return last;}
 let PASS=0,CONFLICT=0,RISK=0,HARNESS=0; const results=[];
 function R(id,name,cls,ok,evidence,note){
   if(cls==='PASS')PASS++;else if(cls==='EXPECTED-CONFLICT')CONFLICT++;else if(cls==='REAL-RISK')RISK++;else HARNESS++;
@@ -127,7 +138,11 @@ const O=i=>OIDL[i];
 // append-only (F-04: cannot DELETE, only archive), and order_table_archive_guard blocks
 // orders on archived tables + enforce_order_table_location blocks cross-location same numbers.
 // So each run consumes a new block [TBASE, TBASE+12] with NO table_floors row in it (any location).
-const findFreeBase=()=>{ let base=1200; for(let t=0;t<200;t++){ const c=Sx(`SELECT count(*)::text FROM table_floors WHERE table_number BETWEEN ${base} AND ${base+12}`).out; if(c==='0') return base; base+=16; } throw new Error('no free table base found'); };
+// Free = no table_floors rows AND no ACTIVE orders in the range. (Killed runs can
+// leave terminal-unreached orders on a reused base — idx_orders_active_table then
+// crashes the next fixture build; proven 2026-09-19: base 1504.)
+const ACTIVE_ORD_SQL=`SELECT count(*)::text FROM orders WHERE table_number BETWEEN ${'{b}'} AND ${'{b}'}+12 AND status NOT IN ('paid','cancelled','closed','refunded','partially_refunded','voided')`;
+const findFreeBase=()=>{ let base=1200; for(let t=0;t<200;t++){ const c=Sx(`SELECT count(*)::text FROM table_floors WHERE table_number BETWEEN ${base} AND ${base+12}`).out; const o=Sx(ACTIVE_ORD_SQL.replaceAll('{b}',String(base))).out; if(c==='0'&&o==='0') return base; base+=16; } throw new Error('no free table base found'); };
 const OST=[ 'new','new','confirmed','new','new','new','new','new','new','new','closed','new','new' ];
 let PROD0=crypto.randomUUID(), PROD1=crypto.randomUUID(), PROD2=crypto.randomUUID();
 let SHIFT_ID=crypto.randomUUID(), DRW_ID=crypto.randomUUID();
@@ -228,7 +243,7 @@ const cleanup=()=>{const list=OIDL.map(q).join(',');
     SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);
   // Final (half-2) teardown: deactivate staff (delete blocked by trg_staff_prevent_delete),
   // drop sessions/shifts/drawer/staff_locations. Zero-residue target = staff INACTIVE (inert).
-  Sx(`UPDATE staff SET is_active=false,status='INACTIVE' WHERE name LIKE 'P7%'`);
+  Sx(`UPDATE staff SET is_active=false,status='INACTIVE',pin_hash='' WHERE name LIKE 'P7%'`); // W-A1: house neutralize contract (clear pin) — keeps P-9 S5.1/S5.4b green post-reflow
   Sx(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'P7%')`);
   Sx(`DELETE FROM manager_overrides WHERE requested_by IN (SELECT id FROM staff WHERE name LIKE 'P7%')`);
   Sx(`DELETE FROM shifts WHERE id=${q(SHIFT_ID)}`);

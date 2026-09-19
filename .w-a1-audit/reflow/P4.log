@@ -1,0 +1,21 @@
+PASS P4-01 keyed exact duplicate -> one effect; replay has idempotent+current layers
+PASS P4-02 keyless pay -> 400 IDEMPOTENCY_KEY_REQUIRED + zero mutation
+PASS P4-03 double-click (concurrent same key) -> exactly one effect, one replay
+PASS P4-04 network retry (same key, sim lost response) -> replay, still one effect
+PASS P4-06 same key + different amount -> 409 IDEMPOTENCY_CONFLICT + zero mutation
+PASS P4-07 same key + different order -> 409 + zero mutation on order B
+PASS P4-08 different keys -> independent (both charged, full 100, 2 rows)
+PASS P4-09 refund double-click (same key) -> one refund row, second = replay
+PASS P4-10 refund same-key replay AFTER state change -> current=LIVE (refund_amount=60), original=frozen snapshot (D-5 freshness)
+PASS P4-11 concurrent IDENTICAL (same key) -> one effect, one replay
+PASS P4-12 concurrent DIFFERENT keys (full 100 x2) -> no double-charge (paid=100)
+PASS P4-13 failed (overpay) does NOT consume key; corrected retry same key succeeds (D-7)
+PASS P4-15 replay + rejected mismatch -> order ledger/version UNCHANGED (zero mutation)
+PASS P4-16 exactly-once ledger effect across all duplicate tests
+PASS P4-17 PK (namespace,key): duplicate insert REJECTED (PK violation)
+PASS P4-17b namespace isolation: same key in refund namespace = independent (allowed)
+PASS P4-18 TTL pruner: expired key deleted, live key kept
+PASS P4-19 redundant key_unique GONE + scoped PK (namespace,key) present
+PASS P4-90 zero residue: P4_ staff inactive, probe orders + p4: keys gone
+
+==== P-4 GATE: 19/19 PASS (ALL GREEN) ====

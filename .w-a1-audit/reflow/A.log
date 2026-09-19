@@ -1,0 +1,60 @@
+
+===== AUTH =====
+PASS A01 unauthenticated API -> 401  
+PASS A02 wrong PIN -> 401 generic  
+PASS A03 correct PIN -> 200 + token  
+PASS A04 IP brute-force: 10 wrong/5min -> next request 429  
+PASS A05 5 attributed failures -> staff lock 15min  
+PASS A06 lock auto-expiry -> login works  
+PASS A07 banned PIN 1234 -> 401  
+PASS A08 weak/seed-hash staff auto-suspended (G5) — none can log in  
+
+===== SESSION =====
+PASS A09 expired session -> 401  
+PASS A10 revoked session -> 401 (NEW FIX)  
+PASS A11 force logout -> 401 (NEW FIX)  
+PASS A12 disabled staff -> existing session 401  
+PASS A13 parallel requests same token -> deterministic (no random 401)  
+PASS A14 pin change invalidates old token  
+
+===== RBAC (DB SSOT has_permission + HTTP e2e) =====
+PASS A15 cashier -> payments.refund DENY (SSOT)  
+PASS A16 waiter -> discount.approve DENY (SSOT)  
+PASS A17 manager -> void.approve + payments.refund ALLOW (SSOT)  
+PASS A16e2e waiter HTTP >20% discount: RBAC SSOT deny (role-guard nuance -> module D)  
+PASS A18 unauthorized RPC (waiter set_staff_status) -> PERMISSION_DENIED  
+PASS A19 Location A token -> Location B resource DENY (IDOR)  
+PASS A20 no hardcoded admin bypass in /api routes  
+
+===== LOCATION ISOLATION (DB-level) =====
+PASS Z-1 LOC_B staff authorize on LOC_A -> location_denied  
+PASS Z-2 LOC_B staff authorize on own LOC_B (payments.refund) -> allowed=true (mgr has perm)  
+PASS Z-3 anon PostgREST -> 0 rows on orders/tables (RLS deny)  
+
+===== OVERRIDE (§8) =====
+PASS O-1 self-approve override -> DENIED  
+PASS O-2 override request audited (operation_logs)  
+PASS O-3 expired approved override -> execution BLOCKED (execution-time expiry)  
+
+===== AUDIT (§9) =====
+PASS A21 failed login audited  
+PASS A22 successful login audited  
+PASS A23 lockout audited  
+PASS A24 role/status change audited (staff_suspended/enabled events)  
+PASS A25 permission denied audited  
+PASS A26 force logout audited (audit_logs_canonical)  
+PASS A27 override audited (request+approve/deny)  
+PASS A-SEP security events != business audit (separate tables)  
+
+===== CONCURRENCY (§13) =====
+PASS C-1 2 simultaneous attributed failures -> atomic counter (1..3, no lost update)  
+PASS C-2 login+disable race -> invariant holds (token cannot authenticate after disable)  
+PASS C-3 2 concurrent status changes -> deterministic final state  
+PASS C-4 concurrent double-approve -> single final status (no double-approve)  
+
+===== CLEANUP =====
+cleanup done; active A_RT staff left = 0
+
+========== A-MODULE REGRESSION REPORT v2 ==========
+TOTAL 39 | PASS 39 | FAIL 0 | critical-area FAIL 0
+===================================================

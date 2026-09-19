@@ -87,7 +87,7 @@ const cleanup=()=>{const list=OIDS.map(q).join(',');
       DELETE FROM order_items WHERE order_id IN (${list});
       DELETE FROM orders WHERE id IN (${list});
       SELECT set_config('app.payment_ledger_reopen','off',false); COMMIT;`);
-  S(`UPDATE staff SET is_active=false,status='INACTIVE' WHERE name LIKE 'P6\\_%'`);
+  S(`UPDATE staff SET is_active=false,status='INACTIVE',pin_hash='' WHERE name LIKE 'P6\\_%'`); // W-A1: house neutralize contract (clear pin) — keeps P-9 S5.1/S5.4b green post-reflow
   Sx(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM staff WHERE name LIKE 'P6\\_%')`);
   Sx(`DELETE FROM manager_overrides WHERE requested_by IN (SELECT id FROM staff WHERE name LIKE 'P6\\_%')`);
   Sx(`DELETE FROM shifts WHERE id=${q(SHIFT_ID)}`);

@@ -1,0 +1,24 @@
+P-8 FIXTURE: built staff P8_S0..2 (cashier/manager/owner @ f1f830b3), order 0abbdf3f table 1504
+warmup: probing all tokens...
+  WARMUP FAIL CASH last=0 ERR 
+  WARMUP FAIL MGR last=0 ERR 
+  WARMUP FAIL OWN last=0 ERR 
+!! WARMUP: some tokens still flaking — tests carry their own retry + flake->HARNESS-FAILURE guard
+P-8 CASH-DRAWER GATE — residue baseline (all should be 0): drawer_sessions=0/drawer_log=0/shifts=0/breaks=0/tce=0/orders=1/idem=0/legacy=0
+  [healthGate] still flaky before T-1 — flake guards active
+  HARNESS-FAILURE    T-1 open∥open same shift -> ONE drawer
+   -> transport a=0 b=0
+  [healthGate] still flaky before T-2 — flake guards active
+!!! RISK REAL-RISK          T-2 close∥cash_in -> closed: expected==canonical(150); open: close rejected, no close row (no unaccounted cash_in)
+   -> st=closed close=true in=true rows={"close":"1","cash_in":"1","expected":"150.00","canon":"0.00"}  {"success":true,"overtime":{"success":tr|{"type":"cash_in","amount":50,"success":
+  [healthGate] still flaky before T-3 — flake guards active
+  HARNESS-FAILURE    T-3 close∥cash payment -> no orphan/unaccounted row
+   -> transport close=200 pay=0
+  [healthGate] still flaky before T-4 — flake guards active
+  PASS               T-4 double close + same-key replay -> ONE close row; replay idempotent:true; new key rejected (already closed)
+  [healthGate] still flaky before T-5 — flake guards active
+  EXPECTED-CONFLICT  T-5 clock_out∥close v2 -> no 40P01; FINAL: shift closed AND drawer closed (DRAWER_OPEN/NO_OPEN_SHIFT are the legal exclusions)
+  [healthGate] still flaky before T-6 — flake guards active
+  EXPECTED-CONFLICT  T-6 auto_clockout∥clock_out (13h shift) -> no 40P01; FINAL: shift CLOSED, zero open shifts (one leg wins, other NO_OPEN_SHIFT/skip)
+   NOTE: D-2a guard proven indirectly: the 13h shift had NO open bound drawer, so auto-close was eligible
+  [healthGate] still flaky before T-7 — flake guards active

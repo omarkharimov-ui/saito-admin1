@@ -1,0 +1,49 @@
+P-7 FIXTURE: resumed from .p7-fixture.json (half-2, C-9..C-16)
+half-2: O(10) reset to closed
+warmup: probing all tokens...
+  WARMUP ok MGR 200
+  WARMUP ok CASH 200
+  WARMUP ok MGR2 200
+  WARMUP ok OWN 200
+  WARMUP ok CASH2 200
+P-7 CONCURRENCY GATE — baseline refunded/partial/voided/refrows/overref = 0/0/0/0/4 (half C-9..C-16 )
+  [healthGate] still flaky before C-9 — flake guards active
+  HARNESS-FAILURE    C-9 refund∥refund -> no over-refund + mirror parity
+   -> transport a=401 b=401
+  [healthGate] still flaky before C-10 — flake guards active
+  HARNESS-FAILURE    C-10 refund∥pay -> no over-refund
+   -> transport a=401 b=401
+  [healthGate] still flaky before C-11 — flake guards active
+  HARNESS-FAILURE    C-11 transition∥transition -> one wins
+   -> transport a=400 b=400
+  [healthGate] still flaky before C-12 — flake guards active
+  HARNESS-FAILURE    C-12 duplicate RPC (add_item x2) -> no corrupt/partial item
+   -> auth-flake survived retry a=400 b=400 (race never reached DB)
+  [healthGate] still flaky before C-13 — flake guards active
+  HARNESS-FAILURE    C-13 stale-state: re-pay a paid order
+   -> auth-flake survived retry status=401 (re-pay never reached DB)
+  [healthGate] still flaky before C-14 — flake guards active
+  HARNESS-FAILURE    C-14 3-way deadlock smoke
+   -> transport a=401 b=400 c=401
+  [healthGate] still flaky before C-15 — flake guards active
+  HARNESS-FAILURE    C-15 refund reject -> strict rollback
+   -> auth-flake survived retry status=401 (refund never reached DB; rollback unproven)
+  [healthGate] still flaky before C-16 — flake guards active
+  HARNESS-FAILURE    C-16 illegal transition -> strict rollback
+   -> auth-flake survived retry 400 (transition never reached DB; rollback unproven)
+
+────────────────────────────────────────────────────────────
+P-7 GATE SUMMARY (half 2): PASS=0 EXPECTED-CONFLICT=0 REAL-RISK=0 HARNESS-FAILURE=8
+baseline->after refunded/partial/voided/refrows/overref = 0/0/0/0/4 -> 0/0/0/0/4
+
+!! HARNESS-FAILURE (transport/fixture, re-run):
+   C-9 :: transport a=401 b=401
+   C-10 :: transport a=401 b=401
+   C-11 :: transport a=400 b=400
+   C-12 :: auth-flake survived retry a=400 b=400 (race never reached DB)
+   C-13 :: auth-flake survived retry status=401 (re-pay never reached DB)
+   C-14 :: transport a=401 b=400 c=401
+   C-15 :: auth-flake survived retry status=401 (refund never reached DB; rollback unproven)
+   C-16 :: auth-flake survived retry 400 (transition never reached DB; rollback unproven)
+H2_EXIT=0
+PAIR_DONE

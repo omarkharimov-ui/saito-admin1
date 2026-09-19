@@ -183,7 +183,7 @@ COMMIT;`);
    run(`DELETE FROM shifts WHERE id IN ${SHIFTS_}`);
    run(`DELETE FROM cash_drawer_sessions WHERE id IN ${SESS}`);
    run(`DELETE FROM products WHERE id=${q(PROD)}`);
-   run(`UPDATE staff SET is_active=false,status='INACTIVE' WHERE id IN ${STAFF}`);
+   run(`UPDATE staff SET is_active=false,status='INACTIVE',pin_hash='' WHERE id IN ${STAFF}`); // W-A1: house neutralize contract (clear pin) — keeps P-9 S5.1/S5.4b green post-reflow
    run(`DELETE FROM sessions WHERE user_id IN ${STAFF}`);
    run(`DELETE FROM staff_locations WHERE staff_id IN ${STAFF}`);
    if(fail) console.log(`!! cleanup failures: ${fail} — residue check below will expose survivors`);

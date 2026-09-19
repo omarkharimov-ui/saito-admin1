@@ -62,7 +62,13 @@ export default function CustomersPage() {
       const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
       if (!res.ok) return;
       const d = await res.json();
-      setRows(Array.isArray(d?.customers) ? d.customers : []);
+      // Contract: /api/customers returns a RAW ARRAY (verified live 2026-09-19);
+      // the object shape is tolerated for forward compatibility.
+      const list: CustomerRow[] = Array.isArray(d) ? d : (Array.isArray(d?.customers) ? d.customers : []);
+      // The route orders by the dead total_visits column (all zeros ->
+      // arbitrary order); sort by name client-side for a deterministic list.
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'az'));
+      setRows(list);
     } catch { setRows([]); }
   }, []);
 

@@ -37,12 +37,18 @@ writes of any kind — proven by W3-08 delta check). Unknown customer → 404
 
 ## 4. Environment/infra findings (documented, no action)
 
-- **Next 16 async `params`:** the pre-existing house pattern
-  (`{ params }: { params: { id: string } }` in `stock/returns/[id]`,
-  `stock/waste/[id]`, `stock/stocktakes/[id]`, `stock/stocktake-items/[id]`)
-  compiles but reads `params.id` as `undefined` at runtime on Next 15+.
-  The W-A3 route uses the correct `await params`. **FOLLOW-UP:** audit those
-  four dynamic routes (separate surface; out of W-A3 scope).
+- **Next 16 async `params` — FIXED (same day):** full-surface audit (Rule 1,
+  not the summary): of 37 dynamic route files, exactly 3 used the broken sync
+  pattern — `stock/returns/[id]` (3 handlers), `stock/counts/[id]` (3),
+  `stock/counts/[id]/items` (2) = 8 handlers; all others already use
+  `Promise<{ id }>`. Fixed with the minimal `await params` change. Verified by
+  `.dyn-params-probe.cjs` (4/4, self-cleaning fixture): `counts/{id}/items`
+  → 200 `[]`, `returns/{id}` + `counts/{id}` → 500 **PGRST116**
+  ("Cannot coerce the result to a single JSON object" — the id filter reached
+  PostgREST and returned 0 rows on the empty tables; broken params fail
+  client-side or with PGRST204), unauth → 401. tsc clean. The stock tables
+  (`supplier_returns`, `stock_counts`, `stock_count_items`) are empty in prod —
+  the breakage was latent (feature unused; no HTTP gate covered these routes).
 - Pooler `to_char(numeric,'0.00')` remains broken (`#.##`) — harnesses keep
   using `round(x,2)::text` / epoch-ms comparisons.
 

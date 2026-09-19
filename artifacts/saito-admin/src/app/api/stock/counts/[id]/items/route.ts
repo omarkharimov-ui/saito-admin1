@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
     const supabase = await createAuthClient();
+    const { id } = await params; // Next 15+: params is async
 
     const { data, error } = await supabase
       .from('stock_count_items')
       .select('*, ingredient:ingredients(name,unit,current_stock)')
-      .eq('stock_count_id', params.id)
+      .eq('stock_count_id', id)
       .order('created_at');
 
     if (error) throw error;
@@ -20,11 +21,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
     const supabase = await createAuthClient();
+    const { id } = await params; // Next 15+: params is async
 
     const { ingredient_id, actual_qty, notes } = await request.json();
     if (!ingredient_id || actual_qty === undefined) {
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const { data: existing } = await supabase
       .from('stock_count_items')
       .select('id')
-      .eq('stock_count_id', params.id)
+      .eq('stock_count_id', id)
       .eq('ingredient_id', ingredient_id)
       .maybeSingle();
 
@@ -74,7 +76,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       const { data, error } = await supabase
         .from('stock_count_items')
         .insert({
-          stock_count_id: params.id,
+          stock_count_id: id,
           ingredient_id,
           system_qty: systemQty,
           actual_qty,

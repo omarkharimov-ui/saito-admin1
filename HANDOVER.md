@@ -754,7 +754,7 @@ E/S blocker owner, deliberately not committed here.
 - **Live evidence (Rule 1):** `customers.total_visits/total_spent/last_order_at` are DEAD denormalized columns (no trigger writer; only `guest_link_customer` inserts 0s) — NOT exposed by the timeline (T2 proof in gate: bogus values on the fixture row ignored). MFM §6 "profile" row corrected (table has no birthday/email/notes columns).
 - **Gate evidence:** `.w-a3-gate.cjs` **9/9** route-level E2E (real HTTP, zero residue); W-A1 reflow **18/18** (T9: additive read-only → adjacent-surface sanity only).
 - **UI = HARD STOP:** timeline placement = (a) ActionSheet customer-tab extension, (b) dedicated `/admin/customers` page, (c) drawer from POS table view — user decides; payload serves any of them.
-- **FOLLOW-UP (documented, not shipped):** Next 16 async-`params` breakage in the four pre-existing `stock/*/[id]` dynamic routes (house pattern compiles but `params.id` = undefined at runtime); `customers.view` permission (ratified P-1 registry change); dead-column cleanup (P-9 hygiene).
+- **FOLLOW-UP:** `customers.view` permission (ratified P-1 registry change); dead-column cleanup (P-9 hygiene). **FIXED same day:** Next 16 async-`params` audit of all 37 dynamic route files → exactly 3 broken (8 handlers: `stock/returns/[id]`, `stock/counts/[id]`, `stock/counts/[id]/items`) → minimal `await params` fix, verified by `.dyn-params-probe.cjs` 4/4 (PGRST116 signature = filter reached DB), tsc clean, zero residue.
 
 ---
 

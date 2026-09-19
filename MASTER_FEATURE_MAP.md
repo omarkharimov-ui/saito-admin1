@@ -40,8 +40,11 @@
 > idempotency), D16 incremental total (`add_item_atomic` mirror; VAT-18% ssot draft
 > istifadədən ƏVVƏL rədd olundu), **D17 production defect fix** — boş (`empty`) cədvəldə
 > ilk QR sifariş 500 verirdi (27/33 cədvəl `empty` idi); indi pre-insert occupied flip.
-> Gate **14/14** + narrowed reflow O 38/38, W-A1 18/18, F 35/35 (residue 0).
-> **UI = HARD STOP:** menu "continue your check" istifadəçilə birlikdə. Sənəd:
+> Gate **19/19** + narrowed reflow O 38/38, W-A1 18/18, F 35/35 (residue 0).
+> D18 (user qərarı): **6-rəqəmli check code** — itki halında re-attach
+> (`/qr/relink`, rotasiya: köhnə kod tokenlə birlikdə ləğv olunur).
+> **UI = HARD STOP:** menu "continue your check" istifadəçilə birlikdə;
+> UI forması (sticky bar / drawer / inline) = **AÇIQ qərar**. Sənəd:
 > `W_A2_FREEZE_REPORT_2026-09-19.md`.
 >
 > **Menecer map sync (2026-09-19):** ChatGPT "menecer" A–Z master feature map + SAITO OS

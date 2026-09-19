@@ -115,6 +115,11 @@ try{
   const floorA=Sx(`SELECT status||'/'||coalesce(current_order_id::text,'null') FROM table_floors WHERE table_number=${TAB} AND location_id=${q(LOC_A)}`).out;
   R('W2-01','create on EMPTY table -> 200 (D17 flip) + checkToken (64 hex) + hash stored + floor occupied w/ pointer', cA.status===200&&/^[0-9a-f]{64}$/.test(tokenA||'')&&hashA===crypto.createHash('sha256').update(tokenA).digest('hex')&&floorA==='occupied/'+oA, `status=${cA.status} oid=${oA} floor=${floorA} body=${(cA.body||'').slice(0,140)}`);
 
+  // ── W2-15: D18 — create response carries the 6-digit code + hash stored ──
+  const codeA=cA.data&&cA.data.checkCode;
+  const codeHashA=S(`SELECT coalesce(qr_check_code_hash,'-') FROM orders WHERE id=${q(oA||'00000000-0000-0000-0000-000000000000')}`);
+  R('W2-15','D18: create -> checkCode (6 digits) + hash stored', /^[0-9]{6}$/.test(String(codeA))&&codeHashA===crypto.createHash('sha256').update(String(codeA)).digest('hex'), `code=${codeA} hash=${String(codeHashA).slice(0,16)}…`);
+
   // ── W2-02: D13 underpay-proof on CREATE path ────────────────────────────
   const itemA=Sx(`SELECT coalesce(unit_price::text,'-')||'/'||coalesce(total_price::text,'-') FROM order_items WHERE order_id=${q(oA)} AND product_id=${q(PROD0)}`).out;
   const totA=Sx(`SELECT coalesce(total_amount,-1)::text FROM orders WHERE id=${q(oA)}`).out;
@@ -183,6 +188,34 @@ try{
   const totB=Sx(`SELECT coalesce(total_amount,-1)::text FROM orders WHERE id=${q(oB||'00000000-0000-0000-0000-000000000000')}`).out;
   const itemC=Sx(`SELECT count(*)::text||'/'||coalesce(min(unit_price)::text,'-') FROM order_items WHERE order_id=${q(oB||'00000000-0000-0000-0000-000000000000')}`).out;
   R('W2-12','guest create on EMPTY table -> linked (id+phone on order); add keeps customer_* unchanged; total 200.00', cB.status===200&&!!state.custId&&custRow===state.custId+'/'+custRow.split('/')[1]+'/'+PHONE&&custAfter===custRow&&a6.status===200&&n(totB)==='200.00'&&itemC==='2/50.00', `cust=${custRow} add=${a6.status} total=${totB} items=${itemC} body=${(cB.body||'').slice(0,140)}`);
+
+  // ── W2-16: D18 relink on table B (rotation: old token+code consumed) ────
+  const codeB=cB.data&&cB.data.checkCode;
+  const rl1=await httpR('/api/orders/qr/relink',{table_number:TBB,check_code:codeB});
+  const tok2=rl1.data&&rl1.data.checkToken; const code2=rl1.data&&rl1.data.checkCode;
+  const rlOldTok=await httpR('/api/orders/qr/add',{table_number:TBB,check_token:tokenB,items:[{product_id:PROD0,quantity:1}]});
+  const KB2='w2:add:'+crypto.randomUUID();
+  const a7=await httpR('/api/orders/qr/add',{table_number:TBB,check_token:tok2,items:[{product_id:PROD0,quantity:1,unit_price:0.01}],idempotency_key:KB2});
+  const totB2=Sx(`SELECT coalesce(total_amount,-1)::text FROM orders WHERE id=${q(oB)}`).out;
+  const itemsB2=S(`SELECT count(*)::text FROM order_items WHERE order_id=${q(oB)}`);
+  const rlOldCode=await httpR('/api/orders/qr/relink',{table_number:TBB,check_code:codeB});
+  R('W2-16','D18 relink -> 200 + fresh pair; OLD token 404 (consumed); NEW token adds (total 300.00); OLD code 404 (consumed)', rl1.status===200&&rl1.data&&!!tok2&&/^[0-9]{6}$/.test(String(code2))&&rlOldTok.status===404&&a7.status===200&&n(totB2)==='300.00'&&itemsB2==='3'&&rlOldCode.status===404, `rl=${rl1.status} oldTok=${rlOldTok.status} add=${a7.status} total=${totB2} items=${itemsB2} oldCode=${rlOldCode.status}`);
+
+  // ── W2-17: relink wrong code / wrong table -> 404, no rotation ──────────
+  const rl2=await httpR('/api/orders/qr/relink',{table_number:TBB,check_code:'000000'});
+  const rl3=await httpR('/api/orders/qr/relink',{table_number:TAB,check_code:code2});
+  const codeHashB2=S(`SELECT coalesce(qr_check_code_hash,'-') FROM orders WHERE id=${q(oB)}`);
+  R('W2-17','D18 wrong code 404 + valid code on wrong table 404 (no rotation: hash unchanged)', rl2.status===404&&rl3.status===404&&codeHashB2===crypto.createHash('sha256').update(String(code2)).digest('hex'), `wrong=${rl2.status} wrongTable=${rl3.status}`);
+
+  // ── W2-18: relink on a PAID order -> 409 ────────────────────────────────
+  const rl4=await httpR('/api/orders/qr/relink',{table_number:TAB,check_code:codeA});
+  R('W2-18','D18 relink after paid -> 409 "This check is closed"', rl4.status===409&&(rl4.data&&rl4.data.error)==='This check is closed', `status=${rl4.status} body=${(rl4.body||'').slice(0,120)}`);
+
+  // ── W2-19: relink shape validation (no DB write) ────────────────────────
+  const r5=await httpR('/api/orders/qr/relink',{table_number:TBB,check_code:'12345'});
+  const r6=await httpR('/api/orders/qr/relink',{table_number:TBB,check_code:'1234567'});
+  const r7=await httpR('/api/orders/qr/relink',{table_number:TBB,check_code:'abcdef'});
+  R('W2-19','D18 shape: 5 digits / 7 digits / non-numeric -> all 400', r5.status===400&&r6.status===400&&r7.status===400, `s=${r5.status}/${r6.status}/${r7.status}`);
 
   // ── W2-13: financial baseline invariants unchanged ──────────────────────
   const BASE2=Sx(`SELECT (SELECT count(*) FROM orders WHERE status='refunded')::text||'/'||(SELECT count(*) FROM orders WHERE status='partially_refunded')||'/'||(SELECT count(*) FROM orders WHERE status='voided')||'/'||(SELECT count(*) FROM order_payments WHERE is_refund=true)||'/'||(SELECT count(*) FROM orders WHERE refund_amount>paid_amount)`).out;

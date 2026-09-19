@@ -15,8 +15,9 @@ check" flow is designed together with the user (permanent rule, HANDOVER §6).
 | D14 | New RPC `qr_add_items(p_token_hash, p_table_number, p_items, p_idempotency_key)` | service_role-only. `FOR UPDATE` by hash → table match → finalized reject (paid/closed/cancelled/refunded/partially_refunded/voided) → per-item server price + qty 1..99 + per-item idempotency (`key:i`) → INSERT `order_items` (kitchen_status='pending') → incremental total → `{success, order_id, status, items_added, total}`. |
 | D16 | Total semantics | **Incremental mirror of frozen `add_item_atomic`** (`total_amount += item totals, version+1, updated_at=now()`) + per-item `log_order_event('item_added', performed_by NULL)`. First draft's `calculate_order_total_v3(id,true,false)` REJECTED on live evidence: `settings` row 1 has `vat_percentage=18.00` — the SSOT call would have re-applied VAT to the whole subtotal while QR create defaults to a raw total (18% jump on every add). Fixed before any use (Rule 7). |
 | D17 | QR create route (app layer only) | **Latent production defect fixed:** before the orders INSERT, released floors (`empty`/`cleaning`) are flipped to `occupied` (pointer untouched; `validate_table_order_pointer` allows occupied+NULL pointer — verified). Item-insert-failure rollback restores `empty`. No schema/trigger change — triggers stay FROZEN. |
+| D18 | `orders.qr_check_code_hash` + `qr_relink_check` RPC + `POST /api/orders/qr/relink` | **6-digit check code = customer re-attach credential** (user decision in the 09-19 UI session). Same hash-storage model as D12; raw code returned once at create, NEVER re-served. Relink verifies code hash under FOR UPDATE, then ROTATES (fresh token+code pair; the presented code is consumed — leaked/intercepted codes die with the relink). |
 | — | New route `POST /api/orders/qr/add` | Thin: 15/min IP rate limit, shape validation (1..20 items, uuid, qty 1..99), single RPC call, error map (token→404 no-existence-leak, finalized→409, bad item→400). |
-| — | Migration `20260919000002_w_a2_check_token.sql` (+rollback) | Applied to live; re-applied idempotently after the D16 function fix (verified: no `calculate_order_total_v3` call left in the live fn). |
+| — | Migrations `20260919000002_w_a2_check_token.sql` (+rollback) and `20260919000003_w_a2_check_code.sql` (+rollback) | Applied to live; the 000002 migration re-applied idempotently after the D16 function fix (verified: no `calculate_order_total_v3` call left in the live fn). |
 
 **D17 evidence chain (live, 2026-09-19):**
 1. Gate repro: orders INSERT on a `empty` floor → `TABLE_OPEN_ORDERS` 500.
@@ -39,19 +40,28 @@ check" flow is designed together with the user (permanent rule, HANDOVER §6).
 
 | Unit | Result | Evidence |
 |---|---|---|
-| `.w-a2-gate.cjs` (route-level E2E, real HTTP via :3000) | **14/14, residue 0** | W2-01 create-on-empty+token+pointer · W2-02 D13 create underpay-proof (0.01 sent → 100.00 stored, total 200.00 raw) · W2-03 add 200→350.00 (D16 incremental, version+1, DB price) · W2-04 spine (order_events item_added +1, kds_ticket outbox +≥1) · W2-05 idempotent replay (0 added, totals/version unchanged) · W2-06 wrong token 404 · W2-07 wrong table 404 · W2-08 shape 400s · W2-09 one order per table · W2-10 pay 350 → paid/350.00/1 op · W2-11 add-after-paid 409 · W2-12 guest link + customer unchanged by add · W2-13 financial baselines unchanged · W2-14 teardown 0/0/0/0/0/0/0 |
+| `.w-a2-gate.cjs` (route-level E2E, real HTTP via :3000) | **19/19, residue 0** | W2-01 create-on-empty+token+pointer (D17) · W2-02 D13 create underpay-proof (0.01 sent → 100.00 stored, total 200.00 raw) · W2-03 add 200→350.00 (D16 incremental, version+1, DB price) · W2-04 spine (order_events item_added +1, kds_ticket outbox +≥1) · W2-05 idempotent replay (0 added, totals/version unchanged) · W2-06 wrong token 404 · W2-07 wrong table 404 · W2-08 shape 400s · W2-09 one order per table · W2-10 pay 350 → paid/350.00/1 op · W2-11 add-after-paid 409 · W2-12 guest link + customer unchanged by add · W2-15 D18 code mint + hash stored · W2-16 D18 relink rotation (old token 404, new token adds → 300.00, old code 404) · W2-17 wrong code / wrong table 404 (no rotation) · W2-18 relink-after-paid 409 · W2-19 shape 400s · W2-13 financial baselines unchanged · W2-14 teardown 0/0/0/0/0/0/0 |
 | Typecheck (`tsc --noEmit`, excl. pre-broken `__tests__` jest-types) | clean | 3 W-A2 type errors found & fixed during implementation |
-| **O** (orders surface; qr create route changed) | **38/38** | `.w-a2-audit/reflow/o_reflog.log` |
-| **W-A1** (guest channel; qr create route changed) | **18/18** | gate run 2026-09-19 (idempotent, zero residue) |
-| **F** (floors/tables; D17 flips floor state) | **35/35** | `.w-a2-audit/reflow/f_reflog.log` |
+| **O** (orders surface; qr create route changed) | **38/38** | `.w-a2-audit/reflow/o_reflog_d18.log` |
+| **W-A1** (guest channel; qr create route changed) | **18/18** | `.w-a2-audit/reflow/wa1_reflog_d18.log` |
+| **F** (floors/tables; D17 flips floor state) | **35/35** | `.w-a2-audit/reflow/f_reflog_d18.log` |
 
-**Narrowed-reflow justification (Rule 6/11):** W-A2 touched (a) the qr create route,
-(b) one new route, (c) one new RPC + additive column/index, (d) `order_items`
-INSERTs only via the frozen trigger surface (no trigger changed). Therefore the
-gates exercising those surfaces — O, W-A1, F — were re-run. P-1..P-6/K are
+**Narrowed-reflow justification (Rule 6/11):** W-A2 touched (a) the qr create
+route, (b) two new routes (add, relink), (c) two new RPCs + additive
+columns/indexes, (d) `order_items` INSERTs only via the frozen trigger surface
+(no trigger changed). Therefore the gates exercising those surfaces — O, W-A1,
+F — were re-run after each increment (latest run post-D18). P-1..P-6/K are
 untouched surfaces (their frozen gates remain as verified in the W-A1 reflow).
 P-7 half-2 + P-8 remain **externally blocked** by Supabase incident 6q5902p2xd9f
 (re-run commands unchanged, see W-A1 freeze report §4).
+
+**D18 security reasoning (Rule 10):** brute force infeasible (10^6 space at
+15/min per IP ≈ 46 days); the raw code is served exactly once (create response)
+— the tokenless status route cannot leak it (hash-only storage); rotation
+consumes the presented code so a captured code dies with the first relink;
+wrong/absent code → 404 (no existence leak). Documented fallback for anonymous
+orders with a lost code: staff reset. Hardening option (not shipped): when the
+order carries a `customer_phone`, require the matching phone on relink.
 
 ## 3. Security chain (Rule 10)
 
@@ -61,8 +71,9 @@ public guest channel by design, same model as G3 create) → `qr_add_items`
 per-item idempotency) → `order_items` frozen triggers (money lock, state machine,
 KDS outbox, kitchen status sync) → `idx_orders_active_table` (no 2nd order) →
 audit (`log_order_event('item_added')`) → no existence leak (wrong token = 404
-`Check not found`). RPC EXECUTE = `{postgres, service_role}` only (anon/
-authenticated revoked; verified live).
+`Check not found`). Relink: `qr_relink_check` (code hash + table match +
+rotation, finalized reject). Both RPCs: EXECUTE = `{postgres, service_role}`
+only (anon/authenticated revoked; verified live).
 
 ## 4. Outstanding (unchanged from W-A1)
 
@@ -75,6 +86,8 @@ authenticated revoked; verified live).
 `W_A2_PLAN.md` · `W_A2_FREEZE_REPORT_2026-09-19.md` · `.w-a2-gate.cjs` ·
 `.w-a2-result.json` · `.w-a2-audit/` ·
 `supabase/migrations/20260919000002_w_a2_check_token.sql` (+`_rollback.sql`) ·
+`supabase/migrations/20260919000003_w_a2_check_code.sql` (+`_rollback.sql`) ·
 `artifacts/saito-admin/src/app/api/orders/qr/route.ts` ·
 `artifacts/saito-admin/src/app/api/orders/qr/add/route.ts` ·
+`artifacts/saito-admin/src/app/api/orders/qr/relink/route.ts` ·
 `HANDOVER.md` · `MASTER_FEATURE_MAP.md` · `.f-gate-report.json` (F re-run artifact).

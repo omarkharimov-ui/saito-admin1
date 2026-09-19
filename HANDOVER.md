@@ -1,7 +1,7 @@
 # HANDOVER — Saito Admin POS (P-series)
 
 **Date:** 2026-09-14 · **Head:** `0c59227` (post-P-6 freeze; `main == origin`)
-**Checkpoint (2026-09-19):** `P-9 🔒 → W-A1 🔒 (QR guest identity + M0 loyalty repair) → W-A2 🔒 (add-to-check + QR price hardening + D17 prod fix) · narrowed reflow green: W-A2 14/14, O 38/38, W-A1 18/18, F 35/35 — P-7 half-2 + P-8 BLOCKED by Supabase incident 6q5902p2xd9f (API Gateway degraded; re-run commands in W_A1_FREEZE_REPORT_2026-09-19.md §4) · W-A2 UI (menu "continue your check") = HARD STOP, user-collaborative`
+**Checkpoint (2026-09-19):** `P-9 🔒 → W-A1 🔒 (QR guest identity + M0 loyalty repair) → W-A2 🔒 (add-to-check + QR price hardening + D17 prod fix + D18 6-digit check code/relink) · narrowed reflow green: W-A2 19/19, O 38/38, W-A1 18/18, F 35/35 — P-7 half-2 + P-8 BLOCKED by Supabase incident 6q5902p2xd9f (API Gateway degraded; re-run commands in W_A1_FREEZE_REPORT_2026-09-19.md §4) · W-A2 UI (menu "continue your check") = HARD STOP, user-collaborative; UI form (sticky bar/drawer/inline) = OPEN, user decides`
 
 > **A / E/S are ⚠️ pre-existing blockers, NOT P regressions** (bisection-proven: the
 > failures persist with P-3 triggers disabled). See the disposition block after the P-3
@@ -741,10 +741,10 @@ E/S blocker owner, deliberately not committed here.
 
 **Full record:** `W_A2_FREEZE_REPORT_2026-09-19.md` · **Plan/decisions D12–D17:** `W_A2_PLAN.md`.
 
-- **Shipped:** D12 `check_token` (hash in `orders.qr_check_token_hash`, raw returned once) + `POST /api/orders/qr/add`; D13 server-sourced prices on BOTH QR paths (client `unit_price` ignored — G3 underpay gap closed); D14 `qr_add_items` RPC (FOR UPDATE, finalized reject, per-item idempotency); D16 incremental total mirroring frozen `add_item_atomic` (the SSOT-recompute draft was rejected on live VAT-18% evidence before use); **D17 latent production defect fixed** — first QR order on any `empty`/`cleaning` floor 500'd (`table_release_guard` via the F-05 sync UPDATE; 27/33 live floors are `empty`); the create route now flips released→occupied pre-insert (app layer only, triggers FROZEN).
-- **Gate evidence:** `.w-a2-gate.cjs` **14/14** route-level E2E (real HTTP, zero residue, crash self-heal via `.w-a2-fixture.json`); narrowed reflow **O 38/38 · W-A1 18/18 · F 35/35** (justification: freeze report §2).
-- **UI = HARD STOP:** menu "continue your check" (localStorage checkToken, add-to-cart UX) is designed together with the user. Backend is ready: `checkToken` in the create response, `POST /api/orders/qr/add` with 404/409/400 error contract.
-- **FOLLOW-UPs (documented, not shipped):** QR on `reserved`/`out_of_service` floors stays allowed (pre-existing); token rotation is out of scope (token dangles on finalize — lookup fails safely).
+- **Shipped:** D12 `check_token` (hash in `orders.qr_check_token_hash`, raw returned once) + `POST /api/orders/qr/add`; D13 server-sourced prices on BOTH QR paths (client `unit_price` ignored — G3 underpay gap closed); D14 `qr_add_items` RPC (FOR UPDATE, finalized reject, per-item idempotency); D16 incremental total mirroring frozen `add_item_atomic` (the SSOT-recompute draft was rejected on live VAT-18% evidence before use); **D17 latent production defect fixed** — first QR order on any `empty`/`cleaning` floor 500'd (`table_release_guard` via the F-05 sync UPDATE; 27/33 live floors are `empty`); the create route now flips released→occupied pre-insert (app layer only, triggers FROZEN); **D18 6-digit check code** (user decision) — `orders.qr_check_code_hash` + `POST /api/orders/qr/relink` + `qr_relink_check` RPC with ROTATION (presented code consumed, fresh token+code pair installed; raw code served once at create, never re-served).
+- **Gate evidence:** `.w-a2-gate.cjs` **19/19** route-level E2E (real HTTP, zero residue, crash self-heal via `.w-a2-fixture.json`); narrowed reflow post-D18 **O 38/38 · W-A1 18/18 · F 35/35** (justification: freeze report §2).
+- **UI = HARD STOP:** menu "continue your check" (localStorage checkToken, add-to-cart UX) is designed together with the user. Backend is ready: `checkToken` + `checkCode` in the create response, `POST /api/orders/qr/add` (404/409/400 contract), `POST /api/orders/qr/relink` (404/409/400 contract). **UI form (sticky bar / drawer / inline) = OPEN — user decides on return; no default assumed.**
+- **FOLLOW-UPs (documented, not shipped):** QR on `reserved`/`out_of_service` floors stays allowed (pre-existing); optional relink hardening = require matching `customer_phone` when present.
 
 ---
 

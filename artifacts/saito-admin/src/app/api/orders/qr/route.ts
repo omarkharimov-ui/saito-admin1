@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes, randomInt, createHash } from 'crypto';
 
 // G3: this route is a PUBLIC customer self-service endpoint (see POST docs).
 // No requireAuth / requirePermission — the intended contract is table-number
@@ -113,6 +113,12 @@ export async function POST(req: NextRequest) {
     // stored, so a DB leak cannot authenticate adds.
     const checkToken = randomBytes(32).toString('hex');
     const checkTokenHash = createHash('sha256').update(checkToken).digest('hex');
+    // W-A2 D18 (user decision 2026-09-19): 6-digit check code — the customer
+    // re-attach credential for a lost localStorage. Same security model as the
+    // token: SHA-256 hash stored, raw code returned ONCE here, never re-served
+    // (the tokenless status route must not leak it).
+    const checkCode = String(randomInt(1000000)).padStart(6, '0');
+    const checkCodeHash = createHash('sha256').update(checkCode).digest('hex');
 
     // W-A1 (delegated GO 2026-09-19, W_A1_PLAN.md D1-D5): optional guest identity.
     // Additive — an absent customer_phone keeps the exact G3 contract (customer_id NULL).
@@ -190,6 +196,8 @@ export async function POST(req: NextRequest) {
         customer_phone: customerPhone,
         // W-A2 D12: add-to-check credential (hash only; raw token in response).
         qr_check_token_hash: checkTokenHash,
+        // W-A2 D18: re-attach credential (hash only; raw code in response).
+        qr_check_code_hash: checkCodeHash,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         version: 1,
@@ -265,8 +273,9 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    // W-A2 D12: checkToken is the add-to-check credential (raw, one-time).
-    return NextResponse.json({ success: true, orderId: activeOrderId, total: finalTotal, checkToken, customer: customerId ? { id: customerId, linked: true } : null });
+    // W-A2 D12/D18: checkToken (add credential) + checkCode (re-attach
+    // credential) — both raw, one-time.
+    return NextResponse.json({ success: true, orderId: activeOrderId, total: finalTotal, checkToken, checkCode, customer: customerId ? { id: customerId, linked: true } : null });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

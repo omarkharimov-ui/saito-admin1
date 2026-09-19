@@ -201,22 +201,24 @@
   100% { stroke-dashoffset: -300; }
 }
 
-/* ── Theme switch — SYNCHRONIZED crossfade (v7) ──
-   The old version ran a 550ms scale(1.0015)+brightness pulse on <html>
-   plus 450ms per-element transitions: the whole document zoomed and text
-   "settled" in at different times (user report: "yazılar gec gelir, oturur").
-   Fix: one uniform 180ms color transition on every element, no transform,
-   no filter — everything swaps together in a single beat. */
+/* ── Theme switch — SYNCHRONIZED crossfade (v7.2) ──
+   History: v6 ran a 550ms scale+brightness pulse on <html> + 450ms
+   per-element transitions ("yazılar gec gelir, oturur"). v7 fixed the pulse
+   but kept the class flip inside useEffect → token colors lagged the
+   backgrounds by ~300ms ("ag olur, yazılar 0.3s sonra"). v7.2: the flip is
+   synchronous (ThemeContext.setLightMode) and this window gives ONE uniform
+   120ms color transition to everything — a single snappy beat, bg+text
+   together. No transform, no filter. */
 @keyframes theme-pulse {
   0%   { opacity: 1; }
   100% { opacity: 1; }
 }
 .theme-switching *:not(html) {
-  transition: background-color 0.18s ease,
-              color 0.18s ease,
-              border-color 0.18s ease,
-              fill 0.18s ease,
-              stroke 0.18s ease,
-              box-shadow 0.18s ease !important;
+  transition: background-color 0.12s ease,
+              color 0.12s ease,
+              border-color 0.12s ease,
+              fill 0.12s ease,
+              stroke 0.12s ease,
+              box-shadow 0.12s ease !important;
 }
 

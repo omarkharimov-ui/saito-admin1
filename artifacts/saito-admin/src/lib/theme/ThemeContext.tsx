@@ -55,28 +55,33 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       html.classList.toggle('dark', !lightMode);
       html.classList.toggle('light', lightMode);
       html.style.colorScheme = lightMode ? 'light' : 'dark';
-
-      // Synchronized theme crossfade — class window must cover the 180ms
-      // uniform transition defined in animations.css (.theme-switching *).
-      // No document-level scale/brightness pulse (v7: caused "settling" lag).
-      html.classList.add('theme-switching');
-      window.setTimeout(() => {
-        html.classList.remove('theme-switching');
-      }, 220);
     } catch {
       // ignore
     }
   }, [isHighContrast, lightMode]);
 
-  useEffect(() => {
+  const setLightMode = (v: boolean) => {
+    // v7.2: SYNCHRONOUS DOM flip — the .light/.dark switch AND the
+    // synchronized-transition window must open in the same frame as the
+    // click, BEFORE the React commit. While this lived in useEffect, the
+    // token-driven colors (text, borders) switched one effect-latency later
+    // than React-class backgrounds → user saw "bg white, text 0.3s later".
     try {
-      window.localStorage.setItem('saito_light_mode', String(lightMode));
+      const html = document.documentElement;
+      html.classList.add('theme-switching');
+      html.setAttribute('data-theme', v ? 'light' : 'dark');
+      html.classList.toggle('dark', !v);
+      html.classList.toggle('light', v);
+      html.style.colorScheme = v ? 'light' : 'dark';
+      window.setTimeout(() => html.classList.remove('theme-switching'), 240);
+    } catch {
+      // ignore
+    }
+    try {
+      window.localStorage.setItem('saito_light_mode', String(v));
     } catch {
       // ignore storage writes
     }
-  }, [lightMode]);
-
-  const setLightMode = (v: boolean) => {
     _setLightMode(v);
   };
 

@@ -29,9 +29,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Search, X, Sun, Moon, ChevronRight, Users, Phone } from 'lucide-react';
+import { Search, X, ChevronRight, Users, Phone } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
+import { cachedFetch } from '@/lib/data-cache';
 
 const MONTHS_AZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyn', 'İyl', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'];
 const STATUS_AZ: Record<string, string> = {
@@ -40,7 +41,7 @@ const STATUS_AZ: Record<string, string> = {
 };
 const METHOD_AZ: Record<string, string> = { card: 'Kart', cash: 'Nəqd' };
 const DAY = 86400000;
-const PANEL_W = 560;
+const PANEL_W = 640;
 
 function dayLabel(iso: string): string {
   const d = new Date(iso); const today = new Date();
@@ -525,7 +526,7 @@ function Inspector({
 
 // ── Page ────────────────────────────────────────────────────────────────────
 export default function CustomersPage() {
-  const { lightMode, setLightMode } = useTheme();
+  const { lightMode } = useTheme();
   const reduce = useReducedMotion() ?? false;
   const [query, setQuery] = useState('');
   const [rows, setRows] = useState<CustomerRow[] | null>(null);
@@ -575,11 +576,11 @@ export default function CustomersPage() {
     setRowStats({});
     setStatsReady({});
     try {
-      const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}&limit=50`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(String(res.status));
-      const d = await res.json();
+      // SWR micro-cache: the shell pre-warms this URL while idle, so the
+      // ledger paints on first frame (stale→instant, background revalidate).
+      const d = await cachedFetch<unknown>(`/api/customers?q=${encodeURIComponent(q)}&limit=50`);
       // Contract: raw array (verified live 2026-09-19). Name sort = deterministic ledger.
-      const list: CustomerRow[] = Array.isArray(d) ? d : (Array.isArray(d?.customers) ? d.customers : []);
+      const list: CustomerRow[] = Array.isArray(d) ? d : (Array.isArray((d as { customers?: CustomerRow[] })?.customers) ? (d as { customers: CustomerRow[] }).customers : []);
       list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'az'));
       setRows(list);
     } catch { setRows([]); setRowsErr(true); }
@@ -761,22 +762,7 @@ export default function CustomersPage() {
           </kbd>
         </div>
 
-        {/* theme toggle (POS capsule) */}
-        <button
-          onClick={() => setLightMode(!lightMode)}
-          aria-label="Mövzu dəyiş"
-          className="w-9 h-9 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:border-[var(--theme-border-strong)] transition-all duration-150 active:scale-[0.92] shrink-0">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.span key={lightMode ? 'sun' : 'moon'}
-              initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
-              animate={{ rotate: 0, opacity: 1, scale: 1 }}
-              exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
-              transition={{ duration: reduce ? 0 : 0.22, ease: 'easeOut' }}
-              className="flex">
-              {lightMode ? <Sun size={16} /> : <Moon size={16} />}
-            </motion.span>
-          </AnimatePresence>
-        </button>
+        {/* theme toggle moved to the GLOBAL AdminHeader (v7) */}
       </div>
 
       {/* ── ledger ── */}
@@ -909,7 +895,7 @@ export default function CustomersPage() {
                   role="dialog" aria-modal="true" aria-label={selected.name || 'Müştəri'}
                   initial={{ x: PANEL_W }} animate={{ x: 0 }} exit={{ x: PANEL_W }}
                   transition={{ duration: dOpen, ease: [0.32, 0.72, 0, 1] }}
-                  className={`absolute top-0 right-0 bottom-0 z-40 w-full max-w-[560px] flex flex-col pointer-events-auto
+                  className={`absolute top-0 right-0 bottom-0 z-40 w-full max-w-[640px] flex flex-col pointer-events-auto
                     bg-[var(--theme-surface)]/95 backdrop-blur-2xl border-l border-[var(--theme-border)]
                     ${lightMode ? 'shadow-[-32px_0_80px_-40px_rgba(0,0,0,0.25)]' : 'shadow-[-32px_0_80px_-40px_rgba(0,0,0,0.6)]'}`}>
                   {/* panel top bar: close */}

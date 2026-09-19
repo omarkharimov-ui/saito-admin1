@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
-import { Sun, Moon, X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw } from 'lucide-react';
+import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { usePos, cartLineKey } from './hooks/usePos';
@@ -1610,12 +1610,6 @@ export default function POSPage() {
               <span className="hidden sm:inline">{t('cash_drawer')}</span>
             </button>
           )}
-          <button
-            onClick={() => setLightMode(!lightMode)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-          >
-            {lightMode ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
            {posSession && (
              <div className="flex items-center gap-2">
                <div className="flex items-center gap-2">

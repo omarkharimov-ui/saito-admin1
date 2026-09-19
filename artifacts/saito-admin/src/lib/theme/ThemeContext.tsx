@@ -56,13 +56,13 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       html.classList.toggle('light', lightMode);
       html.style.colorScheme = lightMode ? 'light' : 'dark';
 
-      // Premium Apple-style theme switch animation
+      // Synchronized theme crossfade — class window must cover the 180ms
+      // uniform transition defined in animations.css (.theme-switching *).
+      // No document-level scale/brightness pulse (v7: caused "settling" lag).
       html.classList.add('theme-switching');
-      html.style.animation = 'theme-pulse 0.55s cubic-bezier(0.22, 1, 0.36, 1)';
-      setTimeout(() => {
+      window.setTimeout(() => {
         html.classList.remove('theme-switching');
-        html.style.animation = '';
-      }, 600);
+      }, 220);
     } catch {
       // ignore
     }

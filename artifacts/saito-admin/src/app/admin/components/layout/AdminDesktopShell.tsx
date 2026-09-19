@@ -6,6 +6,7 @@ import Sidebar from '../Sidebar';
 import { AdminHeader } from '../AdminHeader';
 import SimpleToaster from './SimpleToaster';
 import { LayoutProvider } from '../../context/LayoutContext';
+import { idlePrime } from '@/lib/data-cache';
 import type { Role } from '@/lib/permissions';
 
 export default function AdminDesktopShell({
@@ -41,6 +42,12 @@ export default function AdminDesktopShell({
     document.addEventListener('fullscreenchange', onFsChange);
     return () => document.removeEventListener('fullscreenchange', onFsChange);
   }, []);
+
+  // v7 "native feel": pre-warm hot data endpoints in idle windows on every
+  // page switch, so the next page's list paints from cache — not a spinner.
+  useEffect(() => {
+    idlePrime(['/api/customers?q=&limit=50', '/api/orders']);
+  }, [pageKey]);
 
   return (
     <div className="hidden lg:flex h-screen min-h-0 bg-[var(--theme-bg)] text-[var(--theme-text)] font-sans">

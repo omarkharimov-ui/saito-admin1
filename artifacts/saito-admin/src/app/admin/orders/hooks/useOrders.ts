@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { apiFetch } from '@/lib/api-fetch';
+import { cachedFetch } from '@/lib/data-cache';
 import { getSettings } from '@/lib/settings-client';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -55,9 +56,9 @@ export function useOrders() {
   const fetchOrders = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
-      const res = await fetch('/api/orders');
-      if (!res.ok) throw new Error('API xətası');
-      const data = await res.json();
+      // SWR micro-cache (v7): shell pre-warms /api/orders while idle →
+      // list paints on first frame; stale reads revalidate in background.
+      const data = await cachedFetch<Record<string, any>>('/api/orders');
       
       // Merge orders with order_items
       const ordersWithItems = (data.orders || []).map((order: any) => ({

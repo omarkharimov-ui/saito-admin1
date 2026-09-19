@@ -11,6 +11,7 @@ import {
   Monitor,
   ShieldAlert,
   ShoppingCart,
+  UserRound,
   Users,
   Shield,
   Timer,
@@ -57,6 +58,7 @@ export function getAdminNavItems(
     { id: 'combos', name: t('combos'), href: '/admin/products', icon: PackagePlus, roles: ['superadmin', 'owner'] },
     { id: 'campaigns', name: t('campaigns'), href: '/admin/campaigns', icon: Percent, roles: ['admin', 'manager', 'superadmin', 'owner'] },
     { id: 'staff', name: 'İşçilər', href: '/admin/staff', icon: Users, roles: ['admin', 'manager', 'superadmin', 'owner'] },
+    { id: 'customers', name: 'Müştərilər', href: '/admin/customers', icon: UserRound, roles: ['admin', 'manager', 'superadmin', 'owner'] },
     { id: 'roles', name: 'Rollar', href: '/admin/staff/roles', icon: Shield, roles: ['superadmin', 'owner'] },
     { id: 'shifts', name: 'Növbələr', href: '/admin/shifts', icon: Timer, roles: ['admin', 'manager', 'superadmin', 'owner'] },
 

@@ -201,22 +201,22 @@
   100% { stroke-dashoffset: -300; }
 }
 
-/* ── Theme switch animation — Apple-style premium ── */
+/* ── Theme switch — SYNCHRONIZED crossfade (v7) ──
+   The old version ran a 550ms scale(1.0015)+brightness pulse on <html>
+   plus 450ms per-element transitions: the whole document zoomed and text
+   "settled" in at different times (user report: "yazılar gec gelir, oturur").
+   Fix: one uniform 180ms color transition on every element, no transform,
+   no filter — everything swaps together in a single beat. */
 @keyframes theme-pulse {
-  0%   { transform: scale(1);       filter: brightness(1)    saturate(1);   }
-  15%  { transform: scale(1.0015);  filter: brightness(0.82) saturate(1.15); }
-  40%  { transform: scale(1.0008);  filter: brightness(0.92) saturate(1.08); }
-  70%  { transform: scale(1.0002);  filter: brightness(0.98) saturate(1.02); }
-  100% { transform: scale(1);       filter: brightness(1)    saturate(1);   }
+  0%   { opacity: 1; }
+  100% { opacity: 1; }
 }
-.theme-switching {
-  will-change: transform, filter;
-}
-/* Smooth crossfade for child elements during theme switch */
 .theme-switching *:not(html) {
-  transition: background-color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-              color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.45s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: background-color 0.18s ease,
+              color 0.18s ease,
+              border-color 0.18s ease,
+              fill 0.18s ease,
+              stroke 0.18s ease,
+              box-shadow 0.18s ease !important;
 }
 

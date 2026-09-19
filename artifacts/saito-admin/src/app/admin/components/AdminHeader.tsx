@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { Bell, ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Bell, ChevronDown, ChevronsLeft, ChevronsRight, Sun, Moon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -23,7 +24,7 @@ const AdminHeaderInner = ({
 }) => {
   const { notifications, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
   const { t, language, setLanguage } = useLanguage();
-  const { lightMode } = useTheme();
+  const { lightMode, setLightMode } = useTheme();
   const { isModalOpen } = useLayout();
   const [showDropdown, setShowDropdown] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
@@ -112,6 +113,30 @@ const AdminHeaderInner = ({
           onChange={(id) => setLanguage(id as any)}
           className="hidden sm:block"
         />
+
+        {/* Theme toggle — GLOBAL (single instance; per-page toggles removed in v7).
+            Sun↔Moon rotate-morph + soft accent halo. */}
+        <button
+          onClick={() => setLightMode(!lightMode)}
+          aria-label="Mövzu dəyiş"
+          title={lightMode ? 'Qaranlıq rejim' : 'Aydın rejim'}
+          className="relative w-9 h-9 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface-soft)]
+            hover:border-[var(--theme-border-strong)] transition-all duration-200 active:scale-[0.88] overflow-hidden">
+          <span className="absolute inset-0 rounded-full bg-[var(--theme-accent-soft)] scale-0 transition-transform duration-300 ease-out group-hover:scale-100" />
+          <span className="relative flex items-center justify-center text-[var(--theme-accent)]">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={lightMode ? 'sun' : 'moon'}
+                initial={{ rotate: -120, scale: 0.4, opacity: 0 }}
+                animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                exit={{ rotate: 120, scale: 0.4, opacity: 0 }}
+                transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+                className="flex">
+                {lightMode ? <Sun size={16} /> : <Moon size={16} />}
+              </motion.span>
+            </AnimatePresence>
+          </span>
+        </button>
 
         {/* Notifications */}
         <div className="relative">

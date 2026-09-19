@@ -1,7 +1,7 @@
 # HANDOVER — Saito Admin POS (P-series)
 
 **Date:** 2026-09-14 · **Head:** `0c59227` (post-P-6 freeze; `main == origin`)
-**Checkpoint (2026-09-19):** `P-9 🔒 → W-A1 🔒 (QR guest identity + M0 loyalty repair) → W-A2 🔒 (add-to-check + QR price hardening + D17 prod fix + D18 6-digit check code/relink) → W-A3 🔒 (customer timeline, backend read-only) · gates green: W-A2 19/19, W-A3 9/9, O 38/38, W-A1 18/18, F 35/35 — P-7 half-2 + P-8 BLOCKED by Supabase incident 6q5902p2xd9f (re-run commands in W_A1_FREEZE_REPORT_2026-09-19.md §4) · UI HARD STOPS pending user session: W-A2 menu "continue your check" form (sticky bar/drawer/inline = OPEN) + W-A3 timeline placement`
+**Checkpoint (2026-09-19):** `P-9 🔒 → W-A1 🔒 (QR guest identity + M0 loyalty repair) → W-A2 🔒 (add-to-check + QR price hardening + D17 prod fix + D18 6-digit check code/relink) → W-A3 🔒 (customer timeline, backend read-only) · gates green: W-A2 19/19, W-A3 9/9, O 38/38, W-A1 18/18, F 35/35 — P-7 half-2 + P-8 BLOCKED by Supabase incident 6q5902p2xd9f (re-run commands in W_A1_FREEZE_REPORT_2026-09-19.md §4) · ROADMAP QƏRAR (user 09-19): QR = channel/access ONLY — Saito /menu guest product DEFER (W-A2 contractları frozen infra = Sushinode Guest Ordering Website integration pass); /menu check-flow UI = committed DRAFT; /admin/customers UI = polish+freeze (list live stats via timeline RPC, bounded N+1, backend unchanged); sonra Wave A #3 Gift Card · superadmin PIN = 4321 (1234 G1-banned)`
 
 > **A / E/S are ⚠️ pre-existing blockers, NOT P regressions** (bisection-proven: the
 > failures persist with P-3 triggers disabled). See the disposition block after the P-3

@@ -56,6 +56,25 @@
 > **UI = HARD STOP:** yerləşdirmə (ActionSheet tab / ayrıca səhifə / drawer) =
 > AÇIQ qərar. Sənəd: `W_A3_FREEZE_REPORT_2026-09-19.md`.
 >
+> **WAVE A QƏRAR DƏYİŞİKLİKLƏRİ (user, 2026-09-19):**
+> - **QR = ACCESS/CHANNEL MECHANISM, not a separate ordering product.**
+>   QR sadəcə: table binding → guest website + table context. QR-ın özünə
+>   ayrıca menu UI / cart / check management qurmaq = redundant.
+> - **Guest Ordering Website (Sushinode) = AŞRAĞI XARİCİ MƏHSUL** — öz
+>   lux frontend-i ilə ayrı məhsuldur (menu → product → customize/modifiers →
+>   cart → check → add items → recovery code). Eyni Supabase/Saito backend-i
+>   ilə işləyəcək. **FINAL INTEGRATION PASS** (roadmap sonu): modifier → cart
+>   → check → Supabase → POS/KDS axını tam yoxlanılacaq.
+> - **QR menyu (Saito /menu) = DEFER** (Wave A-dan çıxır). W-A2 backend
+>   contractları (create + check_token + check code/relink + server price)
+>   **frozen infrastruktur olaraq qalır** — Sushinode integration pass-i
+>   məhz bu contractları istifadə edəcək. D17 prod fix + D13 price hardening
+>   backend səviyyəsində qüvvədə qalır.
+> - **Customer (CRM) = indi**: UI polish (list-də canlı stats: visits · spent
+>   · last visit — frozen timeline RPC-dən, bounded N+1, backend toxunulmayıb)
+>   + freeze; sonra Wave A #3 Gift Card.
+> - **superadmin PIN** = `4321` (1234 G1 frozen guard tərəfindən banneddır).
+>
 > **Menecer map sync (2026-09-19):** ChatGPT "menecer" A–Z master feature map + SAITO OS
 > architecture istifadəçi tərəfindən təsdiqləndi və bu fayla xalça edildi (§0.3 A–Z
 > cross-reference, §8.1 must-have checklist). Bu fayl = yeganə canonical plan map.
@@ -193,7 +212,8 @@ dən kənarda, idempotent outbox** ilə (`outbox_events` + `emit_outbox_event`).
 | N | Notifications | 23 Notifications | ✅ in-app+WhatsApp / ❌ SMS+email |
 | O | Orders (types + lifecycle) | 4 Orders | ✅ FROZEN |
 | P | Payments (tenders, refund, reconciliation) | 5 Billing+Payments | ✅ core FROZEN / ❌ offline+terminal (Q7) |
-| Q | QR Ordering | 30 Website/QR | ✅ QR + **anon access + qonaq identifikasiya (W-A1) + add-to-check (W-A2, 09-19)**; menu UI = HARD STOP |
+| Q | QR (access/channel ONLY) | 30 Website/QR | 🔻 **DEFER (user, 09-19):** ayrıca ordering product DEYİL — channel. Backend contractları frozen (W-A1/W-A2: create, check_token, code/relink, server price) = Sushinode integration-infra; Saito /menu UI = draft (committed) |
+| Q2 | Guest Ordering Website (Sushinode) | external product | ⏳ **FINAL INTEGRATION PASS:** menu → modifiers → cart → check → recovery code → eyni Supabase backend → POS/KDS. QR = entry point (`?table=N`) |
 | R | Reservations | 11 Reservations | ✅ core / 🟡 waitlist SMS |
 | S | Staff / Shifts | 20 Shifts/Labor | ✅ |
 | T | Tableside (waiter handheld) | 12 Tableside | ✅ tablet POS / ❌ hardware (Q7) |
@@ -701,8 +721,8 @@ menecerin ☐ siyahısından əvvəlcədən gedir — bunlar yeni iş deyil, qor
 
 ### Wave A — "Sistemi aç" (Addım 2-in ilk yarısı)
 1. ~~**Outbox consumer**~~ ✅ **BİTİB (2.1, 2026-09-11)** — `outbox_pump` SSOT + handlers + dead-letter; pg_cron scheduler 7 job LIVE; backlog drained
-2. ~~**QR anon customer access**~~ ✅ **BİTİB (W-A1/W-A2, 09-19)** — anon order + qonaq identifikasiya + **add-to-check** (backend 🔒; menu UI = HARD STOP, birgə)
-2b. **Customer timeline** — ✅ **backend BİTİB (W-A3, 09-19)** (read-only `/api/customers/[id]/timeline`, gate 9/9); **UI = HARD STOP** (yerləşdirmə birgə seçilir)
+2. ~~**QR anon customer access**~~ 🔻 **DEFER (user, 09-19):** QR = channel, ayrı ordering product DEYİL — əsl guest məhsul = **Sushinode Guest Ordering Website** (xarici, öz lux frontend-i; final integration pass). W-A1/W-A2 backend contractları frozen infrastruktura çevrildi (Sushinode bunlarla inteqrasiya olunacaq); Saito `/menu` = draft UI (committed, istifadə oluna bilər)
+2b. **Customer timeline / Customers** — ✅ backend (W-A3, 09-19, gate 9/9) → **UI polish + freeze İNDİ** (`/admin/customers`: list-də canlı stats — timeline RPC-dən, bounded N+1; profile+timeline) → sonra Wave A #3
 3. **Gift card UI** (engine ✓, UI+report yoxdur) + bar tab (pre-auth, `customers` var)
 4. **Customer timeline UI** (history/favorites/spend) + segmentation bloku
 5. **Daily operating checklists** (opening/closing/maintenance; onboarding engine mövcuddur — eyni pattern)

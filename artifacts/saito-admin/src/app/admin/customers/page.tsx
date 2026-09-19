@@ -167,16 +167,18 @@ function LedgerRow({
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(c); } }}
-      className={`group relative flex items-center gap-4 px-4 sm:px-6 h-16 cursor-pointer select-none
-        outline-none transition-colors duration-150
-        ${active ? 'bg-[var(--theme-accent-soft)]' : 'hover:bg-[var(--theme-surface-soft)] active:bg-[var(--theme-accent-soft)]'}
-        focus-visible:bg-[var(--theme-accent-soft)]`}>
+      className={`group relative flex items-center gap-4 px-5 sm:px-6 h-16 rounded-xl cursor-pointer select-none
+        outline-none border transition-colors duration-150
+        ${active
+          ? 'bg-[var(--theme-accent-soft)] border-[var(--theme-accent-border)]'
+          : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] hover:bg-[var(--theme-surface-elevated)] hover:border-[var(--theme-border-strong)] active:bg-[var(--theme-accent-soft)] active:border-[var(--theme-accent-border)]'}
+        focus-visible:border-[var(--theme-accent-border)]`}>
       {/* selection accent bar — morphs between rows (layoutId) */}
       {active && (
         <motion.span
           layoutId="cust-bar"
           transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 36 }}
-          className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[3px] rounded-full bg-[var(--theme-accent)]" />
+          className="absolute -left-px top-1/2 -translate-y-1/2 h-9 w-[3px] rounded-full bg-[var(--theme-accent)]" />
       )}
 
       {/* Ad + Telefon (stacked primary/secondary — one visual unit) */}
@@ -784,7 +786,7 @@ export default function CustomersPage() {
         {/* column header — sticky, gains a shadow once scrolled */}
         <div className={`sticky top-0 z-10 bg-[var(--theme-bg)]/95 backdrop-blur-sm border-b transition-[border-color,box-shadow] duration-200
           ${scrolled ? 'border-[var(--theme-border)] shadow-[0_12px_28px_-20px_rgba(0,0,0,0.35)]' : 'border-transparent'}`}>
-          <div className="flex items-center gap-4 px-4 sm:px-6 h-9 select-none">
+          <div className="flex items-center gap-4 px-5 sm:px-6 h-9 select-none">
             <span className="flex-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Ad</span>
             <span className="hidden sm:block w-16 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Ziyarət</span>
             <span className="w-28 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Xərçəy</span>
@@ -797,12 +799,12 @@ export default function CustomersPage() {
         <motion.div
           animate={rowsErr ? { x: [0, -5, 5, -3, 3, 0] } : {}}
           transition={{ duration: reduce ? 0 : 0.3 }}
-          className="divide-y divide-[var(--theme-border)]">
+          className="space-y-2">
           {/* loading */}
           {rows === null && !rowsErr && (
-            <div className="divide-y divide-[var(--theme-border)]">
+            <div className="space-y-2">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-4 sm:px-6 h-16">
+                <div key={i} className="flex items-center gap-4 px-5 sm:px-6 h-16 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                   <div className="flex-1 space-y-2">
                     <Ghost w={`${34 - (i % 3) * 7}%`} h={13} />
                     <Ghost w={`${20 - (i % 3) * 4}%`} h={10} />
@@ -867,7 +869,7 @@ export default function CustomersPage() {
 
         {/* table end-cap — closes the list, carries the meta (no more void) */}
         {rows !== null && rows.length > 0 && (
-          <div className="flex items-center justify-between px-4 sm:px-6 h-10 border-t border-[var(--theme-border)]">
+          <div className="flex items-center justify-between px-5 sm:px-6 h-11 mt-3 border-t border-[var(--theme-border)]">
             <span className="text-[11px] tabular-nums text-[var(--theme-text-muted)]">
               {rows.length} müştəri · statistikalar sifarişlərdən canlı
             </span>
@@ -886,7 +888,10 @@ export default function CustomersPage() {
       {mounted && createPortal(
         <div
           data-cust-overlay
-          className="fixed top-0 right-0 bottom-0 z-40"
+          // CRITICAL: container is present even while the panel is closed —
+          // without pointer-events-none it silently swallows every click in
+          // the main area (found via user report, v6.1).
+          className="fixed top-0 right-0 bottom-0 z-40 pointer-events-none"
           style={{ left: edge, transition: reduce ? undefined : 'left 0.25s ease' }}
           aria-hidden={!panelOpen}
         >
@@ -899,14 +904,14 @@ export default function CustomersPage() {
                   transition={{ duration: reduce ? 0 : 0.25, ease: 'easeOut' }}
                   onClick={closePanel}
                   aria-hidden
-                  className={`absolute inset-0 z-30 ${lightMode ? 'bg-black/25' : 'bg-black/50'} backdrop-blur-[3px]`}
+                  className={`absolute inset-0 z-30 pointer-events-auto ${lightMode ? 'bg-black/25' : 'bg-black/50'} backdrop-blur-[3px]`}
                 />
                 <motion.aside
                   key="panel"
                   role="dialog" aria-modal="true" aria-label={selected.name || 'Müştəri'}
                   initial={{ x: PANEL_W }} animate={{ x: 0 }} exit={{ x: PANEL_W }}
                   transition={{ duration: dOpen, ease: [0.32, 0.72, 0, 1] }}
-                  className={`absolute top-0 right-0 bottom-0 z-40 w-full max-w-[560px] flex flex-col
+                  className={`absolute top-0 right-0 bottom-0 z-40 w-full max-w-[560px] flex flex-col pointer-events-auto
                     bg-[var(--theme-surface)]/95 backdrop-blur-2xl border-l border-[var(--theme-border)]
                     ${lightMode ? 'shadow-[-32px_0_80px_-40px_rgba(0,0,0,0.25)]' : 'shadow-[-32px_0_80px_-40px_rgba(0,0,0,0.6)]'}`}>
                   {/* panel top bar: close */}

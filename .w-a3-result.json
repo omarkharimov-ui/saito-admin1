@@ -1,0 +1,60 @@
+{
+  "pass": 9,
+  "fail": 0,
+  "results": [
+    {
+      "id": "W3-01",
+      "name": "timeline -> 200 + customer/stats/orders/favorites shape; dead total_visits/total_spent NOT exposed",
+      "ok": true,
+      "evidence": "status=200 keys=stats,orders,customer,favorites body={\"stats\":{\"avg_order\":91.67,\"last_visit\":\"2026-09-19T10:42:37.488008+00:00\",\"first_visit\":\"2026-09-15T11:42:37.488008+00:00\",\"total_spent\":200,\"visit_count\":3,\"items_ordered\":7},\"orders\":[{\"id\":\"80344"
+    },
+    {
+      "id": "W3-02",
+      "name": "stats: visits=3 (cancelled excluded), spent=200.00, avg=91.67, items=7, first=O4, last=O2",
+      "ok": true,
+      "evidence": "{\"avg_order\":91.67,\"last_visit\":\"2026-09-19T10:42:37.488008+00:00\",\"first_visit\":\"2026-09-15T11:42:37.488008+00:00\",\"total_spent\":200,\"visit_count\":3,\"items_ordered\":7}"
+    },
+    {
+      "id": "W3-03",
+      "name": "orders[]: [O2,O1,O3,O4] newest-first; O1 has 2 items + card 150 captured; cancelled O3 present in history",
+      "ok": true,
+      "evidence": "ids=8034422f-773d-4207-b94d-12e3cfab79e2,e0081a68-5abd-4c4c-9d89-9204d13ae35b,31aa7874-4215-4cbc-be29-86ac2e2c3c0a,a5073e53-5f67-4834-b5c4-151506a68322 o1items=2 o1pay=[{\"amount\":150,\"method\":\"card\",\"status\":\"captured\",\"is_refund\":false}]"
+    },
+    {
+      "id": "W3-04",
+      "name": "favorites: W3_P1:4 > W3_P2:3 (cancelled O3 item excluded)",
+      "ok": true,
+      "evidence": "fav=W3_P1:4,W3_P2:3"
+    },
+    {
+      "id": "W3-05",
+      "name": "limit=1 -> exactly [O2] (newest), stats unaffected by limit",
+      "ok": true,
+      "evidence": "len=1 first=8034422f-773d-4207-b94d-12e3cfab79e2 visits=3"
+    },
+    {
+      "id": "W3-06",
+      "name": "customer 2 isolated: visits=2, spent=100.00, favorites W3_P1:2,W3_P2:1",
+      "ok": true,
+      "evidence": "stats={\"avg_order\":62.5,\"last_visit\":\"2026-09-14T11:42:37.488008+00:00\",\"first_visit\":\"2026-09-13T11:42:37.488008+00:00\",\"total_spent\":100,\"visit_count\":2,\"items_ordered\":3} fav=[object Object],[object Object]"
+    },
+    {
+      "id": "W3-07",
+      "name": "unknown id 404 \"Customer not found\" · bad id 400 · no session 401",
+      "ok": true,
+      "evidence": "s=404/400/401 body404={\"error\":\"Customer not found\"}"
+    },
+    {
+      "id": "W3-08",
+      "name": "timeline is read-only: no delta in audit/op-log/outbox/order-event after 5 timeline calls",
+      "ok": true,
+      "evidence": "base=0/0/0/0 after=0/0/0/0"
+    },
+    {
+      "id": "W3-09",
+      "name": "teardown zero-residue (orders/items/customers/products/staff-active/sessions)",
+      "ok": true,
+      "evidence": "residue=0/0/0/0/0/0 txerr="
+    }
+  ]
+}

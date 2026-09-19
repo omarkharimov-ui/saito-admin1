@@ -1,7 +1,7 @@
 # HANDOVER — Saito Admin POS (P-series)
 
 **Date:** 2026-09-14 · **Head:** `0c59227` (post-P-6 freeze; `main == origin`)
-**Checkpoint (2026-09-19):** `P-9 🔒 → W-A1 🔒 (QR guest identity + M0 loyalty repair) → W-A2 🔒 (add-to-check + QR price hardening + D17 prod fix + D18 6-digit check code/relink) · narrowed reflow green: W-A2 19/19, O 38/38, W-A1 18/18, F 35/35 — P-7 half-2 + P-8 BLOCKED by Supabase incident 6q5902p2xd9f (API Gateway degraded; re-run commands in W_A1_FREEZE_REPORT_2026-09-19.md §4) · W-A2 UI (menu "continue your check") = HARD STOP, user-collaborative; UI form (sticky bar/drawer/inline) = OPEN, user decides`
+**Checkpoint (2026-09-19):** `P-9 🔒 → W-A1 🔒 (QR guest identity + M0 loyalty repair) → W-A2 🔒 (add-to-check + QR price hardening + D17 prod fix + D18 6-digit check code/relink) → W-A3 🔒 (customer timeline, backend read-only) · gates green: W-A2 19/19, W-A3 9/9, O 38/38, W-A1 18/18, F 35/35 — P-7 half-2 + P-8 BLOCKED by Supabase incident 6q5902p2xd9f (re-run commands in W_A1_FREEZE_REPORT_2026-09-19.md §4) · UI HARD STOPS pending user session: W-A2 menu "continue your check" form (sticky bar/drawer/inline = OPEN) + W-A3 timeline placement`
 
 > **A / E/S are ⚠️ pre-existing blockers, NOT P regressions** (bisection-proven: the
 > failures persist with P-3 triggers disabled). See the disposition block after the P-3
@@ -746,12 +746,22 @@ E/S blocker owner, deliberately not committed here.
 - **UI = HARD STOP:** menu "continue your check" (localStorage checkToken, add-to-cart UX) is designed together with the user. Backend is ready: `checkToken` + `checkCode` in the create response, `POST /api/orders/qr/add` (404/409/400 contract), `POST /api/orders/qr/relink` (404/409/400 contract). **UI form (sticky bar / drawer / inline) = OPEN — user decides on return; no default assumed.**
 - **FOLLOW-UPs (documented, not shipped):** QR on `reserved`/`out_of_service` floors stays allowed (pre-existing); optional relink hardening = require matching `customer_phone` when present.
 
+### W-A3 — CUSTOMER TIMELINE (backend) — 🔒 (2026-09-19)
+
+**Full record:** `W_A3_FREEZE_REPORT_2026-09-19.md` · **Plan/decisions T1–T10:** `W_A3_PLAN.md`.
+
+- **Shipped:** read-only `GET /api/customers/[id]/timeline?limit=50` (max 100) + `get_customer_timeline(uuid,int)` SQL function (service_role-only, pure SELECT). Stats computed LIVE from `orders` (SSOT): visits (cancelled/voided excluded), total_spent = Σ paid_amount, avg, first/last visit, items ordered; `orders[]` newest-first with items+payments embedded; `favorites` top-10 by Σ qty.
+- **Live evidence (Rule 1):** `customers.total_visits/total_spent/last_order_at` are DEAD denormalized columns (no trigger writer; only `guest_link_customer` inserts 0s) — NOT exposed by the timeline (T2 proof in gate: bogus values on the fixture row ignored). MFM §6 "profile" row corrected (table has no birthday/email/notes columns).
+- **Gate evidence:** `.w-a3-gate.cjs` **9/9** route-level E2E (real HTTP, zero residue); W-A1 reflow **18/18** (T9: additive read-only → adjacent-surface sanity only).
+- **UI = HARD STOP:** timeline placement = (a) ActionSheet customer-tab extension, (b) dedicated `/admin/customers` page, (c) drawer from POS table view — user decides; payload serves any of them.
+- **FOLLOW-UP (documented, not shipped):** Next 16 async-`params` breakage in the four pre-existing `stock/*/[id]` dynamic routes (house pattern compiles but `params.id` = undefined at runtime); `customers.view` permission (ratified P-1 registry change); dead-column cleanup (P-9 hygiene).
+
 ---
 
- *Handover refreshed at W-A2 freeze (2026-09-19). Baseline numbers are from live gate runs
+ *Handover refreshed at W-A3 freeze (2026-09-19). Baseline numbers are from live gate runs
    (`.w-a1-audit/reflow/`, `.w-a2-audit/reflow/`); re-run the §1 commands to re-establish them
-   before starting the next wave (W-A2 UI collaborative session → then Wave A #2: customer
-   timeline).*
+   before starting the next step (W-A2 UI + W-A3 timeline UI collaborative session →
+   then Wave A #3: gift card minimal).*
 
 ---
 

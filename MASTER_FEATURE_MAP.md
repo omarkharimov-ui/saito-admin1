@@ -47,6 +47,15 @@
 > UI forması (sticky bar / drawer / inline) = **AÇIQ qərar**. Sənəd:
 > `W_A2_FREEZE_REPORT_2026-09-19.md`.
 >
+> **W-A3 status (2026-09-19):** Customer timeline **FROZEN (backend, read-only)** —
+> `GET /api/customers/[id]/timeline` + `get_customer_timeline` RPC (stats canlı
+> `orders`-dan; cancelled excluded; favorites; payments embed). **Sübut:**
+> `customers.total_visits/total_spent/last_order_at` = DEAD sütunlar (yazan trigger
+> YOX) → timeline onları göstərmir (MFM §6 "profile" sətri düzəldildi —
+> birthday/email/notes sütunları mövcud DEYİL). Gate **9/9** + W-A1 reflow 18/18.
+> **UI = HARD STOP:** yerləşdirmə (ActionSheet tab / ayrıca səhifə / drawer) =
+> AÇIQ qərar. Sənəd: `W_A3_FREEZE_REPORT_2026-09-19.md`.
+>
 > **Menecer map sync (2026-09-19):** ChatGPT "menecer" A–Z master feature map + SAITO OS
 > architecture istifadəçi tərəfindən təsdiqləndi və bu fayla xalça edildi (§0.3 A–Z
 > cross-reference, §8.1 must-have checklist). Bu fayl = yeganə canonical plan map.
@@ -274,8 +283,8 @@ Exceptions: VOIDED / CANCELLED / REFUNDED / REOPENED / PARTIALLY_REFUNDED
 
 | Feature | Saito | DB | API/UI |
 |---|---|---|---|
-| Customer profile + addresses + allergies | ✅ | `customers` (7), `customer_addresses`, `allergens`, `product_allergens` | `/api/customers` |
-| Order/visit history + favorite items | 🟡 | `orders.customer_*` bağları var | UI-də customer timeline bloku zəif |
+| Customer profile + addresses + allergies | ✅ | `customers` (7), `customer_addresses`, `allergens`, `product_allergens` (qeyd W-A3 inspect: `customers`-da birthday/email/notes sütunu YOX) | `/api/customers` |
+| Order/visit history + favorite items | ✅ **backend (W-A3, 09-19)** | `GET /api/customers/[id]/timeline` — stats canlı `orders`-dan (dead `total_visits/total_spent` sütunları yalan idi, istifadədən çıxarılıb); favorites, payments embed | UI yerləşdirməsi = HARD STOP (açıq qərar) |
 | Segmentation + consent | 🟡 | `campaign_targets` var | UI yox |
 | SMS / email / push marketing | 🟡 | `notifications`, `staff_messages`, WhatsApp route (`/api/whatsapp/*`) | SMS/email provider inteqrasiyası YOX (Wave C) |
 | Tab / house account | ❌ | — | Addım 2 |
@@ -693,6 +702,7 @@ menecerin ☐ siyahısından əvvəlcədən gedir — bunlar yeni iş deyil, qor
 ### Wave A — "Sistemi aç" (Addım 2-in ilk yarısı)
 1. ~~**Outbox consumer**~~ ✅ **BİTİB (2.1, 2026-09-11)** — `outbox_pump` SSOT + handlers + dead-letter; pg_cron scheduler 7 job LIVE; backlog drained
 2. ~~**QR anon customer access**~~ ✅ **BİTİB (W-A1/W-A2, 09-19)** — anon order + qonaq identifikasiya + **add-to-check** (backend 🔒; menu UI = HARD STOP, birgə)
+2b. **Customer timeline** — ✅ **backend BİTİB (W-A3, 09-19)** (read-only `/api/customers/[id]/timeline`, gate 9/9); **UI = HARD STOP** (yerləşdirmə birgə seçilir)
 3. **Gift card UI** (engine ✓, UI+report yoxdur) + bar tab (pre-auth, `customers` var)
 4. **Customer timeline UI** (history/favorites/spend) + segmentation bloku
 5. **Daily operating checklists** (opening/closing/maintenance; onboarding engine mövcuddur — eyni pattern)

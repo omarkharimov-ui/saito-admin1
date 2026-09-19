@@ -124,57 +124,57 @@ export default function CustomersPage() {
     }
     return (
       <div className="max-w-2xl mx-auto px-5 py-8">
-        <button onClick={closeCustomer} className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+        <button onClick={closeCustomer} className="text-sm text-white/40 hover:text-white transition-colors">
           ← Customers
         </button>
 
-        <h1 className="text-2xl font-semibold text-gray-900 mt-6">{c.name || 'Customer'}</h1>
-        {c.phone && <p className="text-sm text-gray-400 mt-1">{c.phone}</p>}
+        <h1 className="text-2xl font-semibold text-white mt-6">{c.name || 'Customer'}</h1>
+        {c.phone && <p className="text-sm text-white/40 mt-1">{c.phone}</p>}
 
         {s && (
           <div className="mt-5">
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-white/40">
               <span className="font-medium">{s.visit_count}</span> ziyarət
-              <span className="text-gray-300 mx-2">·</span>
+              <span className="text-white/30 mx-2">·</span>
               <span className="font-medium">{money(s.total_spent)}</span> xərçəy
-              <span className="text-gray-300 mx-2">·</span>
+              <span className="text-white/30 mx-2">·</span>
               son ziyarət {s.last_visit ? dayLabel(s.last_visit) : '—'}
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-white/40 mt-1">
               ortalama {money(s.avg_order)} · {s.items_ordered} mövqe · ilk ziyarət {s.first_visit ? dayLabel(s.first_visit) : '—'}
             </p>
           </div>
         )}
 
         {tl && tl.favorites.length > 0 && (
-          <p className="mt-4 text-sm text-gray-500">
-            Sevimlilər: <span className="text-gray-700">{tl.favorites.map(f => `${f.name} ×${f.qty}`).join(' · ')}</span>
+          <p className="mt-4 text-sm text-white/50">
+            Sevimlilər: <span className="text-white/70">{tl.favorites.map(f => `${f.name} ×${f.qty}`).join(' · ')}</span>
           </p>
         )}
 
-        <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-gray-400 mt-10 mb-2">Tarixçə</h2>
-        {!tl && <p className="text-sm text-gray-400">Yüklənir…</p>}
-        {tl && tl.orders.length === 0 && <p className="text-sm text-gray-400">Hələ sifariş yoxdur.</p>}
-        <div className="divide-y divide-gray-100">
+        <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-white/40 mt-10 mb-2">Tarixçə</h2>
+        {!tl && <p className="text-sm text-white/40">Yüklənir…</p>}
+        {tl && tl.orders.length === 0 && <p className="text-sm text-white/40">Hələ sifariş yoxdur.</p>}
+        <div className="divide-y divide-white/10">
           {groups.map(g => (
             <div key={g.label}>
-              <p className="text-xs text-gray-400 font-medium mt-4 mb-1">{g.label}</p>
+              <p className="text-xs text-white/40 font-medium mt-4 mb-1">{g.label}</p>
               {g.items.map(o => {
                 const items = o.items.map(i => `${i.qty}× ${i.name}`).join(', ');
                 const pay = o.payments.filter(p => !p.is_refund).map(p => p.method).join('+');
                 return (
                   <div key={o.id} className="py-3 flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-sm text-gray-800">
+                      <p className="text-sm text-white">
                         {hm(o.created_at)}
-                        <span className="text-gray-300 mx-1.5">·</span>
+                        <span className="text-white/30 mx-1.5">·</span>
                         {STATUS_AZ[o.status] || o.status}
-                        {o.table_number ? <span className="text-gray-400"> · cədvəl {o.table_number}</span> : null}
+                        {o.table_number ? <span className="text-white/40"> · cədvəl {o.table_number}</span> : null}
                       </p>
-                      {items && <p className="text-xs text-gray-400 mt-1 truncate" title={items}>{items}</p>}
-                      {pay && <p className="text-[11px] text-gray-300 mt-0.5">{pay}</p>}
+                      {items && <p className="text-xs text-white/40 mt-1 truncate" title={items}>{items}</p>}
+                      {pay && <p className="text-[11px] text-white/30 mt-0.5">{pay}</p>}
                     </div>
-                    <p className="text-sm font-medium text-gray-900 whitespace-nowrap">{money(o.total_amount)}</p>
+                    <p className="text-sm font-medium text-white whitespace-nowrap">{money(o.total_amount)}</p>
                   </div>
                 );
               })}
@@ -188,19 +188,19 @@ export default function CustomersPage() {
   // ── list view ────────────────────────────────────────────────────────────
   return (
     <div className="max-w-2xl mx-auto px-5 py-8">
-      <h1 className="text-2xl font-semibold text-gray-900">Customers</h1>
+      <h1 className="text-2xl font-semibold text-white">Customers</h1>
 
       <input
         value={query}
         onChange={e => setQuery(e.target.value)}
         placeholder="Axtar (ad və ya telefon)…"
-        className="mt-6 w-full bg-transparent outline-none text-[15px] text-gray-800 placeholder:text-gray-300 border-b border-gray-200 focus:border-gray-400 pb-2 transition-colors"
+        className="mt-6 w-full bg-transparent outline-none text-[15px] text-white placeholder:text-white/30 border-b border-white/15 focus:border-white/40 pb-2 transition-colors"
       />
 
-      <div className="mt-4 divide-y divide-gray-100">
-        {rows === null && <p className="text-sm text-gray-400 py-6">Yüklənir…</p>}
+      <div className="mt-4 divide-y divide-white/10">
+        {rows === null && <p className="text-sm text-white/40 py-6">Yüklənir…</p>}
         {rows !== null && rows.length === 0 && (
-          <p className="text-sm text-gray-400 py-6">{query ? 'Tapılmadı.' : 'Customers yoxdur.'}</p>
+          <p className="text-sm text-white/40 py-6">{query ? 'Tapılmadı.' : 'Customers yoxdur.'}</p>
         )}
         {rows?.map(c => {
           const s = rowStats[c.id];
@@ -208,17 +208,17 @@ export default function CustomersPage() {
             <button key={c.id} onClick={() => openCustomer(c)}
               className="w-full py-3.5 flex items-center justify-between gap-4 text-left group">
               <div className="min-w-0">
-                <p className="text-[15px] font-medium text-gray-900 truncate">
+                <p className="text-[15px] font-medium text-white truncate">
                   {c.name || 'Customer'}
-                  {c.phone && <span className="text-xs font-normal text-gray-400 ml-2">{c.phone}</span>}
+                  {c.phone && <span className="text-xs font-normal text-white/40 ml-2">{c.phone}</span>}
                 </p>
                 {s && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-white/50 mt-1">
                     {s.visits} ziyarət · {money(s.spent)} · son ziyarət {s.last ? dayLabel(s.last) : '—'}
                   </p>
                 )}
               </div>
-              <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-sm">→</span>
+              <span className="text-white/30 group-hover:text-white/50 transition-colors text-sm">→</span>
             </button>
           );
         })}

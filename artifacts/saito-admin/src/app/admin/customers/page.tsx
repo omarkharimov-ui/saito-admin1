@@ -27,9 +27,11 @@
 // exclusion rule (cancelled/voided only).
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Search, X, Sun, Moon, ChevronRight, Users, Phone } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { useLayout } from '../context/LayoutContext';
 
 const MONTHS_AZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyn', 'İyl', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'];
 const STATUS_AZ: Record<string, string> = {
@@ -116,6 +118,13 @@ const Ghost = ({ w, h = 12, className = '' }: { w: string; h?: number; className
     style={{ width: w, height: h }} />
 );
 
+// ── Kbd chip (keyboard hint) ────────────────────────────────────────────────
+const Kbd = ({ children }: { children: React.ReactNode }) => (
+  <kbd className="px-1.5 py-px rounded-[5px] border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[10px] font-semibold leading-4">
+    {children}
+  </kbd>
+);
+
 // ── Search match highlight (first occurrence, accent pill) ─────────────────
 function Highlight({ text, q }: { text: string; q: string }) {
   if (!q || !text) return <>{text}</>;
@@ -158,7 +167,7 @@ function LedgerRow({
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(c); } }}
-      className={`group relative flex items-center gap-3 px-4 sm:px-6 h-[58px] cursor-pointer select-none
+      className={`group relative flex items-center gap-4 px-4 sm:px-6 h-16 cursor-pointer select-none
         outline-none transition-colors duration-150
         ${active ? 'bg-[var(--theme-accent-soft)]' : 'hover:bg-[var(--theme-surface-soft)] active:bg-[var(--theme-accent-soft)]'}
         focus-visible:bg-[var(--theme-accent-soft)]`}>
@@ -167,11 +176,11 @@ function LedgerRow({
         <motion.span
           layoutId="cust-bar"
           transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 36 }}
-          className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-[3px] rounded-full bg-[var(--theme-accent)]" />
+          className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[3px] rounded-full bg-[var(--theme-accent)]" />
       )}
 
-      {/* Ad */}
-      <div className="flex-1 min-w-0">
+      {/* Ad + Telefon (stacked primary/secondary — one visual unit) */}
+      <div className="flex-1 min-w-0 leading-tight">
         {active && !panelOpen ? (
           <motion.span layoutId={nameId}
             transition={{ duration: reduce ? 0 : 0.32, ease: [0.32, 0.72, 0, 1] }}
@@ -183,17 +192,9 @@ function LedgerRow({
             <Highlight text={name} q={q} />
           </span>
         )}
-      </div>
-
-      {/* Telefon */}
-      <div className="hidden md:block w-36 shrink-0">
-        {c.phone ? (
-          <span className="text-[13px] tabular-nums text-[var(--theme-text-secondary)] transition-colors duration-150 group-hover:text-[var(--theme-text)]">
-            <Highlight text={c.phone} q={q} />
-          </span>
-        ) : (
-          <span className="text-[13px] text-[var(--theme-text-muted)]">—</span>
-        )}
+        <p className="mt-0.5 truncate text-[12px] tabular-nums text-[var(--theme-text-muted)] transition-colors duration-150 group-hover:text-[var(--theme-text-secondary)]">
+          {c.phone && c.name ? <Highlight text={c.phone} q={q} /> : c.phone ? '\u00A0' : 'telefonsuz'}
+        </p>
       </div>
 
       {/* Ziyarət */}
@@ -295,18 +296,18 @@ function Inspector({
       transition={{ duration: reduce ? 0 : 0.24, ease: [0.4, 0, 0.2, 1] }}
       className="flex h-full min-h-0 flex-col">
       {/* ── header ── */}
-      <div className="px-6 pt-6 pb-4 border-b border-[var(--theme-border)]">
+      <div className="px-7 pt-7 pb-5 border-b border-[var(--theme-border)]">
         <div className="flex items-start justify-between gap-4">
           <motion.div
             initial={{ opacity: 0, y: 10, filter: reduce ? 'blur(0px)' : 'blur(4px)' }}
             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
             transition={{ duration: reduce ? 0 : 0.4, delay: d(0.08), ease: [0.32, 0.72, 0, 1] }}
-            className="flex items-center gap-3.5 min-w-0">
-            <span className="w-11 h-11 rounded-full bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)] text-[var(--theme-accent)] flex items-center justify-center text-base font-black shrink-0">
+            className="flex items-center gap-4 min-w-0">
+            <span className="w-[46px] h-[46px] rounded-full bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)] text-[var(--theme-accent)] flex items-center justify-center text-lg font-black shrink-0">
               {name.charAt(0).toUpperCase()}
             </span>
             <div className="min-w-0">
-              <h2 className="text-2xl font-black tracking-tighter text-[var(--theme-text)] leading-tight truncate">
+              <h2 className="text-[26px] font-black tracking-tighter text-[var(--theme-text)] leading-tight truncate">
                 <motion.span layoutId={`cust-name-${customer.id}`}
                   transition={{ duration: reduce ? 0 : 0.32, ease: [0.32, 0.72, 0, 1] }}>
                   {name}
@@ -331,21 +332,21 @@ function Inspector({
       </div>
 
       {/* ── body (scrolls) ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-10">
+      <div className="flex-1 min-h-0 overflow-y-auto px-7 pb-12">
         {/* KPI strip — containerless, hairline-separated, hero = total spend */}
         {s ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: reduce ? 0 : 0.4, delay: d(0.14), ease: [0.32, 0.72, 0, 1] }}
-            className="grid grid-cols-3 divide-x divide-[var(--theme-border)] py-5 border-b border-[var(--theme-border)]">
-            <div className="pr-4">
+            className="grid grid-cols-3 divide-x divide-[var(--theme-border)] py-6 border-b border-[var(--theme-border)]">
+            <div className="pr-5">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">Ziyarət</p>
-              <p className="mt-1.5 text-xl font-black tabular-nums text-[var(--theme-text)]">{s.visit_count}</p>
+              <p className="mt-2 text-[20px] font-black tabular-nums text-[var(--theme-text)]">{s.visit_count}</p>
               <p className="mt-0.5 text-[11px] tabular-nums text-[var(--theme-text-muted)]">{s.items_ordered} mövqe</p>
             </div>
-            <div className="px-4">
+            <div className="px-5">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">Ümumi Xərçəy</p>
-              <p className="mt-1.5 text-2xl font-black tabular-nums text-[var(--theme-text)] tracking-tight">
+              <p className="mt-2 text-[26px] font-black tabular-nums text-[var(--theme-text)] tracking-tight">
                 {s.total_spent > 0 ? money(spent) : '—'}
               </p>
               {showDelta && (
@@ -363,16 +364,16 @@ function Inspector({
                 </motion.p>
               )}
             </div>
-            <div className="pl-4">
+            <div className="pl-5">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">Orta Sifariş</p>
-              <p className="mt-1.5 text-xl font-black tabular-nums text-[var(--theme-text-secondary)]">
+              <p className="mt-2 text-[20px] font-black tabular-nums text-[var(--theme-text-secondary)]">
                 {s.visit_count > 0 ? money(s.avg_order) : '—'}
               </p>
             </div>
           </motion.div>
         ) : (
           !tlErr && (
-            <div className="grid grid-cols-3 divide-x divide-[var(--theme-border)] py-5 border-b border-[var(--theme-border)]">
+            <div className="grid grid-cols-3 divide-x divide-[var(--theme-border)] py-6 border-b border-[var(--theme-border)]">
               {[0, 1, 2].map(i => (
                 <div key={i} className={`${i === 0 ? 'pr-4' : i === 2 ? 'pl-4' : 'px-4'}`}>
                   <Ghost w="52px" h={9} />
@@ -422,7 +423,7 @@ function Inspector({
           {tl && tl.orders.length > 0 && (
             <div className="relative mt-5 pl-6">
               <div className="absolute left-[3px] top-2 bottom-2 w-px bg-[var(--theme-border)]" />
-              <div className="space-y-7">
+              <div className="space-y-8">
                 {groups.map((g, gi) => (
                   <motion.div key={g.label}
                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -438,7 +439,7 @@ function Inspector({
                     <p className={`text-[11px] font-black tracking-[0.12em] uppercase ${g.today ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-secondary)]'}`}>
                       {g.label}
                     </p>
-                    <div className="mt-3 space-y-4">
+                    <div className="mt-4 space-y-5">
                       {g.items.map(o => {
                         const items = o.items.map(it => `${it.qty}× ${it.name}`).join(', ');
                         const pay = o.payments.filter(p => !p.is_refund).map(p => methodAZ(p.method)).join(' + ');
@@ -446,7 +447,7 @@ function Inspector({
                         return (
                           <div key={o.id}>
                             <div className="flex items-baseline justify-between gap-4">
-                              <p className="text-[12px] tabular-nums text-[var(--theme-text-muted)]">
+                              <p className="text-[12.5px] tabular-nums text-[var(--theme-text-muted)]">
                                 <span className="font-semibold text-[var(--theme-text-secondary)]">{hm(o.created_at)}</span>
                                 <span className="mx-1.5 opacity-50">·</span>
                                 <span className={dead ? (lightMode ? 'text-rose-600' : 'text-rose-400') : ''}>
@@ -454,12 +455,12 @@ function Inspector({
                                 </span>
                                 {o.table_number ? <span> · Cədvəl {o.table_number}</span> : null}
                               </p>
-                              <p className={`text-[15px] font-bold tabular-nums whitespace-nowrap ${dead ? 'text-[var(--theme-text-muted)] line-through' : 'text-[var(--theme-text)]'}`}>
+                              <p className={`text-[15.5px] font-bold tabular-nums whitespace-nowrap ${dead ? 'text-[var(--theme-text-muted)] line-through' : 'text-[var(--theme-text)]'}`}>
                                 {money(o.total_amount)}
                               </p>
                             </div>
                             {items && (
-                              <p className="mt-1 text-[13px] leading-relaxed text-[var(--theme-text-secondary)]">{items}</p>
+                              <p className="mt-1 text-[13.5px] leading-relaxed text-[var(--theme-text-secondary)]">{items}</p>
                             )}
                             {pay && <p className="mt-0.5 text-[11px] tabular-nums text-[var(--theme-text-muted)]">{pay}</p>}
                           </div>
@@ -474,7 +475,7 @@ function Inspector({
         </section>
 
         {/* Favorites */}
-        <section className="mt-9">
+        <section className="mt-10">
           <motion.h3
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: reduce ? 0 : 0.3, delay: d(0.26) }}
@@ -538,6 +539,35 @@ export default function CustomersPage() {
   const [scrolled, setScrolled] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const { setIsModalOpen } = useLayout();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  // Full-bleed overlay origin: left edge of <main> (sidebar open → 290,
+  // collapsed/fullscreen → 0). Measured live so the panel follows the
+  // shell's own 250ms margin transition.
+  const [edge, setEdge] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      // NB: the root layout has its own <main> (full-width) — target the
+      // shell's padded main (px-8 + inline margin-left) specifically.
+      const m = document.querySelector('main.px-8');
+      if (!m) return;
+      const left = Math.round(m.getBoundingClientRect().left);
+      setEdge(prev => (prev === left ? prev : left));
+    };
+    measure();
+    const t = setInterval(measure, 250);
+    window.addEventListener('resize', measure);
+    return () => { clearInterval(t); window.removeEventListener('resize', measure); };
+  }, []);
+
+  // House focus mode: AdminHeader collapses while the inspector is open
+  // (LayoutContext.isModalOpen) → the panel owns the whole main area.
+  useEffect(() => {
+    setIsModalOpen(panelOpen);
+    return () => setIsModalOpen(false);
+  }, [panelOpen, setIsModalOpen]);
 
   const loadList = useCallback(async (q: string) => {
     setRows(null);
@@ -754,9 +784,8 @@ export default function CustomersPage() {
         {/* column header — sticky, gains a shadow once scrolled */}
         <div className={`sticky top-0 z-10 bg-[var(--theme-bg)]/95 backdrop-blur-sm border-b transition-[border-color,box-shadow] duration-200
           ${scrolled ? 'border-[var(--theme-border)] shadow-[0_12px_28px_-20px_rgba(0,0,0,0.35)]' : 'border-transparent'}`}>
-          <div className="flex items-center gap-3 px-4 sm:px-6 h-10 select-none">
+          <div className="flex items-center gap-4 px-4 sm:px-6 h-9 select-none">
             <span className="flex-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Ad</span>
-            <span className="hidden md:block w-36 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Telefon</span>
             <span className="hidden sm:block w-16 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Ziyarət</span>
             <span className="w-28 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Xərçəy</span>
             <span className="hidden lg:block w-24 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Orta</span>
@@ -772,14 +801,16 @@ export default function CustomersPage() {
           {/* loading */}
           {rows === null && !rowsErr && (
             <div className="divide-y divide-[var(--theme-border)]">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 sm:px-6 h-[58px]">
-                  <div className="flex-1"><Ghost w={`${42 - (i % 3) * 8}%`} h={13} /></div>
-                  <div className="hidden md:block w-36"><Ghost w="70%" h={11} /></div>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-4 sm:px-6 h-16">
+                  <div className="flex-1 space-y-2">
+                    <Ghost w={`${34 - (i % 3) * 7}%`} h={13} />
+                    <Ghost w={`${20 - (i % 3) * 4}%`} h={10} />
+                  </div>
                   <div className="hidden sm:block w-16 flex justify-end"><Ghost w="18px" h={11} /></div>
-                  <div className="w-28 flex justify-end"><Ghost w="52px" h={11} /></div>
+                  <div className="w-28 flex justify-end"><Ghost w="52px" h={12} /></div>
                   <div className="hidden lg:block w-24 flex justify-end"><Ghost w="40px" h={11} /></div>
-                  <div className="hidden sm:block w-32 flex justify-end"><Ghost w="60%" h={11} /></div>
+                  <div className="hidden sm:block w-32 flex justify-end"><Ghost w="56%" h={11} /></div>
                   <div className="w-6" />
                 </div>
               ))}
@@ -833,54 +864,80 @@ export default function CustomersPage() {
             ))}
           </AnimatePresence>
         </motion.div>
+
+        {/* table end-cap — closes the list, carries the meta (no more void) */}
+        {rows !== null && rows.length > 0 && (
+          <div className="flex items-center justify-between px-4 sm:px-6 h-10 border-t border-[var(--theme-border)]">
+            <span className="text-[11px] tabular-nums text-[var(--theme-text-muted)]">
+              {rows.length} müştəri · statistikalar sifarişlərdən canlı
+            </span>
+            <span className="hidden sm:flex items-center gap-1 text-[10px] text-[var(--theme-text-muted)]">
+              <Kbd>↑</Kbd><Kbd>↓</Kbd><span className="mx-1.5">seç</span>
+              <Kbd>↵</Kbd><span className="mx-1.5">aç</span>
+              <Kbd>/</Kbd><span className="ml-1.5">axtar</span>
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* ── slide-over inspector ── */}
-      <AnimatePresence>
-        {panelOpen && selected && (
-          <>
-            <motion.div
-              key="bd"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={{ duration: reduce ? 0 : 0.25, ease: 'easeOut' }}
-              onClick={closePanel}
-              aria-hidden
-              className={`absolute inset-0 z-30 ${lightMode ? 'bg-black/20' : 'bg-black/45'} backdrop-blur-[2px]`}
-            />
-            <motion.aside
-              key="panel"
-              role="dialog" aria-modal="true" aria-label={selected.name || 'Müştəri'}
-              initial={{ x: PANEL_W }} animate={{ x: 0 }} exit={{ x: PANEL_W }}
-              transition={{ duration: dOpen, ease: [0.32, 0.72, 0, 1] }}
-              className={`absolute top-0 right-0 bottom-0 z-40 w-full max-w-[560px] flex flex-col
-                bg-[var(--theme-surface)]/95 backdrop-blur-2xl border-l border-[var(--theme-border)]
-                ${lightMode ? 'shadow-[-24px_0_60px_-30px_rgba(0,0,0,0.18)]' : 'shadow-[-24px_0_60px_-30px_rgba(0,0,0,0.55)]'}`}>
-              {/* panel top bar: close */}
-              <div className="absolute top-5 right-5 z-10">
-                <motion.button
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  transition={{ duration: reduce ? 0 : 0.2, delay: d(0.15) }}
+      {/* ── slide-over inspector — portaled to <body> for FULL-BLEED:
+          spans the entire main area (left = live sidebar edge 290/0,
+          top→bottom edge-to-edge); AdminHeader collapses while open ── */}
+      {mounted && createPortal(
+        <div
+          data-cust-overlay
+          className="fixed top-0 right-0 bottom-0 z-40"
+          style={{ left: edge, transition: reduce ? undefined : 'left 0.25s ease' }}
+          aria-hidden={!panelOpen}
+        >
+          <AnimatePresence>
+            {panelOpen && selected && (
+              <>
+                <motion.div
+                  key="bd"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  transition={{ duration: reduce ? 0 : 0.25, ease: 'easeOut' }}
                   onClick={closePanel}
-                  aria-label="Bağla"
-                  className="w-8 h-8 rounded-full border border-[var(--theme-border)] bg-[var(--theme-bg)]/60 flex items-center justify-center
-                    text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:border-[var(--theme-border-strong)] transition-all duration-150 active:scale-[0.88]">
-                  <X size={14} strokeWidth={2.5} />
-                </motion.button>
-              </div>
-              <AnimatePresence mode="wait" initial={false}>
-                <Inspector
-                  key={selected.id}
-                  customer={selected}
-                  tl={tl}
-                  tlErr={tlErr}
-                  onRetry={() => selected && openCustomer(selected)}
-                  reduce={reduce}
+                  aria-hidden
+                  className={`absolute inset-0 z-30 ${lightMode ? 'bg-black/25' : 'bg-black/50'} backdrop-blur-[3px]`}
                 />
-              </AnimatePresence>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+                <motion.aside
+                  key="panel"
+                  role="dialog" aria-modal="true" aria-label={selected.name || 'Müştəri'}
+                  initial={{ x: PANEL_W }} animate={{ x: 0 }} exit={{ x: PANEL_W }}
+                  transition={{ duration: dOpen, ease: [0.32, 0.72, 0, 1] }}
+                  className={`absolute top-0 right-0 bottom-0 z-40 w-full max-w-[560px] flex flex-col
+                    bg-[var(--theme-surface)]/95 backdrop-blur-2xl border-l border-[var(--theme-border)]
+                    ${lightMode ? 'shadow-[-32px_0_80px_-40px_rgba(0,0,0,0.25)]' : 'shadow-[-32px_0_80px_-40px_rgba(0,0,0,0.6)]'}`}>
+                  {/* panel top bar: close */}
+                  <div className="absolute top-5 right-5 z-10">
+                    <motion.button
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                      transition={{ duration: reduce ? 0 : 0.2, delay: d(0.15) }}
+                      onClick={closePanel}
+                      aria-label="Bağla"
+                      className="w-8 h-8 rounded-full border border-[var(--theme-border)] bg-[var(--theme-bg)]/60 flex items-center justify-center
+                        text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:border-[var(--theme-border-strong)] transition-all duration-150 active:scale-[0.88]">
+                      <X size={14} strokeWidth={2.5} />
+                    </motion.button>
+                  </div>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <Inspector
+                      key={selected.id}
+                      customer={selected}
+                      tl={tl}
+                      tlErr={tlErr}
+                      onRetry={() => selected && openCustomer(selected)}
+                      reduce={reduce}
+                    />
+                  </AnimatePresence>
+                </motion.aside>
+              </>
+            )}
+          </AnimatePresence>
+        </div>,
+        document.body
+      )}
     </motion.div>
   );
 }

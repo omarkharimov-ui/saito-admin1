@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { Bell, ChevronDown } from 'lucide-react';
+import { Bell, ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -15,9 +15,11 @@ import type { Role } from '@/lib/permissions';
 const AdminHeaderInner = ({
   role,
   onToggleSidebar,
+  collapsed = false,
 }: {
   role: Role | null;
   onToggleSidebar: () => void;
+  collapsed?: boolean;
 }) => {
   const { notifications, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
   const { t, language, setLanguage } = useLanguage();
@@ -82,7 +84,18 @@ const AdminHeaderInner = ({
 
   return (
     <header className={`flex items-start sm:items-center justify-between gap-3 sm:gap-4 relative ${isModalOpen ? 'h-0 overflow-hidden mb-0 opacity-0' : 'mb-3'}`}>
-      <div className="flex-1" />
+      {/* sidebar toggle — completes the shell's existing (wired, button-less) collapse mechanism */}
+      <div className="flex items-center">
+        <button
+          onClick={onToggleSidebar}
+          aria-label="Yan paneli aç/bağla"
+          title="Yan paneli aç/bağla"
+          className="w-9 h-9 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] flex items-center justify-center
+            text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:border-[var(--theme-border-strong)]
+            transition-all duration-150 active:scale-[0.92]">
+          {collapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+        </button>
+      </div>
 
       <div className={`flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-7 transition-opacity duration-100 ${isModalOpen ? 'opacity-0 pointer-events-none' : ''}`}>
         {/* Location Switcher */}

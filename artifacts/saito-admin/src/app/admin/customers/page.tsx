@@ -540,35 +540,16 @@ export default function CustomersPage() {
   const [scrolled, setScrolled] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const { setIsModalOpen } = useLayout();
+  // v7.3: overlay geometry FROM THE SHELL AS STATE (LayoutContext) —
+  // mainEdge = sidebar margin (290/0/0), mainBottom = content top.
+  // No polling, no DOM measurement. The header is NO LONGER collapsed while
+  // the inspector is open (v6-v7.2 bug: that hid the sidebar toggle, making
+  // "sidebar closes → modal goes 100%" unreachable). Header stays visible +
+  // clickable → live toggle works; the overlay's `left` follows the shell's
+  // own 250ms margin transition with the same state, zero latency.
+  const { mainEdge, mainBottom } = useLayout();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-
-  // Full-bleed overlay origin: left edge of <main> (sidebar open → 290,
-  // collapsed/fullscreen → 0). Measured live so the panel follows the
-  // shell's own 250ms margin transition.
-  const [edge, setEdge] = useState(0);
-  useEffect(() => {
-    const measure = () => {
-      // NB: the root layout has its own <main> (full-width) — target the
-      // shell's padded main (px-8 + inline margin-left) specifically.
-      const m = document.querySelector('main.px-8');
-      if (!m) return;
-      const left = Math.round(m.getBoundingClientRect().left);
-      setEdge(prev => (prev === left ? prev : left));
-    };
-    measure();
-    const t = setInterval(measure, 250);
-    window.addEventListener('resize', measure);
-    return () => { clearInterval(t); window.removeEventListener('resize', measure); };
-  }, []);
-
-  // House focus mode: AdminHeader collapses while the inspector is open
-  // (LayoutContext.isModalOpen) → the panel owns the whole main area.
-  useEffect(() => {
-    setIsModalOpen(panelOpen);
-    return () => setIsModalOpen(false);
-  }, [panelOpen, setIsModalOpen]);
 
   const loadList = useCallback(async (q: string) => {
     setRows(null);
@@ -867,16 +848,20 @@ export default function CustomersPage() {
       </div>
 
       {/* ── slide-over inspector — portaled to <body> for FULL-BLEED:
-          spans the entire main area (left = live sidebar edge 290/0,
-          top→bottom edge-to-edge); AdminHeader collapses while open ── */}
+          spans the main content area (left = live sidebar edge 290/0 via
+          shell state, top = below AdminHeader, bottom edge-to-edge).
+          Header stays visible + clickable while open (v7.3) so the sidebar
+          can be toggled LIVE and the overlay follows instantly. ── */}
       {mounted && createPortal(
         <div
           data-cust-overlay
           // CRITICAL: container is present even while the panel is closed —
           // without pointer-events-none it silently swallows every click in
           // the main area (found via user report, v6.1).
-          className="fixed top-0 right-0 bottom-0 z-40 pointer-events-none"
-          style={{ left: edge, transition: reduce ? undefined : 'left 0.25s ease' }}
+          // top = mainBottom (below the live AdminHeader), left = mainEdge
+          // (sidebar state, animated with the shell's own margin transition).
+          className="fixed right-0 bottom-0 z-40 pointer-events-none"
+          style={{ left: mainEdge, top: mainBottom, transition: reduce ? undefined : 'left 0.25s ease' }}
           aria-hidden={!panelOpen}
         >
           <AnimatePresence>

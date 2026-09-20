@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Sidebar from '../Sidebar';
 import { AdminHeader } from '../AdminHeader';
@@ -22,6 +22,25 @@ export default function AdminDesktopShell({
   const searchParams = useSearchParams();
   const pageKey = `${pathname}?${searchParams.toString()}`;
   const handleToggleSidebar = useCallback(() => setSidebarOpen((prev) => !prev), []);
+
+  // v7.3: expose the main-area geometry to pages AS STATE (single source of
+  // truth = the shell's own margin). Overlays (e.g. customers inspector)
+  // track the sidebar with zero polling/latency and can be toggled live.
+  const mainEdge = isFullscreen ? 0 : sidebarOpen ? 290 : 0;
+  // NB: measured on the CONTENT container's top (not the header's bottom —
+  // header mb-3 margin-collapse would make rect.bottom underreport).
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [mainBottom, setMainBottom] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      const el = contentRef.current;
+      if (!el) return;
+      setMainBottom(Math.round(el.getBoundingClientRect().top));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
 
   useEffect(() => {
     const onResize = () => {
@@ -62,9 +81,11 @@ export default function AdminDesktopShell({
           transition: 'margin-left 0.25s ease, max-width 0.25s ease',
         }}
       >
-        <LayoutProvider>
-          <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} collapsed={!sidebarOpen} />
-          <div className="flex-1 min-h-0 overflow-y-auto">
+        <LayoutProvider mainEdge={mainEdge} mainBottom={mainBottom}>
+          <div className="relative z-50">
+            <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} collapsed={!sidebarOpen} />
+          </div>
+          <div ref={contentRef} className="flex-1 min-h-0 overflow-y-auto">
             <div key={pageKey} className="w-full h-full">
               {children}
             </div>

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check, Sparkles, Plus } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -68,6 +68,14 @@ interface CartPanelProps {
   onSeatTable?: () => void | Promise<void>;
   onOpenActions?: () => void;
   onVoidSuccess?: () => void | Promise<void>;
+  /** Wave B #3 — tap an offer card's "Əlavə et" to add the product. The
+   *  object is the raw /api/upsell/suggest offer row. Providing this prop
+   *  enables the offer card. */
+  onAddProduct?: (s: {
+    product_id: string; name: string; price: number; discount_price?: number | null;
+    image_url?: string | null; category_name?: string | null;
+    offer_type?: 'complement' | 'beverage' | 'generic'; ref_name?: string | null; pct?: number | null;
+  }) => void;
 }
 
 const STATIONS = [
@@ -132,6 +140,7 @@ export function CartPanel({
   onSeatTable,
   onOpenActions,
   onVoidSuccess,
+  onAddProduct,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -153,6 +162,133 @@ export function CartPanel({
   const [localGuestCount, setLocalGuestCount] = useState(cart?.guest_count ?? 1);
   const guestEditRef = useRef<HTMLDivElement>(null);
   const [guestSaving, setGuestSaving] = useState(false);
+  // ── Wave B #3 (v2) — stateful offer engine UI ───────────────────────────
+  // ONE offer card at a time, floating at the bottom of the item area.
+  // Contract ("ən relevant olan bir şeyi, bir dəfə, düzgün anda"):
+  //   • the SERVER owns the state machine: per-order budget (max 2 shown,
+  //     max 1 accepted), dismiss cooldown, resume-on-refetch, candidate
+  //     memory — see /api/upsell/suggest + upsell_offers table
+  //   • ACCEPT ≠ CHAIN: after accepting, acceptLockRef pins the product-set
+  //     key that the add created; the next set change unlocks a FRESH
+  //     evaluation (never an immediate follow-up offer)
+  //   • the card never re-suggests what was added/dismissed via card
+  //     (sugAddedRef → client_excluded in stateless mode)
+  //   • empty cart / void mode → no card
+  type Offer = {
+    product_id: string; name: string; price: number; discount_price?: number | null;
+    image_url?: string | null; category_name?: string | null;
+    offer_type?: 'complement' | 'beverage' | 'generic'; ref_name?: string | null; pct?: number | null;
+  };
+  const [offer, setOffer] = useState<Offer | null>(null);
+  const [offerId, setOfferId] = useState<string | null>(null);
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
+  const sugSeqRef = useRef(0);
+  const acceptLockRef = useRef<string | null>(null);
+  // Stateless (draft, no order_id yet) budget mirror — same contract as the
+  // server enforces per order: max 2 shown, max 1 accepted per session.
+  const sugShownRef = useRef(0);
+  const sugAcceptedRef = useRef(0);
+  const onAddProductRef = useRef(onAddProduct);
+  onAddProductRef.current = onAddProduct;
+  const sugAddedRef = useRef<Set<string>>(new Set());
+  const sugProductKey = useMemo(
+    () => ((cart?.items || []).map(i => i.product_id).filter(Boolean) as string[]).sort().join(','),
+    [cart]
+  );
+  // A new order session (new order_id, or a fresh draft on a table) resets
+  // the guard + lock so offers start clean.
+  // Draft (no order row yet) identity is table-level so the guard survives
+  // a CLEAR on the same table (dismissed/added never comes back this visit).
+  const cartIdentity = (cart as any)?.order_id
+    ? `o:${(cart as any).order_id}`
+    : `t:${cart?.table_number ?? 0}`;
+  useEffect(() => {
+    sugAddedRef.current = new Set();
+    acceptLockRef.current = null;
+    sugShownRef.current = 0;
+    sugAcceptedRef.current = 0;
+    setOffer(null);
+    setOfferId(null);
+  }, [cartIdentity]);
+
+  const acceptOffer = useCallback(() => {
+    if (!offer) return;
+    // No-chain lock: pin the set key the add is about to create.
+    acceptLockRef.current = [...sugProductKey.split(','), offer.product_id].filter(Boolean).sort().join(',');
+    sugAddedRef.current.add(offer.product_id);
+    if (!(cart as any)?.order_id) sugAcceptedRef.current += 1;
+    setLastAddedId(offer.product_id);
+    window.setTimeout(() => setLastAddedId(cur => (cur === offer.product_id ? null : cur)), 1800);
+    if (offerId) {
+      apiFetch('/api/upsell/outcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offer_id: offerId, outcome: 'accepted' }),
+      }).catch(() => {});
+    }
+    onAddProductRef.current?.(offer);
+    setOffer(null);
+    setOfferId(null);
+  }, [offer, offerId, sugProductKey]);
+
+  const dismissOffer = useCallback(() => {
+    if (!offer) return;
+    sugAddedRef.current.add(offer.product_id); // stateless anti-nag
+    if (offerId) {
+      apiFetch('/api/upsell/outcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offer_id: offerId, outcome: 'dismissed' }),
+      }).catch(() => {});
+    }
+    setOffer(null);
+    setOfferId(null);
+  }, [offer, offerId]);
+  const stateful = Boolean((cart as any)?.order_id);
+  useEffect(() => {
+    if (!onAddProduct || !sugProductKey) { setOffer(null); setOfferId(null); return; }
+    // Accept-no-chain: the set created by an accepted offer must not
+    // immediately spawn the next one.
+    if (sugProductKey === acceptLockRef.current) return;
+    // Stateless budget mirror (the server owns the same limits per order).
+    if (!stateful && (sugShownRef.current >= 2 || sugAcceptedRef.current >= 1)) return;
+    const seq = ++sugSeqRef.current;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiFetch('/api/upsell/suggest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            product_ids: sugProductKey.split(','),
+            order_id: (cart as any)?.order_id || undefined,
+            client_excluded: [...sugAddedRef.current],
+          }),
+        });
+        if (!res.ok || seq !== sugSeqRef.current) return;
+        const data = await res.json();
+        if (seq !== sugSeqRef.current) return;
+        const got = data?.offer && typeof data.offer.product_id === 'string' ? data.offer : null;
+        if (got && !stateful) sugShownRef.current += 1;
+        setOffer(got);
+        setOfferId(typeof data?.offer_id === 'string' ? data.offer_id : null);
+      } catch {
+        if (seq === sugSeqRef.current) { setOffer(null); setOfferId(null); }
+      }
+    }, 700);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sugProductKey, cartIdentity, !!onAddProduct, stateful]);
+
+  // Natural phrasing per offer type — the word "upsell" never appears.
+  const offerPhrase = (o: Offer): string => {
+    if (o.offer_type === 'complement') {
+      const pct = o.pct != null ? ` · %${o.pct}` : '';
+      return o.ref_name ? `«${o.ref_name}» ilə yaxşı gedir${pct}` : 'Bununla yaxşı gedir';
+    }
+    if (o.offer_type === 'beverage') return 'Sifarişdə içki yoxdur';
+    return 'Ən çox sifariş olunanlar';
+  };
+
 
   const commitGuestCount = useCallback(async (count: number): Promise<boolean> => {
     setGuestSaving(true);
@@ -773,7 +909,7 @@ export function CartPanel({
                     }
                   }
                 }}
-                className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 ${voidMode && !isVoidableItem ? 'opacity-50 border-[var(--theme-border)]' : 'border-[var(--theme-border)]'} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? lightMode ? 'bg-blue-50/50 border-transparent' : 'bg-blue-500/10 border-transparent' : ''}`}
+                className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 transition-shadow duration-700 ${voidMode && !isVoidableItem ? 'opacity-50 border-[var(--theme-border)]' : 'border-[var(--theme-border)]'} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? lightMode ? 'bg-blue-50/50 border-transparent' : 'bg-blue-500/10 border-transparent' : ''} ${lastAddedId && (item as any).product_id === lastAddedId ? (lightMode ? 'ring-2 ring-amber-400/80' : 'ring-2 ring-amber-300/50') : ''}`}
               >
                 {voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? (
                   <>
@@ -913,6 +1049,57 @@ export function CartPanel({
           })}
           </AnimatePresence>
         </div>
+        {/* Wave B #3 (v2) — floating offer card. Anchored to the BOTTOM edge
+            of the item area (scroll container is relative): it floats over
+            the scrollable content like a toast — never pushes layout, never
+            covers the totals, never covers more than the last row. Subtle
+            240ms fade-rise in, 180ms soft fade out. ONE at a time; the
+            server decides if/what (budget + cooldown). */}
+        {!voidMode && (
+          <AnimatePresence>
+            {offer && (() => {
+              const offPrice = Number(offer.discount_price != null ? offer.discount_price : offer.price) || 0;
+              return (
+                <motion.div
+                  key={`${offer.product_id}:${offerId || 'x'}`}
+                  data-offer-card
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.98, transition: { duration: 0.18, ease: 'easeOut' } }}
+                  transition={{ duration: 0.24, ease: [0.25, 0.1, 0.25, 1] }}
+                  className={`absolute inset-x-2.5 bottom-2.5 z-20 rounded-2xl border p-3 shadow-xl ${lightMode ? 'border-amber-200/80 bg-white shadow-amber-900/10' : 'border-white/[0.1] bg-zinc-900/95 shadow-black/60'}`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles size={12} className={lightMode ? 'text-amber-500' : 'text-amber-300/90'} />
+                    <span className={`min-w-0 flex-1 truncate text-[11px] font-semibold ${lightMode ? 'text-amber-700/90' : 'text-amber-300/80'}`}>
+                      {offerPhrase(offer)}
+                    </span>
+                    <button onClick={dismissOffer} aria-label="Təklifi bağla" className={`p-0.5 transition-opacity hover:opacity-70 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                      <X size={13} />
+                    </button>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    {offer.image_url ? (
+                      <img src={offer.image_url} alt="" className="h-8 w-8 flex-shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
+                        <Utensils size={14} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
+                      </div>
+                    )}
+                    <span className={`min-w-0 flex-1 truncate text-[13px] font-semibold ${lightMode ? 'text-zinc-900' : 'text-white/90'}`}>{offer.name}</span>
+                    <span className={`text-[13px] font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{offPrice.toFixed(2)} ₼</span>
+                  </div>
+                  <button
+                    onClick={acceptOffer}
+                    className={`mt-2.5 w-full rounded-xl py-2 text-[13px] font-bold transition-colors active:scale-[0.99] ${lightMode ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-amber-400 text-black hover:bg-amber-300'}`}
+                  >
+                    Əlavə et
+                  </button>
+                </motion.div>
+              );
+            })()}
+          </AnimatePresence>
+        )}
       </div>
 
       {/* Footer */}

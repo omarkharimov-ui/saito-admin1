@@ -2448,10 +2448,21 @@ export default function POSPage() {
                            if (!pos.cart) return;
                            pos.setCart({ ...pos.cart, ...fields });
                          }}
-                         onUpdateGlobalNote={(note) => {
-                           if (!pos.cart) return;
-                           pos.setCart({ ...pos.cart, notes: note });
-                         }}
+                          onUpdateGlobalNote={(note) => {
+                            if (!pos.cart) return;
+                            pos.setCart({ ...pos.cart, notes: note });
+                          }}
+                          onAddProduct={(s) => {
+                            // Wave B #3: route the suggestion through the SAME
+                            // tap path as the product grid (default-variant
+                            // logic, merge-by-line, modifier state preserved).
+                            // pos.products is the server-loaded grid list —
+                            // suggestions only ever reference active products.
+                            const product = (pos.products || []).find((p: any) => p.id === s.product_id);
+                            if (product) { handleProductTap(product as any); return; }
+                            // Fallback (grid not loaded yet): minimal product row.
+                            pos.addToCart({ id: s.product_id, name: s.name, price: Number(s.discount_price != null ? s.discount_price : s.price) || 0 } as any, { variantId: null });
+                          }}
                            onOpenModifiers={(productId) => {
                              const product = pos.products.find((p: any) => p.id === productId);
                              if (product) gridRef.current?.openEditor(productId);

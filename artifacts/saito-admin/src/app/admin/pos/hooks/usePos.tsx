@@ -1263,11 +1263,42 @@ export function usePos() {
           };
         });
 
-        if (posMode !== 'dine_in') {
-          setCart(prev => prev ? { ...prev, items: [] } : null);
-        }
-        setActiveView('floor');
-        fetchFloor().catch(() => {});
+         // pr v1: kitchen ticket — enqueue ONE ticket per order (trigger
+         // 'kitchen' is idempotent per order). Appends don't re-print
+         // automatically — reprint from KDS / order history. Fire-and-forget:
+         // print routing must never block the order flow.
+         if (createdOrderId && unsent.length > 0) {
+           fetch('/api/print/enqueue', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             credentials: 'include',
+             body: JSON.stringify({
+               doc_type: 'kitchen',
+               order_id: createdOrderId,
+               trigger_key: 'kitchen',
+               payload: {
+                 table: cart.table_number,
+                 orderNumber: data.data?.order_number ?? data.order_number ?? null,
+                 items: unsent.map((u) => ({
+                   name: u.product_name || 'Məhsul',
+                   quantity: u.quantity, // already the unsent delta
+                   note: u.special_notes || null,
+                   course: u.course || null,
+                 })),
+                 note: cart.notes || null,
+                 staffName: null,
+                 date: new Date().toLocaleDateString('az-AZ'),
+                 time: new Date().toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
+               },
+             }),
+           }).catch(() => {});
+         }
+
+         if (posMode !== 'dine_in') {
+           setCart(prev => prev ? { ...prev, items: [] } : null);
+         }
+         setActiveView('floor');
+         fetchFloor().catch(() => {});
       } else {
         const err = await res.json().catch(() => ({}));
         if (res.status === 409) {

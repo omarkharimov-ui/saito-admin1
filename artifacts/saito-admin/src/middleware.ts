@@ -24,6 +24,9 @@ const PUBLIC_PATHS = [
   // P-8 (Q4): external cron trigger — called without a staff cookie; the route
   // itself enforces Bearer CRON_SECRET.
   '/api/cron/',
+  // pr v1: headless LAN print agent — called without a staff cookie; the route
+  // itself enforces the device agent_key (48-hex secret, per-device).
+  '/api/print/agent',
   '/api/pwa',
   '/manifest.webmanifest',
   '/manifest-staff.json',

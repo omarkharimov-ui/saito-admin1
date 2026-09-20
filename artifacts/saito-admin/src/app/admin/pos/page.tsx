@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
-import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw } from 'lucide-react';
+import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { usePos, cartLineKey } from './hooks/usePos';
@@ -26,7 +26,8 @@ import { FloorSkeleton, ProductGridSkeleton, CartSkeleton } from './components/P
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { DragTabSwitcher } from '@/components/ui/DragTabSwitcher';
 import { toast } from '@/lib/toast';
-import { printReceipt, getReceiptSettings, printReservation } from '@/lib/print/PrintService';
+import { printReceipt, getReceiptSettings, printReservation, printKitchenTicket } from '@/lib/print/PrintService';
+import { usePrintClaimLoop, type PrintJob } from '@/hooks/usePrintClaimLoop';
 import { apiFetch } from '@/lib/api-fetch';
 import { supabase } from '@/lib/supabase';
 import ReceiptPreview from '@/app/admin/shared/ReceiptPreview';
@@ -56,6 +57,60 @@ export default function POSPage() {
   const { t } = useLanguage();
   const pos = usePos();
   const router = useRouter();
+
+  // pr v1 — terminal print claim loop: this POS tab is a "browser terminal".
+  // Claims QUEUED jobs routed to browser devices (receipt / kitchen), prints
+  // via the browser dialog, reports the result back. Network devices are
+  // served by the LAN print agent instead.
+  const printQueue = usePrintClaimLoop(true, {
+    onPrint: async (job: PrintJob) => {
+      const settings = await getReceiptSettings().catch(() => null);
+      const p = job.payload || {};
+      const paper = job.device?.paper_width || settings?.paperWidth || '80mm';
+      const copies = job.device?.copies || 1;
+      if (job.doc_type === 'receipt') {
+        return printReceipt({
+          restaurantName: p.restaurantName || settings?.restaurantName || 'Restoran',
+          address: p.address || settings?.address || '',
+          receiptTitle: p.receiptTitle || settings?.receiptTitle || 'SİFARİŞ ÇEKİ',
+          currency: p.currency || settings?.receiptCurrency || '₼',
+          serviceFeePct: p.serviceFeePct ?? settings?.serviceFeePct ?? 10,
+          showServiceFee: p.showServiceFee ?? settings?.showServiceFee ?? true,
+          footerText: p.footerText || settings?.footerText || '',
+          tableNumber: p.tableNumber,
+          orderId: p.orderId,
+          items: p.items || [],
+          subtotal: p.subtotal || 0,
+          discount: p.discount || 0,
+          discountName: p.discountName,
+          tip: p.tip || 0,
+          total: p.total || 0,
+          paymentMethod: p.paymentMethod || '',
+          cashAmount: p.cashAmount || 0,
+          cardAmount: p.cardAmount || 0,
+          date: p.date || new Date().toISOString(),
+          time: p.time || new Date().toISOString(),
+          paperWidth: paper,
+          copies,
+        });
+      }
+      if (job.doc_type === 'kitchen') {
+        return printKitchenTicket({
+          restaurantName: settings?.restaurantName || 'Restoran',
+          table: p.table,
+          orderNumber: p.orderNumber,
+          items: p.items || [],
+          note: p.note || null,
+          staffName: p.staffName || '',
+          date: p.date || '',
+          time: p.time || '',
+          paperWidth: paper,
+          copies,
+        });
+      }
+      return false;
+    },
+  });
   const orderStateMachine = useOrderStateMachine({
     onTransition: (result) => {
       if (result.success) {
@@ -548,39 +603,60 @@ export default function POSPage() {
         !isFinalOrderStatus(o.status) && tableNumbers.includes(o.table_number)
       );
       if (activeOrders.length === 0) { toast.error(t('order_not_found')); return; }
-      const settings = await getReceiptSettings();
-      for (const order of activeOrders) {
-        const items = (order.order_items || []).map((item: any) => ({
-          name: item.product_name || item.products?.name_az || item.products?.name_en || 'Məhsul',
-          quantity: item.quantity || 1,
-          price: Number(item.total_price || item.price || 0),
-        }));
-        await printReceipt({
-          restaurantName: settings.restaurantName,
-          address: settings.address,
-          receiptTitle: 'HESAB',
-          currency: settings.receiptCurrency,
-          serviceFeePct: settings.serviceFeePct,
-          showServiceFee: settings.showServiceFee,
-          footerText: settings.footerText,
-          tableNumber: order.table_number,
-          orderId: order.id,
-          items,
-          subtotal: Number(order.total_amount) || 0,
-          discount: Number(order.discount_amount) || 0,
-          discountName: order.campaigns?.name,
-          tip: 0,
-          total: Number(order.total_amount) || 0,
-          paymentMethod: '',
-          cashAmount: 0,
-          cardAmount: 0,
-          date: new Date().toISOString(),
-          time: new Date().toISOString(),
-          paperWidth: settings.paperWidth,
-          copies: 1,
-        });
-      }
-      toast.success(t('bill_printed'));
+       const settings = await getReceiptSettings();
+       let routedCount = 0;
+       let directCount = 0;
+       for (const order of activeOrders) {
+         const items = (order.order_items || []).map((item: any) => ({
+           name: item.product_name || item.products?.name_az || item.products?.name_en || 'Məhsul',
+           quantity: item.quantity || 1,
+           price: Number(item.total_price || item.price || 0),
+         }));
+         const payload = {
+           restaurantName: settings.restaurantName,
+           address: settings.address,
+           receiptTitle: 'HESAB',
+           currency: settings.receiptCurrency,
+           serviceFeePct: settings.serviceFeePct,
+           showServiceFee: settings.showServiceFee,
+           footerText: settings.footerText,
+           tableNumber: order.table_number,
+           orderId: order.id,
+           items,
+           subtotal: Number(order.total_amount) || 0,
+           discount: Number(order.discount_amount) || 0,
+           discountName: order.campaigns?.name,
+           tip: 0,
+           total: Number(order.total_amount) || 0,
+           paymentMethod: '',
+           cashAmount: 0,
+           cardAmount: 0,
+           date: new Date().toISOString(),
+           time: new Date().toISOString(),
+           paperWidth: settings.paperWidth,
+           copies: 1,
+         };
+         // pr v1: server-routed print first (device registry); fall back to
+         // the legacy direct browser print when no receipt device is routed.
+         try {
+           const enqRes = await apiFetch('/api/print/enqueue', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({
+               doc_type: 'receipt',
+               order_id: order.id,
+               trigger_key: `bill:${order.id}:${Date.now()}`,
+               payload,
+             }),
+           });
+           const enq = await enqRes.json().catch(() => ({}));
+           if (enqRes.ok && enq.routed === true) { routedCount++; continue; }
+         } catch { /* fall through to direct print */ }
+         await printReceipt(payload);
+         directCount++;
+       }
+       if (routedCount > 0) toast.success(`Çek növbəsinə qoyuldu (${routedCount})`);
+       if (directCount > 0) toast.success(t('bill_printed'));
     } catch {
       toast.error(t('print_error'));
     }
@@ -1591,15 +1667,25 @@ export default function POSPage() {
           ) : pos.floors.length > 1 ? (
             <div className="w-[120px]" />
           ) : null}
-          <div className="flex-1" />
-          <button
-            onClick={() => setOrderHistoryOpen(true)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-            title={t('order_history')}
-          >
-            <History size={16} />
-            <span className="hidden sm:inline">{t('history')}</span>
-          </button>
+           <div className="flex-1" />
+           {/* pr v1 — print queue badge (queued jobs for this location) */}
+           {(printQueue.queued > 0 || printQueue.claimed > 0) && (
+             <div
+               className="flex items-center gap-1.5 px-3 py-2 rounded-full border text-xs font-black text-gold bg-gold/10 border-gold/30"
+               title={`Çap növbəsi: ${printQueue.queued} gözləyir, ${printQueue.claimed} yazılır`}
+             >
+               <Printer size={15} />
+               {printQueue.claimed > 0 ? printQueue.claimed : printQueue.queued}
+             </div>
+           )}
+           <button
+             onClick={() => setOrderHistoryOpen(true)}
+             className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+             title={t('order_history')}
+           >
+             <History size={16} />
+             <span className="hidden sm:inline">{t('history')}</span>
+           </button>
           {isCashierOrAdmin && (
             <button
               onClick={() => setCashDrawerOpen(true)}

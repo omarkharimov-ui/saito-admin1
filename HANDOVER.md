@@ -843,7 +843,7 @@ Risks / Frozen-boundary impact / Decision (GO / NO-GO / INVESTIGATE / DEFER) / S
 | W-A4 gift card (Q3) minimal | ✅ DONE | `.gc-gate.cjs` 23/23; commit 7668addd |
 | W-A4.5 GC 1.5 (load/refund) + CP-1 (customer birthday/email/notes) | ✅ DONE | `.gc2-gate.cjs` 22/22 + `.gc-gate.cjs` reflow 23/23; commit b3578c9f |
 | W-A5 daily operating checklists (map §21 J) | ✅ **DONE (v1.1)** — gate 40/40 + E2E real-mouse r1 (2 defects) + v1.1 fixes + r2 re-verify (console CLEAN); E2E fixtures purged | `.ck-gate.cjs` 40/40; commits bf9d3b75→v1.1 |
-| Device registry / print routing | ⬜ NEXT wave (map Wave A #5) | — |
+| Device registry / print routing (pr v1) | ✅ **DONE (v1)** — gate 35/35 + E2E real-mouse (R20-R28: devices CRUD, key rotate, test print→claim→dialog, kitchen order→KDS ticket+reprint, network job queued-not-auto-printed, themes, console CLEAN); E2E fixtures purged | `.pr-gate.cjs` 35/35; migrations 20260920000011-14 |
 | Dead onboarding surface | 🗑 REMOVED (was 6 days of silent 500s; tables dropped 09-14 C-class, app residue completed by 20260920000006 + route/UI removal) | live probe `ERROR: relation "onboarding_workflows" does not exist` |
 
 **Canonical roadmap:** `MASTER_FEATURE_MAP.md` (status header = WAVE QƏRARLARI; §9 = icra sırası).
@@ -869,15 +869,55 @@ Risks / Frozen-boundary impact / Decision (GO / NO-GO / INVESTIGATE / DEFER) / S
    NOTE: re-check 400 = API-level contract (C18) — UI row click inverts state (uncheck on completed = reopen,
    by design C16); never phrase a UI "re-check" test as a row click.
 
+**COMPLETED 2026-09-20 (same session) — Wave A #5: device registry / print routing (pr v1):**
+5. ✅ **INSPECT (real-DB evidence):** no print_jobs/device registry (map claim stale), `order_reprints` table
+   ABSENT → `/api/orders/reprint` was fake-success, only BrowserPrinterAdapter works (Network/USB/Serial =
+   stubs), KDS outbox pattern = house routing precedent, `term_*` terminal ids already flowing.
+6. ✅ **Backend:** migrations `20260920000011` (print_devices + print_jobs + 10 RPCs; expression UNIQUE index
+   for idempotent enqueue; SKIP LOCKED claims; agent_key 48-hex, never re-listed) + `000012` (multi-row claim
+   crash fix: `RETURNING ... INTO` is single-row only) + `000013/000014` (pgcrypto lives in `extensions` schema
+   → `extensions.gen_random_bytes` under search_path='public') — all +rollbacks, applied live, grants OID-verified
+   (anon/auth no EXECUTE, service_role all; table DML revoked). Routes: devices (GET/POST/PATCH/DELETE/rotate-key,
+   settings.admin=**admin/owner/superadmin** — manager excluded, same domain as /api/settings/printer), enqueue
+   (any staff; D-5 server-derived location), claim (browser jobs only, atomic), result (owner-only close),
+   queue counts, agent/poll (key auth; middleware whitelist like /api/cron/). **Reprint route fixed** (real
+   enqueue, no more fake success). Frozen P-series RPCs untouched (enqueue = explicit client events).
+7. ✅ **Gate `.pr-gate.cjs` 35/35** (PRG_ fixtures, zero residue; P6c = port validation after E2E finding).
+8. ✅ **UI (house DNA):** Settings → "Çap Cihazları" tab (flat ledger, modal, one-time agent key panel, test
+   print, rotate, delete, online dots/last-seen/last_error); `usePrintClaimLoop` hook (4s: claim→iframe print→
+   result; POS + KDS terminals = browser print pool); POS header queue badge; `handlePrintBill` = enqueue-first
+   with legacy direct-print fallback when routed:false; placeOrder → ONE kitchen ticket per order (idempotent
+   trigger 'kitchen'; appends reprint from KDS printer button); KDS per-ticket reprint; PrintService +
+   kitchen ticket builder.
+9. ✅ **`tools/print-agent`** (Node ≥18, zero deps): SAITO_BASE_URL + SAITO_DEVICE_KEY → poll/claim own device →
+   raw TCP ESC/POS (80mm=42col/58mm=32col, copies, retries) → result report; README.
+10. ✅ **E2E real-mouse r1+r2:** R20-R24 PASS (devices CRUD, key rotate, test print→POS claim→print dialog,
+    badges), R25 kitchen send (Table 90 = PRE-EXISTING archived-table-selectable issue, not print), R26 KDS ticket
+    + reprint button + network job stays queued (badge 2 waiting — agent would print), R28 dark/light PASS,
+    console CLEAN (only pre-existing weather 500). R27 receipt-after-payment blocked by AUTOMATION artifact
+    (window.print blocks page JS thread until dialog dismissed; cash modal flake same root) — receipt pipeline
+    proven via R24 test print (routed→claimed→dialog→badge). E2E defects fixed same session: port input append
+    bug + raw 23514 toast → input filter + modal validation + route 400 (gate P6c). E2E residue purged
+    (devices=0, jobs=0; Table 471 E2E order VOIDED via /api/orders/void — close the table in POS if still shown).
+
+**PRE-EXISTING (not pr) — logged for a future wave:** archived tables (e.g. #90) still selectable in POS →
+`TABLE_ARCHIVED` on order create; settings nav raw i18n keys (tab_printer/tab_receipt/...); checklists row cards
+lack ARIA (ck v1.2 hygiene).
+   by design C16); never phrase a UI "re-check" test as a row click.
+
 **NEXT ACTIONS (this order):**
-1. **Wave A #5 (device registry / print routing):** house rhythm — backend INSPECT first (live DB + code
-   evidence, EVIDENCE/INFERENCE/RISK/DECISION; `print_jobs` table exists, registry does not), decision log,
-   migrations, routes, gate battery, commit; UI per §8.3 (autonomous — hard stop lifted; house DNA v8.5).
-2. **W-A2 menu "continue your check" UI:** DO NOT build unilaterally — HARD STOP, user co-designs (1A sticky bar
+1. **W-A2 menu "continue your check" UI:** DO NOT build unilaterally — HARD STOP, user co-designs (1A sticky bar
    is the ratified direction; backend contract ready, see §6 W-A2).
-3. **FOLLOW-UP (LOW, ck):** row cards are bare divs (no role/ARIA → no automation e-refs, a11y gap); add
+2. **pr v1.1 (follow-ups):** test the LAN agent against a real ESC/POS printer (user's kitchen); R27 receipt
+   E2E (payment→Print Bill→routed→claimed→printed) — needs a human or a print-dialog auto-dismiss (window.print
+   blocks the page JS thread until dismissed — automation cannot reliably close it); if the user reports kitchen
+   tickets need per-item re-print on appends, extend the trigger scheme (v1 = one ticket per order).
+3. **PRE-EXISTING fixes (logged, out of pr scope):** archived tables selectable in POS (TABLE_ARCHIVED on
+   create); settings nav raw i18n keys (tab_printer/tab_receipt/tab_hours/tab_payroll).
+4. **FOLLOW-UP (LOW, ck):** row cards are bare divs (no role/ARIA → no automation e-refs, a11y gap); add
    `role="row"`/aria labels + keyboard affordance in a ck v1.2 hygiene pass.
-4. Re-establish gate baselines after ANY session restart (Rule 1): all four gates green before new work.
+5. Re-establish gate baselines after ANY session restart (Rule 1): **five** gates green before new work
+   (`.w-a2` 19 · `.gc` 23 · `.gc2` 22 · `.ck` 40 · `.pr` 35).
 
 ### 8.3 HOW UI IS DONE HERE (house DNA — v8.5 language, binding)
 

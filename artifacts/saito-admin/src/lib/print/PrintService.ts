@@ -309,3 +309,91 @@ export async function printReservation(data: {
     title: data.receiptTitle,
   });
 }
+
+// ── Kitchen ticket (pr v1 — browser kitchen device) ──────────────────────────
+// Printed by the terminal claim loop when a kitchen job is routed to a
+// BROWSER device (KDS terminal). Mirrors the receipt iframe flow.
+
+export interface KitchenTicketData {
+  restaurantName: string;
+  table?: number | string;
+  orderNumber?: string | number;
+  items: { name: string; quantity: number; note?: string | null; course?: string | null }[];
+  note?: string | null;
+  staffName?: string;
+  date: string;
+  time: string;
+  paperWidth: string;
+  copies: number;
+}
+
+export function buildKitchenTicketHtml(data: KitchenTicketData): string {
+  const width = data.paperWidth === '58mm' ? 220 : 302;
+  const itemsHtml = data.items
+    .map(
+      (item) => `<div style="margin-bottom:6px">
+        <div style="font-size:13px;font-weight:700">${item.quantity}x ${item.name}</div>
+        ${item.course ? `<div style="font-size:10px;color:#333;text-transform:uppercase;letter-spacing:1px">${item.course}</div>` : ''}
+        ${item.note ? `<div style="font-size:11px;color:#BE123C">! ${item.note}</div>` : ''}
+      </div>`
+    )
+    .join('');
+
+  return `<!DOCTYPE html><html><head>
+    <meta charset="utf-8"/>
+    <title>KITCHEN #${data.orderNumber ?? '-'}</title>
+    <style>
+      @page { size: ${width}px auto; margin: 0; }
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { font-family:'Courier New',Courier,monospace; background:#fff; color:#000; font-size:12px; }
+    </style>
+  </head><body>
+    <div style="width:${width}px;margin:0 auto;padding:16px 14px;line-height:1.5">
+      <div style="text-align:center;font-weight:700;font-size:15px;letter-spacing:2px;margin-bottom:2px">MASA XİDMƏTİ</div>
+      <div style="text-align:center;font-size:11px;color:#555;margin-bottom:6px">${data.restaurantName}</div>
+      <div style="border-top:2px dashed #000;margin:6px 0"></div>
+      <div style="display:flex;font-size:14px;margin-bottom:2px"><span style="flex:1">Masa: <b>${data.table ?? '-'}</b></span><span>№ ${data.orderNumber ?? '-'}</span></div>
+      <div style="display:flex;font-size:11px;color:#555;margin-bottom:6px"><span style="flex:1">${data.date} ${data.time}</span><span>${data.staffName || ''}</span></div>
+      <div style="border-top:2px dashed #000;margin:6px 0"></div>
+      ${itemsHtml}
+      ${data.note ? `<div style="border-top:1px dashed #000;margin:6px 0"></div><div style="font-size:11px"><b>Qeyd:</b> ${data.note}</div>` : ''}
+      <div style="text-align:center;font-size:10px;color:#555;margin-top:10px">— KİTCHEN TICKET —</div>
+    </div>
+  </body></html>`;
+}
+
+export async function printKitchenTicket(data: KitchenTicketData): Promise<boolean> {
+  let iframe: HTMLIFrameElement | null = null;
+  try {
+    const html = buildKitchenTicketHtml(data);
+    iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc || !iframe.contentWindow) throw new Error('Print iframe not ready');
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.contentWindow.focus();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    for (let c = 0; c < Math.max(1, data.copies); c++) {
+      iframe.contentWindow.print();
+      if (c < data.copies - 1) await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    return true;
+  } catch (e) {
+    console.error('Kitchen print failed:', e);
+    return false;
+  } finally {
+    const el = iframe;
+    if (el) setTimeout(() => el.remove(), 5000);
+  }
+}

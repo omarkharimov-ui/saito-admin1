@@ -425,7 +425,7 @@ Tickets, stations (kitchen/grill/fry/dessert/bar/expo), routing, queue, priority
 | Prep-time + station analytics | ✅ | `kitchen_analytics`, `log_kitchen_analytics`, `get_kitchen_stats` | `admin/kitchen-analytics` |
 | Kitchen schedule (reservation pre-fire) | ✅ | `kitchen_schedule`, `process_due_kitchen_schedules` (cron) | — |
 | Expo station + course firing UI | 🟡 | stations var | UI-də ayrıca "Expo" görünüşü Addım 2 |
-| Printer routing (kitchen/bar printers) | 🟡 | `print_jobs`, `/api/settings/printer` | Hardware test + routing Addım 2 |
+| Printer routing (kitchen/bar printers) | ✅ **pr v1 (09-20)** | `print_jobs`, `print_devices`, `/api/print/*`, `/api/settings/printer` | Gate 35/35 + E2E R20-R28; LAN agent (tools/print-agent) |
 | Realtime ticket push | ✅ FROZEN (P0-3) | `supabase_realtime` (kitchen_tickets daxil) | — |
 
 ### 16. INVENTORY
@@ -575,7 +575,7 @@ POS / terminal / handheld / customer display / payment terminal / printers (rece
 
 | Feature | Saito | DB | API/UI |
 |---|---|---|---|
-| Print jobs + printer settings | 🟡 | `print_jobs`, `/api/settings/printer` | Device registry + health + routing YOX |
+| Print jobs + printer settings | ✅ | `print_jobs` + `print_devices` + `print_*` RPC-lər (000011-14) | Registry + health (online/last_seen/last_error) + routing + reprint (fake-success fix) |
 | Device health (online/offline/last seen) | ❌ | — | Addım 2/3 |
 | KDS screens (browser) | ✅ | KDS pages | — |
 | Cash drawer hardware (kick) | 🟡 | session core var | Hardware driver Addım 2 |
@@ -691,7 +691,7 @@ Order, customer, address, zone, fee, driver; status RECEIVED→ACCEPTED→PREPAR
 | Recipes | ✅ |
 | Promotions | ✅ engine |
 | Reports | ✅ + Sensei AI |
-| Printing | 🟡 print jobs var (device registry = Addım 2) |
+| Printing | ✅ pr v1 (device registry + job routing + claim/result + LAN agent; gate 35/35) |
 
 **Toast/Square/Lightspeed parity bloklar (menecer: ☐ — Saito REAL):**
 
@@ -750,7 +750,7 @@ menecerin ☐ siyahısından əvvəlcədən gedir — bunlar yeni iş deyil, qor
 5. ~~**Daily operating checklists**~~ ✅ **BİTİB (09-20, v1.1)** — backend `20260920000007-000010` migrations (lazy materialization, grants fix, dup-title guard, note-only RPC) + UI (board/KPI, iOS-push detail, item toggle, note, assign, skip, Şablonlar); gate **40/40** + E2E real-mouse r1 (defect #1 note-on-completed → v1.1 fix) + r2 (re-verify, console clean)
 6. **Waitlist SMS** + reservation reminder/confirmation (provider: WhatsApp mövcuddur → genişləndirmə)
 7. ~~**Cron verification**~~ ✅ **BİTİB (2.1)** — 7 job LIVE, run audit `cron.job_run_details`
-8. **Device registry + print routing** (print_jobs var, registry yoxdur)
+8. ~~**Device registry + print routing**~~ ✅ **BİTİB (09-20, pr v1)** — `print_devices` + `print_jobs` (migrations 20260920000011-14, 4 fix round: expression UNIQUE, multi-row claim, pgcrypto schema), `/api/print/*` routes (D-5 server location), reprint fake-success fix, Settings "Çap Cihazları" + POS/KDS claim loop + queue badge + KDS reprint, `tools/print-agent` (zero-dep ESC/POS LAN agent); gate **35/35** + E2E R20-R28
 9. **Loyalty qərarı Q2** (tiers/birthday UI build/cut) — qədardan asılı
 
 ### Wave B — "Guest channels" (Addım 2-in son yarısı)

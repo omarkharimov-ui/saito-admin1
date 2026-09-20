@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock, ChefHat, CheckCircle2, AlertTriangle, Volume2, VolumeX,
-  Package, Truck, Utensils, Flame, Timer, Bell
+  Package, Truck, Utensils, Flame, Timer, Bell, Printer
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -12,6 +12,8 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { supabase } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings-client';
+import { usePrintClaimLoop, type PrintJob } from '@/hooks/usePrintClaimLoop';
+import { printKitchenTicket, printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
 
 interface KDSItem {
   id: string;
@@ -95,6 +97,87 @@ export function KDSView({ onBack }: { onBack: () => void }) {
   const [delayMin, setDelayMin] = useState(30);
   const prevOrderCountRef = useRef(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // pr v1 — this KDS terminal is a browser print terminal too: claims
+  // kitchen (and receipt) jobs routed to browser devices of the location.
+  usePrintClaimLoop(true, {
+    onPrint: async (job: PrintJob) => {
+      const settings = await getReceiptSettings().catch(() => null);
+      const p = job.payload || {};
+      const paper = job.device?.paper_width || settings?.paperWidth || '80mm';
+      const copies = job.device?.copies || 1;
+      if (job.doc_type === 'kitchen') {
+        return printKitchenTicket({
+          restaurantName: settings?.restaurantName || 'Restoran',
+          table: p.table,
+          orderNumber: p.orderNumber,
+          items: p.items || [],
+          note: p.note || null,
+          staffName: p.staffName || '',
+          date: p.date || '',
+          time: p.time || '',
+          paperWidth: paper,
+          copies,
+        });
+      }
+      if (job.doc_type === 'receipt') {
+        return printReceipt({
+          restaurantName: p.restaurantName || settings?.restaurantName || 'Restoran',
+          address: p.address || settings?.address || '',
+          receiptTitle: p.receiptTitle || settings?.receiptTitle || 'SİFARİŞ ÇEKİ',
+          currency: p.currency || settings?.receiptCurrency || '₼',
+          serviceFeePct: p.serviceFeePct ?? settings?.serviceFeePct ?? 10,
+          showServiceFee: p.showServiceFee ?? settings?.showServiceFee ?? true,
+          footerText: p.footerText || settings?.footerText || '',
+          tableNumber: p.tableNumber,
+          orderId: p.orderId,
+          items: p.items || [],
+          subtotal: p.subtotal || 0,
+          discount: p.discount || 0,
+          discountName: p.discountName,
+          tip: p.tip || 0,
+          total: p.total || 0,
+          paymentMethod: p.paymentMethod || '',
+          cashAmount: p.cashAmount || 0,
+          cardAmount: p.cardAmount || 0,
+          date: p.date || new Date().toISOString(),
+          time: p.time || new Date().toISOString(),
+          paperWidth: paper,
+          copies,
+        });
+      }
+      return false;
+    },
+  });
+
+  const reprintTicket = async (order: KDSOrder) => {
+    const items = (order.items || [])
+      .filter((i) => i.kitchen_status !== 'completed' && i.kitchen_status !== 'cancelled')
+      .map((i) => ({ name: i.name, quantity: Math.max(0, i.quantity - (i.prepared_quantity || 0)), note: i.special_notes || null, course: null }));
+    if (items.length === 0) { toast.error('Aktiv məhsul yoxdur'); return; }
+    try {
+      const res = await apiFetch('/api/print/enqueue', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          doc_type: 'kitchen',
+          order_id: order.id,
+          trigger_key: `kitchen-reprint:${Date.now()}`,
+          payload: {
+            table: order.table_number,
+            orderNumber: null,
+            items,
+            note: null,
+            staffName: null,
+            date: new Date().toLocaleDateString('az-AZ'),
+            time: new Date().toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
+          },
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(d.error || 'Xəta'); return; }
+      toast.success(d.routed === false ? 'Göndərildi (device yoxdur — terminal çap edəcək)' : 'Bilet yenidən çapa göndərildi');
+    } catch { toast.error('Şəbəkə xətası'); }
+  };
 
   useEffect(() => {
     getSettings('order').then((row) => {
@@ -300,6 +383,14 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                           {Math.floor(timer.elapsed)}d
                         </span>
                         {(timer.color === 'red' || timer.color === 'purple') && <AlertTriangle size={14} className="animate-pulse text-red-500" />}
+                        <button
+                          type="button"
+                          onClick={() => reprintTicket(order)}
+                          title="Bileti yenidən çap et"
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' : 'bg-white/[0.04] border-white/[0.08] text-white/40 hover:bg-white/[0.08] hover:text-white/70'}`}
+                        >
+                          <Printer size={13} />
+                        </button>
                       </div>
                     </div>
 

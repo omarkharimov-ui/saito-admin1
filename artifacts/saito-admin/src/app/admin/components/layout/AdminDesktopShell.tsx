@@ -66,7 +66,7 @@ export default function AdminDesktopShell({
   // page switch, so the next page's list paints from cache — not a spinner.
   // GC (Wave A #3): + gift card default list & summary.
   useEffect(() => {
-    idlePrime(['/api/customers?q=&limit=50', '/api/orders', '/api/gift-cards?status=active', '/api/gift-cards/summary']);
+    idlePrime(['/api/customers?q=&limit=50', '/api/orders', '/api/gift-cards?status=active', '/api/gift-cards/summary', '/api/checklists/board']);
   }, [pageKey]);
 
   // PERF (user, 2026-09-20): warm every admin route in the BACKGROUND after
@@ -79,7 +79,7 @@ export default function AdminDesktopShell({
     const routes = [
       '/admin', '/admin/pos', '/admin/reservations', '/admin/products',
       '/admin/campaigns', '/admin/staff', '/admin/customers', '/admin/gift-cards',
-      '/admin/orders', '/admin/receipts', '/admin/stats', '/admin/audit',
+      '/admin/orders', '/admin/receipts', '/admin/stats', '/admin/audit', '/admin/checklists',
       '/admin/stock/adjustments', '/admin/stock/counts', '/admin/stock/locations',
       '/admin/stock/transfers', '/admin/stock/returns', '/admin/settings',
     ];

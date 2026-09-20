@@ -19,7 +19,6 @@ import { TipManagement } from './components/TipManagement';
 import { BreakManagement } from './components/BreakManagement';
 import { OvertimeTracking } from './components/OvertimeTracking';
 import { ShiftHandover } from './components/ShiftHandover';
-import { Onboarding } from './components/Onboarding';
 import { DocumentManagement } from './components/DocumentManagement';
 import { Compliance } from './components/Compliance';
 import { Communication } from './components/Communication';
@@ -1016,7 +1015,6 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
       tabs: [
         { key: 'overview', label: 'Overview' },
         { key: 'documents', label: 'Documents' },
-        { key: 'onboarding', label: 'Onboarding' },
         { key: 'reviews', label: 'Reviews' },
       ]
     },
@@ -1429,10 +1427,6 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               <FileText size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
               <p className="text-sm text-[var(--theme-text-secondary)]">No active shift</p>
             </div>
-          )}
-
-          {activeTab === 'onboarding' && (
-            <Onboarding staffId={staff.id} roleId={staff.role_id} />
           )}
 
           {activeTab === 'documents' && (

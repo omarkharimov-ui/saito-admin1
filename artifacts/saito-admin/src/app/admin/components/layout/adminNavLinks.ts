@@ -16,6 +16,7 @@ import {
   Shield,
   Timer,
   Gift,
+  ClipboardCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -63,6 +64,7 @@ export function getAdminNavItems(
     { id: 'gift-cards', name: 'HƏDİYYƏ KARTLARI', href: '/admin/gift-cards', icon: Gift, roles: ['admin', 'manager', 'superadmin', 'owner'] },
     { id: 'roles', name: 'Rollar', href: '/admin/staff/roles', icon: Shield, roles: ['superadmin', 'owner'] },
     { id: 'shifts', name: 'Növbələr', href: '/admin/shifts', icon: Timer, roles: ['admin', 'manager', 'superadmin', 'owner'] },
+    { id: 'checklists', name: 'CHECKLIST', href: '/admin/checklists', icon: ClipboardCheck, roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier', 'host'] },
 
     { id: 'stock', name: 'Stok', href: '/admin/stock', icon: Warehouse, roles: ['superadmin', 'owner', 'admin'] },
     { id: 'purchase-orders', name: 'Alış Sifarişləri', href: '/admin/purchase-orders', icon: ShoppingCart, roles: ['superadmin', 'owner'] },

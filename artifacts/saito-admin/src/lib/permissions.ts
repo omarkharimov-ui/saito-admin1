@@ -76,6 +76,12 @@ export const PERMISSION_MATRIX: PermissionRule[] = [
   { page: '/admin/staff/shifts', permission: 'schedule.view' },
   { page: '/admin/shifts', permission: 'schedule.view' },
 
+  // Daily operating checklists (Wave A #5, 2026-09-20): timeclock.use is held
+  // by every staff role → all-floor visibility; management actions
+  // (templates/runs/assign/skip) are role-gated at the API layer (manager+),
+  // item completion = any staff.
+  { page: '/admin/checklists', permission: 'timeclock.use' },
+
   { page: '/admin/campaigns', permission: 'campaigns.view' },
 
   { page: '/admin/stats', permission: 'reports.view' },

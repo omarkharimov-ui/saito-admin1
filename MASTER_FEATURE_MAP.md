@@ -53,8 +53,24 @@
 > `customers.total_visits/total_spent/last_order_at` = DEAD sütunlar (yazan trigger
 > YOX) → timeline onları göstərmir (MFM §6 "profile" sətri düzəldildi —
 > birthday/email/notes sütunları mövcud DEYİL). Gate **9/9** + W-A1 reflow 18/18.
-> **UI = HARD STOP:** yerləşdirmə (ActionSheet tab / ayrıca səhifə / drawer) =
-> AÇIQ qərar. Sənəd: `W_A3_FREEZE_REPORT_2026-09-19.md`.
+> **UI TAMAM (09-20, v8.5, commit 6de4214e):** `/admin/customers` — full-bleed
+> iOS-push detail (2 sütun: order timeline + Profil/Sevimlilər), Spotlight search
+> (live highlight, ↑/↓ row nav), native-speed pass (SWR micro-cache + cachePeek
+> zero-latency open + dev route-warmer). CP-1 profile fields (birthday/email/notes)
+> = `b3578c9f`. Sənəd: `W_A3_FREEZE_REPORT_2026-09-19.md`.
+>
+> **W-A4 status (2026-09-20):** Gift card (Q3) **TAMAM + 1.5** —
+> `20260920000001` PRODUCTION DEFECT repair (ledger recreate + RPC rewrites +
+> `gift_card_block` + `gift_card_summary`) → `20260920000002` `gift_card_load`
+> (active-only top-up) + `gift_card_refund` (active+used; used→active
+> resurrection) → `20260920000005` lazy-expiry guard (frozen `gift_card_redeem`
+> mirror; cron YOX, `status='expired'` heç yazılmır — expiry canonical-lazy).
+> Routes: list (wildcard-escape fix), summary, `[code]/ledger`, `[code]/block`,
+> `[code]/load`, `[code]/refund`. UI `/admin/gift-cards` (house DNA: PageHeaderCard,
+> Spotlight, report strip, status segments, full-width iOS-push detail,
+> issue/load/refund/block inline forms, Monobtn). Gates: `.gc-gate.cjs` 23/23 +
+> `.gc2-gate.cjs` 22/22 (zero residue). Commits: 7668addd, b3578c9f.
+> Qalıq (§8): physical/QR (D4 SEPARATE), deep reporting, multi-location.
 >
 > **WAVE A QƏRAR DƏYİŞİKLİKLƏRİ (user, 2026-09-19):**
 > - **QR = ACCESS/CHANNEL MECHANISM, not a separate ordering product.**
@@ -198,11 +214,11 @@ dən kənarda, idempotent outbox** ilə (`outbox_events` + `emit_outbox_event`).
 |---|---|---|---|
 | A | Authentication / Access / Accounts | 19 Staff/RBAC + 27 Security | ✅ FROZEN |
 | B | Billing (check, split, void, refund, comp, discount, tax) | 5 Billing+Payments | ✅ core FROZEN |
-| C | Customers / CRM | 6 CRM | ✅ profile / 🟡 history+marketing |
+| C | Customers / CRM | 6 CRM | ✅ profile+history (CP-1: birthday/email/notes) / 🟡 marketing |
 | D | Discounts | 9 Discounts/Promotions | ✅ engine / 🟡 coupon+BOGO UI |
 | E | Employees (roles, clock, tips, payroll) | 20 Shifts/Labor + 19 | ✅ parity |
 | F | Floor / Tables | 3 Table Management | ✅ FROZEN |
-| G | Gift Cards | 8 Gift Cards | 🟡 engine / ❌ UI (Q3) |
+| G | Gift Cards | 8 Gift Cards | ✅ engine+UI+1.5 (Q3 TAMAM 09-20: issue/redeem/block/load/refund/ledger/summary) |
 | H | Hardware / Devices | 28 Devices | 🟡 print jobs / ❌ registry+health |
 | I | Inventory (stock, recipes, purchasing, waste) | 16 Inventory | ✅ parity |
 | J | Jobs / Tasks / Checklists | 21 Tasks/Checklists | ✅ onboarding / ❌ daily checklists |
@@ -303,8 +319,8 @@ Exceptions: VOIDED / CANCELLED / REFUNDED / REOPENED / PARTIALLY_REFUNDED
 
 | Feature | Saito | DB | API/UI |
 |---|---|---|---|
-| Customer profile + addresses + allergies | ✅ | `customers` (7), `customer_addresses`, `allergens`, `product_allergens` (qeyd W-A3 inspect: `customers`-da birthday/email/notes sütunu YOX) | `/api/customers` |
-| Order/visit history + favorite items | ✅ **backend (W-A3, 09-19)** | `GET /api/customers/[id]/timeline` — stats canlı `orders`-dan (dead `total_visits/total_spent` sütunları yalan idi, istifadədən çıxarılıb); favorites, payments embed | UI yerləşdirməsi = HARD STOP (açıq qərar) |
+| Customer profile + addresses + allergies | ✅ | `customers` (7; +birthday/email/notes — CP-1 09-20, `20260920000003`), `customer_addresses`, `allergens`, `product_allergens` | `/api/customers`, `/api/customers/[id]/profile` (CP-1) |
+| Order/visit history + favorite items | ✅ **W-A3+UI (09-20, v8.5)** | `GET /api/customers/[id]/timeline` — stats canlı `orders`-dan (dead `total_visits/total_spent` sütunları yalan idi, istifadədən çıxarılıb); favorites, payments embed; CP-1: timeline customer jsonb-da birthday/email/notes | `/admin/customers` — full-bleed iOS-push detail (timeline + Profil/Sevimlilər), Spotlight, native-speed (cachePeek prefetch) |
 | Segmentation + consent | 🟡 | `campaign_targets` var | UI yox |
 | SMS / email / push marketing | 🟡 | `notifications`, `staff_messages`, WhatsApp route (`/api/whatsapp/*`) | SMS/email provider inteqrasiyası YOX (Wave C) |
 | Tab / house account | ❌ | — | Addım 2 |
@@ -325,8 +341,14 @@ Create (physical/digital), number/QR/barcode, balance, reload, redeem (partial),
 
 | Feature | Saito | DB | API/UI |
 |---|---|---|---|
-| Core engine (issue/redeem/ledger) | 🟡 | `gift_cards` (0), `gift_card_ledger`, `gift_card_transactions`, `gift_card_issue`/`gift_card_redeem` | `/api/gift-cards`, `/api/gift-cards/redeem` |
-| UI (create/manage/report) | ❌ | — | Addım 2 (Q3 qərarı gözləyir) |
+| Core engine (issue/redeem/ledger) | ✅ FROZEN + REPAIR (09-20) | `gift_cards`, `gift_card_ledger` (canonical; `gift_card_transactions` DROP), `gift_card_issue`/`gift_card_redeem`/`gift_card_block`/`gift_card_load`/`gift_card_refund`/`gift_card_summary` | `/api/gift-cards*` |
+| Reload + refund to card (1.5) | ✅ | `gift_card_load` (active-only), `gift_card_refund` (active+used → resurrection) — hər ikində lazy-expiry guard (redeem mirror, `20260920000005`) | `[code]/load`, `[code]/refund` |
+| Expiration | ✅ lazy (canonical) | `expires_at`; cron YOX, `status='expired'` yazılmır — redeem/load/refund guard | — |
+| UI (create/manage/report) | ✅ (house DNA) | — | `/admin/gift-cards` (09-20): PageHeaderCard + Spotlight + report strip + status segments + full-width iOS-push detail + issue/load/refund/block inline forms |
+| Per-card ledger view | ✅ | `gift_card_ledger` chain (balance_after invariant — gate INV) | `[code]/ledger` |
+| Deep reporting (expiry forecast, utilization, ROI) | ❌ | summary strip var (active balance · issued 30d · redeemed 30d) | Wave B |
+| Physical card / QR / digital wallet | ❌ | D4 qərarı (09-20): SEPARATE — payment-method coupling YOX | ayrıca paket |
+| Multi-location | ❌ | — | Wave C |
 
 ### 9. DISCOUNTS / PROMOTIONS
 Percentage/fixed/item/order/category/employee/VIP; happy hour; time-based; BOGO; promo code; coupon; rules (start/end/days/locations/items/segment); security (limit, manager approval, reason, audit).
@@ -722,10 +744,10 @@ menecerin ☐ siyahısından əvvəlcədən gedir — bunlar yeni iş deyil, qor
 ### Wave A — "Sistemi aç" (Addım 2-in ilk yarısı)
 1. ~~**Outbox consumer**~~ ✅ **BİTİB (2.1, 2026-09-11)** — `outbox_pump` SSOT + handlers + dead-letter; pg_cron scheduler 7 job LIVE; backlog drained
 2. ~~**QR anon customer access**~~ 🔻 **DEFER (user, 09-19):** QR = channel, ayrı ordering product DEYİL — əsl guest məhsul = **Sushinode Guest Ordering Website** (xarici, öz lux frontend-i; final integration pass). W-A1/W-A2 backend contractları frozen infrastruktura çevrildi (Sushinode bunlarla inteqrasiya olunacaq); Saito `/menu` = draft UI (committed, istifadə oluna bilər)
-2b. **Customer timeline / Customers** — ✅ backend (W-A3, 09-19, gate 9/9) → **UI polish + freeze İNDİ** (`/admin/customers`: list-də canlı stats — timeline RPC-dən, bounded N+1; profile+timeline) → sonra Wave A #3
-3. **Gift card UI** (engine ✓, UI+report yoxdur) + bar tab (pre-auth, `customers` var)
-4. **Customer timeline UI** (history/favorites/spend) + segmentation bloku
-5. **Daily operating checklists** (opening/closing/maintenance; onboarding engine mövcuddur — eyni pattern)
+2b. ~~**Customer timeline / Customers**~~ ✅ **BİTİB (09-20, v8.5)** — backend W-A3 (gate 9/9) + UI: full-bleed detail (timeline + Profil/Sevimlilər), Spotlight, native-speed pass; CP-1 profile fields (birthday/email/notes, `b3578c9f`)
+3. ~~**Gift card (Q3) + 1.5**~~ ✅ **BİTİB (09-20)** — engine repair + block + ledger + summary (`7668addd`) + load/refund (`b3578c9f`); gates 23/23 + 22/22. Bar tab = D4 SEPARATE (2026-09-19 qərarı) — ayrıca paket. Qalıq: physical/QR, deep reporting, multi-location
+4. **Customer segmentation bloku** (timeline UI 2b-də bitdi)
+5. **Daily operating checklists** (opening/closing/maintenance; onboarding engine mövcuddur — eyni pattern) ← **NÖVƏTƏKİ**
 6. **Waitlist SMS** + reservation reminder/confirmation (provider: WhatsApp mövcuddur → genişləndirmə)
 7. ~~**Cron verification**~~ ✅ **BİTİB (2.1)** — 7 job LIVE, run audit `cron.job_run_details`
 8. **Device registry + print routing** (print_jobs var, registry yoxdur)
@@ -753,7 +775,7 @@ menecerin ☐ siyahısından əvvəlcədən gedir — bunlar yeni iş deyil, qor
 |---|---|---|
 | Q1 VAT | — | ✅ BİTİB (1.5, 2026-09-10) |
 | Q2 Loyalty (build/cut) | Wave A #9 | gözləyir |
-| Q3 Gift cards | Wave A #3 | gözləyir |
+| Q3 Gift cards | Wave A #3 | ✅ **BİTİB (09-20, minimal + 1.5)** |
 | Q4 Waitlist | Wave A #6 | gözləyir |
 | Q7 Terminal provider | Wave C #1 + bar tab pre-auth + pay-at-table | **kritik — çəkiliş** |
 | Q8 Offline-first | Wave C #2 + sync_operations | gözləyir |

@@ -304,7 +304,9 @@ function Inspector({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, transition: { duration: reduce ? 0 : 0.12 } }}
       transition={{ duration: reduce ? 0 : 0.24, ease: [0.4, 0, 0.2, 1] }}
-      className="mr-auto flex h-full w-full max-w-[880px] min-h-0 flex-col pl-7">
+       // v8.4 (user 09-20): FULL surface — no 880px column cap; the body is a
+       // 2-column grid (timeline left, favorites right) that fills the view.
+       className="flex h-full w-full min-h-0 flex-col pl-7">
       {/* ── header ── */}
       <div className="px-7 pt-7 pb-5 border-b border-[var(--theme-border)]">
         <div className="flex items-start justify-between gap-4">
@@ -404,8 +406,11 @@ function Inspector({
           </p>
         )}
 
+        {/* ── 2 columns (v8.4, user 09-20): order timeline left, favorites
+            right — full-surface use; stacked below lg ── */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-x-10 items-start">
         {/* Timeline */}
-        <section className="mt-6">
+        <section>
           <motion.h3
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: reduce ? 0 : 0.3, delay: d(0.2) }}
@@ -484,8 +489,8 @@ function Inspector({
           )}
         </section>
 
-        {/* Favorites */}
-        <section className="mt-10">
+        {/* Favorites — right column (hairline edge on lg) */}
+        <section className="lg:border-l lg:border-[var(--theme-border)] lg:pl-8">
           <motion.h3
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: reduce ? 0 : 0.3, delay: d(0.26) }}
@@ -528,6 +533,7 @@ function Inspector({
             </div>
           )}
         </section>
+        </div>
       </div>
     </motion.div>
   );
@@ -700,7 +706,7 @@ export default function CustomersPage() {
           contained rounded-[32px] card, serif display title, count pill ── */}
       <div className="px-4 sm:px-6 pt-4 pb-3">
         <PageHeaderCard
-          title="Müştərilér"
+          title="Müştərilər"
           subtitle="Profil · Sifariş tarixçəsi · Canlı statistika"
           count={{ pillId: 'cust-count-pill', label: rows ? (query ? `${rows.length} nəticə` : `${rows.length} müştəri`) : '…', searching: !!query }}>
 

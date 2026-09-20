@@ -48,6 +48,15 @@ export function idlePrime(urls: string[], ttlMs: number = DEFAULT_TTL): void {
   else window.setTimeout(run, 400);
 }
 
+/** SYNCHRONOUS fresh-cache peek — lets a detail view open with content on
+ *  the very first frame when a row hover/selection pre-warmed the URL
+ *  (native-app zero-latency open; returns null when absent/stale). */
+export function cachePeek<T>(url: string, ttlMs: number = DEFAULT_TTL): T | null {
+  const hit = store.get(url);
+  if (hit && Date.now() - hit.at < ttlMs) return hit.data as T;
+  return null;
+}
+
 /** Test/dev helper. */
 export function clearDataCache(): void {
   store.clear();

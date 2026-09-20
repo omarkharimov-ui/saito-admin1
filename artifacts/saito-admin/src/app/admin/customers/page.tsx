@@ -37,7 +37,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Search, X, ChevronRight, Users, Phone } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
-import { cachedFetch } from '@/lib/data-cache';
+import { cachedFetch, cachePeek } from '@/lib/data-cache';
 import PageHeaderCard from '../components/ui/PageHeaderCard';
 
 const MONTHS_AZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyn', 'İyl', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'];
@@ -149,26 +149,30 @@ function Highlight({ text, q }: { text: string; q: string }) {
 
 // ── Ledger row ──────────────────────────────────────────────────────────────
 function LedgerRow({
-  c, i, stats, statsReady, active, panelOpen, q, onOpen, reduce,
+  c, i, stats, statsReady, active, panelOpen, q, onOpen, reduce, booted, onHover,
 }: {
   c: CustomerRow; i: number;
   stats: RowStats | undefined; statsReady: boolean;
   active: boolean; panelOpen: boolean; q: string;
   onOpen: (c: CustomerRow) => void; reduce: boolean;
+  booted: boolean; onHover: (c: CustomerRow) => void;
 }) {
   const nameId = `cust-name-${c.id}`;
   const name = c.name || c.phone || 'Customer';
-  const stagger = reduce ? 0 : Math.min(i * 0.022, 0.18);
+  // PERF: entrance stagger is FIRST-LOAD ONLY — search/filter updates swap
+  // rows in place without re-animating the whole list (native feel).
+  const stagger = reduce || booted ? 0 : Math.min(i * 0.022, 0.18);
   const hasS = !!stats;
 
   return (
     <motion.div
       layout
       data-cust-row={active ? '1' : undefined}
-      initial={{ opacity: 0, y: 6 }}
+      initial={booted ? false : { opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, transition: { duration: 0.12 } }}
       transition={{ duration: reduce ? 0 : 0.22, delay: stagger, layout: { duration: reduce ? 0 : 0.25, delay: 0, ease: 'easeOut' } }}
+      onMouseEnter={() => onHover(c)}
       onClick={() => onOpen(c)}
       role="button"
       tabIndex={0}
@@ -566,11 +570,15 @@ export default function CustomersPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // PERF (user, 2026-09-20): the list NEVER blanks on search — skeleton is
+  // first-load only; updates swap in place. Row stats are KEPT across
+  // searches (no more per-row "—" flash on every keystroke batch).
+  const bootedRef = useRef(false);
+  const [booted, setBooted] = useState(false);
+
   const loadList = useCallback(async (q: string) => {
-    setRows(null);
+    if (!bootedRef.current) setRows(null);
     setRowsErr(false);
-    setRowStats({});
-    setStatsReady({});
     try {
       // SWR micro-cache: the shell pre-warms this URL while idle, so the
       // ledger paints on first frame (stale→instant, background revalidate).
@@ -579,17 +587,29 @@ export default function CustomersPage() {
       const list: CustomerRow[] = Array.isArray(d) ? d : (Array.isArray((d as { customers?: CustomerRow[] })?.customers) ? (d as { customers: CustomerRow[] }).customers : []);
       list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'az'));
       setRows(list);
-    } catch { setRows([]); setRowsErr(true); }
+      if (!bootedRef.current) { bootedRef.current = true; setBooted(true); }
+    } catch { if (!bootedRef.current) { setRows([]); setRowsErr(true); } }
   }, []);
+
+  // instant client-side filter on the loaded set while the server refines
+  const displayRows = React.useMemo(() => {
+    if (!rows || !query) return rows;
+    const q = query.toLowerCase();
+    return rows.filter(c => (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q));
+  }, [rows, query]);
 
   useEffect(() => { const t = setTimeout(() => loadList(query), 250); return () => clearTimeout(t); }, [query, loadList]);
 
-  // Live row stats — bounded N+1 over the frozen timeline contract (50 rows, chunks of 5).
+  // Live row stats — bounded N+1 over the frozen timeline contract (50 rows,
+  // chunks of 5). PERF: each id is fetched ONCE per session (fetchedIds ref)
+  // — re-searching never refetches or blanks already-loaded stats.
+  const fetchedIds = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!rows || rows.length === 0) return;
     let cancelled = false;
     (async () => {
-      const target = rows.slice(0, 50);
+      const target = rows.slice(0, 50).filter(c => !fetchedIds.current.has(c.id));
+      if (target.length === 0) return;
       for (let i = 0; i < target.length; i += 5) {
         const chunk = target.slice(i, i + 5);
         const out: Record<string, RowStats> = {};
@@ -607,6 +627,7 @@ export default function CustomersPage() {
               };
             }
           } catch { /* quiet — cell shows — */ }
+          fetchedIds.current.add(c.id);
           done[c.id] = true;
         }));
         if (!cancelled) {
@@ -618,11 +639,18 @@ export default function CustomersPage() {
     return () => { cancelled = true; };
   }, [rows]);
 
-  const loadTimeline = useCallback(async (c: CustomerRow) => {
+  const timelineUrl = (id: string) => `/api/customers/${id}/timeline?limit=50`;
+
+  const loadTimeline = useCallback(async (c: CustomerRow, force = false) => {
+    if (!force) {
+      // warm cache (hover/selection pre-fetched) → zero-latency, no skeleton
+      const hit = cachePeek<Timeline>(timelineUrl(c.id), 10000);
+      if (hit?.customer) { setTl(hit); setTlErr(false); return; }
+    }
     setTl(null);
     setTlErr(false);
     try {
-      const res = await fetch(`/api/customers/${c.id}/timeline?limit=50`, { cache: 'no-store' });
+      const res = await fetch(timelineUrl(c.id), { cache: 'no-store' });
       if (!res.ok) throw new Error(String(res.status));
       const d = await res.json();
       if (d?.customer) setTl(d);
@@ -630,18 +658,27 @@ export default function CustomersPage() {
     } catch { setTlErr(true); }
   }, []);
 
-  // click / Enter — select AND open the inspector
+  // hover / keyboard-selection warms the 10s cache → click opens instantly
+  const prefetchCustomer = useCallback((c: CustomerRow) => {
+    void cachedFetch<Timeline>(timelineUrl(c.id), 10000).catch(() => {});
+  }, []);
+
+  // click / Enter — select AND open the inspector (sync peek = no skeleton
+  // flash when the row was hovered/selected beforehand)
   const openCustomer = useCallback((c: CustomerRow) => {
     setSelected(c);
     setPanelOpen(true);
-    loadTimeline(c);
+    const hit = cachePeek<Timeline>(timelineUrl(c.id), 10000);
+    if (hit?.customer) { setTl(hit); setTlErr(false); }
+    else loadTimeline(c);
   }, [loadTimeline]);
 
   // keyboard ↑/↓ — select only (panel content swaps if already open)
   const selectRow = useCallback((c: CustomerRow) => {
     setSelected(c);
+    prefetchCustomer(c);
     if (panelOpen) loadTimeline(c);
-  }, [panelOpen, loadTimeline]);
+  }, [panelOpen, loadTimeline, prefetchCustomer]);
 
   const closePanel = useCallback(() => setPanelOpen(false), []);
 
@@ -663,18 +700,18 @@ export default function CustomersPage() {
         searchRef.current?.select();
         return;
       }
-      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && (inSearch || !isTypingTarget(e.target)) && rows?.length) {
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && (inSearch || !isTypingTarget(e.target)) && displayRows?.length) {
         e.preventDefault();
-        const idx = selected ? rows.findIndex(r => r.id === selected.id) : -1;
+        const idx = selected ? displayRows.findIndex(r => r.id === selected.id) : -1;
         const next = e.key === 'ArrowDown'
-          ? Math.min(idx + 1, rows.length - 1)
+          ? Math.min(idx + 1, displayRows.length - 1)
           : (idx < 0 ? 0 : Math.max(idx - 1, 0));
-        selectRow(rows[next]);
+        selectRow(displayRows[next]);
         scrollToActive();
         return;
       }
-      if (e.key === 'Enter' && inSearch && rows?.length) {
-        const c = selected && rows.some(r => r.id === selected.id) ? selected : rows[0];
+      if (e.key === 'Enter' && inSearch && displayRows?.length) {
+        const c = selected && displayRows.some(r => r.id === selected.id) ? selected : displayRows[0];
         openCustomer(c);
         return;
       }
@@ -685,14 +722,14 @@ export default function CustomersPage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rows, query, panelOpen, selected, closePanel, openCustomer, selectRow, scrollToActive]);
+  }, [displayRows, query, panelOpen, selected, closePanel, openCustomer, selectRow, scrollToActive]);
 
   // keep the selected row in view when the list re-sorts under the open panel
   useEffect(() => {
     if (!panelOpen) return;
     const el = listRef.current?.querySelector('[data-cust-row="1"]');
     el?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-  }, [rows, panelOpen, reduce]);
+  }, [displayRows, panelOpen, reduce]);
 
   const d = (delay: number) => (reduce ? 0 : delay);
   const dOpen = reduce ? 0 : 0.32;
@@ -708,7 +745,7 @@ export default function CustomersPage() {
         <PageHeaderCard
           title="Müştərilər"
           subtitle="Profil · Sifariş tarixçəsi · Canlı statistika"
-          count={{ pillId: 'cust-count-pill', label: rows ? (query ? `${rows.length} nəticə` : `${rows.length} müştəri`) : '…', searching: !!query }}>
+          count={{ pillId: 'cust-count-pill', label: displayRows ? (query ? `${displayRows.length} nəticə` : `${displayRows.length} müştəri`) : '…', searching: !!query }}>
 
         {/* Spotlight search — expands on focus, Search↔X icon morph, live kbd hint */}
         <div className="relative group w-44 sm:w-60 lg:w-64 transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] focus-within:w-52 sm:focus-within:w-72 lg:focus-within:w-80">
@@ -773,8 +810,8 @@ export default function CustomersPage() {
           animate={rowsErr ? { x: [0, -5, 5, -3, 3, 0] } : {}}
           transition={{ duration: reduce ? 0 : 0.3 }}
           className="divide-y divide-[var(--theme-border)]">
-          {/* loading */}
-          {rows === null && !rowsErr && (
+          {/* loading — first paint ONLY (updates never blank the list) */}
+          {displayRows === null && !rowsErr && (
             <div className="divide-y divide-[var(--theme-border)]">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4 px-4 sm:px-6 h-16">
@@ -793,7 +830,7 @@ export default function CustomersPage() {
           )}
 
           {/* errors / empty */}
-          {rows !== null && rows.length === 0 && (
+          {displayRows !== null && displayRows.length === 0 && (
             <div className="py-24 flex flex-col items-center text-center">
               {rowsErr ? (
                 <>
@@ -824,7 +861,7 @@ export default function CustomersPage() {
 
           {/* rows */}
           <AnimatePresence mode="popLayout">
-            {rows?.map((c, i) => (
+            {displayRows?.map((c, i) => (
               <LedgerRow
                 key={c.id}
                 c={c} i={i}
@@ -835,16 +872,18 @@ export default function CustomersPage() {
                 q={query}
                 onOpen={openCustomer}
                 reduce={reduce}
+                booted={booted}
+                onHover={prefetchCustomer}
               />
             ))}
           </AnimatePresence>
         </motion.div>
 
         {/* table end-cap — closes the list, carries the meta (no more void) */}
-        {rows !== null && rows.length > 0 && (
+        {displayRows !== null && displayRows.length > 0 && (
           <div className="flex items-center justify-between px-4 sm:px-6 h-11 border-t border-[var(--theme-border)]">
             <span className="text-[11px] tabular-nums text-[var(--theme-text-muted)]">
-              {rows.length} müştəri · statistikalar sifarişlərdən canlı
+              {displayRows.length} müştəri · statistikalar sifarişlərdən canlı
             </span>
             <span className="hidden sm:flex items-center gap-1 text-[10px] text-[var(--theme-text-muted)]">
               <Kbd>↑</Kbd><Kbd>↓</Kbd><span className="mx-1.5">seç</span>

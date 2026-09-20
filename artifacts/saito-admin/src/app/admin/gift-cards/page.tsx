@@ -31,12 +31,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Search, X, ChevronRight, Gift, Plus, Lock, Unlock } from 'lucide-react';
+import { Search, X, ChevronRight, Gift, Plus, Lock, Unlock, Loader2 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
-import { cachedFetch } from '@/lib/data-cache';
+import { cachedFetch, cachePeek } from '@/lib/data-cache';
 import { toast } from '@/lib/toast';
 import PageHeaderCard from '../components/ui/PageHeaderCard';
+import Monobtn from '../components/ui/Monobtn';
 
 const MONTHS_AZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyn', 'İyl', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'];
 
@@ -154,24 +155,28 @@ function Highlight({ text, q }: { text: string; q: string }) {
 
 // ── Ledger row ──────────────────────────────────────────────────────────────
 function LedgerRow({
-  c, i, active, panelOpen, q, onOpen, reduce,
+  c, i, active, panelOpen, q, onOpen, reduce, booted, onHover,
 }: {
   c: GiftCard; i: number;
   active: boolean; panelOpen: boolean; q: string;
   onOpen: (c: GiftCard) => void; reduce: boolean;
+  booted: boolean; onHover: (c: GiftCard) => void;
 }) {
   const nameId = `gc-name-${c.id}`;
-  const stagger = reduce ? 0 : Math.min(i * 0.022, 0.18);
+  // PERF: entrance stagger is FIRST-LOAD ONLY — filter/search updates swap
+  // rows in place without re-animating the whole list (native feel).
+  const stagger = reduce || booted ? 0 : Math.min(i * 0.022, 0.18);
   const expired = c.status === 'expired' || (c.expires_at && new Date(c.expires_at).getTime() < Date.now());
 
   return (
     <motion.div
       layout
       data-gc-row={active ? '1' : undefined}
-      initial={{ opacity: 0, y: 6 }}
+      initial={booted ? false : { opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, transition: { duration: 0.12 } }}
       transition={{ duration: reduce ? 0 : 0.22, delay: stagger, layout: { duration: reduce ? 0 : 0.25, delay: 0, ease: 'easeOut' } }}
+      onMouseEnter={() => onHover(c)}
       onClick={() => onOpen(c)}
       role="button"
       tabIndex={0}
@@ -359,12 +364,8 @@ function CardDetail({
                   <Lock size={12} strokeWidth={2.5} /> Bloklama
                 </button>
               ) : (
-                <button
-                  onClick={() => submitBlock(true, reason)}
-                  disabled={blocking}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider hover:brightness-95 transition-all duration-150 active:scale-[0.95] disabled:opacity-50">
-                  <Unlock size={12} strokeWidth={2.5} /> Blokdan çıxar
-                </button>
+                <Monobtn size="sm" label="Blokdan çıxar" icon={<Unlock size={12} strokeWidth={2.5} />}
+                  busy={blocking} onClick={() => submitBlock(true, reason)} />
               )
             ) : (
               <div className="flex items-center gap-2 flex-1 max-w-md">
@@ -384,7 +385,9 @@ function CardDetail({
                   disabled={blocking}
                   className={`shrink-0 rounded-full px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider transition-all duration-150 active:scale-[0.95] disabled:opacity-50
                     ${lightMode ? 'bg-rose-600 text-white hover:bg-rose-700' : 'bg-rose-500 text-white hover:bg-rose-600'}`}>
-                  {blocking ? '…' : 'Blokla'}
+                  {blocking
+                    ? <Loader2 size={12} strokeWidth={3} className="animate-spin" />
+                    : 'Blokla'}
                 </button>
                 <button
                   onClick={() => { setConfirmOpen(false); setReason(''); }}
@@ -504,9 +507,10 @@ function IssueModal({ open, onClose, onIssued, reduce }: {
   const [name, setName] = useState('');
   const [expires, setExpires] = useState('');
   const [busy, setBusy] = useState(false);
+  const [issued, setIssued] = useState(false);
 
   // fresh suggested code every open
-  useEffect(() => { if (open) { setCode(genCode()); setAmount(''); setName(''); setExpires(''); setBusy(false); } }, [open]);
+  useEffect(() => { if (open) { setCode(genCode()); setAmount(''); setName(''); setExpires(''); setBusy(false); setIssued(false); } }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -519,7 +523,7 @@ function IssueModal({ open, onClose, onIssued, reduce }: {
   const valid = /^[A-Z0-9][A-Z0-9 _-]{2,31}$/i.test(code.trim()) && Number.isFinite(amt) && amt > 0;
 
   const submit = async () => {
-    if (!valid || busy) return;
+    if (!valid || busy || issued) return;
     setBusy(true);
     try {
       const res = await fetch('/api/gift-cards', {
@@ -535,8 +539,9 @@ function IssueModal({ open, onClose, onIssued, reduce }: {
       const d = await res.json();
       if (res.ok && d?.success) {
         toast.success(`Kart buraxıldı · ${d.code}`);
+        setIssued(true);   // meaningful success beat (✓), then close
         onIssued();
-        onClose();
+        window.setTimeout(onClose, 650);
       } else {
         toast.error(d?.error || 'Kart buraxılmadı');
       }
@@ -633,10 +638,8 @@ function IssueModal({ open, onClose, onIssued, reduce }: {
                 className="flex-1 rounded-xl border border-[var(--theme-border)] py-2.5 text-[11px] font-black uppercase tracking-widest text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)] transition-all duration-150 active:scale-[0.97]">
                 Vazgeç
               </button>
-              <button onClick={submit} disabled={!valid || busy}
-                className="flex-1 rounded-xl bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] py-2.5 text-[11px] font-black uppercase tracking-widest hover:brightness-95 transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed">
-                {busy ? 'Buraxılır…' : 'Burax'}
-              </button>
+              <Monobtn label={issued ? 'Hazırdır' : 'Burax'} busy={busy} success={issued}
+                disabled={!valid} onClick={submit} className="flex-1 !py-2.5" />
             </div>
           </motion.div>
         </div>
@@ -675,11 +678,18 @@ export default function GiftCardsPage() {
 
   const heroBal = useCountUp(summary ? Number(summary.active_balance) : 0, !reduce && !!summary);
 
+  // PERF (user, 2026-09-20): the list NEVER blanks on search/filter — the
+  // skeleton is first-load ONLY; updates swap data in place (old rows stay
+  // visible until the new set arrives). displayRows = instant client-side
+  // filter on the loaded set while the server refines in the background.
+  const bootedRef = useRef(false);
+  const [booted, setBooted] = useState(false);
+
   // force=true bypasses the SWR micro-cache — REQUIRED after mutations
   // (block/unblock/issue): back-to-back refreshes would otherwise re-serve
   // the stale cache entry written by the first refresh (browser E2E finding C).
   const loadList = useCallback(async (st: string, q: string, force = false) => {
-    setRows(null);
+    if (!bootedRef.current) setRows(null); // skeleton only on first paint
     setRowsErr(false);
     try {
       const url = `/api/gift-cards?status=${st}&code=${encodeURIComponent(q)}`;
@@ -690,8 +700,14 @@ export default function GiftCardsPage() {
         : await cachedFetch<unknown>(url);
       const list: GiftCard[] = Array.isArray(d) ? (d as GiftCard[]) : [];
       setRows(list);
-    } catch { setRows([]); setRowsErr(true); }
+      if (!bootedRef.current) { bootedRef.current = true; setBooted(true); }
+    } catch { if (!bootedRef.current) { setRows([]); setRowsErr(true); } }
   }, []);
+
+  const displayRows = React.useMemo(() => {
+    if (!rows || !query) return rows;
+    return rows.filter(c => c.code.toUpperCase().includes(query));
+  }, [rows, query]);
 
   const loadSummary = useCallback(async (force = false) => {
     try {
@@ -702,11 +718,18 @@ export default function GiftCardsPage() {
     } catch { /* strip stays quiet — the ledger is the primary surface */ }
   }, []);
 
-  const loadDetail = useCallback(async (c: GiftCard) => {
+  const detailUrl = (c: GiftCard) => `/api/gift-cards/${encodeURIComponent(c.code)}/ledger?limit=50`;
+
+  const loadDetail = useCallback(async (c: GiftCard, force = false) => {
+    if (!force) {
+      // warm cache (hover/selection pre-fetched) → zero-latency, no skeleton
+      const hit = cachePeek<{ card: GiftCard; entries: LedgerEntry[] }>(detailUrl(c), 10000);
+      if (hit?.card) { setDetail({ card: hit.card, entries: hit.entries || [] }); setDetailErr(false); return; }
+    }
     setDetail(null);
     setDetailErr(false);
     try {
-      const res = await fetch(`/api/gift-cards/${encodeURIComponent(c.code)}/ledger?limit=50`, { cache: 'no-store' });
+      const res = await fetch(detailUrl(c), { cache: 'no-store' });
       if (!res.ok) throw new Error(String(res.status));
       const d = await res.json();
       if (d?.card) setDetail({ card: d.card, entries: d.entries || [] });
@@ -714,28 +737,37 @@ export default function GiftCardsPage() {
     } catch { setDetailErr(true); }
   }, []);
 
+  const prefetchDetail = useCallback((c: GiftCard) => {
+    // hover / keyboard-selection warms the 10s cache → click opens instantly
+    void cachedFetch<{ card: GiftCard }>(detailUrl(c), 10000).catch(() => {});
+  }, []);
+
   useEffect(() => { const t = setTimeout(() => loadList(status, query), 250); return () => clearTimeout(t); }, [status, query, loadList]);
   useEffect(() => { loadSummary(); }, [loadSummary]);
 
-  // click / Enter — select AND open the detail view
+  // click / Enter — select AND open the detail view (sync cache peek = no
+  // skeleton flash when the row was hovered/selected beforehand)
   const openCard = useCallback((c: GiftCard) => {
     setSelected(c);
     setPanelOpen(true);
-    loadDetail(c);
+    const hit = cachePeek<{ card: GiftCard; entries: LedgerEntry[] }>(detailUrl(c), 10000);
+    if (hit?.card) { setDetail({ card: hit.card, entries: hit.entries || [] }); setDetailErr(false); }
+    else loadDetail(c);
   }, [loadDetail]);
 
   // keyboard ↑/↓ — select only (panel content swaps if already open)
   const selectRow = useCallback((c: GiftCard) => {
     setSelected(c);
+    prefetchDetail(c);
     if (panelOpen) loadDetail(c);
-  }, [panelOpen, loadDetail]);
+  }, [panelOpen, loadDetail, prefetchDetail]);
 
   const closePanel = useCallback(() => { setPanelOpen(false); setDetail(null); setDetailErr(false); }, []);
 
   const refreshAll = useCallback(() => {
     loadList(status, query, true); // post-mutation: always fresh from network
     loadSummary(true);
-    if (selected) loadDetail(selected);
+    if (selected) loadDetail(selected, true); // force — bypass the 10s cache
   }, [loadList, loadSummary, loadDetail, status, query, selected]);
 
   const doBlock = useCallback(async (unblock: boolean, reason: string) => {
@@ -779,18 +811,18 @@ export default function GiftCardsPage() {
         searchRef.current?.select();
         return;
       }
-      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && (inSearch || !isTypingTarget(e.target)) && rows?.length) {
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && (inSearch || !isTypingTarget(e.target)) && displayRows?.length) {
         e.preventDefault();
-        const idx = selected ? rows.findIndex(r => r.id === selected.id) : -1;
+        const idx = selected ? displayRows.findIndex(r => r.id === selected.id) : -1;
         const next = e.key === 'ArrowDown'
-          ? Math.min(idx + 1, rows.length - 1)
+          ? Math.min(idx + 1, displayRows.length - 1)
           : (idx < 0 ? 0 : Math.max(idx - 1, 0));
-        selectRow(rows[next]);
+        selectRow(displayRows[next]);
         scrollToActive();
         return;
       }
-      if (e.key === 'Enter' && inSearch && rows?.length) {
-        const c = selected && rows.some(r => r.id === selected.id) ? selected : rows[0];
+      if (e.key === 'Enter' && inSearch && displayRows?.length) {
+        const c = selected && displayRows.some(r => r.id === selected.id) ? selected : displayRows[0];
         openCard(c);
         return;
       }
@@ -801,14 +833,14 @@ export default function GiftCardsPage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rows, query, panelOpen, selected, issueOpen, closePanel, openCard, selectRow, scrollToActive]);
+  }, [displayRows, query, panelOpen, selected, issueOpen, closePanel, openCard, selectRow, scrollToActive]);
 
   // keep the selected row in view when the list re-sorts under the open panel
   useEffect(() => {
     if (!panelOpen) return;
     const el = listRef.current?.querySelector('[data-gc-row="1"]');
     el?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-  }, [rows, panelOpen, reduce]);
+  }, [displayRows, panelOpen, reduce]);
 
   const d = (delay: number) => (reduce ? 0 : delay);
   const dOpen = reduce ? 0 : 0.32;
@@ -825,7 +857,7 @@ export default function GiftCardsPage() {
         <PageHeaderCard
           title="Hədiyyə Kartları"
           subtitle="Kart idarəetməsi · Balans · Ledger tarixçəsi"
-          count={{ pillId: 'gc-count-pill', label: rows ? `${rows.length} kart` : '…', searching: !!query }}>
+          count={{ pillId: 'gc-count-pill', label: displayRows ? `${displayRows.length} kart` : '…', searching: !!query }}>
 
         {/* Spotlight search — expands on focus, Search↔X icon morph, live kbd hint */}
         <div className="relative group w-44 sm:w-60 lg:w-64 transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] focus-within:w-52 sm:focus-within:w-72 lg:focus-within:w-80">
@@ -867,12 +899,8 @@ export default function GiftCardsPage() {
           </kbd>
         </div>
 
-        {/* header action — issue */}
-        <button
-          onClick={() => setIssueOpen(true)}
-          className="flex items-center gap-1.5 rounded-full bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] px-4 py-2 text-[11px] font-black uppercase tracking-widest hover:brightness-95 transition-all duration-150 active:scale-[0.96] shrink-0">
-          <Plus size={13} strokeWidth={3} /> Yeni Kart
-        </button>
+        {/* header action — issue (monochrome primary, user 2026-09-20) */}
+        <Monobtn label="Yeni Kart" icon={<Plus size={13} strokeWidth={3} />} onClick={() => setIssueOpen(true)} />
         </PageHeaderCard>
       </div>
 
@@ -880,7 +908,7 @@ export default function GiftCardsPage() {
           (products-page card language, user 2026-09-20) ── */}
       <div className="px-4 sm:px-6 pb-4 flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 rounded-[32px] border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-[var(--theme-shadow)] overflow-hidden flex flex-col">
-        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-[var(--theme-border)] py-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-[var(--theme-border)] px-6 pt-5 pb-4">
           <div className="pr-5">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">Aktiv Balans</p>
             <p className="mt-1 text-[20px] font-black tabular-nums text-[var(--theme-text)] tracking-tight leading-none">
@@ -917,8 +945,9 @@ export default function GiftCardsPage() {
             one accent pill sits IN THE BACKGROUND of the container and
             MORPHS between the selected chips (layoutId spring, house 420/34).
             Frozen list route is single-status (no "all"). */}
-        <div className="px-6 pt-1 pb-4 border-b border-[var(--theme-border)]">
-        <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] p-1">
+        {/* flat segment row — no inner box (v8.5: one card, no nested boxes) */}
+        <div className="px-6 pb-4">
+        <div className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full p-0.5">
           {CHIPS.map(([st, label]) => {
             const on = status === st;
             return (
@@ -926,13 +955,13 @@ export default function GiftCardsPage() {
                 key={st}
                 onClick={() => { setStatus(st); setQuery(''); }}
                 aria-pressed={on}
-                className={`relative shrink-0 px-3.5 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors duration-150 active:scale-[0.95]
+                className={`relative shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-colors duration-150 active:scale-[0.95]
                   ${on ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)]'}`}>
                 {on && (
                   <motion.span
                     layoutId="gc-status-pill"
                     transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
-                    className="absolute inset-0 rounded-xl bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)]"
+                    className="absolute inset-0 rounded-full bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)]"
                     aria-hidden
                   />
                 )}
@@ -946,8 +975,8 @@ export default function GiftCardsPage() {
         {/* ── ledger (scrolls inside the content card) ── */}
         <div ref={listRef} onScroll={e => setScrolled(e.currentTarget.scrollTop > 4)} className="flex-1 min-h-0 overflow-y-auto">
         {/* column header — sticky, gains a shadow once scrolled */}
-        <div className={`sticky top-0 z-10 bg-[var(--theme-surface)]/95 backdrop-blur-sm border-b transition-[border-color,box-shadow] duration-200
-          ${scrolled ? 'border-[var(--theme-border)] shadow-[0_12px_28px_-20px_rgba(0,0,0,0.35)]' : 'border-transparent'}`}>
+        <div className={`sticky top-0 z-10 bg-[var(--theme-surface)]/95 backdrop-blur-sm border-b border-[var(--theme-border)] transition-[box-shadow] duration-200
+          ${scrolled ? 'shadow-[0_12px_28px_-20px_rgba(0,0,0,0.35)]' : ''}`}>
           <div className="flex items-center gap-4 px-4 sm:px-6 h-9 select-none">
             <span className="flex-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Kod</span>
             <span className="w-28 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Balans</span>
@@ -962,8 +991,8 @@ export default function GiftCardsPage() {
           animate={rowsErr ? { x: [0, -5, 5, -3, 3, 0] } : {}}
           transition={{ duration: reduce ? 0 : 0.3 }}
           className="divide-y divide-[var(--theme-border)]">
-          {/* loading */}
-          {rows === null && !rowsErr && (
+          {/* loading — first paint ONLY (updates never blank the list) */}
+          {displayRows === null && !rowsErr && (
             <div className="divide-y divide-[var(--theme-border)]">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4 px-4 sm:px-6 h-16">
@@ -982,7 +1011,7 @@ export default function GiftCardsPage() {
           )}
 
           {/* errors / empty */}
-          {rows !== null && rows.length === 0 && (
+          {displayRows !== null && displayRows.length === 0 && (
             <div className="py-24 flex flex-col items-center text-center">
               {rowsErr ? (
                 <>
@@ -1013,7 +1042,7 @@ export default function GiftCardsPage() {
 
           {/* rows */}
           <AnimatePresence mode="popLayout">
-            {rows?.map((c, i) => (
+            {displayRows?.map((c, i) => (
               <LedgerRow
                 key={c.id}
                 c={c} i={i}
@@ -1022,16 +1051,18 @@ export default function GiftCardsPage() {
                 q={query}
                 onOpen={openCard}
                 reduce={reduce}
+                booted={booted}
+                onHover={prefetchDetail}
               />
             ))}
           </AnimatePresence>
         </motion.div>
 
         {/* table end-cap — closes the list, carries the meta (no more void) */}
-        {rows !== null && rows.length > 0 && (
+        {displayRows !== null && displayRows.length > 0 && (
           <div className="flex items-center justify-between px-4 sm:px-6 h-11 border-t border-[var(--theme-border)]">
             <span className="text-[11px] tabular-nums text-[var(--theme-text-muted)]">
-              {rows.length} kart · {STATUS_AZ[status]} · data canlı (gift_cards)
+              {displayRows.length} kart · {STATUS_AZ[status]} · data canlı (gift_cards)
             </span>
             <span className="hidden sm:flex items-center gap-1 text-[10px] text-[var(--theme-text-muted)]">
               <Kbd>↑</Kbd><Kbd>↓</Kbd><span className="mx-1.5">seç</span>

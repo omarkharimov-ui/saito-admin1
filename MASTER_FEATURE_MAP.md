@@ -497,8 +497,8 @@ Staff tasks, opening/closing/cleaning/manager checklist, maintenance, assignment
 
 | Feature | Saito | DB | API/UI |
 |---|---|---|---|
-| Onboarding workflows + tasks (auto role-based) | ✅ | `onboarding_workflows`, `onboarding_tasks`, `start_onboarding`, `complete_onboarding_task` | `/api/onboarding` |
-| Daily operating checklists (opening/closing) | ❌ | — | Addım 2 (Lightspeed 2026 parity) |
+| Daily operating checklists (opening/closing) | ✅ **FROZEN (09-20, v1.1)** | `checklist_templates`, `checklist_runs`, `checklist_run_items` + `checklist_*` RPC-lər (board/toggle/assign/skip/note) | `/api/checklists/*`, `admin/checklists` (gate 40/40, E2E r1+r2 real-mouse) |
+| ~~Onboarding workflows + tasks~~ | 🗑 **LƏĞV (09-20)** | — | 6 gün sessiz 500; dead — user qərarı |
 | Maintenance tasks + recurring + proof | ❌ | — | Addım 2 |
 
 ### 22. SHIFT HANDOVER
@@ -747,7 +747,7 @@ menecerin ☐ siyahısından əvvəlcədən gedir — bunlar yeni iş deyil, qor
 2b. ~~**Customer timeline / Customers**~~ ✅ **BİTİB (09-20, v8.5)** — backend W-A3 (gate 9/9) + UI: full-bleed detail (timeline + Profil/Sevimlilər), Spotlight, native-speed pass; CP-1 profile fields (birthday/email/notes, `b3578c9f`)
 3. ~~**Gift card (Q3) + 1.5**~~ ✅ **BİTİB (09-20)** — engine repair + block + ledger + summary (`7668addd`) + load/refund (`b3578c9f`); gates 23/23 + 22/22. Bar tab = D4 SEPARATE (2026-09-19 qərarı) — ayrıca paket. Qalıq: physical/QR, deep reporting, multi-location
 4. **Customer segmentation bloku** (timeline UI 2b-də bitdi)
-5. **Daily operating checklists** (opening/closing/maintenance; onboarding engine mövcuddur — eyni pattern) ← **NÖVƏTƏKİ**
+5. ~~**Daily operating checklists**~~ ✅ **BİTİB (09-20, v1.1)** — backend `20260920000007-000010` migrations (lazy materialization, grants fix, dup-title guard, note-only RPC) + UI (board/KPI, iOS-push detail, item toggle, note, assign, skip, Şablonlar); gate **40/40** + E2E real-mouse r1 (defect #1 note-on-completed → v1.1 fix) + r2 (re-verify, console clean)
 6. **Waitlist SMS** + reservation reminder/confirmation (provider: WhatsApp mövcuddur → genişləndirmə)
 7. ~~**Cron verification**~~ ✅ **BİTİB (2.1)** — 7 job LIVE, run audit `cron.job_run_details`
 8. **Device registry + print routing** (print_jobs var, registry yoxdur)

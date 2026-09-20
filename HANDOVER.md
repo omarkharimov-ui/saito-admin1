@@ -842,7 +842,7 @@ Risks / Frozen-boundary impact / Decision (GO / NO-GO / INVESTIGATE / DEFER) / S
 | W-A3 customer timeline | ✅ DONE (backend + UI v8.5, 9 review rounds closed) | gate 9/9; commits a1fdd8fa→6de4214e |
 | W-A4 gift card (Q3) minimal | ✅ DONE | `.gc-gate.cjs` 23/23; commit 7668addd |
 | W-A4.5 GC 1.5 (load/refund) + CP-1 (customer birthday/email/notes) | ✅ DONE | `.gc2-gate.cjs` 22/22 + `.gc-gate.cjs` reflow 23/23; commit b3578c9f |
-| W-A5 daily operating checklists (map §21 J) | 🔒 **backend DONE** (gate 33/33, zero residue); **UI code-complete + tsc clean, REAL-MOUSE E2E PENDING** | `.ck-gate.cjs`; commit bf9d3b75 |
+| W-A5 daily operating checklists (map §21 J) | ✅ **DONE (v1.1)** — gate 40/40 + E2E real-mouse r1 (2 defects) + v1.1 fixes + r2 re-verify (console CLEAN); E2E fixtures purged | `.ck-gate.cjs` 40/40; commits bf9d3b75→v1.1 |
 | Device registry / print routing | ⬜ NEXT wave (map Wave A #5) | — |
 | Dead onboarding surface | 🗑 REMOVED (was 6 days of silent 500s; tables dropped 09-14 C-class, app residue completed by 20260920000006 + route/UI removal) | live probe `ERROR: relation "onboarding_workflows" does not exist` |
 
@@ -851,22 +851,33 @@ Risks / Frozen-boundary impact / Decision (GO / NO-GO / INVESTIGATE / DEFER) / S
 
 ### 8.2 NEXT AGENT — EXACT FIRST ACTIONS (in this order)
 
-1. **Re-establish baselines (Rule 1 — never trust this doc's numbers alone):** dev server on `:3000` solo, then
-   `node .w-a2-gate.cjs` (expect 19/19) · `node .gc-gate.cjs` (23/23) · `node .gc2-gate.cjs` (22/22) · `node .ck-gate.cjs` (33/33) — all zero-residue.
-   Any non-green → STOP, diagnose (Rule 7: new evidence reopens; do not defend).
-2. **Checklists UI real-mouse E2E (the one open verification):** browser agent, REAL clicks:
-   a) board loads (today's runs) · b) open run (iOS-push full-width, sidebar-aware) · c) tap item → toggle → run
-   state machine (Açıq→Yarımçıq→Bitib) + mini bars + KPI update · d) item qeyd/sübut edit · e) assign a staff
-   (manager session) · f) skip with reason + unskip · g) Şablonlar modal: create template (daily, time) →
-   verify it materializes on next board call · h) dark+light both themes · i) console clean · j) screenshots.
-   Fix findings, re-run `.ck-gate.cjs` after any backend touch, commit as `ui(ck): ...` (house versioning: ck v1.1, v1.2...).
-3. **Map sync after E2E green:** `MASTER_FEATURE_MAP.md` — §21 J row (onboarding → removed; daily checklists → ✅),
-   §9 Wave A #4 line (strike-through BİTİB), status header W-A block. File is race-prone → fresh-read before edit.
-4. **Then Wave A #5 (device registry / print routing):** house rhythm — backend INSPECT first (live DB + code
-   evidence, EVIDENCE/INFERENCE/RISK/DECISION), decision log, migrations, routes, gate battery, commit; UI only
-   per §8.3.
-5. **W-A2 menu "continue your check" UI:** DO NOT build unilaterally — HARD STOP, user co-designs (1A sticky bar
+**Completed 2026-09-20 (session continuation — evidence in commit message):**
+1. ✅ Baselines re-established: dev :3000 solo; `.w-a2-gate.cjs` 19/19 · `.gc-gate.cjs` 23/23 ·
+   `.gc2-gate.cjs` 22/22 · `.ck-gate.cjs` 33/33 — all green, zero residue.
+2. ✅ Checklists UI real-mouse E2E **r1** (10 checkpoints a-j): a,b,c,e,g,h,i PASS; d DEFECT #1 (HIGH: note on
+   completed item → 400, silently lost), f DEFECT #2 (MEDIUM: skipped-run item click = silent no-op); #3 LOW:
+   first click after re-render detached (automation artifact → FOLLOW-UP); INFO: skip is run-level only, no
+   separate Sübut field, assign controls hidden on completed runs (graceful).
+3. ✅ **ck v1.1** (additive — frozen toggle contract untouched, C18 still 400):
+   - `20260920000010_w_a5_ck_item_note.sql` (+rollback): new SECURITY DEFINER `checklist_set_item_note(p_item_id, p_note, p_staff_id)` — note-only; pending/in_progress/completed OK; skipped → 400 "unskip first"; whitespace → NULL; audit `checklist_item_note`; EXECUTE {postgres, service_role} (OID-verified live: anon=false, auth=false, service=true).
+   - Route `/api/checklists/runs/[id]/items/[itemId]` PATCH: note-only branch (body has `note`, no `completed` key) → new RPC; toggle path byte-identical.
+   - UI: note save = note-only PATCH (works on completed runs; rollback+toast on error); skipped-run row/pencil click → toast "Run buraxılıb — əvvəl “Yenidən aç” et"; skipped rows `cursor-not-allowed`.
+   - Gate extended **C31-C35** (note-only pending/completed/skipped/unauth/malformed + audit; C28's `checklist_%` OID sweep auto-covers new fn) → **40/40 PASS**.
+4. ✅ E2E **r2** re-verify: note-on-completed → 200 + renders + persists (R9), note clear → 200 + NULL (R10),
+   skipped-run click+pencil toasts (R11), unskip + toggle-to-complete regression OK (R12). Final console/network
+   sweep CLEAN (R14). E2E fixtures purged from live DB (residue 0/0/0, board_now=0).
+   NOTE: re-check 400 = API-level contract (C18) — UI row click inverts state (uncheck on completed = reopen,
+   by design C16); never phrase a UI "re-check" test as a row click.
+
+**NEXT ACTIONS (this order):**
+1. **Wave A #5 (device registry / print routing):** house rhythm — backend INSPECT first (live DB + code
+   evidence, EVIDENCE/INFERENCE/RISK/DECISION; `print_jobs` table exists, registry does not), decision log,
+   migrations, routes, gate battery, commit; UI per §8.3 (autonomous — hard stop lifted; house DNA v8.5).
+2. **W-A2 menu "continue your check" UI:** DO NOT build unilaterally — HARD STOP, user co-designs (1A sticky bar
    is the ratified direction; backend contract ready, see §6 W-A2).
+3. **FOLLOW-UP (LOW, ck):** row cards are bare divs (no role/ARIA → no automation e-refs, a11y gap); add
+   `role="row"`/aria labels + keyboard affordance in a ck v1.2 hygiene pass.
+4. Re-establish gate baselines after ANY session restart (Rule 1): all four gates green before new work.
 
 ### 8.3 HOW UI IS DONE HERE (house DNA — v8.5 language, binding)
 

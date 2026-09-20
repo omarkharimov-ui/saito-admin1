@@ -134,6 +134,32 @@ function R(id,name,ok,ev){
   o=await http(`/api/checklists/runs/${R2}`,{action:'skip'},CASH_TOK,'PATCH');
   R('C26','cashier run action → 403',o.status===403,`http=${o.status}`);
 
+  // ── note-only item path (ck v1.1 — E2E round 1 finding #1: completed-run notes) ──
+  // dedicated run so R1/R2 states don't interfere
+  o=await httpR('/api/checklists/runs',{title:`${MARK}_NOTE`,category:'manager',items:[{title:'Note target'},{title:'Skipped target'}]},MGR_TOK,'POST');
+  const R3=o.data?.run?.id||'';
+  o=await http(`/api/checklists/runs/${R3}`,undefined,MGR_TOK);
+  const I5=o.data?.checklist_run_items?.[0]?.id||'', I6=o.data?.checklist_run_items?.[1]?.id||'';
+  o=await httpR(`/api/checklists/runs/${R3}/items/${I5}`,{note:'note-only ok'},MGR_TOK,'PATCH');
+  const st31=S(`SELECT (SELECT status FROM checklist_runs WHERE id=${q(R3)})||'|'||coalesce((SELECT note FROM checklist_run_items WHERE id=${q(I5)}),'null')||'|'||(SELECT completed FROM checklist_run_items WHERE id=${q(I5)})::text`);
+  R('C31','note-only on pending run item → 200 + persisted + state unchanged',o.status===200&&o.data?.success===true&&st31==='pending|note-only ok|false',`http=${o.status} db=${st31}`);
+  // DEFECT #1 regression: note on a COMPLETED run item (toggle path 400s re-complete by design, C18)
+  o=await httpR(`/api/checklists/runs/${R1}/items/${I1}`,{note:'late note'},MGR_TOK,'PATCH');
+  const st32=S(`SELECT (SELECT status FROM checklist_runs WHERE id=${q(R1)})||'|'||coalesce((SELECT note FROM checklist_run_items WHERE id=${q(I1)}),'null')`);
+  R('C32','note-only on COMPLETED run item → 200 + persisted (E2E #1)',o.status===200&&o.data?.success===true&&st32==='completed|late note',`http=${o.status} db=${st32}`);
+  o=await httpR(`/api/checklists/runs/${R3}/items/${I5}`,{note:'   '},MGR_TOK,'PATCH');
+  const st32b=S(`SELECT coalesce((SELECT note FROM checklist_run_items WHERE id=${q(I5)}),'null')`);
+  R('C32b','note-only whitespace → cleared (NULL)',o.status===200&&o.data?.success===true&&st32b==='null',`http=${o.status} note=${st32b}`);
+  o=await http(`/api/checklists/runs/${R3}`,{action:'skip',reason:'note test'},MGR_TOK,'PATCH');
+  o=await http(`/api/checklists/runs/${R3}/items/${I6}`,{note:'nope'},CASH_TOK,'PATCH');
+  R('C33','note-only on skipped run → 400 (unskip first)',o.status===400&&/skipped/i.test(o.body),`http=${o.status} body=${o.body.slice(0,140)}`);
+  o=await http(`/api/checklists/runs/${R1}/items/${I1}`,{note:'x'},null,'PATCH');
+  R('C34a','note-only unauth → 401',o.status===401,`http=${o.status}`);
+  o=await http(`/api/checklists/runs/${R1}/items/${I1}`,{},MGR_TOK,'PATCH');
+  R('C34b','malformed (no completed/note) → 400',o.status===400,`http=${o.status} body=${o.body.slice(0,120)}`);
+  const auditNote=S(`SELECT count(*) FROM audit_logs_canonical WHERE action='checklist_item_note' AND created_at > ${q(T0)}`);
+  R('C35','audit: checklist_item_note recorded (>= 2)',Number(auditNote)>=2,`n=${auditNote}`);
+
   // ── template update (copy-on-materialize) ─────────────────────────────────
   o=await httpR('/api/checklists/templates',{id:T1ID,title:T1,category:'opening',items:items3.slice(0,2),scheduled_at:null,recurring:'daily',is_active:true},MGR_TOK,'POST');
   R('C27','template update → 2 items (existing run keeps 3)',o.status===200&&o.data?.template?.items?.length===2&&S(`SELECT count(*) FROM checklist_run_items WHERE run_id=${q(R1)}`)==='3',`http=${o.status} db=${S(`SELECT count(*) FROM checklist_run_items WHERE run_id=${q(R1)}`)}`);

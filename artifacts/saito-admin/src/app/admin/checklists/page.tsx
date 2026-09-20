@@ -267,10 +267,11 @@ function RunRow({
 type CkAction = 'assign' | 'skip' | 'unskip';
 
 function RunDetail({
-  detail, onItemToggle, onAction, busyItem, busyAction, staff, onRetry, reduce,
+  detail, onItemToggle, onItemNote, onAction, busyItem, busyAction, staff, onRetry, reduce,
 }: {
   detail: CkDetail;
   onItemToggle: (item: CkItem, completed: boolean, note?: string) => void;
+  onItemNote: (item: CkItem, note: string) => void;
   onAction: (kind: CkAction, payload: { staffId?: string; reason?: string }) => void;
   busyItem: string | null;
   busyAction: CkAction | null;
@@ -469,10 +470,10 @@ function RunDetail({
               initial={reduce ? false : { opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: reduce ? 0 : 0.2, delay: d(0.18 + Math.min(i, 8) * 0.03) }}
-              className={`group flex items-start gap-3.5 px-4 py-3.5 transition-colors duration-150 ${busyItem === it.id ? 'bg-[var(--theme-accent-soft)]/40' : 'hover:bg-[var(--theme-surface-soft)] cursor-pointer'}`}
-              onClick={() => { if (editNote !== it.id && busyItem !== it.id && detail.status !== 'skipped') onItemToggle(it, !it.completed); }}
+              className={`group flex items-start gap-3.5 px-4 py-3.5 transition-colors duration-150 ${busyItem === it.id ? 'bg-[var(--theme-accent-soft)]/40' : detail.status === 'skipped' ? 'cursor-not-allowed' : 'hover:bg-[var(--theme-surface-soft)] cursor-pointer'}`}
+              onClick={() => { if (editNote === it.id || busyItem === it.id) return; if (detail.status === 'skipped') toast.error('Run buraxılıb — əvvəl “Yenidən aç” et'); else onItemToggle(it, !it.completed); }}
               role="button" tabIndex={0}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (editNote !== it.id && detail.status !== 'skipped') onItemToggle(it, !it.completed); } }}>
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (editNote === it.id || busyItem === it.id) return; if (detail.status === 'skipped') toast.error('Run buraxılıb — əvvəl “Yenidən aç” et'); else onItemToggle(it, !it.completed); } }}>
               {/* checkbox morph */}
               <motion.span
                 animate={{ scale: it.completed ? 1 : 0.92 }}
@@ -514,11 +515,11 @@ function RunDetail({
                       value={noteVal}
                       onChange={e => setNoteVal(e.target.value)}
                       placeholder="qeyd / sübut…"
-                      onKeyDown={e => { if (e.key === 'Enter') { onItemToggle(it, it.completed, noteVal); setEditNote(null); } if (e.key === 'Escape') setEditNote(null); }}
+                       onKeyDown={e => { if (e.key === 'Enter') { onItemNote(it, noteVal); setEditNote(null); } if (e.key === 'Escape') setEditNote(null); }}
                       className="flex-1 min-w-0 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-bg)] px-2.5 py-1.5 text-[12px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[var(--theme-accent-border)]"
                     />
                     <button
-                      onClick={() => { onItemToggle(it, it.completed, noteVal); setEditNote(null); }}
+                      onClick={() => { onItemNote(it, noteVal); setEditNote(null); }}
                       aria-label="Saxla"
                       className="w-7 h-7 rounded-lg bg-[var(--theme-accent)] text-[var(--theme-bg)] flex items-center justify-center transition-transform duration-150 active:scale-[0.88]">
                       <motion.svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -529,7 +530,7 @@ function RunDetail({
                 </div>
               ) : (
                 <button
-                  onClick={e => { e.stopPropagation(); setEditNote(it.id); setNoteVal(it.note || ''); }}
+                  onClick={e => { e.stopPropagation(); if (detail.status === 'skipped') { toast.error('Run buraxılıb — əvvəl “Yenidən aç” et'); return; } setEditNote(it.id); setNoteVal(it.note || ''); }}
                   aria-label="Qeyd əlavə et"
                   className="mt-0.5 w-7 h-7 -mr-1 rounded-lg text-[var(--theme-text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--theme-accent)] hover:bg-[var(--theme-accent-soft)] transition-all duration-150 active:scale-[0.88]">
                   <Pencil size={12} strokeWidth={2.2} />
@@ -1031,6 +1032,39 @@ export default function ChecklistsPage() {
     }
   }, [detail, refreshAll]);
 
+  // item note — note-only PATCH (ck v1.1): no state change, works on
+  // completed runs (toggle path rejects re-complete there by design).
+  const noteItem = useCallback(async (item: CkItem, note: string) => {
+    if (!detail) return;
+    const prev = item;
+    setDetail(d => d && ({ ...d, checklist_run_items: d.checklist_run_items.map(it =>
+      it.id === item.id ? { ...it, note: note.trim() || null } : it
+    ) }));
+    setBusyItem(item.id);
+    try {
+      const res = await fetch(`/api/checklists/runs/${detail.id}/items/${item.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d?.success) {
+        setDetail(dd => dd && ({ ...dd, checklist_run_items: dd.checklist_run_items.map(it =>
+          it.id === item.id ? prev : it
+        ) }));
+        toast.error(d?.error || 'Qeyd yadda saxlanmadı');
+      } else {
+        loadDetail(detail.id, true);
+      }
+    } catch {
+      setDetail(dd => dd && ({ ...dd, checklist_run_items: dd.checklist_run_items.map(it =>
+        it.id === item.id ? prev : it
+      ) }));
+      toast.error('Şəbəkə xətası');
+    } finally {
+      setBusyItem(null);
+    }
+  }, [detail, loadDetail]);
+
   const doAction = useCallback(async (kind: CkAction, payload: { staffId?: string; reason?: string }) => {
     if (!selected) return;
     setBusyAction(kind);
@@ -1383,6 +1417,7 @@ export default function ChecklistsPage() {
                         key={detail.id}
                         detail={detail}
                         onItemToggle={toggleItem}
+                        onItemNote={noteItem}
                         onAction={doAction}
                         busyItem={busyItem}
                         busyAction={busyAction}

@@ -1,8 +1,13 @@
 'use client';
 
-// /admin/customers — v5 "Concept B" (user-directed 2026-09-19):
+// /admin/customers — "Concept B" (user-directed 2026-09-19, v8 2026-09-20):
 // Full-width LEDGER (Ad | Telefon | Ziyarət | Xərçəy | Orta | Son) +
-// right slide-over GLASS INSPECTOR (profile · KPIs · timeline · favorites).
+// FULL-WIDTH DETAIL VIEW inspector (profile · KPIs · timeline · favorites).
+// The modal spans the ENTIRE main content area: sidebar open → from the
+// sidebar's right border; collapsed → 100% of the screen. iOS-style push
+// (slides in at full size — never "opens small"); geometry is state-driven
+// from the shell (LayoutContext.mainEdge/mainBottom) so live sidebar
+// toggling animates the modal instantly.
 //
 // POS-inspired but token-clean: every color flows from --theme-* tokens
 // (dark accent gold #D4AF37 / light accent blue #007aff) — no legacy
@@ -41,7 +46,6 @@ const STATUS_AZ: Record<string, string> = {
 };
 const METHOD_AZ: Record<string, string> = { card: 'Kart', cash: 'Nəqd' };
 const DAY = 86400000;
-const PANEL_W = 640;
 
 function dayLabel(iso: string): string {
   const d = new Date(iso); const today = new Date();
@@ -295,7 +299,7 @@ function Inspector({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, transition: { duration: reduce ? 0 : 0.12 } }}
       transition={{ duration: reduce ? 0 : 0.24, ease: [0.4, 0, 0.2, 1] }}
-      className="flex h-full min-h-0 flex-col">
+      className="mx-auto flex h-full w-full max-w-[880px] min-h-0 flex-col">
       {/* ── header ── */}
       <div className="px-7 pt-7 pb-5 border-b border-[var(--theme-border)]">
         <div className="flex items-start justify-between gap-4">
@@ -875,14 +879,16 @@ export default function CustomersPage() {
                   aria-hidden
                   className={`absolute inset-0 z-30 pointer-events-auto ${lightMode ? 'bg-black/25' : 'bg-black/50'} backdrop-blur-[3px]`}
                 />
+                {/* v8: FULL-WIDTH detail view — the modal spans the ENTIRE
+                    main content area (sidebar edge → viewport right, header →
+                    bottom). iOS-style push: slides in from the right at full
+                    size, so it never "opens small". Solid surface = crisp. */}
                 <motion.aside
                   key="panel"
                   role="dialog" aria-modal="true" aria-label={selected.name || 'Müştəri'}
-                  initial={{ x: PANEL_W }} animate={{ x: 0 }} exit={{ x: PANEL_W }}
+                  initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
                   transition={{ duration: dOpen, ease: [0.32, 0.72, 0, 1] }}
-                  className={`absolute top-0 right-0 bottom-0 z-40 w-full max-w-[640px] flex flex-col pointer-events-auto
-                    bg-[var(--theme-surface)]/95 backdrop-blur-2xl border-l border-[var(--theme-border)]
-                    ${lightMode ? 'shadow-[-32px_0_80px_-40px_rgba(0,0,0,0.25)]' : 'shadow-[-32px_0_80px_-40px_rgba(0,0,0,0.6)]'}`}>
+                  className="absolute inset-0 z-40 flex flex-col pointer-events-auto bg-[var(--theme-bg)]">
                   {/* panel top bar: close */}
                   <div className="absolute top-5 right-5 z-10">
                     <motion.button

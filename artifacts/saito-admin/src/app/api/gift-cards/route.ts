@@ -17,7 +17,14 @@ export async function GET(request: NextRequest) {
       // `ilike('code', code)` matched EXACT codes only — partial-code search
       // (admin Spotlight, POS modal balance check) never matched. Wildcards
       // make it a superset of the old behavior (exact still works).
-      query = query.ilike('code', `%${code.replace(/[%_]/g, '')}%`);
+      // GC2 fix (2026-09-20, gate G4): the v1 wildcard used
+      // `code.replace(/[%_]/g,'')` — injection-safe, but it STRIPPED legitimate
+      // underscores from the search term, so any code containing '_'
+      // (GC_GATE_…, GC_G2_…) never matched → []. Correct approach: ESCAPE the
+      // LIKE metacharacters (PG default escape char = backslash) instead of
+      // removing them. User-typed %/_ still cannot act as wildcards.
+      const esc = code.replace(/\\/g, '\\\\').replace(/[%_]/g, (m) => '\\' + m);
+      query = query.ilike('code', `%${esc}%`);
     }
 
     const { data, error } = await query.limit(100);

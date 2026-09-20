@@ -31,7 +31,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Search, X, ChevronRight, Gift, Plus, Lock, Unlock, Loader2 } from 'lucide-react';
+import { Search, X, ChevronRight, Gift, Plus, Lock, Unlock, Loader2, RotateCcw } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
 import { cachedFetch, cachePeek } from '@/lib/data-cache';
@@ -246,24 +246,32 @@ function LedgerRow({
 }
 
 // ── Card detail (full-width view content) ───────────────────────────────────
+type GCAction = 'block' | 'unblock' | 'load' | 'refund';
+
 function CardDetail({
-  card, entries, entriesErr, onRetry, onBlock, blocking, reduce,
+  card, entries, entriesErr, onRetry, onAction, busy, reduce,
 }: {
   card: GiftCard; entries: LedgerEntry[] | null; entriesErr: boolean;
-  onRetry: () => void; onBlock: (unblock: boolean, reason: string) => void;
-  blocking: boolean; reduce: boolean;
+  onRetry: () => void;
+  onAction: (kind: GCAction, payload: { amount?: number; reason?: string }) => void;
+  busy: GCAction | null; reduce: boolean;
 }) {
   const { lightMode } = useTheme();
   const bal = useCountUp(Number(card.current_balance), !reduce);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [action, setAction] = useState<GCAction | null>(null);
   const [reason, setReason] = useState('');
+  const [amount, setAmount] = useState('');
   const d = (delay: number) => (reduce ? 0 : delay);
-  // close the inline confirm immediately on submit (browser E2E finding:
-  // it lingered after a successful block); the page refreshes async.
-  const submitBlock = (u: boolean, r: string) => {
-    setConfirmOpen(false);
-    setReason('');
-    onBlock(u, r);
+  const openAction = (k: GCAction) => { setAction(k); setReason(''); setAmount(''); };
+  const closeAction = () => { setAction(null); setReason(''); setAmount(''); };
+  // close the inline form immediately on submit (browser E2E finding: the
+  // block confirm lingered); the page refreshes async.
+  const submit = () => {
+    const k = action;
+    if (!k) return;
+    if ((k === 'load' || k === 'refund') && !(Number(amount) > 0)) return;
+    closeAction();
+    onAction(k, k === 'load' || k === 'refund' ? { amount: Number(amount), reason: reason || undefined } : { reason: reason || undefined });
   };
 
   // day groups (house spine)
@@ -349,48 +357,91 @@ function CardDetail({
           </div>
         </motion.div>
 
-        {/* lifecycle action — D3: block / unblock (no cancel) */}
-        {(card.status === 'active' || card.status === 'blocked') && (
+        {/* lifecycle + money actions — D3 (block/unblock) + GC 1.5 (load,
+            refund-to-card per map §8; cancel remains intentionally absent) */}
+        {(card.status === 'active' || card.status === 'blocked' || card.status === 'used') && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: reduce ? 0 : 0.3, delay: d(0.2) }}
-            className="mt-5 flex items-center gap-3">
-            {!confirmOpen ? (
-              card.status === 'active' ? (
-                <button
-                  onClick={() => setConfirmOpen(true)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider transition-all duration-150 active:scale-[0.95]
-                    ${lightMode ? 'border-rose-300 text-rose-600 hover:bg-rose-50' : 'border-rose-500/40 text-rose-400 hover:bg-rose-500/10'}`}>
-                  <Lock size={12} strokeWidth={2.5} /> Bloklama
-                </button>
-              ) : (
-                <Monobtn size="sm" label="Blokdan çıxar" icon={<Unlock size={12} strokeWidth={2.5} />}
-                  busy={blocking} onClick={() => submitBlock(true, reason)} />
-              )
+            className="mt-5 flex items-center gap-2 flex-wrap">
+            {!action ? (
+              <>
+                {card.status === 'active' && (
+                  <>
+                    <button
+                      onClick={() => openAction('block')}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider transition-all duration-150 active:scale-[0.95]
+                        ${lightMode ? 'border-rose-300 text-rose-600 hover:bg-rose-50' : 'border-rose-500/40 text-rose-400 hover:bg-rose-500/10'}`}>
+                      <Lock size={12} strokeWidth={2.5} /> Bloklama
+                    </button>
+                    <button
+                      onClick={() => openAction('load')}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--theme-border)] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-all duration-150 active:scale-[0.95]">
+                      <Plus size={12} strokeWidth={2.5} /> Pul əlavə et
+                    </button>
+                    <button
+                      onClick={() => openAction('refund')}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--theme-border)] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-all duration-150 active:scale-[0.95]">
+                      <RotateCcw size={12} strokeWidth={2.5} /> Refund
+                    </button>
+                  </>
+                )}
+                {card.status === 'used' && (
+                  <button
+                    onClick={() => openAction('refund')}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--theme-border)] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-all duration-150 active:scale-[0.95]">
+                    <RotateCcw size={12} strokeWidth={2.5} /> Refund
+                    <span className="normal-case font-semibold tracking-normal text-[var(--theme-text-muted)]">· kart yenidən aktiv olar</span>
+                  </button>
+                )}
+                {card.status === 'blocked' && (
+                  <Monobtn size="sm" label="Blokdan çıxar" icon={<Unlock size={12} strokeWidth={2.5} />}
+                    busy={busy === 'unblock'} onClick={() => onAction('unblock', {})} />
+                )}
+              </>
             ) : (
-              <div className="flex items-center gap-2 flex-1 max-w-md">
+              <div className="flex items-center gap-2 flex-1 max-w-lg min-w-[320px]">
+                {(action === 'load' || action === 'refund') && (
+                  <input
+                    autoFocus
+                    type="number" min="0.01" step="0.01"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') closeAction(); }}
+                    placeholder="Məbləğ (₼)"
+                    aria-label="Məbləğ"
+                    className="w-28 shrink-0 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] px-4 py-1.5 text-[12px] font-bold tabular-nums
+                      text-[var(--theme-text)] placeholder:font-medium placeholder:text-[var(--theme-text-muted)] outline-none
+                      transition-[border-color,box-shadow] duration-200 focus:border-[var(--theme-accent-border)] focus:ring-2 focus:ring-[var(--theme-accent-soft)]"
+                  />
+                )}
                 <input
-                  autoFocus
+                  autoFocus={action !== 'load' && action !== 'refund'}
                   value={reason}
                   onChange={e => setReason(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') submitBlock(false, reason); if (e.key === 'Escape') { setConfirmOpen(false); setReason(''); } }}
+                  onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') closeAction(); }}
                   placeholder="Səbəb (opsional)…"
-                  aria-label="Bloklama səbəbi"
+                  aria-label="Səbəb"
                   className="flex-1 min-w-0 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] px-4 py-1.5 text-[12px] font-medium
                     text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none
                     transition-[border-color,box-shadow] duration-200 focus:border-[var(--theme-accent-border)] focus:ring-2 focus:ring-[var(--theme-accent-soft)]"
                 />
+                {action === 'block' ? (
+                  <button
+                    onClick={submit}
+                    disabled={busy === 'block'}
+                    className={`shrink-0 rounded-full px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider transition-all duration-150 active:scale-[0.95] disabled:opacity-50
+                      ${lightMode ? 'bg-rose-600 text-white hover:bg-rose-700' : 'bg-rose-500 text-white hover:bg-rose-600'}`}>
+                    {busy === 'block'
+                      ? <Loader2 size={12} strokeWidth={3} className="animate-spin" />
+                      : 'Blokla'}
+                  </button>
+                ) : (
+                  <Monobtn size="sm" label={action === 'load' ? 'Əlavə et' : 'Qaytar'}
+                    busy={busy === action} onClick={submit} />
+                )}
                 <button
-                  onClick={() => submitBlock(false, reason)}
-                  disabled={blocking}
-                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider transition-all duration-150 active:scale-[0.95] disabled:opacity-50
-                    ${lightMode ? 'bg-rose-600 text-white hover:bg-rose-700' : 'bg-rose-500 text-white hover:bg-rose-600'}`}>
-                  {blocking
-                    ? <Loader2 size={12} strokeWidth={3} className="animate-spin" />
-                    : 'Blokla'}
-                </button>
-                <button
-                  onClick={() => { setConfirmOpen(false); setReason(''); }}
+                  onClick={closeAction}
                   className="shrink-0 rounded-full border border-[var(--theme-border)] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)] transition-all duration-150 active:scale-[0.95]">
                   Vazgeç
                 </button>
@@ -665,7 +716,7 @@ export default function GiftCardsPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [detail, setDetail] = useState<{ card: GiftCard; entries: LedgerEntry[] } | null>(null);
   const [detailErr, setDetailErr] = useState(false);
-  const [blocking, setBlocking] = useState(false);
+  const [busyAction, setBusyAction] = useState<GCAction | null>(null);
   const [issueOpen, setIssueOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -770,18 +821,29 @@ export default function GiftCardsPage() {
     if (selected) loadDetail(selected, true); // force — bypass the 10s cache
   }, [loadList, loadSummary, loadDetail, status, query, selected]);
 
-  const doBlock = useCallback(async (unblock: boolean, reason: string) => {
+  // GC lifecycle + money actions (block/unblock D3, load, refund — GC 1.5)
+  const doAction = useCallback(async (kind: GCAction, payload: { amount?: number; reason?: string }) => {
     if (!selected) return;
-    setBlocking(true);
+    setBusyAction(kind);
     try {
-      const res = await fetch(`/api/gift-cards/${encodeURIComponent(selected.code)}/block`, {
+      const path = kind === 'unblock' ? 'block' : kind; // block route handles both
+      const body = kind === 'block' || kind === 'unblock'
+        ? { unblock: kind === 'unblock', reason: payload.reason || undefined }
+        : { amount: payload.amount, reason: payload.reason || undefined };
+      const res = await fetch(`/api/gift-cards/${encodeURIComponent(selected.code)}/${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ unblock, reason: reason || undefined }),
+        body: JSON.stringify(body),
       });
       const d = await res.json();
       if (res.ok && d?.success) {
-        toast.success(unblock ? 'Blokdan çıxarıldı' : 'Kart bloklandı');
+        const bal = d.balance !== undefined ? ` · ${money(Number(d.balance))}` : '';
+        toast.success(
+          kind === 'block' ? 'Kart bloklandı'
+          : kind === 'unblock' ? `Blokdan çıxarıldı${bal}`
+          : kind === 'load' ? `Pul əlavə olundu${bal}`
+          : `Refund qeydə alındı${bal}${d.previous_status === 'used' ? ' · kart aktiv' : ''}`
+        );
       } else {
         toast.error(d?.error || 'Əməliyyat uğursuz oldu');
       }
@@ -789,7 +851,7 @@ export default function GiftCardsPage() {
     } catch {
       toast.error('Şəbəkə xətası');
     } finally {
-      setBlocking(false);
+      setBusyAction(null);
     }
   }, [selected, refreshAll]);
 
@@ -1127,8 +1189,8 @@ export default function GiftCardsPage() {
                       entries={detail?.entries || null}
                       entriesErr={detailErr}
                       onRetry={() => detailCard && openCard(detailCard)}
-                      onBlock={doBlock}
-                      blocking={blocking}
+                      onAction={doAction}
+                      busy={busyAction}
                       reduce={reduce}
                     />
                   </AnimatePresence>

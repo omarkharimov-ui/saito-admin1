@@ -34,11 +34,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Search, X, ChevronRight, Users, Phone } from 'lucide-react';
+import { Search, X, ChevronRight, Users, Phone, Pencil } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
 import { cachedFetch, cachePeek } from '@/lib/data-cache';
+import { toast } from '@/lib/toast';
 import PageHeaderCard from '../components/ui/PageHeaderCard';
+import Monobtn from '../components/ui/Monobtn';
 
 const MONTHS_AZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyn', 'İyl', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'];
 const STATUS_AZ: Record<string, string> = {
@@ -82,7 +84,11 @@ const methodAZ = (m: string) => METHOD_AZ[m] || m.charAt(0).toUpperCase() + m.sl
 interface CustomerRow { id: string; name: string; phone?: string | null; }
 interface RowStats { visits: number; spent: number; avg: number; last: string | null; }
 interface Timeline {
-  customer: { id: string; name: string; phone?: string | null; created_at: string };
+  customer: {
+    id: string; name: string; phone?: string | null; created_at: string;
+    // CP-1 (2026-09-20): profile fields (migration 20260920000003 + RPC 000004)
+    birthday?: string | null; email?: string | null; notes?: string | null;
+  };
   stats: {
     visit_count: number; total_spent: number; avg_order: number;
     first_visit: string | null; last_visit: string | null; items_ordered: number;
@@ -264,10 +270,12 @@ function LedgerRow({
 
 // ── Inspector content ───────────────────────────────────────────────────────
 function Inspector({
-  customer, tl, tlErr, onRetry, reduce,
+  customer, tl, tlErr, onRetry, onProfileSaved, reduce,
 }: {
   customer: CustomerRow; tl: Timeline | null; tlErr: boolean;
   onRetry: () => void; reduce: boolean;
+  // CP-1: parent applies the saved profile to the open inspector (zero-latency)
+  onProfileSaved: (p: { birthday: string | null; email: string | null; notes: string | null }) => void;
 }) {
   const { lightMode } = useTheme();
   const s = tl?.stats;
@@ -297,6 +305,59 @@ function Inspector({
   }
   const favTotal = tl ? tl.favorites.reduce((a, f) => a + f.qty, 0) : 0;
   const d = (delay: number) => (reduce ? 0 : delay);
+
+  // ── CP-1 (2026-09-20): profile fields — birthday / email / notes ──
+  const [profileEdit, setProfileEdit] = useState(false);
+  const [pB, setPB] = useState('');
+  const [pE, setPE] = useState('');
+  const [pN, setPN] = useState('');
+  const [pBusy, setPBusy] = useState(false);
+  const openProfileEdit = () => {
+    setPB(tl?.customer?.birthday || '');
+    setPE(tl?.customer?.email || '');
+    setPN(tl?.customer?.notes || '');
+    setProfileEdit(true);
+  };
+  const cancelProfileEdit = () => { setProfileEdit(false); setPB(''); setPE(''); setPN(''); };
+  const saveProfile = async () => {
+    const id = tl?.customer?.id || customer.id;
+    const patch: Record<string, string | null> = {
+      birthday: pB || null, email: pE.trim() || null, notes: pN.trim() || null,
+    };
+    setPBusy(true);
+    try {
+      const res = await fetch(`/api/customers/${id}/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      const r = await res.json();
+      if (res.ok && r?.id) {
+        toast.success('Profil yeniləndi');
+        // parent updates the open inspector in place (detail stays live)
+        onProfileSaved({ birthday: patch.birthday, email: patch.email, notes: patch.notes });
+        setProfileEdit(false);
+      } else {
+        toast.error(r?.error || 'Profil yenilənə bilmədi');
+      }
+    } catch {
+      toast.error('Şəbəkə xətası');
+    } finally {
+      setPBusy(false);
+    }
+  };
+  // birthday display: "15 May" + countdown to next occurrence
+  let bdayMain = '—', bdaySub: string | null = null;
+  if (tl?.customer?.birthday) {
+    const [by, bm, bd] = tl.customer.birthday.split('-').map(Number);
+    const now = new Date();
+    const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let next = new Date(now.getFullYear(), bm - 1, bd);
+    if (next < today0) next = new Date(now.getFullYear() + 1, bm - 1, bd);
+    const diff = Math.round((next.getTime() - today0.getTime()) / DAY);
+    bdayMain = `${bd} ${MONTHS_AZ[bm - 1]}`;
+    bdaySub = diff === 0 ? 'Bu gün' : `${diff} gün qalıb`;
+  }
 
   // v8.1: LEFT-anchored column (was mx-auto → at 100% width the content sat
   // "in the middle of the screen", user report). pl-7 makes the content edge
@@ -493,8 +554,100 @@ function Inspector({
           )}
         </section>
 
-        {/* Favorites — right column (hairline edge on lg) */}
-        <section className="lg:border-l lg:border-[var(--theme-border)] lg:pl-8">
+        {/* right column: Profil (CP-1) + Favorites (hairline edge on lg) */}
+        <div className="lg:border-l lg:border-[var(--theme-border)] lg:pl-8 space-y-8">
+        {/* ── Profil (CP-1, 2026-09-20) ── */}
+        <section>
+          <div className="flex items-center justify-between">
+            <motion.h3
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ duration: reduce ? 0 : 0.3, delay: d(0.2) }}
+              className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">
+              Profil
+            </motion.h3>
+            {!profileEdit && (
+              <button
+                onClick={openProfileEdit}
+                aria-label="Profil düzəliş et"
+                className="p-1.5 -mr-1.5 rounded-full text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-colors duration-150 active:scale-[0.88]">
+                <Pencil size={12} strokeWidth={2.2} />
+              </button>
+            )}
+          </div>
+          {profileEdit ? (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduce ? 0 : 0.2, ease: 'easeOut' }}
+              className="mt-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)] mb-1.5">Doğum tarixi</label>
+                  <input
+                    type="date" value={pB} onChange={e => setPB(e.target.value)}
+                    className="w-full rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] px-3 py-2 text-[13px] font-medium tabular-nums
+                      text-[var(--theme-text)] outline-none transition-[border-color,box-shadow] duration-200 focus:border-[var(--theme-accent-border)] focus:ring-2 focus:ring-[var(--theme-accent-soft)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)] mb-1.5">E-poçt</label>
+                  <input
+                    type="email" value={pE} onChange={e => setPE(e.target.value)} placeholder="ad@mail.com"
+                    className="w-full rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] px-3 py-2 text-[13px] font-medium
+                      text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-[border-color,box-shadow] duration-200 focus:border-[var(--theme-accent-border)] focus:ring-2 focus:ring-[var(--theme-accent-soft)]"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)] mb-1.5">Qeydlər</label>
+                <textarea
+                  rows={3} value={pN} onChange={e => setPN(e.target.value)} placeholder="Alergiyalar, üstünlüklər, qeydlər…"
+                  className="w-full resize-none rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] px-3 py-2 text-[13px] font-medium leading-relaxed
+                    text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-[border-color,box-shadow] duration-200 focus:border-[var(--theme-accent-border)] focus:ring-2 focus:ring-[var(--theme-accent-soft)]"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Monobtn size="sm" label="Yadda saxla" busy={pBusy} onClick={saveProfile} />
+                <button
+                  onClick={cancelProfileEdit}
+                  className="rounded-full border border-[var(--theme-border)] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)] transition-all duration-150 active:scale-[0.95]">
+                  Vazgeç
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.dl
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ duration: reduce ? 0 : 0.3, delay: d(0.24) }}
+              className="mt-4 space-y-3.5">
+              <div>
+                <dt className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">Doğum</dt>
+                <dd className="mt-0.5 text-[14px] font-semibold text-[var(--theme-text)]">
+                  {bdayMain}
+                  {bdaySub && (
+                    <span className={`ml-2 text-[11px] font-bold ${tl?.customer?.birthday && bdaySub === 'Bu gün' ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)]'}`}>
+                      {bdaySub}
+                    </span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">E-poçt</dt>
+                <dd className={`mt-0.5 text-[13.5px] font-medium break-all ${tl?.customer?.email ? 'text-[var(--theme-text-secondary)]' : 'text-[var(--theme-text-muted)]'}`}>
+                  {tl?.customer?.email || '—'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">Qeyd</dt>
+                <dd className={`mt-0.5 text-[13.5px] font-medium leading-relaxed whitespace-pre-wrap ${tl?.customer?.notes ? 'text-[var(--theme-text-secondary)]' : 'text-[var(--theme-text-muted)]'}`}>
+                  {tl?.customer?.notes || '—'}
+                </dd>
+              </div>
+            </motion.dl>
+          )}
+        </section>
+
+        {/* Favorites */}
+        <section>
           <motion.h3
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: reduce ? 0 : 0.3, delay: d(0.26) }}
@@ -537,6 +690,7 @@ function Inspector({
             </div>
           )}
         </section>
+        </div>
         </div>
       </div>
     </motion.div>
@@ -953,6 +1107,7 @@ export default function CustomersPage() {
                       tl={tl}
                       tlErr={tlErr}
                       onRetry={() => selected && openCustomer(selected)}
+                      onProfileSaved={p => setTl(prev => prev ? { ...prev, customer: { ...prev.customer, ...p } } : prev)}
                       reduce={reduce}
                     />
                   </AnimatePresence>

@@ -698,17 +698,30 @@ export default function CustomersPage() {
       {/* ── page header ── */}
       <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 pt-4 pb-3">
         <h1 className="text-2xl font-black tracking-tighter shrink-0">Müştərilər</h1>
-        {/* live count — ticks as the filter narrows (accent while searching) */}
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.span
-            key={rows ? (query ? `q${rows.length}` : `a${rows.length}`) : 'w'}
-            initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -5 }}
-            transition={{ duration: reduce ? 0 : 0.16, ease: 'easeOut' }}
-            className={`text-[11px] font-bold tabular-nums shrink-0 ${query ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)]'}`}>
-            {rows ? (query ? `${rows.length} nəticə` : `${rows.length} müştəri`) : ''}
-          </motion.span>
-        </AnimatePresence>
+        {/* live count — products-page pill language (2026-09-20, user):
+            a pill sits IN THE BACKGROUND of a small container and morphs
+            neutral→accent-soft while searching; the number ticks on top. */}
+        <span className="shrink-0 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] p-1">
+          <span className="relative block rounded-full px-3 py-0.5 min-w-[86px] text-center">
+            <motion.span
+              layoutId="cust-count-pill"
+              initial={false}
+              transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
+              className={`absolute inset-0 rounded-full transition-colors duration-150 ${query ? 'bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)]' : 'bg-transparent border border-transparent'}`}
+              aria-hidden
+            />
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={rows ? (query ? `q${rows.length}` : `a${rows.length}`) : 'w'}
+                initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                transition={{ duration: reduce ? 0 : 0.16, ease: 'easeOut' }}
+                className={`relative z-10 block text-[11px] font-bold tabular-nums leading-4 ${query ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)]'}`}>
+                {rows ? (query ? `${rows.length} nəticə` : `${rows.length} müştəri`) : '…'}
+              </motion.span>
+            </AnimatePresence>
+          </span>
+        </span>
         <div className="flex-1" />
 
         {/* Spotlight search — expands on focus, Search↔X icon morph, live kbd hint */}

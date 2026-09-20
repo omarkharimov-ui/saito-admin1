@@ -12,7 +12,13 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || 'active';
 
     let query = supabase.from('gift_cards').select('*').eq('status', status).order('created_at', { ascending: false });
-    if (code) query = query.ilike('code', code);
+    if (code) {
+      // GC fix (2026-09-20, browser E2E finding): the original
+      // `ilike('code', code)` matched EXACT codes only — partial-code search
+      // (admin Spotlight, POS modal balance check) never matched. Wildcards
+      // make it a superset of the old behavior (exact still works).
+      query = query.ilike('code', `%${code.replace(/[%_]/g, '')}%`);
+    }
 
     const { data, error } = await query.limit(100);
     if (error) throw error;

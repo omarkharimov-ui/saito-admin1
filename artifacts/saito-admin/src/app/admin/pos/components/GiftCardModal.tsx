@@ -34,8 +34,12 @@ export function GiftCardModal({ open, onClose, amount, onSuccess }: GiftCardModa
     try {
       const res = await apiFetch(`/api/gift-cards?code=${encodeURIComponent(code)}`);
       const data = await res.json();
-      if (res.ok && data.balance !== undefined) {
-        setBalance(data.balance);
+      // Frozen GET contract returns a raw array (W-A1); the old
+      // `data.balance` expectation never matched — take the first card.
+      const list = Array.isArray(data) ? data : [];
+      const card = list[0];
+      if (res.ok && card) {
+        setBalance(Number(card.current_balance));
       } else {
         toast.error(data.error || t('gift_card_not_found') || 'Kart tapılmadı');
         setBalance(null);

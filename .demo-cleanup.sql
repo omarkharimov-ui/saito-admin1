@@ -37,5 +37,13 @@ END $$;
 
 DELETE FROM customers WHERE phone LIKE '0005555%';
 
+-- GC (Wave A #3, 2026-09-20): demo gift cards (GCDEMO-%) + their audit rows.
+-- Ledger cascades (FK ON DELETE CASCADE).
+DELETE FROM audit_logs_canonical
+ WHERE entity_type = 'gift_card'
+   AND entity_id IN (SELECT id::text FROM gift_cards WHERE code LIKE 'GCDEMO-%');
+DELETE FROM gift_cards WHERE code LIKE 'GCDEMO-%';
+
 SELECT 'residue='||(SELECT count(*) FROM customers WHERE phone LIKE '0005555%')
-  ||'/'||(SELECT count(*) FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE phone LIKE '0005555%')) AS check;
+  ||'/'||(SELECT count(*) FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE phone LIKE '0005555%'))
+  ||'/'||(SELECT count(*) FROM gift_cards WHERE code LIKE 'GCDEMO-%') AS check;

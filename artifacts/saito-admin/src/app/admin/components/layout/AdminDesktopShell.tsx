@@ -64,8 +64,9 @@ export default function AdminDesktopShell({
 
   // v7 "native feel": pre-warm hot data endpoints in idle windows on every
   // page switch, so the next page's list paints from cache — not a spinner.
+  // GC (Wave A #3): + gift card default list & summary.
   useEffect(() => {
-    idlePrime(['/api/customers?q=&limit=50', '/api/orders']);
+    idlePrime(['/api/customers?q=&limit=50', '/api/orders', '/api/gift-cards?status=active', '/api/gift-cards/summary']);
   }, [pageKey]);
 
   return (

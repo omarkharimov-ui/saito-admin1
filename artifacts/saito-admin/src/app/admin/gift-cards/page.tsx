@@ -36,6 +36,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
 import { cachedFetch } from '@/lib/data-cache';
 import { toast } from '@/lib/toast';
+import PageHeaderCard from '../components/ui/PageHeaderCard';
 
 const MONTHS_AZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyn', 'İyl', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'];
 
@@ -818,21 +819,13 @@ export default function GiftCardsPage() {
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.3 }}
       className="relative h-full min-h-0 w-full flex flex-col overflow-hidden bg-[var(--theme-bg)] text-[var(--theme-text)]">
 
-      {/* ── page header ── */}
-      <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 pt-4 pb-3">
-        <h1 className="text-2xl font-black tracking-tighter shrink-0">Hədiyyə Kartları</h1>
-        {/* live count — ticks as the filter narrows (accent while searching) */}
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.span
-            key={rows ? (query ? `q${rows.length}` : `a${rows.length}`) : 'w'}
-            initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -5 }}
-            transition={{ duration: reduce ? 0 : 0.16, ease: 'easeOut' }}
-            className={`text-[11px] font-bold tabular-nums shrink-0 ${query ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)]'}`}>
-            {rows ? `${rows.length} kart` : ''}
-          </motion.span>
-        </AnimatePresence>
-        <div className="flex-1" />
+      {/* ── page header — products-card language (user, 2026-09-20):
+          contained rounded-[32px] card, serif display title, count pill ── */}
+      <div className="px-4 sm:px-6 pt-4 pb-3">
+        <PageHeaderCard
+          title="Hədiyyə Kartları"
+          subtitle="Kart idarəetməsi · Balans · Ledger tarixçəsi"
+          count={{ pillId: 'gc-count-pill', label: rows ? `${rows.length} kart` : '…', searching: !!query }}>
 
         {/* Spotlight search — expands on focus, Search↔X icon morph, live kbd hint */}
         <div className="relative group w-44 sm:w-60 lg:w-64 transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] focus-within:w-52 sm:focus-within:w-72 lg:focus-within:w-80">
@@ -880,11 +873,14 @@ export default function GiftCardsPage() {
           className="flex items-center gap-1.5 rounded-full bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] px-4 py-2 text-[11px] font-black uppercase tracking-widest hover:brightness-95 transition-all duration-150 active:scale-[0.96] shrink-0">
           <Plus size={13} strokeWidth={3} /> Yeni Kart
         </button>
+        </PageHeaderCard>
       </div>
 
-      {/* ── report strip + status chips ── */}
-      <div className="px-4 sm:px-6 pb-3">
-        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-[var(--theme-border)] border-b border-[var(--theme-border)] py-3.5">
+      {/* ── content card — report strip + status segments + ledger
+          (products-page card language, user 2026-09-20) ── */}
+      <div className="px-4 sm:px-6 pb-4 flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 rounded-[32px] border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-[var(--theme-shadow)] overflow-hidden flex flex-col">
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-[var(--theme-border)] py-4">
           <div className="pr-5">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">Aktiv Balans</p>
             <p className="mt-1 text-[20px] font-black tabular-nums text-[var(--theme-text)] tracking-tight leading-none">
@@ -921,7 +917,8 @@ export default function GiftCardsPage() {
             one accent pill sits IN THE BACKGROUND of the container and
             MORPHS between the selected chips (layoutId spring, house 420/34).
             Frozen list route is single-status (no "all"). */}
-        <div className="mt-3 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] p-1">
+        <div className="px-6 pt-1 pb-4 border-b border-[var(--theme-border)]">
+        <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] p-1">
           {CHIPS.map(([st, label]) => {
             const on = status === st;
             return (
@@ -944,12 +941,12 @@ export default function GiftCardsPage() {
             );
           })}
         </div>
-      </div>
+        </div>
 
-      {/* ── ledger ── */}
-      <div ref={listRef} onScroll={e => setScrolled(e.currentTarget.scrollTop > 4)} className="flex-1 min-h-0 overflow-y-auto pb-10">
+        {/* ── ledger (scrolls inside the content card) ── */}
+        <div ref={listRef} onScroll={e => setScrolled(e.currentTarget.scrollTop > 4)} className="flex-1 min-h-0 overflow-y-auto">
         {/* column header — sticky, gains a shadow once scrolled */}
-        <div className={`sticky top-0 z-10 bg-[var(--theme-bg)]/95 backdrop-blur-sm border-b transition-[border-color,box-shadow] duration-200
+        <div className={`sticky top-0 z-10 bg-[var(--theme-surface)]/95 backdrop-blur-sm border-b transition-[border-color,box-shadow] duration-200
           ${scrolled ? 'border-[var(--theme-border)] shadow-[0_12px_28px_-20px_rgba(0,0,0,0.35)]' : 'border-transparent'}`}>
           <div className="flex items-center gap-4 px-4 sm:px-6 h-9 select-none">
             <span className="flex-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Kod</span>
@@ -1043,6 +1040,8 @@ export default function GiftCardsPage() {
             </span>
           </div>
         )}
+        </div>
+        </div>
       </div>
 
       {/* ── issue modal ── */}

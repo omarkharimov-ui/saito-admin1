@@ -38,6 +38,7 @@ import { Search, X, ChevronRight, Users, Phone } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
 import { cachedFetch } from '@/lib/data-cache';
+import PageHeaderCard from '../components/ui/PageHeaderCard';
 
 const MONTHS_AZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyn', 'İyl', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'];
 const STATUS_AZ: Record<string, string> = {
@@ -695,34 +696,13 @@ export default function CustomersPage() {
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.3 }}
       className="relative h-full min-h-0 w-full flex flex-col overflow-hidden bg-[var(--theme-bg)] text-[var(--theme-text)]">
 
-      {/* ── page header ── */}
-      <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 pt-4 pb-3">
-        <h1 className="text-2xl font-black tracking-tighter shrink-0">Müştərilər</h1>
-        {/* live count — products-page pill language (2026-09-20, user):
-            a pill sits IN THE BACKGROUND of a small container and morphs
-            neutral→accent-soft while searching; the number ticks on top. */}
-        <span className="shrink-0 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] p-1">
-          <span className="relative block rounded-full px-3 py-0.5 min-w-[86px] text-center">
-            <motion.span
-              layoutId="cust-count-pill"
-              initial={false}
-              transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
-              className={`absolute inset-0 rounded-full transition-colors duration-150 ${query ? 'bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)]' : 'bg-transparent border border-transparent'}`}
-              aria-hidden
-            />
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span
-                key={rows ? (query ? `q${rows.length}` : `a${rows.length}`) : 'w'}
-                initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: reduce ? 0 : 0.16, ease: 'easeOut' }}
-                className={`relative z-10 block text-[11px] font-bold tabular-nums leading-4 ${query ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)]'}`}>
-                {rows ? (query ? `${rows.length} nəticə` : `${rows.length} müştəri`) : '…'}
-              </motion.span>
-            </AnimatePresence>
-          </span>
-        </span>
-        <div className="flex-1" />
+      {/* ── page header — products-card language (v8.3, user 2026-09-20):
+          contained rounded-[32px] card, serif display title, count pill ── */}
+      <div className="px-4 sm:px-6 pt-4 pb-3">
+        <PageHeaderCard
+          title="Müştərilér"
+          subtitle="Profil · Sifariş tarixçəsi · Canlı statistika"
+          count={{ pillId: 'cust-count-pill', label: rows ? (query ? `${rows.length} nəticə` : `${rows.length} müştəri`) : '…', searching: !!query }}>
 
         {/* Spotlight search — expands on focus, Search↔X icon morph, live kbd hint */}
         <div className="relative group w-44 sm:w-60 lg:w-64 transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] focus-within:w-52 sm:focus-within:w-72 lg:focus-within:w-80">
@@ -763,14 +743,15 @@ export default function CustomersPage() {
             {query ? 'esc' : '/'}
           </kbd>
         </div>
-
-        {/* theme toggle moved to the GLOBAL AdminHeader (v7) */}
+        </PageHeaderCard>
       </div>
 
-      {/* ── ledger ── */}
-      <div ref={listRef} onScroll={e => setScrolled(e.currentTarget.scrollTop > 4)} className="flex-1 min-h-0 overflow-y-auto pb-10">
+      {/* ── ledger — products-card language (v8.3, user 2026-09-20) ── */}
+      <div className="px-4 sm:px-6 pb-4 flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 rounded-[32px] border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-[var(--theme-shadow)] overflow-hidden flex flex-col">
+        <div ref={listRef} onScroll={e => setScrolled(e.currentTarget.scrollTop > 4)} className="flex-1 min-h-0 overflow-y-auto">
         {/* column header — sticky, gains a shadow once scrolled */}
-        <div className={`sticky top-0 z-10 bg-[var(--theme-bg)]/95 backdrop-blur-sm border-b transition-[border-color,box-shadow] duration-200
+        <div className={`sticky top-0 z-10 bg-[var(--theme-surface)]/95 backdrop-blur-sm border-b transition-[border-color,box-shadow] duration-200
           ${scrolled ? 'border-[var(--theme-border)] shadow-[0_12px_28px_-20px_rgba(0,0,0,0.35)]' : 'border-transparent'}`}>
           <div className="flex items-center gap-4 px-4 sm:px-6 h-9 select-none">
             <span className="flex-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Ad</span>
@@ -866,6 +847,8 @@ export default function CustomersPage() {
             </span>
           </div>
         )}
+        </div>
+        </div>
       </div>
 
       {/* ── slide-over inspector — portaled to <body> for FULL-BLEED:

@@ -293,13 +293,17 @@ function Inspector({
   const favTotal = tl ? tl.favorites.reduce((a, f) => a + f.qty, 0) : 0;
   const d = (delay: number) => (reduce ? 0 : delay);
 
+  // v8.1: LEFT-anchored column (was mx-auto → at 100% width the content sat
+  // "in the middle of the screen", user report). pl-7 makes the content edge
+  // land at 56px = the ledger's own gutter (px-8 main + px-6 page) → modal
+  // content aligns with the list underneath.
   return (
     <motion.div
       initial={{ opacity: 0, x: 14 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, transition: { duration: reduce ? 0 : 0.12 } }}
       transition={{ duration: reduce ? 0 : 0.24, ease: [0.4, 0, 0.2, 1] }}
-      className="mx-auto flex h-full w-full max-w-[880px] min-h-0 flex-col">
+      className="mr-auto flex h-full w-full max-w-[880px] min-h-0 flex-col pl-7">
       {/* ── header ── */}
       <div className="px-7 pt-7 pb-5 border-b border-[var(--theme-border)]">
         <div className="flex items-start justify-between gap-4">

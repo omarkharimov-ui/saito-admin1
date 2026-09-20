@@ -828,3 +828,124 @@ Risks / Frozen-boundary impact / Decision (GO / NO-GO / INVESTIGATE / DEFER) / S
 (exactly what will and will not change) / Verification (how correctness is proven).
 
 **Insufficient evidence → STOP → INSPECT → RECONCILE → DECIDE. Guessing is a defect.**
+
+---
+
+## 8. STATUS + HANDOFF — refreshed 2026-09-20 (SUPERSEDES the mid-file footers in §5/§6)
+
+### 8.1 WHERE WE ARE (status board — verified 2026-09-20)
+
+| Item | Status | Evidence |
+|---|---|---|
+| W-A1 QR guest identity + loyalty repair | 🔒 FROZEN | W-A1 gate 18/18 |
+| W-A2 add-to-check + QR price hardening | 🔒 backend FROZEN; **menu "continue your check" UI = HARD STOP (user decision pending — 1A sticky bar ratified as direction, form/layout NOT yet co-designed)** | `.w-a2-gate.cjs` 19/19 |
+| W-A3 customer timeline | ✅ DONE (backend + UI v8.5, 9 review rounds closed) | gate 9/9; commits a1fdd8fa→6de4214e |
+| W-A4 gift card (Q3) minimal | ✅ DONE | `.gc-gate.cjs` 23/23; commit 7668addd |
+| W-A4.5 GC 1.5 (load/refund) + CP-1 (customer birthday/email/notes) | ✅ DONE | `.gc2-gate.cjs` 22/22 + `.gc-gate.cjs` reflow 23/23; commit b3578c9f |
+| W-A5 daily operating checklists (map §21 J) | 🔒 **backend DONE** (gate 33/33, zero residue); **UI code-complete + tsc clean, REAL-MOUSE E2E PENDING** | `.ck-gate.cjs`; commit bf9d3b75 |
+| Device registry / print routing | ⬜ NEXT wave (map Wave A #5) | — |
+| Dead onboarding surface | 🗑 REMOVED (was 6 days of silent 500s; tables dropped 09-14 C-class, app residue completed by 20260920000006 + route/UI removal) | live probe `ERROR: relation "onboarding_workflows" does not exist` |
+
+**Canonical roadmap:** `MASTER_FEATURE_MAP.md` (status header = WAVE QƏRARLARI; §9 = icra sırası).
+**Visual canon:** `SAITO_UI_VISUAL_DIRECTION.md` (user-ratified 2026-09-19 — binding for ALL UI work).
+
+### 8.2 NEXT AGENT — EXACT FIRST ACTIONS (in this order)
+
+1. **Re-establish baselines (Rule 1 — never trust this doc's numbers alone):** dev server on `:3000` solo, then
+   `node .w-a2-gate.cjs` (expect 19/19) · `node .gc-gate.cjs` (23/23) · `node .gc2-gate.cjs` (22/22) · `node .ck-gate.cjs` (33/33) — all zero-residue.
+   Any non-green → STOP, diagnose (Rule 7: new evidence reopens; do not defend).
+2. **Checklists UI real-mouse E2E (the one open verification):** browser agent, REAL clicks:
+   a) board loads (today's runs) · b) open run (iOS-push full-width, sidebar-aware) · c) tap item → toggle → run
+   state machine (Açıq→Yarımçıq→Bitib) + mini bars + KPI update · d) item qeyd/sübut edit · e) assign a staff
+   (manager session) · f) skip with reason + unskip · g) Şablonlar modal: create template (daily, time) →
+   verify it materializes on next board call · h) dark+light both themes · i) console clean · j) screenshots.
+   Fix findings, re-run `.ck-gate.cjs` after any backend touch, commit as `ui(ck): ...` (house versioning: ck v1.1, v1.2...).
+3. **Map sync after E2E green:** `MASTER_FEATURE_MAP.md` — §21 J row (onboarding → removed; daily checklists → ✅),
+   §9 Wave A #4 line (strike-through BİTİB), status header W-A block. File is race-prone → fresh-read before edit.
+4. **Then Wave A #5 (device registry / print routing):** house rhythm — backend INSPECT first (live DB + code
+   evidence, EVIDENCE/INFERENCE/RISK/DECISION), decision log, migrations, routes, gate battery, commit; UI only
+   per §8.3.
+5. **W-A2 menu "continue your check" UI:** DO NOT build unilaterally — HARD STOP, user co-designs (1A sticky bar
+   is the ratified direction; backend contract ready, see §6 W-A2).
+
+### 8.3 HOW UI IS DONE HERE (house DNA — v8.5 language, binding)
+
+- **Shared components:** `PageHeaderCard` + `PillCount` (admin/components/ui) — rounded-[32px] surface card,
+  serif Playfair uppercase title, tracking subtitle, count pill; content = ONE card (report strip + pill
+  segments + flat hairline ledger, inner scroll, sticky header with scroll shadow).
+- **Ledger language:** FLAT hairline rows (divide-y 1px, transparent, h-16) — NOT surface cards (v6.3 lesson:
+  "kartlar" = user rejected as puffy). Tabular-nums for all figures. End-cap footer ("N X · data canlı" + kbd hints).
+- **Spotlight search:** focus expands (256→320px), Search↔X icon morph, `/`↔`esc` kbd swap, live match highlight
+  pill, ticking count chip, ↑/↓ row nav (accent bar glide), Enter opens.
+- **Detail:** FULL-WIDTH view via `createPortal`→body, `left: mainEdge, top: mainBottom` from LayoutContext
+  (STATE-DRIVEN, not polled — v7.3), iOS push `x:'100%'→0` 320ms `[0.32,0.72,0,1]`, solid `bg-[var(--theme-bg)]`
+  (no glass), content `mr-auto max-w-[920px] pl-7` (left-anchored — v8.1).
+  **CRITICAL (v6.2):** overlay container = `pointer-events-none`, backdrop/panel = `pointer-events-auto` —
+  else the invisible container swallows ALL clicks when closed.
+- **Motion = state only:** layoutId accent-bar/pill morphs (spring 420/34), row→headline title morph,
+  check-morph SVG pathLength, first-load stagger (i*0.022 cap 0.18), chevron on hover.
+  `useReducedMotion()` kills everything (duration 0).
+- **Speed:** `cachedFetch` (SWR 4s TTL) for lists, `cachePeek` (10s) for detail open (zero-latency reopen),
+  hover-prefetch of detail, `AdminDesktopShell.idlePrime` pre-warms the page's APIs (add new pages there),
+  dev route-warmer list in the shell includes new pages.
+- **Controls:** `Monobtn` (monochrome primary, busy spinner, disabled), `toast` (success/error),
+  inline action forms (no dead buttons — every control must do something verifiable).
+- **Theme:** ALL colors via `--theme-*` tokens (accent: dark=gold #D4AF37 / light=blue #007aff). Global theme
+  toggle in AdminHeader only (per-page toggles are dead). Theme flip = SYNCHRONOUS in `setLightMode`
+  (v7.2 root-cause lesson), 120ms uniform transition.
+- **Verification rounds (the rhythm that worked — 9 rounds for customers):** browser agent with REAL mouse
+  (not synthetic), DOM-measured assertions (rects, computed styles), console must be clean, dark AND light,
+  screenshots numbered per round. User reviews screenshots → next round. Dev caveat: backgrounded-tab timer
+  throttling inflates animation starts (environment artifact, not a defect).
+- **UI hard stop — CURRENT STATE (2026-09-20):** the user LIFTED the hard stop for ongoing waves
+  ("hard stopa ehtiyac yoxdur, davam et, duzgun şekilde implement et") — so UI is built autonomously in
+  house DNA, then verified via the review-round rhythm above. W-A2 menu UI is EXPLICITLY still co-designed.
+
+### 8.4 NEW LESSONS FROM THIS WAVE (09-20 — add to the quirk bank)
+
+- **(f) Supabase DEFAULT PRIVILEGES:** new tables come with **anon+authenticated `arwdDxtm`** (full DML!)
+  until revoked. Every new-table migration MUST: `REVOKE ALL ON TABLE ... FROM anon, authenticated` +
+  `ENABLE ROW LEVEL SECURITY` + `CREATE POLICY service_full_X FOR ALL TO service_role USING (true) WITH CHECK (true)`.
+  The 000007 checklist migration shipped with anon full-DML; 000008 closed it. Same wave: `gift_cards` had
+  `anon=rm` (SELECT all cards) — pre-existing gap, closed in 000008. **Gate pattern:** C28-style grants check
+  (OID form — see (i)) on every new vertical.
+- **(g) pg_cron UNREACHABLE via the pooler** (INSERT cron.job → permission denied; job_add not visible).
+  Don't design around cron from app sessions — use idempotent lazy materialization (board calls
+  `checklist_materialize_due()`; `UNIQUE(template_id, run_date)` + `ON CONFLICT DO NOTHING` makes it safe).
+- **(h) `psql -c "stmt1; stmt2; stmt3"` = ONE implicit transaction** — an error in stmt3 ROLLBACKs stmt1/2
+  even though psql printed `DELETE 1` for each. Run destructive statements separately.
+- **(i) `has_function_privilege(role, 'name(args)')` text form is BROKEN on this PG17.6 pooler**
+  ("expected a left parenthesis" even for `now()`). Use the OID form:
+  `has_function_privilege('anon', (SELECT oid FROM pg_proc ...), 'EXECUTE')`.
+- **(j) `CREATE OR REPLACE FUNCTION` cannot drop parameter `DEFAULT` clauses** ("cannot remove parameter
+  defaults") — keep the full signature incl. `DEFAULT NULL` when rewriting.
+- **(k) PG json text output renders `": "` (space after colon)** — harness regexes on `::json` output need
+  `:\s*`. (Pooler numeric quirk (a) from the GC wave still applies: always `Number()`.)
+- **(l) LIKE wildcards: ESCAPE, don't strip.** `code.replace(/[%_]/g,'')` broke any code containing `_`
+  (gate G4, deterministic). Correct: `esc = s.replace(/\\/g,'\\\\').replace(/[%_]/g, m => '\\'+m)` (PG
+  default LIKE escape = backslash).
+- **(m) Every new GC RPC must mirror `gift_card_redeem`'s lazy-expiry guard**
+  (`expires_at IS NOT NULL AND expires_at < NOW()` → reject) — expiry is canonical-lazy (no cron,
+  `status='expired'` is never written). Gate L4/R4 enforces.
+- **(n) `pg_get_function_identity` does not exist on this build** — use `left(pg_get_functiondef(oid),400)`.
+- **(o) Parallel sessions ARE active** (other agents edit the same repo — AdminHeader/shell/map). Fresh-read
+  every file before editing; race-prone files: `MASTER_FEATURE_MAP.md`, shell/header, staff page.
+
+### 8.5 REPO HYGIENE (2026-09-20)
+
+- **Untracked, intentionally NOT committed:** `.demo-enrich.sql` (demo enrichment script — run manually if
+  demo data needed), `ES_CASH_RPC_DRIFT_AUDIT_2026-09-13.md` (historical audit).
+- **`next-env.d.ts`** = generated Next drift — excluded from commits by convention.
+- Gates live at repo ROOT: `.w-a2-gate.cjs`, `.gc-gate.cjs`, `.gc2-gate.cjs`, `.ck-gate.cjs` (+ `.demo-cleanup.sql`
+  sweeps `GCDEMO-%`, `phone LIKE '0005555%'`, now also safe on `CKG_%` fixtures — gates self-clean via F-contract).
+- Git: remote `origin` = GitHub `omarkharimov-ui/saito-admin1`, branch `main`. Commit convention:
+  `feat/fix/perf/docs(ui|ck|gc|cp): ...` with evidence block in the body.
+- DB access: pooler `aws-1-eu-central-1.pooler.supabase.com:6543`, user `postgres.jbxmlnsicbfkbsatnoej`
+  (password in this repo's gate files / user's keychain — see gate headers), `psql -t -A -F'|' -v ON_ERROR_STOP=1`.
+- **House rhythm (every package):** backend INSPECT (live evidence) → decision log → migration(s) applied
+  live (single txn) → routes → gate battery (route-level E2E + DB invariants + grants + audit + zero residue)
+  → reflow adjacent frozen gates → tsc (app scope) → UI in house DNA → real-mouse E2E rounds with user review
+  → commit (evidence in body) → map + MEMORY sync.
+
+*Handover refreshed 2026-09-20 after W-A5 checklists backend freeze + dead-onboarding removal.
+  Re-run the §8.2.1 gates before trusting any status above (Rule 1).*

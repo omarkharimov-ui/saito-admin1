@@ -49,7 +49,7 @@ const FILTER_TABS = [
   { id: 'favorites' as const, labelKey: 'favorites', icon: Heart },
 ];
 
-type GridItem = PosProduct & { _isCombo?: boolean; _raw?: any; variants?: any[]; modifiers?: any[] };
+type GridItem = PosProduct & { _isCombo?: boolean; _raw?: any; variants?: any[]; modifiers?: any[]; modifier_groups?: any[] };
 
 function AllergenBadges({ item }: { item: GridItem | undefined; lightMode?: boolean }) {
   const list = item ? parseAllergens(item.allergens) : [];
@@ -586,33 +586,88 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 )}
 
                 {/* Modifikatorlar */}
-                {(expandedItem.modifiers?.length ?? 0) > 0 && (
-                  <div>
-                    <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Modifikatorlar:</span>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {(expandedItem.modifiers ?? []).map((m: any) => {
-                        const mQty = selectedModifiers[m.id] || 0;
+                {(expandedItem.modifiers?.length ?? 0) > 0 && (() => {
+                  // QF2 P4: render modifier groups when the product has them
+                  // (exclusive group max_select=1 behaves as radio; max is
+                  // enforced on the + button; min/required shows a hint — the
+                  // DB trigger enforce_item_modifiers is the final authority).
+                  const groups: any[] = expandedItem.modifier_groups || [];
+                  const groupedIds = new Set(groups.flatMap((g: any) => g.item_ids || []));
+                  const flatMods: any[] = (expandedItem.modifiers || []).filter((m: any) => !groupedIds.has(m.id));
+
+                  const setModQty = (id: string, q: number, group?: any) => {
+                    setSelectedModifiers(prev => {
+                      const next = { ...prev };
+                      // Exclusive group (max 1): picking one clears the rest.
+                      if (group && Number(group.max_select) === 1 && q > 0) {
+                        for (const oid of group.item_ids || []) if (oid !== id) next[oid] = 0;
+                      }
+                      next[id] = q;
+                      return next;
+                    });
+                  };
+
+                  const renderChip = (m: any, group?: any) => {
+                    const mQty = selectedModifiers[m.id] || 0;
+                    const selectedInGroup = group
+                      ? (group.item_ids || []).filter((oid: string) => (selectedModifiers[oid] || 0) > 0).length
+                      : 0;
+                    const maxReached = !!group && group.max_select != null && mQty === 0 && selectedInGroup >= Number(group.max_select);
+                    return (
+                      <div key={m.id || m.name} className={`flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl text-sm font-semibold transition-all border ${mQty > 0 ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
+                        <span
+                          onClick={() => setModQty(m.id, (selectedModifiers[m.id] || 0) + 1, group)}
+                          className={`whitespace-nowrap select-none active:scale-95 ${maxReached ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                          {m.name} {m.price ? <span className={mQty > 0 ? 'opacity-70' : 'opacity-50'}>+₼{Number(m.price).toFixed(2)}</span> : ''}
+                        </span>
+                        {mQty > 0 && (
+                          <>
+                            <button onClick={() => setModQty(m.id, Math.max(0, (selectedModifiers[m.id] || 0) - 1), group)} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-95">−</button>
+                            <span className="min-w-[1.1rem] text-center tabular-nums text-xs font-bold">{mQty}</span>
+                          </>
+                        )}
+                        <button onClick={() => setModQty(m.id, (selectedModifiers[m.id] || 0) + 1, group)} disabled={maxReached} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-95 disabled:opacity-30">+</button>
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <div className="space-y-3">
+                      {groups.length > 0 && groups.map((g: any) => {
+                        const gItems: any[] = (expandedItem.modifiers || []).filter((m: any) => (g.item_ids || []).includes(m.id));
+                        if (gItems.length === 0) return null;
+                        const minNeed = Math.max(g.min_select ?? 0, g.is_required ? 1 : 0);
+                        const picked = (g.item_ids || []).filter((oid: string) => (selectedModifiers[oid] || 0) > 0).length;
                         return (
-                          <div key={m.id || m.name} className={`flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl text-sm font-semibold transition-all border ${mQty > 0 ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
-                            <span
-                              onClick={() => setSelectedModifiers(p => ({ ...p, [m.id]: (p[m.id] || 0) + 1 }))}
-                              className="whitespace-nowrap cursor-pointer select-none active:scale-95"
-                            >
-                              {m.name} {m.price ? <span className={mQty > 0 ? 'opacity-70' : 'opacity-50'}>+₼{Number(m.price).toFixed(2)}</span> : ''}
+                          <div key={g.id}>
+                            <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                              {g.name}
+                              {Number(g.max_select) === 1 ? ' · 1 seçim' : g.max_select != null ? ` · max ${g.max_select}` : ''}
+                              {minNeed > 0 ? ' · məcburi' : ''}
                             </span>
-                            {mQty > 0 && (
-                              <>
-                                <button onClick={() => setSelectedModifiers(p => ({ ...p, [m.id]: Math.max(0, (p[m.id] || 0) - 1) }))} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-95">−</button>
-                                <span className="min-w-[1.1rem] text-center tabular-nums text-xs font-bold">{mQty}</span>
-                              </>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {gItems.map((m: any) => renderChip(m, g))}
+                            </div>
+                            {minNeed > 0 && picked < minNeed && (
+                              <p className="text-[11px] mt-1.5 font-semibold" style={{ color: '#f59e0b' }}>
+                                {picked} / {minNeed} — seçilməlidir
+                              </p>
                             )}
-                            <button onClick={() => setSelectedModifiers(p => ({ ...p, [m.id]: (p[m.id] || 0) + 1 }))} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-95">+</button>
                           </div>
                         );
                       })}
+                      {flatMods.length > 0 && (
+                        <div>
+                          <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Modifikatorlar:</span>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {flatMods.map((m: any) => renderChip(m))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Qeyd */}
                 <div>

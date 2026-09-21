@@ -24,6 +24,19 @@ const normalizeProductName = (s: string) => s.trim();
 export type ProductVariantForm = { id?: string; name: string; price: string; is_default: boolean; variant_type?: 'olcu'; translations?: Record<string, { name: string }> | null; };
 export type ProductModifierForm = { id?: string; name: string; price: string; is_available: boolean; translations?: Record<string, { name: string }> | null; };
 
+// QF2 P3: modifier groups (selection rules per product).
+// max_select = max number of DISTINCT selections ("" = unlimited);
+// min_select / is_required = at least N must be picked; item_ids = which of
+// this product's modifier rows belong to the group.
+export type ProductModifierGroupForm = {
+  id?: string;
+  name: string;
+  min_select: string;
+  max_select: string;
+  is_required: boolean;
+  item_ids: string[];
+};
+
 type ProductForm = {
   name: string; category_id: string; price: string; image_url: string;
   description: string; ingredients: string; is_in_stock: boolean;
@@ -34,6 +47,7 @@ type ProductForm = {
   allergenIds: string[];
   variants: ProductVariantForm[];
   modifiers: ProductModifierForm[];
+  modifier_groups: ProductModifierGroupForm[];
 };
 
 type CategoryForm = { id: string; name: string; slug: string; image_url: string };
@@ -48,6 +62,7 @@ const emptyProductForm = (defaultCatId = ''): ProductForm => ({
   allergenIds: [],
   variants: [],
   modifiers: [],
+  modifier_groups: [],
 });
 
 const emptyCategoryForm = (): CategoryForm => ({ id: '', name: '', slug: '', image_url: '' });
@@ -385,11 +400,32 @@ const ProductsPage = () => {
       setIsModalOpen(true);
       return;
     }
-    const [{ data: variantRows }, { data: modifierRows }, { data: allergenLinkRows }] = await Promise.all([
+    const [{ data: variantRows }, { data: modifierRows }, { data: allergenLinkRows }, { data: groupLinkRows }] = await Promise.all([
       supabase.from('product_variants').select('*').eq('product_id', product.id).order('is_default', { ascending: false }),
       supabase.from('product_modifiers').select('*').eq('product_id', product.id).order('created_at', { ascending: true }),
       supabase.from('product_allergens').select('allergen_id').eq('product_id', product.id),
+      supabase.from('product_modifier_groups').select('group_id, sort_order').eq('product_id', product.id),
     ]);
+    // QF2 P3: load modifier groups + their member modifier ids for this product.
+    let modifierGroups: ProductModifierGroupForm[] = [];
+    if (groupLinkRows && groupLinkRows.length > 0) {
+      const gids = groupLinkRows.map((l: any) => l.group_id);
+      const [{ data: groupRows }, { data: groupItemRows }] = await Promise.all([
+        supabase.from('modifier_groups').select('*').in('id', gids),
+        supabase.from('modifier_group_items').select('group_id, modifier_id').in('group_id', gids),
+      ]);
+      const linkOrder = new Map((groupLinkRows as any[]).map((l, i) => [l.group_id, i]));
+      modifierGroups = (groupRows || [])
+        .sort((a: any, b: any) => (linkOrder.get(a.id) ?? 99) - (linkOrder.get(b.id) ?? 99))
+        .map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          min_select: String(g.min_select ?? 0),
+          max_select: g.max_select != null ? String(g.max_select) : '',
+          is_required: Boolean(g.is_required),
+          item_ids: (groupItemRows || []).filter((r: any) => r.group_id === g.id).map((r: any) => r.modifier_id),
+        }));
+    }
     setProductForm({
       name: localName, category_id: product.category_id, price: product.price.toString(),
       image_url: product.image_url, description: localDesc,
@@ -403,6 +439,7 @@ const ProductsPage = () => {
       allergenIds: (allergenLinkRows || []).map((r: any) => r.allergen_id).filter(Boolean),
       variants: (variantRows || []).map(v => ({ id: v.id, name: v.name, price: v.price.toString(), is_default: v.is_default, variant_type: 'olcu' as const, translations: (v as any).translations || null })),
       modifiers: (modifierRows || []).map(m => ({ id: m.id, name: m.name, price: m.price.toString(), is_available: m.is_available, translations: (m as any).translations || null })),
+      modifier_groups: modifierGroups,
     });
     setIsModalOpen(true);
   };
@@ -501,6 +538,56 @@ const ProductsPage = () => {
           const mData = { product_id: savedProduct.id, name: m.name.trim(), price: parseFloat(m.price) || 0, is_available: m.is_available, translations: m.translations || null };
           if (m.id) { await supabase.from('product_modifiers').update(mData).eq('id', m.id); }
           else { await supabase.from('product_modifiers').insert([mData]); }
+        }
+        // ─── Modifier group CRUD (QF2 P3) ───
+        // Note: only SAVED modifiers (with id) can be group members — new
+        // modifier rows get their id on this save, so assign them next time.
+        const validGroups = productForm.modifier_groups.filter(g => g.name.trim());
+        if (editingProduct) {
+          const { data: existingLinks } = await supabase.from('product_modifier_groups').select('id, group_id').eq('product_id', savedProduct.id);
+          const keptGroupIds = validGroups.filter(g => g.id).map(g => g.id as string);
+          for (const link of existingLinks || []) {
+            if (!keptGroupIds.includes(link.group_id)) {
+              await supabase.from('product_modifier_groups').delete().eq('id', link.id);
+              // Delete the group itself only if no other product uses it.
+              const { data: otherLinks } = await supabase.from('product_modifier_groups').select('id').eq('group_id', link.group_id);
+              if (!otherLinks || otherLinks.length === 0) {
+                await supabase.from('modifier_group_items').delete().eq('group_id', link.group_id);
+                await supabase.from('modifier_groups').delete().eq('id', link.group_id);
+              }
+            }
+          }
+        }
+        for (let gi = 0; gi < validGroups.length; gi++) {
+          const g = validGroups[gi];
+          const gData = {
+            name: g.name.trim(),
+            is_required: g.is_required,
+            min_select: g.min_select ? (parseInt(g.min_select, 10) || 0) : 0,
+            max_select: g.max_select ? (parseInt(g.max_select, 10) || null) : null,
+            sort_order: gi,
+          };
+          let gid = g.id;
+          if (gid) {
+            await supabase.from('modifier_groups').update(gData).eq('id', gid);
+          } else {
+            const { data: ins } = await supabase.from('modifier_groups').insert([gData]).select('id').single();
+            gid = ins?.id;
+            if (!gid) continue;
+          }
+          // Product ↔ group link
+          const { data: linkExists } = await supabase.from('product_modifier_groups').select('id').eq('product_id', savedProduct.id).eq('group_id', gid).maybeSingle();
+          if (!linkExists) {
+            await supabase.from('product_modifier_groups').insert({ product_id: savedProduct.id, group_id: gid, sort_order: gi });
+          }
+          // Group members sync (item rows cascade when a modifier is deleted)
+          const { data: existingItems } = await supabase.from('modifier_group_items').select('modifier_id').eq('group_id', gid);
+          const oldItemIds = (existingItems || []).map((r: any) => r.modifier_id);
+          const newItemIds = (g.item_ids || []).filter(Boolean);
+          const toRemove = oldItemIds.filter((id: string) => !newItemIds.includes(id));
+          if (toRemove.length) await supabase.from('modifier_group_items').delete().in('modifier_id', toRemove).eq('group_id', gid);
+          const toAdd = newItemIds.filter((id: string) => !oldItemIds.includes(id));
+          if (toAdd.length) await supabase.from('modifier_group_items').insert(toAdd.map((id) => ({ group_id: gid, modifier_id: id })));
         }
         try {
           const langToLabel: Record<string, string> = { az: 'Azerbaijani', en: 'English', ru: 'Russian' };

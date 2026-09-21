@@ -8,7 +8,7 @@ export async function GET() {
 
     const supabase = await createAuthClient();
 
-    const [productsRes, categoriesRes, ingredientsRes, recipesRes, variantsRes, combosRes, campaignsRes, productModifiersRes, allergenLinksRes] = await Promise.all([
+    const [productsRes, categoriesRes, ingredientsRes, recipesRes, variantsRes, combosRes, campaignsRes, productModifiersRes, allergenLinksRes, groupRowsRes, productGroupLinkRes, groupItemRowsRes] = await Promise.all([
       supabase.from('products').select('*, category:category_id(name,name_az,name_en,name_ru)').order('created_at', { ascending: false }),
       supabase.from('categories').select('*').order('name', { ascending: true }),
       supabase.from('ingredients').select('id, name, current_stock, unit'),
@@ -19,6 +19,10 @@ export async function GET() {
       supabase.from('product_modifiers').select('*').eq('is_available', true).order('created_at', { ascending: true }),
       // Allergenlərin SSOT mənbəyi: allergens + product_allergens junction
       supabase.from('product_allergens').select('product_id, allergen:allergens(code, name, translations)'),
+      // QF2 P4: modifier groups (selection rules) — POS renders grouped picks
+      supabase.from('modifier_groups').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
+      supabase.from('product_modifier_groups').select('product_id, group_id, sort_order'),
+      supabase.from('modifier_group_items').select('group_id, modifier_id'),
     ]);
 
     const now = new Date().toISOString();
@@ -42,6 +46,33 @@ export async function GET() {
       });
     }
 
+    // QF2 P4: per-product modifier groups, restricted to this product's
+    // AVAILABLE modifier rows (a group whose items are all unavailable is
+    // meaningless on the floor). item_ids reference product_modifiers ids.
+    const groupsByProduct: Record<string, any[]> = {};
+    const groupRows = (groupRowsRes.data || []) as any[];
+    const groupItemRows = (groupItemRowsRes.data || []) as any[];
+    const availableModIds = new Set(modifierRows.map((m: any) => m.id));
+    for (const link of (productGroupLinkRes.data || []) as any[]) {
+      const g = groupRows.find(x => x.id === link.group_id);
+      if (!g || !g.is_active) continue;
+      const items = groupItemRows
+        .filter(r => r.group_id === g.id)
+        .map(r => r.modifier_id)
+        .filter(id => availableModIds.has(id));
+      if (items.length === 0) continue;
+      const tr: any = g.translations || {};
+      (groupsByProduct[link.product_id] ||= []).push({
+        id: g.id,
+        name: g.name,
+        name_az: tr.az?.name, name_en: tr.en?.name, name_ru: tr.ru?.name,
+        min_select: g.min_select ?? 0,
+        max_select: g.max_select ?? null,
+        is_required: Boolean(g.is_required),
+        item_ids: items,
+      });
+    }
+
     const allergensByProduct: Record<string, Array<{ code: string; name: string }>> = {};
     for (const link of (allergenLinksRes.data || []) as any[]) {
       if (!link.product_id) continue;
@@ -56,6 +87,7 @@ export async function GET() {
       .map((p: any) => ({
         ...p,
         modifiers: modifiersByProduct[p.id] || [],
+        modifier_groups: groupsByProduct[p.id] || [],
         allergens: allergensByProduct[p.id] || [],
         effective_price: computeEffectivePrice(p, campaigns, now),
       }));

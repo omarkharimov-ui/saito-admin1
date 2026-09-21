@@ -3,13 +3,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Tag, X, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft, PackagePlus, ScrollText } from 'lucide-react';
+import { Tag, X, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft, PackagePlus, ScrollText, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/lib/supabase';
 import { Product, Category } from '@/types';
-import type { ProductVariantForm, ProductModifierForm } from '../page';
+import type { ProductVariantForm, ProductModifierForm, ProductModifierGroupForm } from '../page';
 import { useModalFormDirty } from '@/hooks/useFormDirty';
 import { useAiFlags } from '@/hooks/useAiFlags';
 import { allergenUIByCode, ALLERGEN_FALLBACK_ICON } from '@/lib/allergens';
@@ -188,6 +188,109 @@ function ModifierSelector({
   );
 }
 
+// QF2 P3 — modifier GROUPS: selection rules over this product's modifiers.
+// "Servinq Üslubu" (max 1 = exclusive: Regular/Double) vs "Əlavələr" (max 5:
+// pick several add-ons). Only SAVED modifier rows (with id) can be members —
+// new rows get their id on save, assign them on the next edit.
+// Server enforces the same rules (enforce_item_modifiers trigger).
+function ModifierGroupSelector({
+  groups,
+  modifiers,
+  onChange,
+}: {
+  groups: ProductModifierGroupForm[];
+  modifiers: ProductModifierForm[];
+  onChange: (g: ProductModifierGroupForm[]) => void;
+}) {
+  const { t } = useLanguage();
+  const savedMods = modifiers.filter(m => m.id && m.name.trim());
+
+  const updateRow = (i: number, patch: Partial<ProductModifierGroupForm>) => {
+    onChange(groups.map((g, idx) => idx === i ? { ...g, ...patch } : g));
+  };
+  const removeRow = (i: number) => onChange(groups.filter((_, idx) => idx !== i));
+  const addGroup = () => {
+    onChange([...groups, { name: '', min_select: '0', max_select: '', is_required: false, item_ids: [] }]);
+  };
+  const toggleItem = (i: number, modId: string) => {
+    const g = groups[i];
+    updateRow(i, { item_ids: g.item_ids.includes(modId) ? g.item_ids.filter(id => id !== modId) : [...g.item_ids, modId] });
+  };
+
+  return (
+    <div className="mt-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Layers size={12} className="text-white/30" />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-semibold">{t('modifier_groups_section')}</span>
+        </div>
+        <button type="button" onClick={addGroup} className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white/70 transition-all">
+          <Plus size={11} /> {t('group_add')}
+        </button>
+      </div>
+      {savedMods.length === 0 && (
+        <p className="text-[11px] text-white/25 italic py-0.5">{t('groups_need_saved_modifiers')}</p>
+      )}
+      <AnimatePresence>
+        {groups.map((g, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.14 }}
+            className="rounded-xl border border-white/[0.12] bg-white/[0.03] p-2.5 space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={g.name}
+                onChange={e => updateRow(i, { name: e.target.value })}
+                placeholder={t('group_name_placeholder')}
+                className="flex-1 min-w-0 bg-white/[0.07] border border-white/[0.12] rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/35 transition-all"
+              />
+              <input
+                type="number" min="0" step="1"
+                value={g.min_select}
+                onChange={e => updateRow(i, { min_select: e.target.value })}
+                title={t('group_min')}
+                className="w-11 bg-white/[0.07] border border-white/[0.12] rounded-xl px-2 py-1.5 text-xs text-white outline-none focus:border-white/35 transition-all"
+              />
+              <input
+                type="number" min="1" step="1"
+                value={g.max_select}
+                onChange={e => updateRow(i, { max_select: e.target.value })}
+                placeholder={t('group_max')}
+                title={t('group_max')}
+                className="w-11 bg-white/[0.07] border border-white/[0.12] rounded-xl px-2 py-1.5 text-xs text-white placeholder:text-white/25 outline-none focus:border-white/35 transition-all"
+              />
+              <label className="flex items-center gap-1 text-[10px] font-semibold text-white/45 cursor-pointer select-none shrink-0" title={t('group_required')}>
+                <input type="checkbox" checked={g.is_required} onChange={e => updateRow(i, { is_required: e.target.checked })} className="accent-white/60" />
+                {t('group_required')}
+              </label>
+              <button type="button" onClick={() => removeRow(i)}
+                className="flex-shrink-0 w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center transition-all">
+                <Trash2 size={12} />
+              </button>
+            </div>
+            {savedMods.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {savedMods.map(m => {
+                  const on = g.item_ids.includes(m.id as string);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => toggleItem(i, m.id as string)}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${on ? 'bg-white/15 border-white/35 text-white' : 'bg-transparent border-white/12 text-white/40 hover:text-white/65'}`}
+                    >
+                      {m.name}{m.price !== '0' && parseFloat(m.price) !== 0 ? ` +₼${m.price}` : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 interface ProductForm {
   name: string;
   category_id: string;
@@ -209,6 +312,7 @@ interface ProductForm {
   allergenIds: string[];
   variants: ProductVariantForm[];
   modifiers: ProductModifierForm[];
+  modifier_groups: ProductModifierGroupForm[];
 }
 
 interface ProductModalProps {
@@ -912,6 +1016,11 @@ export function ProductModal({
                   modifiers={productForm.modifiers}
                   onChange={(m) => onFormChange({ ...productForm, modifiers: m })}
                 />
+                <ModifierGroupSelector
+                  groups={productForm.modifier_groups}
+                  modifiers={productForm.modifiers}
+                  onChange={(g) => onFormChange({ ...productForm, modifier_groups: g })}
+                />
               </div>
                 </form>
                 <div className="px-8 lg:px-12 py-4 bg-card/80 backdrop-blur-xl border-t border-white/5 rounded-b-2xl flex items-center gap-4 shrink-0">
@@ -1277,6 +1386,11 @@ export function ProductModal({
                 <ModifierSelector
                   modifiers={productForm.modifiers}
                   onChange={(m) => onFormChange({ ...productForm, modifiers: m })}
+                />
+                <ModifierGroupSelector
+                  groups={productForm.modifier_groups}
+                  modifiers={productForm.modifiers}
+                  onChange={(g) => onFormChange({ ...productForm, modifier_groups: g })}
                 />
               </div>
 

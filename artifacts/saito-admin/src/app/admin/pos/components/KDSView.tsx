@@ -23,6 +23,11 @@ interface KDSItem {
   kitchen_status: string;
   modifiers?: { id: string; name: string; price: number; quantity: number }[];
   special_notes?: string;
+  /** AUDIT 2026-09-21: course + hold were invisible in the kitchen — the
+   *  kitchen could start cooking held items and never saw appetizer/main
+   *  timing. Both are persisted on order_items; the KDS just didn't map them. */
+  course?: string | null;
+  is_hold?: boolean;
 }
 
 interface KDSOrder {
@@ -153,7 +158,16 @@ export function KDSView({ onBack }: { onBack: () => void }) {
   const reprintTicket = async (order: KDSOrder) => {
     const items = (order.items || [])
       .filter((i) => i.kitchen_status !== 'completed' && i.kitchen_status !== 'cancelled')
-      .map((i) => ({ name: i.name, quantity: Math.max(0, i.quantity - (i.prepared_quantity || 0)), note: i.special_notes || null, course: null }));
+      .map((i) => ({
+        name: i.name,
+        quantity: Math.max(0, i.quantity - (i.prepared_quantity || 0)),
+        note: i.special_notes || null,
+        // AUDIT 2026-09-21: course was hardcoded null on the printed kitchen
+        // ticket; held items and modifier quantities were omitted entirely.
+        course: i.course || null,
+        is_hold: Boolean(i.is_hold),
+        modifiers: (i.modifiers ?? []).map((m) => ({ name: m.name, quantity: m.quantity || 1 })),
+      }));
     if (items.length === 0) { toast.error('Aktiv məhsul yoxdur'); return; }
     try {
       const res = await apiFetch('/api/print/enqueue', {
@@ -248,6 +262,8 @@ export function KDSView({ onBack }: { onBack: () => void }) {
               kitchen_status: i.kitchen_status || 'pending',
               modifiers: i.modifiers,
               special_notes: i.special_notes,
+              course: i.course ?? null,
+              is_hold: Boolean(i.is_hold),
             })),
             created_at: o.created_at,
             kitchen_status: o.kitchen_status || 'pending',
@@ -405,15 +421,30 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                     <div className="space-y-1.5 mb-3">
                       {order.items.map(item => {
                         const itemReady = item.kitchen_status === 'ready' || item.kitchen_status === 'completed';
+                        // Modifier names with quantities — "add 2 cheese" must
+                        // reach the kitchen as "Cheese ×2", not "Cheese".
+                        const modText = (item.modifiers ?? [])
+                          .map(m => (m.quantity && m.quantity > 1 ? `${m.name} ×${m.quantity}` : m.name))
+                          .join(', ');
                         return (
-                          <div key={item.id} className={`flex items-center justify-between gap-2 rounded-2xl px-2 py-1.5 transition-all ${itemReady ? (lightMode ? 'bg-emerald-50' : 'bg-emerald-500/5') : ''}`}>
+                          <div key={item.id} className={`flex items-center justify-between gap-2 rounded-2xl px-2 py-1.5 transition-all ${item.is_hold ? (lightMode ? 'bg-amber-50 ring-1 ring-amber-300' : 'bg-amber-500/10 ring-1 ring-amber-500/30') : itemReady ? (lightMode ? 'bg-emerald-50' : 'bg-emerald-500/5') : ''}`}>
                             <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <span className={`text-sm font-medium truncate ${itemReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-gray-800' : 'text-white/85')}`}>
+                              {item.is_hold && (
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/20 text-amber-400'}`}>
+                                  HOLD
+                                </span>
+                              )}
+                              <span className={`text-sm font-medium truncate ${item.is_hold ? (lightMode ? 'text-amber-800' : 'text-amber-200/80') : itemReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-gray-800' : 'text-white/85')}`}>
                                 {item.name}
                               </span>
-                              {item.modifiers?.length ? (
+                              {item.course && (
+                                <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-sky-100 text-sky-700' : 'bg-sky-500/15 text-sky-400'}`}>
+                                  {item.course}
+                                </span>
+                              )}
+                              {modText ? (
                                 <span className={`text-xs shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
-                                  {(item.modifiers ?? []).map(m => m.name).join(', ')}
+                                  {modText}
                                 </span>
                               ) : null}
                             </div>

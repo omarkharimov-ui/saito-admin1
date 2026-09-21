@@ -195,11 +195,12 @@ function RunRow({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, transition: { duration: 0.12 } }}
       transition={{ duration: reduce ? 0 : 0.22, delay: stagger, layout: { duration: reduce ? 0 : 0.25, delay: 0, ease: 'easeOut' } }}
-      onMouseEnter={() => onHover(r)}
-      onClick={() => onOpen(r)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(r); } }}
+       onMouseEnter={() => onHover(r)}
+       onClick={() => onOpen(r)}
+       role="button"
+       tabIndex={0}
+       aria-expanded={active && panelOpen}
+       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(r); } }}
       className={`group relative flex items-center gap-4 px-4 sm:px-6 h-16 cursor-pointer select-none
         outline-none transition-colors duration-150
         ${active ? 'bg-[var(--theme-accent-soft)]' : 'hover:bg-[var(--theme-surface-soft)] active:bg-[var(--theme-accent-soft)]'}
@@ -472,7 +473,7 @@ function RunDetail({
               transition={{ duration: reduce ? 0 : 0.2, delay: d(0.18 + Math.min(i, 8) * 0.03) }}
               className={`group flex items-start gap-3.5 px-4 py-3.5 transition-colors duration-150 ${busyItem === it.id ? 'bg-[var(--theme-accent-soft)]/40' : detail.status === 'skipped' ? 'cursor-not-allowed' : 'hover:bg-[var(--theme-surface-soft)] cursor-pointer'}`}
               onClick={() => { if (editNote === it.id || busyItem === it.id) return; if (detail.status === 'skipped') toast.error('Run buraxılıb — əvvəl “Yenidən aç” et'); else onItemToggle(it, !it.completed); }}
-              role="button" tabIndex={0}
+              role="button" tabIndex={0} aria-pressed={it.completed}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (editNote === it.id || busyItem === it.id) return; if (detail.status === 'skipped') toast.error('Run buraxılıb — əvvəl “Yenidən aç” et'); else onItemToggle(it, !it.completed); } }}>
               {/* checkbox morph */}
               <motion.span

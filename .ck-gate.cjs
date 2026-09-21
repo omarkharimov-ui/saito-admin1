@@ -174,6 +174,14 @@ function R(id,name,ok,ev){
   R('C29','audit: template+run actions recorded',/checklist_template_create/.test(audit||'')&&/checklist_item_toggle/.test(audit||'')&&/checklist_run_create/.test(audit||'')&&/checklist_run_skipped/.test(audit||''),`actions=${audit}`);
 
   // ── teardown (F-contract) ─────────────────────────────────────────────────
+  // C29b (quick-fix 3, 09-21): a11y source-contract pin — the interactive
+  // checklist surfaces must keep their ARIA state (DOM render is verified by
+  // E2E; this pins the contract in CI so it cannot silently regress).
+  const ckSrc = require('fs').readFileSync(require('path').join(__dirname,'artifacts/saito-admin/src/app/admin/checklists/page.tsx'),'utf8');
+  R('C29b','a11y contract: row aria-expanded + item aria-pressed + icon-button labels',
+    ckSrc.includes('aria-expanded={active && panelOpen}') && ckSrc.includes('aria-pressed={it.completed}') && ckSrc.includes('aria-label="Qeyd əlavə et"') && ckSrc.includes('aria-label="Sil"'),
+    'checklists/page.tsx ARIA markers');
+
   S(`DELETE FROM checklist_runs WHERE title LIKE ${q(MARK+'%')}`);
   S(`DELETE FROM checklist_templates WHERE title LIKE ${q(MARK+'%')}`);
   S(`DELETE FROM sessions WHERE token IN (${q(MGR_TOK)},${q(CASH_TOK)})`);

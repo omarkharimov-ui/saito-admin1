@@ -1,9 +1,10 @@
 'use client';
 
-import { Plus, Phone, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical, Navigation, UserCheck, Route, CreditCard, CheckCircle2 } from 'lucide-react';
+import { Plus, Phone, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical, Navigation, UserCheck, Route, Wallet, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { isFinalOrderStatus } from '@/lib/pos-tables';
+import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
 
 interface DeliveryOrdersProps {
   orders: any[];
@@ -60,10 +61,16 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
       ) : (
         <div className="flex-1 overflow-y-auto pr-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {orders.map((order) => {
-              const statusKey = order.delivery_status || order.status;
-              const status = DELIVERY_STATUS_CONFIG[statusKey] || DELIVERY_STATUS_CONFIG.pending;
-              const elapsed = order.created_at
+             {orders.map((order) => {
+               // 2026-09-22: status is now DERIVED (payment + kitchen + status).
+               const stage = deriveOrderStage(order);
+               const DELIVERY_STAGE_MAP: Record<OrderStage, string> = {
+                 new: 'pending', confirmed: 'confirmed', kitchen: 'preparing',
+                 ready: 'ready', paid: 'paid', closed: 'delivered', cancelled: 'cancelled',
+               };
+               const status = DELIVERY_STATUS_CONFIG[DELIVERY_STAGE_MAP[stage]] || DELIVERY_STATUS_CONFIG.pending;
+               const orderNo = order.order_number || `#${String(order.id).slice(-4).toUpperCase()}`;
+               const elapsed = order.created_at
                 ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)
                 : 0;
               // QA bug 4 (2026-09-22): cap hours — beyond 24h show days (same as TakeawayOrders).
@@ -88,11 +95,12 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                     </button>
                   </div>
 
-                  <span className={`absolute top-5 left-5 text-[32px] font-black tracking-tighter ${
-                    lightMode ? 'text-gray-900' : 'text-white'
-                  }`}>
-                    {t('delivery_short')} {order.order_number || ''}
-                  </span>
+                   {/* 2026-09-22: order number always shown (legacy fallback). */}
+                   <span className={`absolute top-5 left-5 text-[26px] font-black tracking-tighter ${
+                     lightMode ? 'text-gray-900' : 'text-white'
+                   }`}>
+                     {t('delivery_short')} <span className={`text-[18px] ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{orderNo}</span>
+                   </span>
 
                       {elapsed > 0 && (
                         <span className={`absolute top-14 right-5 flex items-center gap-1 text-xs font-bold tabular-nums ${
@@ -163,18 +171,13 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                          <div className={`w-1.5 h-1.5 rounded-full ${lightMode ? status.dot : status.dotDark}`} />
                          <span className={`${lightMode ? status.text : status.textDark}`}>{t(status.labelKey as any)}</span>
                        </div>
+                        {/* Amount chip: CreditCard icon removed (owner request). */}
                         {!isFinalOrderStatus(order.status) && (
-                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
-                           <CreditCard size={10} strokeWidth={2.5} />
-                           ₼{Number(order.total_amount || 0).toFixed(2)}
-                         </span>
-                       )}
-                       {order.status === 'paid' && (
-                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-green-50 border-green-200 text-green-600' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}>
-                           <CheckCircle2 size={10} strokeWidth={2.5} />
-                           {t('paid' as any)}
-                         </span>
-                       )}
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${stage === 'paid' || stage === 'ready' ? (lightMode ? 'bg-green-50 border-green-200 text-green-700' : 'bg-green-500/10 border-green-500/20 text-green-400') : (lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400')}`}>
+                            {stage === 'paid' || stage === 'ready' ? <CheckCircle2 size={10} strokeWidth={2.5} /> : <Wallet size={10} strokeWidth={2.5} />}
+                            ₼{Number(order.total_amount || 0).toFixed(2)}
+                          </span>
+                        )}
                      </div>
                    </div>
                 </div>

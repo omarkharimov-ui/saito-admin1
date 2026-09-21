@@ -462,21 +462,12 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
          {/* Bottom row: guests + items + status badges + order count.
              Guests/items moved here (2026-09-21): the old top-block position
              overlapped this row when the amount hero was tall. */}
-         <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-2">
-           <div className="flex items-center gap-2 flex-wrap">
-              {displayGuests && (
-                <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
-                  <Users size={11} />
-                  {displayGuests}
-                </span>
-              )}
-              {(table.item_count ?? 0) > 0 && (
-                <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
-                  <ShoppingBag size={11} />
-                  {table.item_count}
-                </span>
-              )}
-               <AnimatePresence mode="wait">
+          {/* 2026-09-22 (owner): LABEL LEFT, ICONS RIGHT. The status chip
+              (label) leads the row; guest/item/waiver icons sit at the right. */}
+          <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-2">
+            {/* LEFT: status label chips */}
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <AnimatePresence mode="wait">
                {!showOccupiedFlash && isOccupied && showKitchenStatus && kitchenStatus && kitchenStatus !== 'completed' && kitchenStatus !== 'cancelled' && kitchenStatus !== 'ready' && table.status !== 'served' && table.status !== 'dining' ? (
                  <motion.div
                    key="kitchen"
@@ -533,31 +524,35 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                  </motion.div>
                )}
              </AnimatePresence>
-              {table.bill_requested && (
-                <span className="shrink-0 relative px-2.5 py-1 rounded-lg text-xs font-black border-2 border-rose-500 bg-rose-500/20 text-rose-400 shadow-lg shadow-rose-500/30 flex items-center gap-1">
-                  <Receipt size={10} strokeWidth={2.5} />
-                  {t('bill_requested' as any)}
-                </span>
-              )}
-              {table.has_pending && (
-                <span className={`shrink-0 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest flex items-center gap-1 ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
-                   <Clock size={10} strokeWidth={2.5} />
-                   {t('pending_status' as any)}
-                </span>
-             )}
-              {table.waiter_name && (
-                <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider select-none ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                  {table.waiter_name}
-                </span>
-              )}
-               {Number(table.order_count || 0) > 0 && (
-                <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider select-none ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                  <ShoppingBag size={10} />
-                  {table.order_count}
-                </span>
-              )}
-             </div>
-         </div>
+               {table.bill_requested && (
+                 <span className="shrink-0 relative px-2.5 py-1 rounded-lg text-xs font-black border-2 border-rose-500 bg-rose-500/20 text-rose-400 shadow-lg shadow-rose-500/30 flex items-center gap-1">
+                   <Receipt size={10} strokeWidth={2.5} />
+                   {t('bill_requested' as any)}
+                 </span>
+               )}
+            </div>
+            {/* RIGHT: guest / item / waiter icons
+                (2026-09-22: redundant GÖZLƏNİR + order_count bag removed). */}
+            <div className="flex items-center gap-2 flex-wrap justify-end flex-shrink-0">
+               {table.waiter_name && (
+                 <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider select-none ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                   {table.waiter_name}
+                 </span>
+               )}
+               {displayGuests && (
+                 <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
+                   <Users size={11} />
+                   {displayGuests}
+                 </span>
+               )}
+               {(table.item_count ?? 0) > 0 && (
+                 <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
+                   <ShoppingBag size={11} />
+                   {table.item_count}
+                 </span>
+               )}
+            </div>
+          </div>
        </div>
    );
 }

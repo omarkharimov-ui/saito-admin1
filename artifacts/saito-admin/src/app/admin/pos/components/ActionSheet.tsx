@@ -11,6 +11,7 @@ import {
 import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { isOrderPaid } from '@/lib/order-stage';
 import type { PosTable } from '../types/shared';
 import { fastExit, slideUp, morphView } from '@/lib/modal-transitions';
 import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
@@ -341,28 +342,29 @@ export function ActionSheet({
                          <p className="text-2xl font-black tracking-tighter mb-1 leading-none">
                           {isMerged ? `${t('group')}${groupNumber || groupName}` : isTakeawayOrDelivery ? ((table as any)?.order_number ? `${posMode === 'delivery' ? t('delivery_short') : t('takeaway_short')} ${(table as any).order_number}` : t('order')) : `${t('table_label')} ${table?.table_number}`}
                         </p>
-                        {isTakeawayOrDelivery && (table as any)?.status && (
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full border text-[9px] font-black uppercase tracking-widest ${
-                            (table as any).status === 'paid' ? 'bg-green-500/15 border-green-500/25 text-green-400'
-                              : (table as any).status === 'cancelled' ? 'bg-red-500/15 border-red-500/25 text-red-400'
-                              : (table as any).status === 'ready' ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
-                              : 'bg-amber-500/15 border-amber-500/25 text-amber-400'
-                          }`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${
-                              (table as any).status === 'paid' ? 'bg-green-400'
-                                : (table as any).status === 'cancelled' ? 'bg-red-400'
-                                : (table as any).status === 'ready' ? 'bg-emerald-400'
-                                : 'bg-amber-400'
-                            }`} />
-                            {((table as any).status === 'new' && 'Yeni') ||
-                             (t('status_confirmed')) ||
-                             (t('status_in_kitchen')) ||
-                             (t('ready')) ||
-                             (t('paid')) ||
-                             (t('cancelled')) ||
-                             (table as any).status}
-                          </span>
-                        )}
+                        {/* 2026-09-22: the old chip had a broken `||` chain that
+                            ALWAYS rendered "TƏSDİQLƏNDİ". Per owner: show the
+                            PAYMENT state (ODENDİ / ODENMEDİ) instead — payment
+                            can happen before or after handover, so this is the
+                            state that actually matters here. */}
+                        {isTakeawayOrDelivery && (() => {
+                          const o = table as any;
+                          if (o?.status === 'cancelled' || o?.status === 'voided') {
+                            return (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full border text-[9px] font-black uppercase tracking-widest bg-red-500/15 border-red-500/25 text-red-400">
+                                <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                                {t('cancelled')}
+                              </span>
+                            );
+                          }
+                          const paid = isOrderPaid(o);
+                          return (
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full border text-[9px] font-black uppercase tracking-widest ${paid ? 'bg-green-500/15 border-green-500/25 text-green-400' : 'bg-amber-500/15 border-amber-500/25 text-amber-400'}`}>
+                              <div className={`w-1.5 h-1.5 rounded-full ${paid ? 'bg-green-400' : 'bg-amber-400'}`} />
+                              {paid ? t('paid') : t('unpaid')}
+                            </span>
+                          );
+                        })()}
                      {isMerged && (
                        <div className="flex flex-wrap justify-center gap-1.5 mt-3 mb-4">
                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${lightMode ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-500/20 text-indigo-400'}`}>

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
-import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer } from 'lucide-react';
+import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { usePos, cartLineKey } from './hooks/usePos';
@@ -2400,27 +2400,29 @@ export default function POSPage() {
                                   EXISTING takeaway/delivery order, make the binding
                                   EXPLICIT — the old flow let product taps silently
                                   append to whatever order happened to be loaded. */}
-                              {posMode !== 'dine_in' && pos.cart?.order_id && (
-                              <div className="flex-shrink-0 px-4 pt-3">
-                                <div className={`flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border ${lightMode ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/30'}`}>
-                                  <div className="min-w-0">
-                                    <p className={`text-[10px] font-black uppercase tracking-widest ${lightMode ? 'text-blue-600' : 'text-blue-400'}`}>
-                                      {t('editing_order') || 'Mövcud sifariş redaktə olunur'}
-                                    </p>
-                                    <p className={`text-sm font-black truncate ${lightMode ? 'text-zinc-800' : 'text-white'}`}>
-                                      {(posMode === 'takeaway' ? t('takeaway_short') : t('delivery_short'))} #{editingOrder?.order_number || ''}
-                                      {(editingOrder?.customer_name || pos.cart?.customer_name) ? ` — ${editingOrder?.customer_name || pos.cart?.customer_name}` : ''}
-                                    </p>
-                                  </div>
-                                  <button
-                                    onClick={() => { pos.setCart(null); setEditingOrder(null); pos.setActiveView('floor'); }}
-                                    className={`flex-shrink-0 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${lightMode ? 'bg-white border border-blue-300 text-blue-600 hover:bg-blue-100' : 'bg-white/10 border border-blue-500/30 text-blue-300 hover:bg-white/15'}`}
-                                  >
-                                    {t('back_to_list') || 'Siyahətə'}
-                                  </button>
-                                </div>
-                              </div>
-                              )}
+                               {/* 2026-09-22 (owner): banner was 2 lines + tall — it
+                                   crowded the customer inputs. Now a single slim
+                                   line: identity left, compact back button right. */}
+                               {posMode !== 'dine_in' && pos.cart?.order_id && (
+                               <div className="flex-shrink-0 px-4 pt-2.5">
+                                 <div className={`flex items-center justify-between gap-2 pl-3 pr-2 py-1.5 rounded-lg border ${lightMode ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/30'}`}>
+                                   <div className="min-w-0 flex items-center gap-1.5">
+                                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${lightMode ? 'bg-blue-500' : 'bg-blue-400'}`} />
+                                     <p className={`text-xs font-black truncate ${lightMode ? 'text-blue-700' : 'text-blue-300'}`}>
+                                       {(posMode === 'takeaway' ? t('takeaway_short') : t('delivery_short'))} #{editingOrder?.order_number || (String(editingOrder?.id || pos.cart?.order_id || '').slice(-4).toUpperCase())}
+                                       {(editingOrder?.customer_name || pos.cart?.customer_name) ? ` · ${editingOrder?.customer_name || pos.cart?.customer_name}` : ''}
+                                     </p>
+                                   </div>
+                                   <button
+                                     onClick={() => { pos.setCart(null); setEditingOrder(null); pos.setActiveView('floor'); }}
+                                     className={`flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${lightMode ? 'bg-white border border-blue-300 text-blue-600 hover:bg-blue-100' : 'bg-white/10 border border-blue-500/30 text-blue-300 hover:bg-white/15'}`}
+                                   >
+                                     <ArrowLeft size={11} />
+                                     {t('back_to_list') || 'Siyahətə'}
+                                   </button>
+                                 </div>
+                               </div>
+                               )}
                               {posMode !== 'dine_in' && (
                               <div className="flex-shrink-0 overflow-y-auto min-h-0 max-h-[44%] px-4 pt-3 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10 overscroll-contain">
                               <div className="grid grid-cols-2 gap-2">

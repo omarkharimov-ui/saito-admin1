@@ -12,6 +12,10 @@ import { appleBackdrop } from '@/lib/modal-transitions';
 import { parseAllergens, resolveAllergenEntry, ALLERGEN_FALLBACK_ICON } from '@/lib/allergens';
 import { useVirtualKeyboard } from './VirtualKeyboard';
 
+// Shared spring for the modal's "alive" interactions — high stiffness +
+// damping: snappy/kəsəy with a hair of overshoot, never bouncy.
+const SPRING = { type: 'spring', stiffness: 500, damping: 26, mass: 0.7 } as const;
+
 export type Product = PosProduct;
 
 export interface EditorPreset {
@@ -657,17 +661,18 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                               if (!code) return null;
                               const on = selectedAllergens.includes(code);
                               return (
-                                <button
+                                <motion.button
                                   key={code}
+                                  whileHover={{ y: -1.5 }} whileTap={{ scale: 0.9 }} transition={SPRING}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedAllergens(prev => on ? prev.filter(x => x !== code) : [...prev, code]);
                                   }}
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold transition-all active:scale-95 ${on ? 'bg-red-500/15 border-red-500/60 text-red-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${on ? 'bg-red-500/15 border-red-500/60 text-red-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
                                 >
                                   <Icon size={10} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
                                   {on && <Check size={9} />}
-                                </button>
+                                </motion.button>
                               );
                             })}
                           </div>
@@ -676,9 +681,12 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     </div>
                   </div>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); handleClose(); }} className={`p-2 rounded-xl border transition-all duration-200 hover:rotate-90 shrink-0 ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-100 hover:text-red-400' : 'border-white/10 text-white hover:bg-white/10 hover:text-red-400'}`}>
+                <motion.button onClick={(e) => { e.stopPropagation(); handleClose(); }}
+                  whileHover={{ rotate: 90, scale: 1.06 }} whileTap={{ scale: 0.82 }}
+                  transition={SPRING}
+                  className={`p-2 rounded-xl border shrink-0 ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-100 hover:text-red-400' : 'border-white/10 text-white hover:bg-white/10 hover:text-red-400'}`}>
                   <X size={20} />
-                </button>
+                </motion.button>
               </div>
 
               {/* Body: miqdar · variantlar · modifikatorlar · qeyd */}
@@ -701,9 +709,11 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('option' as any)}</span>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {(expandedItem.variants ?? []).map((v: any) => (
-                        <button key={v.id} onClick={() => setSelectedVariant(v.id)} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 hover:-translate-y-px border active:scale-95 ${selectedVariant === v.id ? 'bg-blue-500 text-white border-blue-500' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'border-white/10 text-white/80 hover:bg-white/10'}`}>
+                        <motion.button key={v.id} onClick={() => setSelectedVariant(v.id)}
+                          whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }} transition={SPRING}
+                          className={`px-5 py-2.5 rounded-xl text-sm font-bold border ${selectedVariant === v.id ? 'bg-blue-500 text-white border-blue-500' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'border-white/10 text-white/80 hover:bg-white/10'}`}>
                           {v.name || v.title || `#${v.id.slice(0, 6)}`} {v.price ? `(+₼${Number(v.price).toFixed(2)})` : ''}
-                        </button>
+                        </motion.button>
                       ))}
                     </div>
                   </div>
@@ -740,7 +750,9 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                       : 0;
                     const maxReached = !!group && group.max_select != null && mQty === 0 && selectedInGroup >= Number(group.max_select);
                     return (
-                      <div key={m.id || m.name} className={`flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:-translate-y-px hover:shadow-sm border ${mQty > 0 ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
+                      <motion.div key={m.id || m.name} whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+                        transition={SPRING}
+                        className={`flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl text-sm font-semibold border ${mQty > 0 ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
                         <span
                           onClick={() => {
                             // Exclusive group: tapping an already-selected chip deselects it.
@@ -758,7 +770,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           </>
                         )}
                         <button onClick={() => setModQty(m.id, (selectedModifiers[m.id] || 0) + 1, group)} disabled={maxReached || (!!group && Number(group.max_select) === 1 && mQty >= 1)} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-95 disabled:opacity-30">+</button>
-                      </div>
+                      </motion.div>
                     );
                   };
 
@@ -807,13 +819,14 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                       const on = editCourse === val;
                       const key = val === 'appetizer' ? 'course_appetizers' : val === 'main' ? 'course_mains' : val === 'dessert' ? 'course_desserts' : 'course_drinks';
                       return (
-                        <motion.button
-                          key={val}
-                          whileTap={{ scale: 0.92 }}
-                          transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                          onClick={() => setEditCourse(on ? null : val)}
-                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all duration-200 hover:-translate-y-px ${on ? (lightMode ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-400 text-black border-amber-400') : (lightMode ? 'bg-white/60 text-zinc-500 border-zinc-200' : 'bg-white/5 text-white/50 border-white/10')}`}
-                        >
+                         <motion.button
+                           key={val}
+                           whileHover={{ y: -1.5 }}
+                           whileTap={{ scale: 0.92 }}
+                           transition={SPRING}
+                           onClick={() => setEditCourse(on ? null : val)}
+                           className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border ${on ? (lightMode ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-400 text-black border-amber-400') : (lightMode ? 'bg-white/60 text-zinc-500 border-zinc-200' : 'bg-white/5 text-white/50 border-white/10')}`}
+                         >
                           {t(key as any)}
                         </motion.button>
                       );
@@ -836,11 +849,13 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
               {/* Footer: ƏLAVƏ ET */}
               <div className="p-5 pt-0">
-                <button onClick={handleModalAdd} className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:brightness-105 active:translate-y-0 active:scale-[0.98] shadow-lg"
+                <motion.button onClick={handleModalAdd}
+                  whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} transition={SPRING}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider shadow-lg hover:brightness-105"
                 style={{ backgroundColor: '#10b981' }}
                 >
-                  <Plus size={18} /> {t('add')}{qty > 1 ? ` · ${qty}` : ''}
-                </button>
+                   <Plus size={18} /> {t('add')}{qty > 1 ? ` · ${qty}` : ''}
+                 </motion.button>
               </div>
             </motion.div>
           </motion.div>

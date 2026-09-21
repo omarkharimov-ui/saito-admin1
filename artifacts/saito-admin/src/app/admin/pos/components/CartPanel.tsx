@@ -73,14 +73,6 @@ interface CartPanelProps {
   onSeatTable?: () => void | Promise<void>;
   onOpenActions?: () => void;
   onVoidSuccess?: () => void | Promise<void>;
-  /** Wave B #3 — tap an offer card's "Əlavə et" to add the product. The
-   *  object is the raw /api/upsell/suggest offer row. Providing this prop
-   *  enables the offer card. */
-   onAddProduct?: (s: {
-    product_id: string; name: string; price: number; discount_price?: number | null;
-    image_url?: string | null; category_name?: string | null;
-    offer_type?: 'complement' | 'beverage' | 'generic'; ref_name?: string | null; pct?: number | null;
-  }) => void;
   /** Quick-fix 4 — coupon row. Server-validated coupon (amount comes from
    *  /api/campaigns/coupon, never from the client); exclusive with auto
    *  item-campaigns. Persisted onto cart.coupon by the parent. */
@@ -150,7 +142,6 @@ export function CartPanel({
   onSeatTable,
   onOpenActions,
   onVoidSuccess,
-  onAddProduct,
   onCouponApplied,
   onCouponRemoved,
 }: CartPanelProps) {
@@ -179,89 +170,11 @@ export function CartPanel({
   const [localGuestCount, setLocalGuestCount] = useState(cart?.guest_count ?? 1);
   const guestEditRef = useRef<HTMLDivElement>(null);
   const [guestSaving, setGuestSaving] = useState(false);
-  // ── Wave B #3 (v2) — stateful offer engine UI ───────────────────────────
-  // ONE offer card at a time, floating at the bottom of the item area.
-  // Contract ("ən relevant olan bir şeyi, bir dəfə, düzgün anda"):
-  //   • the SERVER owns the state machine: per-order budget (max 2 shown,
-  //     max 1 accepted), dismiss cooldown, resume-on-refetch, candidate
-  //     memory — see /api/upsell/suggest + upsell_offers table
-  //   • ACCEPT ≠ CHAIN: after accepting, acceptLockRef pins the product-set
-  //     key that the add created; the next set change unlocks a FRESH
-  //     evaluation (never an immediate follow-up offer)
-  //   • the card never re-suggests what was added/dismissed via card
-  //     (sugAddedRef → client_excluded in stateless mode)
-  //   • empty cart / void mode → no card
-  type Offer = {
-    product_id: string; name: string; price: number; discount_price?: number | null;
-    image_url?: string | null; category_name?: string | null;
-    offer_type?: 'complement' | 'beverage' | 'generic'; ref_name?: string | null; pct?: number | null;
-  };
-  const [offer, setOffer] = useState<Offer | null>(null);
-  const [offerId, setOfferId] = useState<string | null>(null);
-  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
-  const sugSeqRef = useRef(0);
-  const acceptLockRef = useRef<string | null>(null);
-  // Stateless (draft, no order_id yet) budget mirror — same contract as the
-  // server enforces per order: max 2 shown, max 1 accepted per session.
-  const sugShownRef = useRef(0);
-  const sugAcceptedRef = useRef(0);
-  const onAddProductRef = useRef(onAddProduct);
-  onAddProductRef.current = onAddProduct;
-  const sugAddedRef = useRef<Set<string>>(new Set());
-  const sugProductKey = useMemo(
-    () => ((cart?.items || []).map(i => i.product_id).filter(Boolean) as string[]).sort().join(','),
-    [cart]
-  );
-  // A new order session (new order_id, or a fresh draft on a table) resets
-  // the guard + lock so offers start clean.
-  // Draft (no order row yet) identity is table-level so the guard survives
-  // a CLEAR on the same table (dismissed/added never comes back this visit).
-  const cartIdentity = (cart as any)?.order_id
-    ? `o:${(cart as any).order_id}`
-    : `t:${cart?.table_number ?? 0}`;
-  useEffect(() => {
-    sugAddedRef.current = new Set();
-    acceptLockRef.current = null;
-    sugShownRef.current = 0;
-    sugAcceptedRef.current = 0;
-    setOffer(null);
-    setOfferId(null);
-  }, [cartIdentity]);
-
-  const acceptOffer = useCallback(() => {
-    if (!offer) return;
-    // No-chain lock: pin the set key the add is about to create.
-    acceptLockRef.current = [...sugProductKey.split(','), offer.product_id].filter(Boolean).sort().join(',');
-    sugAddedRef.current.add(offer.product_id);
-    if (!(cart as any)?.order_id) sugAcceptedRef.current += 1;
-    setLastAddedId(offer.product_id);
-    window.setTimeout(() => setLastAddedId(cur => (cur === offer.product_id ? null : cur)), 1800);
-    if (offerId) {
-      apiFetch('/api/upsell/outcome', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offer_id: offerId, outcome: 'accepted' }),
-      }).catch(() => {});
-    }
-    onAddProductRef.current?.(offer);
-    setOffer(null);
-    setOfferId(null);
-  }, [offer, offerId, sugProductKey]);
-
-  const dismissOffer = useCallback(() => {
-    if (!offer) return;
-    sugAddedRef.current.add(offer.product_id); // stateless anti-nag
-    if (offerId) {
-      apiFetch('/api/upsell/outcome', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offer_id: offerId, outcome: 'dismissed' }),
-      }).catch(() => {});
-    }
-    setOffer(null);
-    setOfferId(null);
-  }, [offer, offerId]);
-  const stateful = Boolean((cart as any)?.order_id);
+  // ── Wave B #3 upsell offer engine — REMOVED by owner request (2026-09-21) ──
+  // The card UI was removed in dc807f83; this pass deletes the dormant
+  // plumbing (suggest fetch, accept/dismiss, budget refs) entirely. The
+  // server endpoints (/api/upsell/suggest, /api/upsell/outcome) are frozen
+  // in place per the API-CHANGE policy.
   // ── Quick-fix 4 — coupon row ────────────────────────────────────────────
   // The discount is SERVER-computed (validate_coupon over the existing
   // campaign engine) — the client only ever proposes a code. Exclusive with
@@ -382,49 +295,6 @@ export function CartPanel({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartKey, posMode, cart?.table_number, couponActive]);
-  useEffect(() => {
-    if (!onAddProduct || !sugProductKey) { setOffer(null); setOfferId(null); return; }
-    // Accept-no-chain: the set created by an accepted offer must not
-    // immediately spawn the next one.
-    if (sugProductKey === acceptLockRef.current) return;
-    // Stateless budget mirror (the server owns the same limits per order).
-    if (!stateful && (sugShownRef.current >= 2 || sugAcceptedRef.current >= 1)) return;
-    const seq = ++sugSeqRef.current;
-    const timer = setTimeout(async () => {
-      try {
-        const res = await apiFetch('/api/upsell/suggest', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            product_ids: sugProductKey.split(','),
-            order_id: (cart as any)?.order_id || undefined,
-            client_excluded: [...sugAddedRef.current],
-          }),
-        });
-        if (!res.ok || seq !== sugSeqRef.current) return;
-        const data = await res.json();
-        if (seq !== sugSeqRef.current) return;
-        const got = data?.offer && typeof data.offer.product_id === 'string' ? data.offer : null;
-        if (got && !stateful) sugShownRef.current += 1;
-        setOffer(got);
-        setOfferId(typeof data?.offer_id === 'string' ? data.offer_id : null);
-      } catch {
-        if (seq === sugSeqRef.current) { setOffer(null); setOfferId(null); }
-      }
-    }, 700);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sugProductKey, cartIdentity, !!onAddProduct, stateful]);
-
-  // Natural phrasing per offer type — the word "upsell" never appears.
-  const offerPhrase = (o: Offer): string => {
-    if (o.offer_type === 'complement') {
-      const pct = o.pct != null ? ` · %${o.pct}` : '';
-      return o.ref_name ? `«${o.ref_name}» ilə yaxşı gedir${pct}` : 'Bununla yaxşı gedir';
-    }
-    if (o.offer_type === 'beverage') return 'Sifarişdə içki yoxdur';
-    return 'Ən çox sifariş olunanlar';
-  };
 
 
   const commitGuestCount = useCallback(async (count: number): Promise<boolean> => {
@@ -1109,7 +979,7 @@ export function CartPanel({
                     }
                   }
                 }}
-                 className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 transition-[border-color,box-shadow] duration-300 ${voidMode && !isVoidableItem ? 'opacity-50 border-[var(--theme-border)]' : 'border-[var(--theme-border)]'} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? (lightMode ? 'bg-rose-50/70 border-rose-300' : 'bg-rose-500/10 border-rose-400/50') : ''} ${lastAddedId && (item as any).product_id === lastAddedId ? (lightMode ? 'ring-2 ring-amber-400/80' : 'ring-2 ring-amber-300/50') : ''}`}
+                 className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 transition-[border-color,box-shadow] duration-300 ${voidMode && !isVoidableItem ? 'opacity-50 border-[var(--theme-border)]' : 'border-[var(--theme-border)]'} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? (lightMode ? 'bg-rose-50/70 border-rose-300' : 'bg-rose-500/10 border-rose-400/50') : ''}`}
               >
                  {/* Void selection lines — rose (void color), and they now
                      FADE OUT on "−" (AnimatePresence exit) instead of

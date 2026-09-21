@@ -805,7 +805,12 @@ export function usePos() {
         setLastUndo({ action: 'dismiss', data: { table_number: num, child_tables: childNums }, message: t('table_cleared').replace('{table}', String(num)) });
       } else {
         const err = await res.json().catch(() => ({ error: 'Dismiss failed' }));
-        toast.error(err.error || t('table_clear_failed'));
+        const raw = String(err.error || '');
+        const map: Record<string, string> = {
+          G_DISMISS_ORDER_PAID: t('dismiss_paid_use_release'),
+          G_DISMISS_KITCHEN_ACTIVE: t('dismiss_kitchen_active'),
+        };
+        toast.error(map[raw] || raw || t('table_clear_failed'));
       }
     });
   };

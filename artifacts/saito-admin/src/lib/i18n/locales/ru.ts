@@ -1516,6 +1516,8 @@ export const ru: TranslationMap = {
   clear_table_pin_title: 'Освободить стол',
   clear_table_pin_hint: 'Введите PIN менеджера для освобождения стола {table}',
   clear_table_reason: 'Причина (необязательно)',
+  dismiss_paid_use_release: 'Стол оплачен — удалить нельзя. Используйте ПОСВОБОЖДЕНИЕ',
+  dismiss_kitchen_active: 'На кухне активный заказ — сначала подтвердите его в KDS',
   customer: 'Клиент',
   customers: 'Клиенты',
   select_customer: 'Выбрать клиента',

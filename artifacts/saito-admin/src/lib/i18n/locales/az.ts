@@ -1513,6 +1513,8 @@ export const az = {
   clear_table_pin_title: 'Masa boşalt',
   clear_table_pin_hint: '{table} masasını boşaltmaq üçün idarəçi PIN daxil edin',
   clear_table_reason: 'Səbəb (ixtiyari)',
+  dismiss_paid_use_release: 'Masa ödəniş alıb — silinə bilməz. SƏRBƏST BURAX istifadə edin',
+  dismiss_kitchen_active: 'Yeməxanada aktiv sifariş var — əvvəl KDS-də təsdiqləyin',
   customer: 'Müştəri',
   customers: 'Müştərilər',
   select_customer: 'Müştəri seç',

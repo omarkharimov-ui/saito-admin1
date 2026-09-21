@@ -1514,6 +1514,8 @@ export const en: TranslationMap = {
   clear_table_pin_title: 'Clear table',
   clear_table_pin_hint: 'Enter manager PIN to clear table {table}',
   clear_table_reason: 'Reason (optional)',
+  dismiss_paid_use_release: 'Table is paid — cannot be wiped. Use RELEASE instead',
+  dismiss_kitchen_active: 'Kitchen has an active order — confirm it in KDS first',
   customer: 'Customer',
   customers: 'Customers',
   select_customer: 'Select customer',

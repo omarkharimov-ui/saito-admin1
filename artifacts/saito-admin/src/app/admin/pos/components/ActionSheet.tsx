@@ -15,6 +15,7 @@ import type { PosTable } from '../types/shared';
 import { fastExit, slideUp, morphView } from '@/lib/modal-transitions';
 import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
 import { PinGuard, type PinVerified } from './PinGuard';
+import { useVirtualKeyboard } from './VirtualKeyboard';
 import { GiftCardModal } from './GiftCardModal';
 import { RoomChargeModal } from './RoomChargeModal';
 import { CorporateModal } from './CorporateModal';
@@ -103,6 +104,9 @@ export function ActionSheet({
   const { lightMode } = useTheme();
   const router = useRouter();
   const keyboardHeight = useKeyboardHeight();
+  // Yellow #2: the in-app VirtualKeyboard doesn't shrink the viewport, so
+  // combine it with the native-keyboard height for bottom padding.
+  const { height: vkHeight } = useVirtualKeyboard();
   const [localSplit, setLocalSplit] = useState<{ cash: string; card: string } | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customers, setCustomers] = useState<any[]>([]);
@@ -284,7 +288,7 @@ export function ActionSheet({
           key="global-pos-root"
           {...slideUp}
           className="fixed inset-0 z-[110] flex items-end justify-center pointer-events-none pb-10"
-          style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
+          style={{ paddingBottom: Math.max(keyboardHeight, vkHeight) > 0 ? Math.max(keyboardHeight, vkHeight) + 16 : undefined }}
         >
            {/* Backdrop */}
             {(currentView === 'actions' || currentView === 'split' || currentView === 'payment' || currentView === 'split-payment' || currentView === 'confirm-action') && (
@@ -488,11 +492,11 @@ export function ActionSheet({
                        </div>
 
                        {/* Secondary actions section */}
-                        {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier', 'mark_served', 'discount'].includes(a.id)) && (
+                        {visibleActions.some(a => ['bill_request', 'print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier', 'mark_served', 'discount'].includes(a.id)) && (
                           <div>
                             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
                             <div className="grid grid-cols-3 gap-3">
-                              {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier', 'discount'].includes(a.id)).map((action) => (
+                              {visibleActions.filter(a => ['bill_request', 'print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier', 'discount'].includes(a.id)).map((action) => (
                                <button key={action.id} onClick={() => {
                                   const fn = {
                                     add_order: onAddOrder,

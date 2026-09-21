@@ -9,6 +9,7 @@ import { ShieldCheck, X } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { appleCard, fastExit } from '@/lib/modal-transitions';
+import { useVirtualKeyboard } from './VirtualKeyboard';
 
 interface ClearTablePinModalProps {
   open: boolean;
@@ -20,6 +21,8 @@ interface ClearTablePinModalProps {
 export default function ClearTablePinModal({ open, tableNumber, onClose, onConfirm }: ClearTablePinModalProps) {
   const { lightMode } = useTheme();
   const { t } = useLanguage();
+  // Yellow #2: lift the card above the in-app virtual keyboard when open.
+  const { height: vkHeight } = useVirtualKeyboard();
   const [pin, setPin] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
@@ -39,6 +42,7 @@ export default function ClearTablePinModal({ open, tableNumber, onClose, onConfi
           exit={{ opacity: 0 }}
           transition={fastExit}
           className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          style={{ paddingBottom: vkHeight > 0 ? vkHeight + 12 : undefined }}
           onClick={onClose}
         >
           <motion.div

@@ -253,10 +253,11 @@ export function ActionSheet({
     { id: 'print_bill', icon: Printer, label: t('print_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'bill_request', icon: Receipt, label: t('call_bill'), visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 && !table?.bill_requested },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isCashierOrAbove && (isOccupied && (table?.total_amount ?? 0) > 0 || isTakeawayOrDelivery) },
-    { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? t('cancel') : t('dismiss_table'), visible: isCashierOrAbove && !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) && !(table?.status === 'paid' || activeOrder?.status === 'paid') },
-    // U-2: paid tables cannot be dismissed (they would 400 G_NO_ACTIVE_ORDER)
-    // — they must be RELEASED (orders close, table frees).
-    { id: 'release_table', icon: CheckCircle, label: t('release_table'), visible: isCashierOrAbove && !isTakeawayOrDelivery && (table?.status === 'paid' || activeOrder?.status === 'paid') },
+    { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? t('cancel') : t('dismiss_table'), visible: isCashierOrAbove && !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) && !(table?.status === 'paid' || table?.status === 'cleaning' || activeOrder?.status === 'paid') },
+    // U-2: settled (paid/cleaning) tables cannot be dismissed (they would
+    // 400 G_NO_ACTIVE_ORDER) — they must be RELEASED (orders close, table
+    // frees). 'cleaning' = post-payment dirty state (trigger rev. 2).
+    { id: 'release_table', icon: CheckCircle, label: t('release_table'), visible: isCashierOrAbove && !isTakeawayOrDelivery && (table?.status === 'paid' || table?.status === 'cleaning' || activeOrder?.status === 'paid') },
     { id: 'clear', icon: BrushCleaning, label: t('clear'), visible: table?.status === 'empty' || table?.status === 'dirty' },
     ...(posMode === 'delivery' ? [
       { id: 'delivery_status', icon: Car, label: t('delivery_status'), visible: true },

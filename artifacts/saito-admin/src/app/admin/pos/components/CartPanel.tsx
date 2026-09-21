@@ -9,6 +9,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
 import type { PosCart, PosCartItem, LossItem } from '../types/shared';
+import { PinGuard } from './PinGuard';
 import type { SendOrderButtonStatus } from './SendOrderButton';
 import { NumberRoll } from './NumberRoll';
 import { RollingNumber } from './RollingNumber';
@@ -592,8 +593,11 @@ export function CartPanel({
     });
   };
 
-  const handleVoidConfirm = async () => {
-    if (voidSelectedCount === 0) return;
+  // Void with manager-PIN fallback (Sprint-1 pattern, same as VoidItemsModal):
+  // when the server says the void amount needs void.approve, open the PIN
+  // guard and retry with the PIN-verified approver's staffId.
+  const [pinGuardOpen, setPinGuardOpen] = useState(false);
+  const doVoid = async (approverStaffId?: string | null) => {
     const activeOrder = (cart as any).order_id;
     if (!activeOrder) return;
     setVoidLoading(true);
@@ -611,7 +615,7 @@ export function CartPanel({
       const res = await apiFetch('/api/orders/void', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: activeOrder, items: payload }),
+        body: JSON.stringify({ order_id: activeOrder, items: payload, approver_staff_id: approverStaffId || null }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -624,15 +628,25 @@ export function CartPanel({
         setVoidSelection({});
         await onVoidSuccess?.();
       } else {
-        toast.error(data.error || t('void_error') || 'Ləğv edilmədi', { id: 'pos-hint', duration: 4000 });
-        await onVoidSuccess?.();
-        setVoidSelection({});
+        if (data?.requires_approval || data?.approval_required) {
+          // Over-threshold void: manager PIN fallback (server re-verifies
+          // the approver's void.approve — PIN is only the client gate).
+          setPinGuardOpen(true);
+        } else {
+          toast.error(data.error || t('void_error') || 'Ləğv edilmədi', { id: 'pos-hint', duration: 4000 });
+          await onVoidSuccess?.();
+          setVoidSelection({});
+        }
       }
     } catch {
       toast.error(t('network_error') || 'Şəbəkə xətası');
     } finally {
       setVoidLoading(false);
     }
+  };
+  const handleVoidConfirm = () => {
+    if (voidSelectedCount === 0) return;
+    void doVoid(null);
   };
 
   // Contextual primary-action states (dine-in only)
@@ -1001,8 +1015,9 @@ export function CartPanel({
         </div>
       )}
 
-        {/* Items */}
-        <div className="flex-1 py-3 relative overflow-y-auto min-h-0 overscroll-contain" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0 }}>
+        {/* Items — void mode gets a distinct rose tint so the operator always
+            knows they are in void mode (was white/invisible before). */}
+        <div className="flex-1 py-3 relative overflow-y-auto min-h-0 overscroll-contain transition-[background-color] duration-300" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0, backgroundColor: voidMode ? (lightMode ? 'rgba(244,63,94,0.05)' : 'rgba(244,63,94,0.08)') : undefined }}>
         <div
           className="absolute inset-0 transition-opacity duration-150 ease-in-out"
           style={{ opacity: isEmpty ? 1 : 0, pointerEvents: isEmpty ? 'auto' : 'none' }}
@@ -1042,28 +1057,37 @@ export function CartPanel({
                     }
                   }
                 }}
-                className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 transition-shadow duration-700 ${voidMode && !isVoidableItem ? 'opacity-50 border-[var(--theme-border)]' : 'border-[var(--theme-border)]'} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? lightMode ? 'bg-blue-50/50 border-transparent' : 'bg-blue-500/10 border-transparent' : ''} ${lastAddedId && (item as any).product_id === lastAddedId ? (lightMode ? 'ring-2 ring-amber-400/80' : 'ring-2 ring-amber-300/50') : ''}`}
+                 className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 transition-[border-color,box-shadow] duration-300 ${voidMode && !isVoidableItem ? 'opacity-50 border-[var(--theme-border)]' : 'border-[var(--theme-border)]'} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? (lightMode ? 'bg-rose-50/70 border-rose-300' : 'bg-rose-500/10 border-rose-400/50') : ''} ${lastAddedId && (item as any).product_id === lastAddedId ? (lightMode ? 'ring-2 ring-amber-400/80' : 'ring-2 ring-amber-300/50') : ''}`}
               >
-                {voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? (
-                  <>
-                    <motion.span
-                      key="void-top"
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      transition={{ duration: 0.9, ease: 'easeInOut' }}
-                      style={{ transformOrigin: 'left' }}
-                      className={`pointer-events-none absolute top-0 left-0 right-0 h-[2px] ${lightMode ? 'bg-gradient-to-r from-blue-500/90 via-blue-500 to-blue-500/90' : 'bg-gradient-to-r from-blue-400/90 via-blue-400 to-blue-400/90'}`}
-                    />
-                    <motion.span
-                      key="void-bottom"
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      transition={{ duration: 0.9, ease: 'easeInOut', delay: 0.06 }}
-                      style={{ transformOrigin: 'right' }}
-                      className={`pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] ${lightMode ? 'bg-gradient-to-r from-blue-500/90 via-blue-500 to-blue-500/90' : 'bg-gradient-to-r from-blue-400/90 via-blue-400 to-blue-400/90'}`}
-                    />
-                  </>
-                ) : null}
+                 {/* Void selection lines — rose (void color), and they now
+                     FADE OUT on "−" (AnimatePresence exit) instead of
+                     vanishing instantly. */}
+                 <AnimatePresence initial={false}>
+                   {voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 && (
+                     <motion.div
+                       key="void-lines"
+                       initial={{ opacity: 0 }}
+                       animate={{ opacity: 1 }}
+                       exit={{ opacity: 0, transition: { duration: 0.35, ease: 'easeOut' } }}
+                       className="pointer-events-none absolute inset-0"
+                     >
+                       <motion.span
+                         initial={{ scaleX: 0 }}
+                         animate={{ scaleX: 1 }}
+                         transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+                         style={{ transformOrigin: 'left' }}
+                         className={`absolute top-0 left-0 right-0 h-[2px] ${lightMode ? 'bg-gradient-to-r from-rose-500/90 via-rose-400 to-rose-500/90' : 'bg-gradient-to-r from-rose-400/90 via-rose-300 to-rose-400/90'}`}
+                       />
+                       <motion.span
+                         initial={{ scaleX: 0 }}
+                         animate={{ scaleX: 1 }}
+                         transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1], delay: 0.06 }}
+                         style={{ transformOrigin: 'right' }}
+                         className={`absolute bottom-0 left-0 right-0 h-[2px] ${lightMode ? 'bg-gradient-to-r from-rose-500/90 via-rose-400 to-rose-500/90' : 'bg-gradient-to-r from-rose-400/90 via-rose-300 to-rose-400/90'}`}
+                       />
+                     </motion.div>
+                   )}
+                 </AnimatePresence>
                 <div className="flex items-center gap-2.5">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
@@ -1071,15 +1095,24 @@ export function CartPanel({
                       <p className="text-xs truncate text-[var(--theme-text-secondary)]">{(item.modifiers ?? []).map(m => m.name).join(', ')}</p>
                     ) : null}
                     <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                      {!item.sentQuantity && (
-                        <button
-                          onClick={() => cycleCourse(originalIdx)}
-                          className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold tracking-normal transition-all active:scale-95 ${COURSE_STYLE[(item as any).course || 'main'] || COURSE_STYLE.main}`}
-                          title="Xidmət ardıcıllığı (dəyişmək üçün toxun)"
-                        >
-                          {COURSE_LABEL[(item as any).course || 'main'] || (item as any).course || 'Əsas'}
-                        </button>
-                      )}
+                       {/* Course chip — visible BEFORE and AFTER send to kitchen
+                           (was hidden once sent: "course send etdikden sonra itir").
+                           After send it is read-only (kitchen grouping is fixed). */}
+                       {(item as any).course && (
+                         item.sentQuantity ? (
+                           <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold tracking-normal opacity-80 ${COURSE_STYLE[(item as any).course] || COURSE_STYLE.main}`}>
+                             {COURSE_LABEL[(item as any).course] || (item as any).course}
+                           </span>
+                         ) : (
+                           <button
+                             onClick={() => cycleCourse(originalIdx)}
+                             className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold tracking-normal transition-all active:scale-95 ${COURSE_STYLE[(item as any).course] || COURSE_STYLE.main}`}
+                             title="Xidmət ardıcıllığı (dəyişmək üçün toxun)"
+                           >
+                             {COURSE_LABEL[(item as any).course] || (item as any).course}
+                           </button>
+                         )
+                       )}
                       {(item.hold_until || (item as any).is_hold) && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-[10px] font-semibold tracking-normal text-orange-600 dark:text-orange-300/80"><Pause size={9} />Saxlanılıb</span>
                       )}
@@ -1182,57 +1215,9 @@ export function CartPanel({
           })}
           </AnimatePresence>
         </div>
-        {/* Wave B #3 (v2) — floating offer card. Anchored to the BOTTOM edge
-            of the item area (scroll container is relative): it floats over
-            the scrollable content like a toast — never pushes layout, never
-            covers the totals, never covers more than the last row. Subtle
-            240ms fade-rise in, 180ms soft fade out. ONE at a time; the
-            server decides if/what (budget + cooldown). */}
-        {!voidMode && (
-          <AnimatePresence>
-            {offer && (() => {
-              const offPrice = Number(offer.discount_price != null ? offer.discount_price : offer.price) || 0;
-              return (
-                <motion.div
-                  key={`${offer.product_id}:${offerId || 'x'}`}
-                  data-offer-card
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.98, transition: { duration: 0.18, ease: 'easeOut' } }}
-                  transition={{ duration: 0.24, ease: [0.25, 0.1, 0.25, 1] }}
-                  className={`absolute inset-x-2.5 bottom-2.5 z-20 rounded-2xl border p-3 shadow-xl ${lightMode ? 'border-amber-200/80 bg-white shadow-amber-900/10' : 'border-white/[0.1] bg-zinc-900/95 shadow-black/60'}`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles size={12} className={lightMode ? 'text-amber-500' : 'text-amber-300/90'} />
-                    <span className={`min-w-0 flex-1 truncate text-[11px] font-semibold ${lightMode ? 'text-amber-700/90' : 'text-amber-300/80'}`}>
-                      {offerPhrase(offer)}
-                    </span>
-                    <button onClick={dismissOffer} aria-label="Təklifi bağla" className={`p-0.5 transition-opacity hover:opacity-70 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                      <X size={13} />
-                    </button>
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    {offer.image_url ? (
-                      <img src={offer.image_url} alt="" className="h-8 w-8 flex-shrink-0 rounded-lg object-cover" />
-                    ) : (
-                      <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
-                        <Utensils size={14} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
-                      </div>
-                    )}
-                    <span className={`min-w-0 flex-1 truncate text-[13px] font-semibold ${lightMode ? 'text-zinc-900' : 'text-white/90'}`}>{offer.name}</span>
-                    <span className={`text-[13px] font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{offPrice.toFixed(2)} ₼</span>
-                  </div>
-                  <button
-                    onClick={acceptOffer}
-                    className={`mt-2.5 w-full rounded-xl py-2 text-[13px] font-bold transition-colors active:scale-[0.99] ${lightMode ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-amber-400 text-black hover:bg-amber-300'}`}
-                  >
-                    Əlavə et
-                  </button>
-                </motion.div>
-              );
-            })()}
-          </AnimatePresence>
-        )}
+        {/* Wave B #3 floating offer (upsell) card — REMOVED by owner request
+            (2026-09-21): "modal içi kupon kodu və upsell rədd et". The offer
+            plumbing (fetch/accept/dismiss) is kept dormant below. */}
       </div>
 
       {/* Footer */}
@@ -1276,59 +1261,9 @@ export function CartPanel({
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
              className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]"
            >
-         {/* ── Coupon (quick-fix 4) — server-validated, order-level ── */}
-         {cart.coupon ? (
-           <motion.div
-             key={`coupon-on-${cart.coupon.campaign_id}`}
-             initial={{ opacity: 0, y: 4 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
-             className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25"
-           >
-             <div className="flex items-center gap-2 min-w-0">
-               <Tag size={12} className="text-emerald-500 shrink-0" />
-               <span className="text-xs font-black tracking-wider text-emerald-500 truncate">{cart.coupon.code}</span>
-               {cart.coupon.name && (
-                 <span className="text-[11px] font-medium text-[var(--theme-text-muted)] truncate">{cart.coupon.name}</span>
-               )}
-             </div>
-             <div className="flex items-center gap-2.5 shrink-0">
-               <span className="text-xs font-bold tabular-nums text-emerald-400">−{couponDiscount.toFixed(2)} ₼</span>
-               <button
-                 type="button"
-                 onClick={removeCoupon}
-                 disabled={couponBusy}
-                 aria-label={t('coupon_remove')}
-                 className="w-6 h-6 rounded-full flex items-center justify-center text-emerald-500/70 hover:text-emerald-300 hover:bg-emerald-500/15 transition-colors disabled:opacity-40"
-               >
-                 <X size={12} strokeWidth={2.5} />
-               </button>
-             </div>
-           </motion.div>
-         ) : cart.items.length > 0 ? (
-           <form
-             key="coupon-off"
-             onSubmit={e => { e.preventDefault(); applyCoupon(); }}
-             className="flex items-center gap-2 px-1"
-           >
-             <input
-               type="text"
-               value={couponInput}
-               onChange={e => setCouponInput(e.target.value)}
-               placeholder={t('coupon_placeholder')}
-               disabled={couponBusy}
-               className="flex-1 min-w-0 rounded-full border border-dashed border-[var(--theme-border-strong)] bg-transparent px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-[var(--theme-text)] placeholder:normal-case placeholder:font-medium placeholder:tracking-normal placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[var(--theme-accent-border)] focus:ring-2 focus:ring-[var(--theme-accent-soft)] transition-colors"
-             />
-             <button
-               type="submit"
-               disabled={!couponInput.trim() || couponBusy}
-               className="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black uppercase tracking-wider text-[var(--theme-accent)] border border-[var(--theme-accent-border)] bg-[var(--theme-accent-soft)] hover:brightness-110 active:scale-[0.97] transition-all disabled:opacity-40"
-             >
-               {couponBusy ? <Loader2 size={12} className="animate-spin" /> : <Tag size={12} />}
-               {t('coupon_apply')}
-             </button>
-           </form>
-         ) : null}
+          {/* Coupon code row — REMOVED by owner request (2026-09-21):
+              "modal içi kupon kodu rədd et". (Server coupon validation is
+              untouched; the cart.coupon field still applies if set.) */}
          {/* Total */}
         <motion.div
           key="std-total"
@@ -1541,6 +1476,20 @@ export function CartPanel({
       orderId={(cart as any).order_id || ''}
       item={returnModalItem}
       onSuccess={() => { setReturnModalOpen(false); setReturnModalItem(null); }}
+    />
+
+    {/* Void over-threshold: manager PIN fallback (server re-verifies approver) */}
+    <PinGuard
+      open={pinGuardOpen}
+      onClose={() => setPinGuardOpen(false)}
+      onVerified={(verified) => {
+        setPinGuardOpen(false);
+        if (verified?.valid && verified.staffId) {
+          void doVoid(verified.staffId);
+        }
+      }}
+      action="void"
+      title={t('void_pin_required') || 'Manager PIN'}
     />
 
     </>

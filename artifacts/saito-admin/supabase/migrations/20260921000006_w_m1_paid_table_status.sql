@@ -11,11 +11,14 @@
 --
 -- FIX (SSOT): when an order transitions INTO a settled state (paid /
 -- partially_refunded) and no other active (non-final) orders remain on the
--- table, mark the table 'paid'. When it transitions OUT of settled state
--- (refund / reopen) and nothing paid or active remains, fall back to
--- 'occupied' (₼0 — clearable through the PIN-gated MASANI BOŞALT).
--- This makes the existing release_table UI row visible on paid tables and the
--- floor card show a paid badge — no client changes required.
+-- table, mark the table 'cleaning' (REVISION 2, owner request 2026-09-21:
+-- "payment etdikden sonra masa dirty olunmalıdır amma new seat kimi olur" —
+-- a settled table needs cleaning, not a fresh-seat badge). When it
+-- transitions OUT of settled state (refund / reopen) and nothing paid or
+-- active remains, fall back to 'occupied' (₼0 — clearable through the
+-- PIN-gated MASANI BOŞALT). The release_table UI row is visible for both
+-- 'paid' and 'cleaning' tables (release_table_atomic has no status guard —
+-- only "a paid order exists and no active orders").
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.set_table_status_on_order_settled()
@@ -53,27 +56,27 @@ BEGIN
   END IF;
 
   IF NEW.status IN ('paid','partially_refunded') THEN
-    -- Order became settled: table is 'paid' when no active work remains.
+    -- Order became settled: table needs CLEANING when no active work remains.
     IF v_active_count = 0 AND v_settled_count > 0
-       AND v_current NOT IN ('paid','empty','cleaning') THEN
+       AND v_current NOT IN ('cleaning','empty') THEN
       UPDATE public.table_floors
-      SET status = 'paid',
+      SET status = 'cleaning',
           updated_at = now()
       WHERE table_number = NEW.table_number
         AND is_archived = false
-        AND status NOT IN ('paid','empty','cleaning');
+        AND status NOT IN ('cleaning','empty');
     END IF;
   ELSE
-    -- Order left settled state (refund/reopen): drop the paid badge only when
-    -- nothing paid or active remains (table goes back to 'occupied', ₼0).
+    -- Order left settled state (refund/reopen): drop the paid/cleaning state
+    -- only when nothing paid or active remains (table goes back to 'occupied').
     IF v_active_count = 0 AND v_settled_count = 0
-       AND v_current = 'paid' THEN
+       AND v_current IN ('paid','cleaning') THEN
       UPDATE public.table_floors
       SET status = 'occupied',
           updated_at = now()
       WHERE table_number = NEW.table_number
         AND is_archived = false
-        AND status = 'paid';
+        AND status IN ('paid','cleaning');
     END IF;
   END IF;
 

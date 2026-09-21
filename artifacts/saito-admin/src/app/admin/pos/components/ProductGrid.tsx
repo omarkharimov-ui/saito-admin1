@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { LiquidCategoryNavbar } from './LiquidCategoryNavbar';
@@ -20,6 +20,10 @@ export interface EditorPreset {
   modifiers?: Record<string, number>;
   quantity?: number;
   identity?: string;
+  // State that must survive a modal re-open (was lost: "hold/resume ve course
+  // send to kitchen etdikden sonra itir"):
+  course?: string | null;
+  is_hold?: boolean;
 }
 
 export interface ProductGridRef {
@@ -31,6 +35,8 @@ interface ProductGridProps {
   products: PosProduct[];
   combos?: any[];
   categories: { id: string; name: string }[];
+  /** Son/Məşur tab data (server-computed; favorites live in localStorage). */
+  filterData?: { recent: { id: string; name: string }[]; popular: { id: string; name: string; qty: number }[] } | null;
   onAddProduct: (product: PosProduct) => void;
   onAddCombo?: (combo: any) => void;
   cartCounts: Record<string, number>;
@@ -73,7 +79,7 @@ function AllergenBadges({ item }: { item: GridItem | undefined; lightMode?: bool
 
 export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function ProductGrid({
   products, combos, categories, onAddProduct, onAddCombo, cartCounts, outOfStock, variantsByProduct,
-  catalogError, onRetryCatalog
+  catalogError, onRetryCatalog, filterData
 }, ref) {
   const { language, t } = useLanguage();
   const { lightMode } = useTheme();
@@ -86,9 +92,24 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
   const [retryCount, setRetryCount] = useState<Record<string, number>>({});
   const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'popular' | 'favorites'>('all');
+  // Favorites: per-browser set (localStorage) — the Sevimli tab.
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('saito_pos_favorites') || '[]')); } catch { return new Set(); }
+  });
+  const toggleFavorite = (productId: string) => {
+    setFavorites(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId); else next.add(productId);
+      try { localStorage.setItem('saito_pos_favorites', JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  };
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>(undefined);
   const [noteForProduct, setNoteForProduct] = useState<string>('');
+  // Course + hold of the line being edited (restored on re-open — were lost).
+  const [editCourse, setEditCourse] = useState<string | null>(null);
+  const [editIsHold, setEditIsHold] = useState(false);
   const [qty, setQty] = useState(1);
   const [selectedModifiers, setSelectedModifiers] = useState<Record<string, number>>({});
   const [pulseMap, setPulseMap] = useState<Record<string, number>>({});
@@ -118,8 +139,25 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     editIdentityRef.current = preset?.identity ?? null;
     setSelectedVariant(preset?.variantId ?? undefined);
     setNoteForProduct(preset?.note ?? '');
+    setEditCourse(preset?.course ?? null);
+    setEditIsHold(!!preset?.is_hold);
     setQty(preset?.quantity && preset.quantity > 0 ? preset.quantity : 1);
-    setSelectedModifiers(preset?.modifiers ? { ...preset.modifiers } : {});
+    const sel: Record<string, number> = preset?.modifiers ? { ...preset.modifiers } : {};
+    // House default: exclusive (max-1) groups preselect their default member
+    // (is_default, fallback: first ₼0 option — e.g. "Standart" in serving
+    // style) when no explicit selection exists for the group.
+    const expandedProduct = products.find(p => p.id === expandedId) as GridItem | undefined;
+    for (const g of ((expandedProduct?.modifier_groups as any[]) || [])) {
+      if (Number(g.max_select) === 1 && Array.isArray(g.item_ids) && g.item_ids.length > 0) {
+        const hasSel = g.item_ids.some((id: string) => (sel[id] || 0) > 0);
+        if (!hasSel) {
+          const items = ((expandedProduct?.modifiers as any[]) || []).filter(m => g.item_ids.includes(m.id));
+          const def = items.find(m => m.is_default) || items.find(m => !Number(m.price));
+          if (def) sel[def.id] = 1;
+        }
+      }
+    }
+    setSelectedModifiers(sel);
   }, [expandedId]);
 
   useImperativeHandle(ref, () => ({
@@ -198,8 +236,24 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         return name.toLowerCase().includes(q);
       });
     }
+    // Son / Məşur / Sevimli tabs — previously rendered but never filtered
+    // (the state was used only for the tab highlight). Applied last so search
+    // keeps working on top of the filtered set.
+    if (!search.trim() && activeFilter !== 'all') {
+      if (activeFilter === 'recent' && filterData?.recent?.length) {
+        const orderMap = new Map(filterData.recent.map((r, i) => [r.id, i]));
+        list = list.filter(p => !p._isCombo && orderMap.has(p.id))
+          .sort((a, b) => (orderMap.get(a.id)! - orderMap.get(b.id)!));
+      } else if (activeFilter === 'popular' && filterData?.popular?.length) {
+        const orderMap = new Map(filterData.popular.map((p, i) => [p.id, i]));
+        list = list.filter(p => !p._isCombo && orderMap.has(p.id))
+          .sort((a, b) => (orderMap.get(a.id)! - orderMap.get(b.id)!));
+      } else if (activeFilter === 'favorites') {
+        list = list.filter(p => !p._isCombo && favorites.has(p.id));
+      }
+    }
     return list;
-  }, [products, combos, categoryFilter, search, language, outOfStock]);
+  }, [products, combos, categoryFilter, search, language, outOfStock, activeFilter, filterData, favorites]);
 
   const handleAdd = (item: GridItem) => {
     if (item._isCombo) {
@@ -279,11 +333,13 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
           const mod = (expandedItem.modifiers || []).find((x: any) => x.id === id);
           return { id, name: mod?.name || '', price: Number(mod?.price || 0), quantity: q };
         });
-      onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods, __editOf: identity ? { identity } : undefined } as any);
+      onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods, __editOf: identity ? { identity } : undefined, __course: editCourse, __is_hold: editIsHold } as any);
     }
     setNoteForProduct('');
     setSelectedVariant(undefined);
     setSelectedModifiers({});
+    setEditCourse(null);
+    setEditIsHold(false);
     setQty(1);
     handleClose();
   };
@@ -322,16 +378,16 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
       {/* Filter Tabs */}
       <div className="mb-3 flex-shrink-0 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-        {FILTER_TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveFilter(tab.id)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all border ${
-              activeFilter === tab.id
-                ? 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/20'
-                : lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
-            }`}
-          >
+         {FILTER_TABS.map(tab => (
+           <button
+             key={tab.id}
+             onClick={() => { setActiveFilter(tab.id); setCategoryFilter(null); }}
+             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap border transition-all duration-300 active:scale-[0.97] ${
+               activeFilter === tab.id
+                 ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/25'
+                 : lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
+             }`}
+           >
             <tab.icon size={12} />
             {t(tab.labelKey as any)}
           </button>
@@ -343,7 +399,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         <LiquidCategoryNavbar
           categories={navbarCategories}
           activeId={categoryFilter}
-          onChange={setCategoryFilter}
+          onChange={(id: string | null) => { setCategoryFilter(id); setActiveFilter('all'); }}
           allLabel={t('all' as any)}
         />
       </div>
@@ -448,16 +504,34 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                         </motion.span>
                       </motion.div>
                   )}
-                  {isOutOfStock && (
-                    <div className={`absolute top-2 left-2 z-20 flex items-center gap-1 rounded-full px-2 py-1 border text-xs font-black tabular-nums ${lightMode ? 'bg-zinc-900/80 border-zinc-800 text-white' : 'bg-zinc-900/80 border-zinc-700 text-white'}`}>
-                      <Ban size={10} className="text-white" />
-                      <span className="whitespace-nowrap">{t('out_of_stock')}</span>
-                    </div>
-                  )}
+                   {isOutOfStock && (
+                     <div className={`absolute top-2 left-2 z-20 flex items-center gap-1 rounded-full px-2 py-1 border text-xs font-black tabular-nums ${lightMode ? 'bg-zinc-900/80 border-zinc-800 text-white' : 'bg-zinc-900/80 border-zinc-700 text-white'}`}>
+                       <Ban size={10} className="text-white" />
+                       <span className="whitespace-nowrap">{t('out_of_stock')}</span>
+                     </div>
+                   )}
+                   {/* Favorite (Sevimli tab) — liquid press, spring fill */}
+                   {!isCombo && (
+                     <button
+                       onClick={(e) => { e.stopPropagation(); toggleFavorite(item.id); }}
+                       aria-label="Sevimli"
+                       className="absolute top-2 right-2 z-20 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-200 active:scale-90 hover:scale-105"
+                       style={{ backgroundColor: 'rgba(0,0,0,0.28)' }}
+                     >
+                       <motion.span
+                         key={String(favorites.has(item.id))}
+                         initial={{ scale: 0.4, opacity: 0 }}
+                         animate={{ scale: 1, opacity: 1 }}
+                         transition={{ type: 'spring', stiffness: 500, damping: 20, mass: 0.6 }}
+                       >
+                         <Heart size={14} className={favorites.has(item.id) ? 'text-rose-500 fill-rose-500' : 'text-white/85'} />
+                       </motion.span>
+                     </button>
+                   )}
 
-                  <motion.div
-                    className="flex flex-col h-full p-3"
-                  >
+                   <motion.div
+                     className="flex flex-col h-full p-3"
+                   >
                     <div className="aspect-square w-full overflow-hidden rounded-3xl bg-white/50 dark:bg-black/20">
                       {item.image_url && !failedImages.has(item.image_url) ? (
                         <img src={retryingImages.has(item.image_url) ? `${item.image_url}?t=${Date.now()}` : item.image_url} alt={name}
@@ -678,6 +752,34 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     </div>
                   );
                 })()}
+
+                {/* Course (mərhələ) — preserved across re-opens (was lost) */}
+                <div>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Mərhələ:</span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {(['appetizer', 'main', 'dessert', 'drink'] as const).map(val => {
+                      const on = editCourse === val;
+                      const key = val === 'appetizer' ? 'course_appetizers' : val === 'main' ? 'course_mains' : val === 'dessert' ? 'course_desserts' : 'course_drinks';
+                      return (
+                        <motion.button
+                          key={val}
+                          whileTap={{ scale: 0.92 }}
+                          transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                          onClick={() => setEditCourse(on ? null : val)}
+                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${on ? (lightMode ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-400 text-black border-amber-400') : (lightMode ? 'bg-white/60 text-zinc-500 border-zinc-200' : 'bg-white/5 text-white/50 border-white/10')}`}
+                        >
+                          {t(key as any)}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* Hold state (read-only badge — hold/resume is managed in the cart) */}
+                {editIsHold && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-orange-500/10 border border-orange-500/25 text-[11px] font-bold text-orange-600 dark:text-orange-300/90">
+                    <Pause size={11} /> Saxlanılıb (hold)
+                  </span>
+                )}
 
                 {/* Qeyd */}
                 <div>

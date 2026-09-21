@@ -898,7 +898,7 @@ export function usePos() {
 
   const addToCart = (
     p: PosProduct,
-    opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[]; quantity?: number; editOf?: { identity?: string } }
+    opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[]; quantity?: number; editOf?: { identity?: string }; course?: string | null; isHold?: boolean }
   ) => {
     const addQty = Math.max(1, Number(opts?.quantity) || 1);
     const base = cartRef.current ?? {
@@ -938,20 +938,24 @@ export function usePos() {
           && !(i.sentQuantity ?? 0)
           && cartLineKey(i.variant_id, i.special_notes, i.modifiers as any) === opts.editOf!.identity
       );
-      if (target) {
-        const replaced = {
-          ...target,
-          unit_price: unitPrice,
-          original_unit_price: originalWithMods,
-          quantity: addQty,
-          total_price: Math.round(unitPrice * addQty * 100) / 100,
-          modifiers: opts?.modifiers ?? [],
-          variant_id: variantId,
-          special_notes: opts?.notes ?? '',
-        };
-        setCart({ ...base, items: items.map(i => (i === target ? replaced : i)) });
-        return;
-      }
+        if (target) {
+          const replaced = {
+            ...target,
+            unit_price: unitPrice,
+            original_unit_price: originalWithMods,
+            quantity: addQty,
+            total_price: Math.round(unitPrice * addQty * 100) / 100,
+            modifiers: opts?.modifiers ?? [],
+            variant_id: variantId,
+            special_notes: opts?.notes ?? '',
+            // Course/hold: only override when the modal carried them (a plain
+            // re-add without course info must not wipe the line's course).
+            ...(opts?.course !== undefined ? { course: opts.course } : {}),
+            ...(opts?.isHold !== undefined ? { is_hold: opts.isHold } : {}),
+          };
+          setCart({ ...base, items: items.map(i => (i === target ? replaced : i)) });
+          return;
+        }
     }
     const existing = items.find(
       i => String(i.product_id) === String(p.id)

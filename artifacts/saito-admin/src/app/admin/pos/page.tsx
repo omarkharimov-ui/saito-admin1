@@ -218,6 +218,16 @@ export default function POSPage() {
     })();
     return () => { cancelled = true; };
   }, []);
+  // Son / Məşur tab data (was hardcoded UI only — tabs never filtered).
+  const [filterData, setFilterData] = useState<{ recent: { id: string; name: string }[]; popular: { id: string; name: string; qty: number }[] } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch('/api/pos/filter-data')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled && d) setFilterData(d); })
+      .catch(() => { /* non-blocking */ });
+    return () => { cancelled = true; };
+  }, []);
   const [walkInTable, setWalkInTable] = useState('');
   const [walkInGuests, setWalkInGuests] = useState('1');
   const [walkInName, setWalkInName] = useState('');
@@ -597,13 +607,15 @@ export default function POSPage() {
     if (p.__expanded) {
       // Tək çağırış — quantity opts ilə. Dövr ilə çağırmaq olmaz: cartRef
       // yalnız re-render-dan sonra sync olur, loop stale cart oxuyur.
-      pos.addToCart(product, {
-        variantId: p.variant_id ?? null,
-        notes: p.special_notes || undefined,
-        modifiers: p.__modifiers || [],
-        quantity: Math.max(1, Number(p.__qty) || 1),
-        editOf: p.__editOf || undefined,
-      });
+       pos.addToCart(product, {
+         variantId: p.variant_id ?? null,
+         notes: p.special_notes || undefined,
+         modifiers: p.__modifiers || [],
+         quantity: Math.max(1, Number(p.__qty) || 1),
+         editOf: p.__editOf || undefined,
+         course: p.__course !== undefined ? p.__course : undefined,
+         isHold: p.__is_hold !== undefined ? p.__is_hold : undefined,
+       });
       return;
     }
     // Kart toxunuşu = BİRBAŞA səbətə. Variantlı məhsulda default variant
@@ -2359,9 +2371,10 @@ export default function POSPage() {
                             acc[id] = (acc[id] || 0) + (item.quantity || 0);
                             return acc;
                           }, {})}
-                           outOfStock={new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id))}
-                           catalogError={pos.catalogLoadFailed}
-                           onRetryCatalog={() => pos.fetchData()}
+                            outOfStock={new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id))}
+                            catalogError={pos.catalogLoadFailed}
+                            onRetryCatalog={() => pos.fetchData()}
+                            filterData={filterData}
                            />
                       </div>
                       <div
@@ -2604,16 +2617,19 @@ export default function POSPage() {
                                 gridRef.current?.toggleEditor(productId);
                                 return;
                               }
-                              const preset = {
-                                variantId: match.variant_id ?? null,
-                                note: match.special_notes || '',
-                                modifiers: (match.modifiers || []).reduce((acc: Record<string, number>, m: any) => {
-                                  acc[m.id] = (acc[m.id] || 0) + (m.quantity || 1);
-                                  return acc;
-                                }, {} as Record<string, number>),
-                                quantity: match.quantity || 1,
-                                identity: cartLineKey(match.variant_id, match.special_notes, match.modifiers),
-                              };
+                               const preset = {
+                                 variantId: match.variant_id ?? null,
+                                 note: match.special_notes || '',
+                                 modifiers: (match.modifiers || []).reduce((acc: Record<string, number>, m: any) => {
+                                   acc[m.id] = (acc[m.id] || 0) + (m.quantity || 1);
+                                   return acc;
+                                 }, {} as Record<string, number>),
+                                 quantity: match.quantity || 1,
+                                 identity: cartLineKey(match.variant_id, match.special_notes, match.modifiers),
+                                 // Course + hold must survive a modal re-open:
+                                 course: match.course ?? null,
+                                 is_hold: !!(match.is_hold || match.hold_until),
+                               };
                               gridRef.current?.toggleEditor(productId, preset);
                             }}
                          />

@@ -79,7 +79,14 @@ export async function POST(req: NextRequest) {
       p_permission: 'void.approve',
     });
 
-    if (approveErr || !hasVoidApprove) {
+    // Void is gated by VOID_APPROVAL_THRESHOLD: small voids are executed
+    // directly for pos.void holders; only voids ABOVE the threshold need the
+    // void.approve permission (or a PIN-verified approver). The threshold
+    // constant was previously defined but never checked — every void by a
+    // cashier (no void.approve) 403'd into a pending approval, so "void"
+    // appeared broken (item never left the table).
+    const needsApproval = voidAmount > VOID_APPROVAL_THRESHOLD;
+    if (needsApproval && (approveErr || !hasVoidApprove)) {
       if (approver_staff_id) {
         // PIN-override path: validate the approver directly (no pending
         // approval request is created for a PIN-mediated void).

@@ -124,6 +124,9 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   // Aktiv sessiyanın redaktə identikliyi — handleModalAdd üçün (preset
   // one-shot consumed olduqdan sonra da əlçatan olmalıdır).
   const editIdentityRef = useRef<string | null>(null);
+  // Exact cart line being edited (kept in its own ref: presetRef is nulled
+  // one-shot on open, so reading it at save-time would be undefined).
+  const editLineIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     expandedIdRef.current = expandedId;
@@ -133,6 +136,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     if (!expandedId) {
       presetRef.current = null;
       editIdentityRef.current = null;
+      editLineIndexRef.current = null;
       return;
     }
     // One-shot: preset yalnız bir dəfə tətbiq olunur, sonra təmizlənir ki,
@@ -140,6 +144,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     const preset = presetRef.current;
     presetRef.current = null;
     editIdentityRef.current = preset?.identity ?? null;
+    editLineIndexRef.current = preset?.lineIndex ?? null;
     setSelectedVariant(preset?.variantId ?? undefined);
     setNoteForProduct(preset?.note ?? '');
     setEditCourse(preset?.course ?? null);
@@ -343,7 +348,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
           const mod = (expandedItem.modifiers || []).find((x: any) => x.id === id);
           return { id, name: mod?.name || '', price: Number(mod?.price || 0), quantity: q };
         });
-      onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods, __editOf: identity ? { identity, lineIndex: presetRef.current?.lineIndex } : undefined, __course: editCourse, __is_hold: editIsHold, __allergens: selectedAllergens, __newUnitPrice: modalUnitPrice } as any);
+      onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods, __editOf: identity ? { identity, lineIndex: editLineIndexRef.current ?? undefined } : undefined, __course: editCourse, __is_hold: editIsHold, __allergens: selectedAllergens, __newUnitPrice: modalUnitPrice } as any);
     }
     setNoteForProduct('');
     setSelectedVariant(undefined);

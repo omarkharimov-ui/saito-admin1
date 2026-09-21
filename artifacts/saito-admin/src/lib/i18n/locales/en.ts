@@ -1620,7 +1620,7 @@ export const en: TranslationMap = {
   void_mode_title: 'Void mode',
   archived_table: 'Archived',
   archived_table_info: 'This table is archived — cannot take orders',
-  void_mode_explanation: 'Tap "+" on the items you want to void',
+  void_mode_explanation: 'Tap ✓ on the items you want to void',
   void_select_hint: 'Tap the "+" on items to add them — increase or decrease the quantity',
   void_select_prompt: 'Select items to void',
   void_total_label: 'Amount to void',

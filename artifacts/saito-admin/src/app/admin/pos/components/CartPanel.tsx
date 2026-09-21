@@ -944,11 +944,15 @@ export function CartPanel({
             scrollbarColor: 'rgba(120,120,140,0.45) transparent',
           }}
         >
+          {/* The app's global CSS kills ALL scrollbars (!important) — the
+              overrides below must beat it with class specificity + !important,
+              otherwise the 4th+ line stays invisible (QA round 2 FAIL). */}
           <style>{`
-            .cart-scroll-thin::-webkit-scrollbar { width: 6px; }
+            .cart-scroll-thin { scrollbar-width: thin !important; scrollbar-color: rgba(120,120,140,0.45) transparent !important; }
+            .cart-scroll-thin::-webkit-scrollbar { width: 6px !important; display: block !important; }
             .cart-scroll-thin::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
-            .cart-scroll-thin::-webkit-scrollbar-thumb { background: rgba(120,120,140,0.45); border-radius: 999px; }
-            .cart-scroll-thin::-webkit-scrollbar-thumb:hover { background: rgba(120,120,140,0.7); }
+            .cart-scroll-thin::-webkit-scrollbar-thumb { background: rgba(120,120,140,0.45) !important; border-radius: 999px; }
+            .cart-scroll-thin::-webkit-scrollbar-thumb:hover { background: rgba(120,120,140,0.7) !important; }
           `}</style>
           <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-rose-500/80 via-rose-400 to-rose-500/80 transition-opacity duration-200 ${voidMode ? 'opacity-100' : 'opacity-0'}`} />
         <div

@@ -60,9 +60,18 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
     <div ref={containerRef} className={`relative overflow-x-auto scrollbar-none no-scrollbar select-none py-2 rounded-full ${
       lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'
     }`}>
+      {/* QA round 2: the 0.05-white fades were invisible on the 0.06-white bar
+          — the edge pills looked HARD-clipped. Now a visible dark vignette in
+          both themes (the bar sits on a darker floor background). */}
       {showLeftFade && (
-        <div className="absolute left-0 top-0 bottom-0 w-8 z-20 pointer-events-none rounded-l-full"
-          style={{ background: `linear-gradient(to right, ${lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.05)'}, transparent)` }} />
+        <div className="absolute left-0 top-0 bottom-0 w-10 z-10 pointer-events-none" style={{
+          background: `linear-gradient(to right, ${lightMode ? 'rgba(0,0,0,0.14)' : 'rgba(0,0,0,0.45)'}, transparent)`
+        }} />
+      )}
+      {showRightFade && (
+        <div className="absolute right-0 top-0 bottom-0 w-10 z-10 pointer-events-none" style={{
+          background: `linear-gradient(to left, ${lightMode ? 'rgba(0,0,0,0.14)' : 'rgba(0,0,0,0.45)'}, transparent)`
+        }} />
       )}
       {showRightFade && (
         <div className="absolute right-0 top-0 bottom-0 w-8 z-20 pointer-events-none rounded-r-full"

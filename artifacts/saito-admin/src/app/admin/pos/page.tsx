@@ -464,15 +464,9 @@ export default function POSPage() {
     fetchDeliveryOrders();
   }, [fetchTakeawayOrders, fetchDeliveryOrders]);
 
-  const handlePosLogout = async () => {
-    setPosSession(null);
-    setPosRole(null);
-    localStorage.removeItem('pos_session');
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
-    window.location.href = '/staff/login?returnTo=/admin/pos';
-  };
+  // POS-header X logout removed by owner (2026-09-22): single logout path is
+  // the sidebar / nav-dock logout. Unauthorized events still auto-redirect
+  // via the pos:unauthorized listener above.
 
    // Reservation → pre-order handoff: the reservations page navigates here with
    // ?resId=&tableIds=&guestName= and also writes a localStorage context. When
@@ -1841,17 +1835,10 @@ export default function POSPage() {
                   <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/40" />
                   <span className="text-xs font-bold text-white/30 hidden sm:inline">{posSession.name}</span>
                 </div>
-                {/* Giriş/Çıxış (shift clock) buttons removed by owner request
-                    (2026-09-21): they conflicted with the kassa shift flow
-                    and errored for non-staff dev sessions. The X below stays —
-                    it is the POS logout (returns to /staff/login). */}
-                <button
-                  onClick={handlePosLogout}
-                  className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all"
-                  title={t('logout')}
-                >
-                  <X size={14} />
-                </button>
+                 {/* Shift clock buttons removed by owner request (2026-09-21).
+                     The X logout here was ALSO removed (2026-09-22, owner):
+                     the app has ONE login path (staff login) and ONE logout —
+                     the standard sidebar / nav-dock logout. */}
               </div>
             )}
            {activeStaff.length > 0 && (

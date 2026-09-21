@@ -442,6 +442,8 @@ export const az = {
   tab_users: 'Hesablar',
   tab_floors: 'Zallar & Mərtəbələr',
   tab_location: 'Yerləşmə',
+  tab_printer: 'Printer',
+  tab_payroll: 'Payroll',
   tab_devices: 'Çap Cihazları',
   tab_loyalty: 'Məxsusiyyət',
   floor_plan_settings: 'Zal və Mərtəbə Planı',

@@ -13,7 +13,7 @@ import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
 import { TableCard } from './components/TableCard';
 import { ActionSheet } from './components/ActionSheet';
 import { PinGuard, type PinVerified } from './components/PinGuard';
-import { ProductGrid, type ProductGridRef } from './components/ProductGrid';
+import { ProductGrid, type ProductGridRef, SPRING, TAP } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { playHapticSound } from '@/lib/haptic';
 import ReservationActionSheet from './components/ReservationActionSheet';
@@ -1550,6 +1550,18 @@ export default function POSPage() {
     pos.clearCart(); pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null); if (pos.selectedTable && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(pos.selectedTable.status)) { setFlashInfo({ tableNumber: pos.selectedTable.table_number, nonce: Date.now() }); } pos.setActiveView('floor'); setEditingOrder(null);
   };
 
+  // Escape key (2026-09-21 QA): payment view → back; action sheet → close.
+  // Previously Escape did nothing on these modals.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (paymentView && actionSheetOpen) { setPaymentView(false); return; }
+      if (actionSheetOpen) { setActionSheetOpen(false); setActionSheetTable(null); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [paymentView, actionSheetOpen]);
+
 
   const retryFailedPayments = async () => {
     if (!payOutcome) return;
@@ -1790,38 +1802,25 @@ export default function POSPage() {
               <span className="hidden sm:inline">{t('cash_drawer')}</span>
             </button>
           )}
-           {posSession && (
-             <div className="flex items-center gap-2">
-               <div className="flex items-center gap-2">
-                 <div className={`w-2 h-2 rounded-full ${isClockedIn ? 'bg-emerald-400 shadow-lg shadow-emerald-400/40' : 'bg-zinc-500'}`} />
-                 <span className="text-xs font-bold text-white/30 hidden sm:inline">{posSession.name}</span>
-               </div>
-               {!isClockedIn ? (
-                 <button
-                   onClick={handleClockIn}
-                   className={`px-2 py-1 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'}`}
-                   title="Clock In"
-                 >
-                   Giriş
-                 </button>
-               ) : (
-                 <button
-                   onClick={handleClockOut}
-                   className={`px-2 py-1 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 hover:bg-rose-500/20' : 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20'}`}
-                   title="Clock Out"
-                 >
-                   Çıxış
-                 </button>
-               )}
-               <button
-                 onClick={handlePosLogout}
-                 className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all"
-                 title={t('logout')}
-               >
-                 <X size={14} />
-               </button>
-             </div>
-           )}
+            {posSession && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/40" />
+                  <span className="text-xs font-bold text-white/30 hidden sm:inline">{posSession.name}</span>
+                </div>
+                {/* Giriş/Çıxış (shift clock) buttons removed by owner request
+                    (2026-09-21): they conflicted with the kassa shift flow
+                    and errored for non-staff dev sessions. The X below stays —
+                    it is the POS logout (returns to /staff/login). */}
+                <button
+                  onClick={handlePosLogout}
+                  className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all"
+                  title={t('logout')}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
            {activeStaff.length > 0 && (
              <div className="flex items-center gap-1">
                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -1901,24 +1900,8 @@ export default function POSPage() {
                           </button>
                         ))}
                       </div>
-                      <button
-                        onClick={() => {
-                          if (!document.fullscreenElement) {
-                           document.documentElement.requestFullscreen().catch(() => {});
-                         } else {
-                           document.exitFullscreen();
-                         }
-                         setCleanMode(!cleanMode);
-                       }}
-                       className={`p-2.5 rounded-full border transition-all ${cleanMode ? 'bg-gold text-black border-gold' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-                       title={t('fullscreen')}
-                     >
-                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-                       </svg>
-                     </button>
-                    </div>
-                  </motion.div>
+                     </div>
+                   </motion.div>
                 ) : (
                   <motion.div
                     key="normal-toolbar"
@@ -1969,28 +1952,12 @@ export default function POSPage() {
                                  />
                                </AnimatePresence>
                              )}
-                           <span className="relative z-10">{label}</span>
-                         </button>
-                       ))}
-                      </div>
-                      <button
-                       onClick={() => {
-                         if (!document.fullscreenElement) {
-                           document.documentElement.requestFullscreen().catch(() => {});
-                         } else {
-                           document.exitFullscreen();
-                         }
-                         setCleanMode(!cleanMode);
-                       }}
-                       className={`p-3 rounded-full border transition-all ${cleanMode ? 'bg-gold text-black border-gold' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-                       title={t('fullscreen')}
-                     >
-                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-                       </svg>
-                     </button>
-                  </div>
-                  </motion.div>
+                            <span className="relative z-10">{label}</span>
+                          </button>
+                        ))}
+                       </div>
+                   </div>
+                   </motion.div>
                 )}
                 </AnimatePresence>
 
@@ -3180,28 +3147,39 @@ export default function POSPage() {
           )}
         </AnimatePresence> 
 
-        {/* U-4: unsent-cart guard — never discard silently */}
+        {/* U-4: unsent-cart guard — never discard silently.
+            Owner UX (2026-09-21): back button top-left like a proper modal,
+            and tapping any empty area of the backdrop closes the panel. */}
         <AnimatePresence>
           {unsentCartGuard && (
             <motion.div key="ui-unsent-guard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setUnsentCartGuard(false)}
               className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
               <motion.div initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
-                className={`w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
+                transition={SPRING}
+                onClick={(e) => e.stopPropagation()}
+                className={`relative w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
+                <motion.button onClick={() => setUnsentCartGuard(false)}
+                  whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.85 }} transition={TAP}
+                  aria-label={t('back')}
+                  className={`absolute top-4 left-4 w-8 h-8 rounded-full border flex items-center justify-center ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-100' : 'border-white/15 text-white/70 hover:bg-white/10'}`}>
+                  <X size={14} />
+                </motion.button>
                 <p className={`text-lg font-black tracking-tight text-center ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{t('unsent_items_title')}</p>
                 <p className={`text-xs text-center mt-2 leading-relaxed ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>{t('unsent_items_question')}</p>
                 <div className="flex gap-3 mt-6">
-                  <button onClick={() => setUnsentCartGuard(false)}
-                    className={`flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest border transition-all ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
+                  <motion.button onClick={() => setUnsentCartGuard(false)} whileTap={{ scale: 0.97 }} transition={TAP}
+                    className={`flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest border ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
                     {t('back')}
-                  </button>
-                  <button onClick={() => { setUnsentCartGuard(false); closeCartPanel(); }}
-                    className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-rose-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-rose-500/20">
+                  </motion.button>
+                  <motion.button onClick={() => { setUnsentCartGuard(false); closeCartPanel(); }} whileTap={{ scale: 0.97 }} transition={TAP}
+                    className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-rose-500 text-white shadow-lg shadow-rose-500/20">
                     {t('unsent_items_discard')}
-                  </button>
-                  <button onClick={() => { setUnsentCartGuard(false); sendCurrentOrder(); }}
-                    className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-emerald-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-emerald-500/20">
+                  </motion.button>
+                  <motion.button onClick={() => { setUnsentCartGuard(false); sendCurrentOrder(); }} whileTap={{ scale: 0.97 }} transition={TAP}
+                    className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
                     {t('unsent_items_send')}
-                  </button>
+                  </motion.button>
                 </div>
               </motion.div>
             </motion.div>

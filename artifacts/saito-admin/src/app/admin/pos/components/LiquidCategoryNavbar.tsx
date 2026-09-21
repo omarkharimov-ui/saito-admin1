@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { SPRING, TAP } from '../lib/pos-motion';
 
 interface Category {
   id: string;
@@ -67,30 +68,32 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
         const isActive = activeId === item.id;
         
         return (
-          <button
+          <motion.button
             key={item.id ?? 'all'}
             ref={el => { itemRefs.current[idx] = el; }}
             onClick={() => onChange(item.id)}
-            className="relative px-4 rounded-full transition-all duration-200 flex-shrink-0 outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/50 group h-[36px] flex items-center justify-center min-w-[90px]"
+            whileTap={{ scale: 0.94 }}
+            transition={TAP}
+            className="relative px-4 rounded-full flex-shrink-0 outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/50 group h-[36px] flex items-center justify-center min-w-[90px]"
           >
              {isActive && (
-               <motion.div
-                 initial={{ opacity: 0, scale: 0.9 }}
-                 animate={{ opacity: 1, scale: 1 }}
-                 exit={{ opacity: 0, scale: 0.9 }}
-                 transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
-                 className={`absolute inset-[2px] z-0 rounded-full shadow-sm ${lightMode ? 'bg-zinc-800' : 'bg-white'}`}
-               />
-             )}
-            
+              /* layoutId: the pill SPRINGS to the newly tapped category
+                 (slide/drag feel); whileTap covers the touch press. */
+                <motion.div
+                  layoutId="liquid-cat-pill"
+                  transition={SPRING}
+                  className={`absolute inset-[2px] z-0 rounded-full shadow-sm ${lightMode ? 'bg-zinc-800' : 'bg-white'}`}
+                />
+              )}
+
             <span className={`relative z-10 text-xs font-medium uppercase tracking-wider transition-colors duration-200 whitespace-nowrap ${
-              isActive 
-                ? (lightMode ? 'text-black' : 'text-black') 
+              isActive
+                ? (lightMode ? 'text-black' : 'text-black')
                 : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/50 hover:text-white/80')
             }`}>
               {item.name}
             </span>
-          </button>
+          </motion.button>
         );
       })}
     </div>

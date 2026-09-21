@@ -441,24 +441,8 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                </div>
              )}
 
-             {/* Compact info labels */}
-             <div className="flex items-center gap-2 flex-wrap">
-               {displayGuests && (
-                 <span className={`inline-flex items-center gap-1 text-xs font-black uppercase tracking-tight ${lightMode ? 'text-zinc-600' : 'text-zinc-300'}`}>
-                   <Users size={13} />
-                   {displayGuests}
-                 </span>
-               )}
-               {(table.item_count ?? 0) > 0 && (
-                 <span className={`inline-flex items-center gap-1 text-xs font-black uppercase tracking-tight ${lightMode ? 'text-zinc-600' : 'text-zinc-300'}`}>
-                   <ShoppingBag size={13} />
-                   {table.item_count}
-                 </span>
-               )}
-             </div>
-
-           </div>
-         )}
+            </div>
+          )}
 
         {/* Group children numbers */}
         {isGroup && mergedChildNumbers && (
@@ -475,10 +459,24 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
           </div>
         )}
 
-        {/* Bottom row: Status badges + order count */}
-        <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-              <AnimatePresence mode="wait">
+         {/* Bottom row: guests + items + status badges + order count.
+             Guests/items moved here (2026-09-21): the old top-block position
+             overlapped this row when the amount hero was tall. */}
+         <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-2">
+           <div className="flex items-center gap-2 flex-wrap">
+              {displayGuests && (
+                <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
+                  <Users size={11} />
+                  {displayGuests}
+                </span>
+              )}
+              {(table.item_count ?? 0) > 0 && (
+                <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
+                  <ShoppingBag size={11} />
+                  {table.item_count}
+                </span>
+              )}
+               <AnimatePresence mode="wait">
                {!showOccupiedFlash && isOccupied && showKitchenStatus && kitchenStatus && kitchenStatus !== 'completed' && kitchenStatus !== 'cancelled' && kitchenStatus !== 'ready' && table.status !== 'served' && table.status !== 'dining' ? (
                  <motion.div
                    key="kitchen"

@@ -20,8 +20,22 @@ import { GiftCardModal } from './GiftCardModal';
 import { RoomChargeModal } from './RoomChargeModal';
 import { CorporateModal } from './CorporateModal';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import { TAP } from './ProductGrid';
 
 type PaymentMethod = 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge';
+
+/** Shared back button — owner fix (2026-09-21): the old `bg-white/10
+ *  text-white/90` variant was nearly invisible in dark mode and had no
+ *  press feedback. Now: visible border + full-white text + spring tap.
+ *  Every back action in this sheet uses it. */
+function BackButton({ onClick, className = '', children }: { onClick?: () => void; className?: string; children?: React.ReactNode }) {
+  return (
+    <motion.button onClick={onClick} whileHover={{ y: -1 }} whileTap={{ scale: 0.96 }} transition={TAP}
+      className={`w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest border border-white/15 bg-white/10 hover:bg-white/20 text-white ${className}`}>
+      {children}
+    </motion.button>
+  );
+}
 
 
 interface ActionSheetProps {
@@ -660,7 +674,7 @@ export function ActionSheet({
                     </div>
                   )}
 
-                       <button onClick={onBackFromPayment} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
+                       <BackButton onClick={onBackFromPayment} className="mt-3">{t('back')}</BackButton>
                  </motion.div>
                )}
 
@@ -695,7 +709,7 @@ export function ActionSheet({
                     </div>
                   </button>
 
-                  <button onClick={() => setShowMorePayments(false)} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
+                  <BackButton onClick={() => setShowMorePayments(false)} className="mt-3">{t('back')}</BackButton>
                 </motion.div>
               )}
 
@@ -731,7 +745,7 @@ export function ActionSheet({
                       )
                     )}
                   </div>
-                      <button onClick={() => { setCashTenderedView(false); setCashTenderedAmount(''); }} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
+                      <BackButton onClick={() => { setCashTenderedView(false); setCashTenderedAmount(''); }} className="mt-3">{t('back')}</BackButton>
                       <button
                         onClick={() => { onPaymentMethodSelect?.('cash', Number(cashTenderedAmount) || 0, parseFloat(tipAmount) || 0); setCashTenderedView(false); setCashTenderedAmount(''); }}
                     disabled={!cashTenderedAmount || Number(cashTenderedAmount) <= 0 || Number(cashTenderedAmount) < (table?.total_amount || 0) * 0.99}
@@ -751,7 +765,7 @@ export function ActionSheet({
                     <p className="text-sm font-bold text-blue-400">{t('sent_to_terminal')}</p>
                     <p className="text-[10px] text-blue-400/60 mt-1">{t('customer_approach_terminal')}</p>
                   </div>
-                    <button onClick={() => { setCardConfirmView(false); }} className="w-full mt-2 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
+                    <BackButton onClick={() => { setCardConfirmView(false); }} className="mt-2">{t('back')}</BackButton>
                     <button
                       onClick={() => { onPaymentMethodSelect?.('card', undefined, parseFloat(tipAmount) || 0); setCardConfirmView(false); }}
                     className="w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-blue-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20"
@@ -979,7 +993,7 @@ export function ActionSheet({
                         ))
                       )}
                     </div>
-                     <button onClick={() => setShowCustomerSearch(false)} className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
+                     <BackButton onClick={() => setShowCustomerSearch(false)} className="!py-3 !rounded-xl">{t('back')}</BackButton>
                   </motion.div>
                 )}
 
@@ -1185,7 +1199,7 @@ export function ActionSheet({
                           {t('no_courier_found' as any) || 'No couriers available'}
                         </p>
                       )}
-                      <button onClick={onCloseCourierPicker} className="w-full mt-2 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('back')}</button>
+                      <BackButton onClick={onCloseCourierPicker} className="mt-2">{t('back')}</BackButton>
                     </motion.div>
                   )}
 

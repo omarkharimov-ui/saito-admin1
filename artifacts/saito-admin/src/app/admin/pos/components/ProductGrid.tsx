@@ -12,9 +12,11 @@ import { appleBackdrop } from '@/lib/modal-transitions';
 import { parseAllergens, resolveAllergenEntry, ALLERGEN_FALLBACK_ICON } from '@/lib/allergens';
 import { useVirtualKeyboard } from './VirtualKeyboard';
 
-// Shared spring for the modal's "alive" interactions — high stiffness +
-// damping: snappy/kəsəy with a hair of overshoot, never bouncy.
-const SPRING = { type: 'spring', stiffness: 500, damping: 26, mass: 0.7 } as const;
+// Shared springs — single source lives in ../lib/pos-motion so every POS
+// component (navbars, sheets, cart) imports the SAME feel. Re-exported here
+// for existing importers.
+export { SPRING, TAP } from '../lib/pos-motion';
+import { SPRING, TAP } from '../lib/pos-motion';
 
 export type Product = PosProduct;
 
@@ -56,11 +58,12 @@ interface ProductGridProps {
 
 const COMBO_TAB = '__combos__';
 
+// "Sevimli" (favorites) tab REMOVED by owner request (2026-09-21): redundant
+// with Məşur (popular) — same role. Card heart buttons removed with it.
 const FILTER_TABS = [
   { id: 'all' as const, labelKey: 'all_products', icon: Search },
   { id: 'recent' as const, labelKey: 'recent', icon: Clock },
   { id: 'popular' as const, labelKey: 'popular', icon: Star },
-  { id: 'favorites' as const, labelKey: 'favorites', icon: Heart },
 ];
 
 type GridItem = PosProduct & { _isCombo?: boolean; _raw?: any; variants?: any[]; modifiers?: any[]; modifier_groups?: any[] };
@@ -98,19 +101,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
   const [retryCount, setRetryCount] = useState<Record<string, number>>({});
-  const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'popular' | 'favorites'>('all');
-  // Favorites: per-browser set (localStorage) — the Sevimli tab.
-  const [favorites, setFavorites] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('saito_pos_favorites') || '[]')); } catch { return new Set(); }
-  });
-  const toggleFavorite = (productId: string) => {
-    setFavorites(prev => {
-      const next = new Set(prev);
-      if (next.has(productId)) next.delete(productId); else next.add(productId);
-      try { localStorage.setItem('saito_pos_favorites', JSON.stringify([...next])); } catch { /* ignore */ }
-      return next;
-    });
-  };
+  const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'popular'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>(undefined);
   const [noteForProduct, setNoteForProduct] = useState<string>('');
@@ -258,12 +249,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         const orderMap = new Map(filterData.popular.map((p, i) => [p.id, i]));
         list = list.filter(p => !p._isCombo && orderMap.has(p.id))
           .sort((a, b) => (orderMap.get(a.id)! - orderMap.get(b.id)!));
-      } else if (activeFilter === 'favorites') {
-        list = list.filter(p => !p._isCombo && favorites.has(p.id));
       }
     }
     return list;
-  }, [products, combos, categoryFilter, search, language, outOfStock, activeFilter, filterData, favorites]);
+  }, [products, combos, categoryFilter, search, language, outOfStock, activeFilter, filterData]);
 
   const handleAdd = (item: GridItem) => {
     if (item._isCombo) {
@@ -397,20 +386,22 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
       {/* Filter Tabs */}
       <div className="mb-3 flex-shrink-0 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-         {FILTER_TABS.map(tab => (
-           <button
-             key={tab.id}
-             onClick={() => { setActiveFilter(tab.id); setCategoryFilter(null); }}
-             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap border transition-all duration-300 active:scale-[0.97] ${
-               activeFilter === tab.id
-                 ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/25'
-                 : lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
-             }`}
-           >
-            <tab.icon size={12} />
-            {t(tab.labelKey as any)}
-          </button>
-        ))}
+          {FILTER_TABS.map(tab => (
+            <motion.button
+              key={tab.id}
+              onClick={() => { setActiveFilter(tab.id); setCategoryFilter(null); }}
+              whileHover={{ y: -1 }} whileTap={{ scale: 0.94 }}
+              transition={TAP}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap border ${
+                activeFilter === tab.id
+                  ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/25'
+                  : lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
+              }`}
+            >
+             <tab.icon size={12} />
+             {t(tab.labelKey as any)}
+           </motion.button>
+          ))}
       </div>
 
       {/* Categories */}
@@ -529,25 +520,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                        <span className="whitespace-nowrap">{t('out_of_stock')}</span>
                      </div>
                    )}
-                   {/* Favorite (Sevimli tab) — liquid press, spring fill */}
-                   {!isCombo && (
-                     <button
-                       onClick={(e) => { e.stopPropagation(); toggleFavorite(item.id); }}
-                       aria-label="Sevimli"
-                       className="absolute top-2 right-2 z-20 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-200 active:scale-90 hover:scale-105"
-                       style={{ backgroundColor: 'rgba(0,0,0,0.28)' }}
-                     >
-                       <motion.span
-                         key={String(favorites.has(item.id))}
-                         initial={{ scale: 0.4, opacity: 0 }}
-                         animate={{ scale: 1, opacity: 1 }}
-                         transition={{ type: 'spring', stiffness: 500, damping: 20, mass: 0.6 }}
-                       >
-                         <Heart size={14} className={favorites.has(item.id) ? 'text-rose-500 fill-rose-500' : 'text-white/85'} />
-                       </motion.span>
-                     </button>
-                   )}
-
+ 
                    <motion.div
                      className="flex flex-col h-full p-3"
                    >
@@ -696,9 +669,11 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                   <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Miqdar:</span>
                   <div className="flex items-center gap-3 mt-2">
                     <div className={`flex items-center rounded-2xl border overflow-hidden ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
-                      <button onClick={() => setQty(Math.max(1, qty - 1))} className={`px-6 py-3 text-base font-black transition-colors active:scale-95 ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>−</button>
+                      <motion.button onClick={() => setQty(Math.max(1, qty - 1))} whileTap={{ scale: 0.88 }} transition={TAP}
+                        className={`px-6 py-3 text-base font-black ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>−</motion.button>
                       <span className={`px-5 py-3 text-base font-black tabular-nums min-w-[3.5rem] text-center ${expandedText}`}>{qty}</span>
-                      <button onClick={() => setQty(qty + 1)} className={`px-6 py-3 text-base font-black transition-colors active:scale-95 ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>+</button>
+                      <motion.button onClick={() => setQty(qty + 1)} whileTap={{ scale: 0.88 }} transition={TAP}
+                        className={`px-6 py-3 text-base font-black ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>+</motion.button>
                     </div>
                   </div>
                 </div>

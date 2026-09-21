@@ -17,6 +17,7 @@ import { ReturnItemModal } from './ReturnItemModal';
 import { Numpad } from './Numpad';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useVirtualKeyboard } from './VirtualKeyboard';
+import { TAP } from '../lib/pos-motion';
 
 interface CartPanelProps {
   cart: PosCart | null;
@@ -448,27 +449,18 @@ export function CartPanel({
     return sum + (item ? item.unit_price * qty : 0);
   }, 0);
 
-  const toggleVoidItem = (id: string, maxQty: number) => {
-    setVoidSelection(prev => {
-      const current = prev[id] || 0;
-      if (current >= maxQty) {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      }
-      return { ...prev, [id]: current + 1 };
-    });
+  // Owner UX (2026-09-21): void selection is DIRECT PRESS, not +/- stepping —
+  // the stepper in serving mode was "mənasız" (meaningless). One tap on +
+  // selects the WHOLE voidable line; tapping another line moves the selection
+  // there (single active line); − (or + again) clears.
+  const selectVoidItem = (id: string, maxQty: number) => {
+    setVoidSelection(prev => (prev[id] ? {} : { [id]: maxQty }));
   };
-
-  const setVoidQty = (id: string, qty: number, maxQty: number) => {
-    const clamped = Math.max(0, Math.min(qty, maxQty));
+  const deselectVoidItem = (id: string) => {
     setVoidSelection(prev => {
-      if (clamped === 0) {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      }
-      return { ...prev, [id]: clamped };
+      const next = { ...prev };
+      delete next[id];
+      return next;
     });
   };
 
@@ -1051,23 +1043,24 @@ export function CartPanel({
                    <span className={`text-sm font-black tabular-nums min-w-[4rem] text-right ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                      {(item.unit_price * item.quantity).toFixed(2)} ₼
                    </span>
-                    {voidMode && isVoidableItem ? (
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
-                          <button
-                            onClick={() => setVoidQty(item.id || `idx-${originalIdx}`, (voidSelection[item.id || `idx-${originalIdx}`] || 0) - 1, maxVoidQty)}
-                            className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)] transition-colors active:scale-95"
-                            disabled={!(voidSelection[item.id || `idx-${originalIdx}`] ?? 0)}
-                          >−</button>
-                          <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-[var(--theme-text)]">{voidSelection[item.id || `idx-${originalIdx}`] || '—'}</span>
-                          <button
-                            onClick={() => toggleVoidItem(item.id || `idx-${originalIdx}`, maxVoidQty)}
-                            className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)] transition-colors active:scale-95"
-                            disabled={(voidSelection[item.id || `idx-${originalIdx}`] || 0) >= maxVoidQty}
-                          >+</button>
-                        </div>
-                      </div>
-                    ) : (
+                     {voidMode && isVoidableItem ? (
+                       <div className="flex items-center gap-2">
+                         <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
+                           <motion.button
+                             onClick={() => deselectVoidItem(item.id || `idx-${originalIdx}`)}
+                             whileTap={{ scale: 0.88 }} transition={TAP}
+                             className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)] disabled:opacity-30"
+                             disabled={!(voidSelection[item.id || `idx-${originalIdx}`] ?? 0)}
+                           >−</motion.button>
+                           <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-[var(--theme-text)]">{voidSelection[item.id || `idx-${originalIdx}`] || '—'}</span>
+                           <motion.button
+                             onClick={() => selectVoidItem(item.id || `idx-${originalIdx}`, maxVoidQty)}
+                             whileTap={{ scale: 0.88 }} transition={TAP}
+                             className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)]"
+                           >+</motion.button>
+                         </div>
+                       </div>
+                     ) : (
                     <div className="flex items-center gap-2">
                       <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
                         <button

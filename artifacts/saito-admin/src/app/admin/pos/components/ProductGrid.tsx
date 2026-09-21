@@ -10,6 +10,7 @@ import type { PosProduct } from '../types/shared';
 import { playHapticSound } from '@/lib/haptic';
 import { appleBackdrop } from '@/lib/modal-transitions';
 import { parseAllergens, resolveAllergenEntry, ALLERGEN_FALLBACK_ICON } from '@/lib/allergens';
+import { useVirtualKeyboard } from './VirtualKeyboard';
 
 export type Product = PosProduct;
 
@@ -76,6 +77,9 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 }, ref) {
   const { language, t } = useLanguage();
   const { lightMode } = useTheme();
+  // Yellow #2: when the on-screen keyboard is open, pad the grid's scroll
+  // container so bottom fields/cards are never hidden under it.
+  const { height: vkHeight } = useVirtualKeyboard();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -345,7 +349,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       </div>
 
       {/* Product Grid */}
-      <div className="flex-1 overflow-y-auto pr-1 pt-2 relative z-0">
+      <div className="flex-1 overflow-y-auto pr-1 pt-2 relative z-0" style={{ paddingBottom: vkHeight > 0 ? vkHeight + 12 : 0 }}>
         {catalogError ? (
           <div className="min-h-full flex flex-col items-center justify-center text-center gap-4 py-16">
             <div className={`w-16 h-16 rounded-3xl flex items-center justify-center ${lightMode ? 'bg-amber-50 text-amber-500' : 'bg-amber-500/10 text-amber-400'}`}>

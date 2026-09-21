@@ -64,6 +64,29 @@ export async function POST(req: NextRequest) {
 
     const rpcData = await rpcRes.json();
     if (!rpcRes.ok || !rpcData?.success) {
+      // A4 fix: a table whose orders are ALL final (refunded/paid) has nothing
+      // to cancel — dismiss is the wrong verb. The manager PIN was already
+      // verified above, so fall back to the clear path (G_CLEAR_OPEN_ORDERS
+      // passes because there are no open orders).
+      if (rpcData?.error === 'G_NO_ACTIVE_ORDER') {
+        const clearRes = await fetch(`${s.url}/rest/v1/rpc/clear_table_atomic`, {
+          method: 'POST',
+          headers: s.headers,
+          body: JSON.stringify({
+            p_token: auth.token,
+            p_table_number: Number(table_number),
+            p_performed_by: auth.user.id,
+            p_terminal_id: terminal_id || null,
+          }),
+        });
+        const clearData = await clearRes.json().catch(() => ({}));
+        if (clearRes.ok && clearData?.success) {
+          return NextResponse.json({ success: true, result: clearData, fallback: 'clear' });
+        }
+        const clearMessage = clearData?.error || 'Clear fallback failed';
+        console.error('[API /orders/dismiss] clear fallback error:', clearMessage);
+        return NextResponse.json({ error: clearMessage }, { status: clearRes.ok ? 500 : clearRes.status });
+      }
       const message = rpcData?.error || 'Dismiss failed';
       console.error('[API /orders/dismiss] RPC error:', message);
       const status = rpcData?.error === 'PERMISSION_DENIED' || rpcData?.error === 'FORBIDDEN_LOCATION' ? 403

@@ -66,7 +66,15 @@ export async function POST(request: NextRequest) {
     if (payment_method === 'cash') {
       cashPortion = requestedTotal;
       cardPortion = 0;
-    } else if (payment_method === 'card' || payment_method === 'qr' || payment_method === 'transfer' || payment_method === 'corporate' || payment_method === 'online' || payment_method === 'voucher') {
+    } else if (payment_method === 'card' || payment_method === 'qr' || payment_method === 'transfer' || payment_method === 'corporate' || payment_method === 'online' || payment_method === 'voucher' || payment_method === 'gift_card' || payment_method === 'room_charge') {
+      // FIX (2026-09-21): 'gift_card' and 'room_charge' were MISSING from this
+      // branch — the GiftCardModal/RoomChargeModal redeemed the card first,
+      // then /api/orders/pay built paymentsPayload=[] (both portions 0) and
+      // complete_payment_atomic_v2 got an EMPTY payments array → the order was
+      // never paid while the card balance was already deducted (live evidence:
+      // payments.payment_method only ever contained cash/corporate). Now the
+      // full amount is recorded under its own method — the financial ledger
+      // keeps gift-card money separate from bank-card money.
       cashPortion = 0;
       cardPortion = requestedTotal;
     } else if (payment_method === 'split') {

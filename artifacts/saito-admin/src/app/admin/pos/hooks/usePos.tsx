@@ -678,9 +678,12 @@ export function usePos() {
         toast.error(mergeMsgMap[raw] || raw, { id: 'merge-error' });
         return null;
       }
-      setLastUndo({ action: 'merge', data: data.data?.undo, message: t('tables_merged') });
+      // Interpolate {tables} — the raw key leaked verbatim into the toast
+      // (E2E 2026-09-21: "Masalar birləşdirildi: {tables}").
+      const mergeToast = t('tables_merged').replace('{tables}', tableNumbers.join(' + '));
+      setLastUndo({ action: 'merge', data: data.data?.undo, message: mergeToast });
       fetchFloor();
-      return { action: 'merge' as const, data: data.data?.undo, message: t('tables_merged') };
+      return { action: 'merge' as const, data: data.data?.undo, message: mergeToast };
     });
   };
 
@@ -1169,9 +1172,13 @@ export function usePos() {
       const computedDiscount = { amount: itemBasedDiscount, type: computedType };
 
       console.log('[placeOrder] API payload', { table_number: cart?.table_number, unsent: unsent?.length, activeOrderId, posMode });
+      // Quick-fix 4: validated coupon → order-level discount. The server
+      // subtracts it exactly once (create) / re-applies it on item-sum
+      // recomputes (addItems) and stamps the order with the campaign_id.
+      const coupon = (cart as any).coupon;
       const orderBody = JSON.stringify(
           activeOrderId
-            ? { action: 'addItems', id: activeOrderId, items: unsent, terminal_id: terminalId }
+            ? { action: 'addItems', id: activeOrderId, items: unsent, terminal_id: terminalId, ...(coupon ? { coupon: { campaign_id: coupon.campaign_id, amount: coupon.discount_amount } } : {}) }
             : {
                 ...(cart.table_number !== undefined && cart.table_number !== null ? { table_number: cart.table_number } : {}),
                 terminal_id: terminalId,
@@ -1197,9 +1204,13 @@ export function usePos() {
                  scheduled_date: cart.scheduled_date || null,
                  reservation_id: cart.reservation_id || null,
                  assigned_to: isValidUUID(assignedTo) ? assignedTo : null,
-                 discount_amount: computedDiscount.amount,
-                 discount_type: computedDiscount.type,
-                 campaign_id: campaign?.id || null,
+                  // Quick-fix 4: a validated coupon is the order-level
+                  // discount (exclusive with auto item-campaigns — the UI
+                  // refuses to apply a coupon when items already carry a
+                  // campaign, so these cannot coexist here).
+                  discount_amount: coupon ? coupon.discount_amount : computedDiscount.amount,
+                  discount_type: coupon ? 'coupon' : computedDiscount.type,
+                  campaign_id: coupon ? coupon.campaign_id : (campaign?.id || null),
                  is_rush: false,
                  payment_method: checkoutOverrides?.payment_method || null,
                  }

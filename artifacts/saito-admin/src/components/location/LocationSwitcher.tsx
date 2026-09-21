@@ -44,7 +44,11 @@ export function LocationSwitcher({ compact = false }: LocationSwitcherProps) {
     );
   }
 
-  if (!activeLocation) {
+  // Dead-end ONLY when there is nothing to pick from. Legacy sessions have
+  // active_location_id NULL (login_commit predates locations) — when
+  // accessible locations exist, show the picker so the user self-heals
+  // instead of staring at "No location assigned".
+  if (!activeLocation && locations.length === 0) {
     return compact ? null : (
       <div className="px-3 py-2 text-sm text-red-500">
         {error || 'No location assigned'}
@@ -52,7 +56,7 @@ export function LocationSwitcher({ compact = false }: LocationSwitcherProps) {
     );
   }
 
-  if (locations.length <= 1) {
+  if (activeLocation && locations.length <= 1) {
     return compact ? (
       <span className="text-xs text-gray-500">{activeLocation.name}</span>
     ) : (
@@ -70,8 +74,10 @@ export function LocationSwitcher({ compact = false }: LocationSwitcherProps) {
         disabled={switching}
         className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
       >
-        <span className="h-2 w-2 rounded-full bg-green-500" />
-        <span>{activeLocation.name}</span>
+        <span className={`h-2 w-2 rounded-full ${activeLocation ? 'bg-green-500' : 'bg-amber-500'}`} />
+        <span className={activeLocation ? '' : 'text-amber-600 dark:text-amber-400'}>
+          {activeLocation ? activeLocation.name : 'Select location…'}
+        </span>
         <svg
           className={`h-4 w-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none"
@@ -93,7 +99,7 @@ export function LocationSwitcher({ compact = false }: LocationSwitcherProps) {
           </div>
           <div className="py-1">
             {locations.map((loc) => {
-              const isActive = loc.id === activeLocation.id;
+              const isActive = activeLocation !== null && loc.id === activeLocation.id;
               return (
                 <button
                   key={loc.id}

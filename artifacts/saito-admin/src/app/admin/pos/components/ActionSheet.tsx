@@ -1261,7 +1261,10 @@ export function ActionSheet({
       <GiftCardModal
         open={giftCardModalOpen}
         onClose={() => setGiftCardModalOpen(false)}
-        amount={table?.total_amount || 0}
+        // The card must cover the WHOLE bill: the pay call sends
+        // total + tip, so the redeem amount includes the tip (previously
+        // the tip was silently underpaid when a tip was entered).
+        amount={(table?.total_amount || 0) + (parseFloat(tipAmount) || 0)}
         onSuccess={() => { onPaymentMethodSelect?.('gift_card', undefined, parseFloat(tipAmount) || 0); }}
       />
 

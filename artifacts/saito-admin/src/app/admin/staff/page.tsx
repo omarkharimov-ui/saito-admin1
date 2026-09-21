@@ -131,7 +131,7 @@ export default function StaffPage() {
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [activeView, setActiveView] = useState<'all' | 'on_shift' | 'off_shift' | 'schedule'>('all');
+  const [activeView, setActiveView] = useState<'all' | 'on_shift' | 'off_shift' | 'schedule' | 'owners'>('all');
   const [showCreateSheet, setShowCreateSheet] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
 
@@ -220,6 +220,9 @@ export default function StaffPage() {
     }
     if (activeView === 'on_shift') result = result.filter(m => onPhase(m, lifecycle));
     if (activeView === 'off_shift') result = result.filter(m => !onPhase(m, lifecycle));
+    // Owner/admins get their own tab — they are not "staff" in the
+    // worker sense (no shifts to schedule, no tables to assign).
+    if (activeView === 'owners') result = result.filter(m => isOwnerRole(m.role_name));
     return result;
   }, [staff, search, activeView, lifecycle]);
 
@@ -228,6 +231,7 @@ export default function StaffPage() {
     if (lc) return lc.phase === 'on_shift' || lc.phase === 'on_break' || lc.phase === 'unclosed';
     return s.shift_status === 'active';
   }).length;
+  const ownerCount = staff.filter(s => isOwnerRole(s.role_name)).length;
 
   return (
     <div className="h-full flex flex-col gap-4">
@@ -377,12 +381,13 @@ export default function StaffPage() {
           <DragTabSwitcher
             items={[
               { id: 'all', label: `All (${staff.length})` },
+              { id: 'owners', label: `Owners (${ownerCount})` },
               { id: 'on_shift', label: `On Shift (${onShiftCount})` },
               { id: 'off_shift', label: `Off Shift (${staff.length - onShiftCount})` },
               { id: 'schedule', label: 'Schedule' },
             ]}
             value={activeView}
-            onChange={(v) => setActiveView(v as 'all' | 'on_shift' | 'off_shift' | 'schedule')}
+            onChange={(v) => setActiveView(v as 'all' | 'on_shift' | 'off_shift' | 'schedule' | 'owners')}
             activeStyle={{
               pillBackground: '#383838',
               pillBorder: '1px solid rgba(255,255,255,0.06)',
@@ -468,6 +473,13 @@ export default function StaffPage() {
       </AnimatePresence>
     </div>
   );
+}
+
+// Owner-class roles: the business owners / platform admins. They show in a
+// dedicated "Owners" tab instead of being mixed into the worker list.
+const OWNER_ROLES = new Set(['owner', 'superadmin', 'admin']);
+function isOwnerRole(roleName?: string): boolean {
+  return OWNER_ROLES.has((roleName || '').toLowerCase());
 }
 
 function onPhase(m: StaffMember, lifecycle: Record<string, Lifecycle>): boolean {

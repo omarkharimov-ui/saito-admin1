@@ -71,6 +71,14 @@ export interface PosCart {
   scheduled_date?: string | null;
   discount_amount?: number;
   discount_type?: 'percentage' | 'fixed' | null;
+  /** Quick-fix 4: validated coupon (server-computed discount; exclusive with
+   *  auto item-campaigns). Applied once per order by /api/orders. */
+  coupon?: {
+    code: string;
+    campaign_id: string;
+    name: string;
+    discount_amount: number;
+  } | null;
   reservation_id?: string | null;
   order_id?: string | null;
   payment_method?: string | null;

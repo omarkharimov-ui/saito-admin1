@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, X } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -22,17 +22,28 @@ export function GiftCardModal({ open, onClose, amount, onSuccess }: GiftCardModa
   const { t } = useLanguage();
   const keyboardHeight = useKeyboardHeight();
   const [code, setCode] = useState('');
+  const [cardCode, setCardCode] = useState<string | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
 
-  const canPay = balance !== null && balance >= amount && code.length >= 4;
+  // Input UX: physical cards show 6 alphanumeric chars grouped XXX-XXX.
+  // The hyphen is inserted AUTOMATICALLY after the 3rd char (the operator
+  // never types it), a pasted "GC-…" prefix is stripped, and the field is
+  // capped at 6 chars. rawCode is what gets sent to the API.
+  const normalizeCode = (raw: string) => {
+    let s = raw.toUpperCase().replace(/^GC-?/, '').replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    return s.length > 3 ? s.slice(0, 3) + '-' + s.slice(3) : s;
+  };
+  const rawCode = code.replace(/-/g, '');
+
+  const canPay = balance !== null && balance >= amount && cardCode !== null;
 
   const handleCheckBalance = async () => {
-    if (code.length < 4) return;
+    if (rawCode.length < 4) return;
     setChecking(true);
     try {
-      const res = await apiFetch(`/api/gift-cards?code=${encodeURIComponent(code)}`);
+      const res = await apiFetch(`/api/gift-cards?code=${encodeURIComponent(rawCode)}`);
       const data = await res.json();
       // Frozen GET contract returns a raw array (W-A1); the old
       // `data.balance` expectation never matched — take the first card.
@@ -40,6 +51,10 @@ export function GiftCardModal({ open, onClose, amount, onSuccess }: GiftCardModa
       const card = list[0];
       if (res.ok && card) {
         setBalance(Number(card.current_balance));
+        // gift_card_redeem matches the code EXACTLY (code = UPPER(TRIM(p_code))),
+        // so redeem must use the canonical full code the server returned —
+        // not the 6-char substring the operator typed.
+        setCardCode(String(card.code || ''));
       } else {
         toast.error(data.error || t('gift_card_not_found') || 'Kart tapılmadı');
         setBalance(null);
@@ -51,6 +66,16 @@ export function GiftCardModal({ open, onClose, amount, onSuccess }: GiftCardModa
     }
   };
 
+  // Auto-check: the moment the 6th char lands, verify the balance without
+  // the operator pressing anything. The manual button stays for 4–5-char
+  // partial codes. `checking` in the deps prevents duplicate in-flight calls.
+  useEffect(() => {
+    if (rawCode.length === 6 && balance === null && !checking && !loading) {
+      handleCheckBalance();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawCode, balance, checking, loading]);
+
   const handlePay = async () => {
     if (!canPay) return;
     setLoading(true);
@@ -58,7 +83,7 @@ export function GiftCardModal({ open, onClose, amount, onSuccess }: GiftCardModa
       const res = await apiFetch('/api/gift-cards/redeem', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, amount }),
+        body: JSON.stringify({ code: cardCode || rawCode, amount }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -104,13 +129,15 @@ export function GiftCardModal({ open, onClose, amount, onSuccess }: GiftCardModa
             {/* Code input */}
             <div className="mb-4">
               <p className={`text-[9px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('gift_card_code') || 'Kart kodu'}</p>
-              <input type="text" value={code} onChange={e => { setCode(e.target.value.toUpperCase()); setBalance(null); }}
-                placeholder="XXXX-XXXX" autoFocus
+              {/* Hyphen auto-inserts after 3 chars — see normalizeCode. */}
+              <input type="text" inputMode="text" value={code}
+                onChange={e => { setCode(normalizeCode(e.target.value)); setCardCode(null); setBalance(null); }}
+                placeholder="XXX-XXX" autoFocus
                 className={`w-full rounded-2xl px-5 py-3.5 text-lg font-black tracking-[0.15em] text-center outline-none border transition-all uppercase ${lightMode ? 'bg-white border-black/10 text-black placeholder:text-zinc-300 focus:border-rose-400' : 'bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-rose-400/50'}`} />
             </div>
 
-            {/* Check balance */}
-            {!balance && code.length >= 4 && (
+            {/* Check balance (manual fallback — auto-checks at 6 chars) */}
+            {!balance && rawCode.length >= 4 && (
               <button onClick={handleCheckBalance} disabled={checking}
                 className="w-full mb-4 py-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all disabled:opacity-50">
                 {checking ? <span className="inline-flex items-center gap-2"><span className="w-3 h-3 border-2 border-rose-400/30 border-t-rose-400 rounded-full animate-spin" />{t('checking') || 'Yoxlanılır...'}</span> : t('check_balance') || 'Balansı yoxla'}

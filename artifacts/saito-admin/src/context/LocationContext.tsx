@@ -122,6 +122,19 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     [activeLocationId, router]
   );
 
+  // Self-heal: sessions created by login_commit (pre-location era) have
+  // active_location_id NULL. When exactly ONE accessible location exists,
+  // assign it automatically — otherwise the UI dead-ends on "No location
+  // assigned" with no way to recover (the switcher showed no picker).
+  const healedRef = useRef(false);
+  useEffect(() => {
+    if (loading || healedRef.current) return;
+    if (!activeLocationId && locations.length === 1) {
+      healedRef.current = true;
+      void switchLocation(locations[0].id);
+    }
+  }, [loading, activeLocationId, locations, switchLocation]);
+
   const value: LocationContextValue = {
     activeLocation,
     activeLocationId,

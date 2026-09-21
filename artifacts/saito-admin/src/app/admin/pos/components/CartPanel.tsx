@@ -71,12 +71,17 @@ interface CartPanelProps {
   /** Wave B #3 — tap an offer card's "Əlavə et" to add the product. The
    *  object is the raw /api/upsell/suggest offer row. Providing this prop
    *  enables the offer card. */
-  onAddProduct?: (s: {
+   onAddProduct?: (s: {
     product_id: string; name: string; price: number; discount_price?: number | null;
     image_url?: string | null; category_name?: string | null;
     offer_type?: 'complement' | 'beverage' | 'generic'; ref_name?: string | null; pct?: number | null;
   }) => void;
-}
+  /** Quick-fix 4 — coupon row. Server-validated coupon (amount comes from
+   *  /api/campaigns/coupon, never from the client); exclusive with auto
+   *  item-campaigns. Persisted onto cart.coupon by the parent. */
+  onCouponApplied?: (c: { code: string; campaign_id: string; name: string; discount_amount: number }) => void;
+  onCouponRemoved?: () => void;
+ }
 
 const STATIONS = [
   { value: 'kitchen', labelKey: 'station_kitchen', icon: '🍳' },
@@ -141,6 +146,8 @@ export function CartPanel({
   onOpenActions,
   onVoidSuccess,
   onAddProduct,
+  onCouponApplied,
+  onCouponRemoved,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -245,6 +252,126 @@ export function CartPanel({
     setOfferId(null);
   }, [offer, offerId]);
   const stateful = Boolean((cart as any)?.order_id);
+  // ── Quick-fix 4 — coupon row ────────────────────────────────────────────
+  // The discount is SERVER-computed (validate_coupon over the existing
+  // campaign engine) — the client only ever proposes a code. Exclusive with
+  // auto item-campaigns (UI-enforced: a cart carrying a campaign item cannot
+  // take a coupon). Revalidated on cart/dining change; a failed revalidation
+  // removes the coupon (the server will re-check on order create anyway).
+  const [couponInput, setCouponInput] = useState('');
+  const [couponBusy, setCouponBusy] = useState(false);
+  const couponRevalidatingRef = useRef(false);
+
+  const couponErrText = useCallback((code?: string): string => {
+    switch (code) {
+      case 'COUPON_NOT_FOUND': return t('coupon_err_not_found');
+      case 'MIN_ORDER_NOT_MET': return t('coupon_err_min_order');
+      case 'DINING_TYPE_MISMATCH': return t('coupon_err_dining');
+      case 'TABLE_NOT_APPLICABLE': return t('coupon_err_table');
+      case 'EMPTY_CART': case 'CODE_REQUIRED': return t('coupon_requires_items');
+      default: return code === 'NOT_APPLICABLE' ? t('coupon_err_not_applicable') : t('coupon_err_generic');
+    }
+  }, [t]);
+
+  const buildCouponPayload = useCallback((code: string) => ({
+    code,
+    items: (cart?.items || []).map(i => ({ product_id: i.product_id, unit_price: i.unit_price, quantity: i.quantity })),
+    // Pre-discount item sum — the RPC compares min_order against the subtotal.
+    order_amount: (cart?.items || []).reduce((s, i) => s + (Number(i.unit_price) || 0) * (Number(i.quantity) || 1), 0),
+    dining_type: posMode,
+    table_number: cart?.table_number ?? null,
+  }), [cart, posMode]);
+
+  const applyCoupon = useCallback(async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code || !cart || couponBusy) return;
+    if (cart.items.length === 0) { toast.error(t('coupon_requires_items')); return; }
+    if (cart.items.some(i => i.campaign_id)) { toast.error(t('coupon_conflict')); return; }
+    setCouponBusy(true);
+    try {
+      const res = await apiFetch('/api/campaigns/coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildCouponPayload(code)),
+      });
+      const d = await res.json().catch(() => null);
+      if (d?.ok) {
+        onCouponApplied?.({
+          code,
+          campaign_id: d.campaign_id,
+          name: d.name || '',
+          discount_amount: Number(d.discount_amount) || 0,
+        });
+        setCouponInput('');
+        toast.success(t('coupon_applied_ok'));
+      } else {
+        toast.error(couponErrText(d?.error));
+      }
+    } catch {
+      toast.error(t('coupon_err_generic'));
+    } finally {
+      setCouponBusy(false);
+    }
+  }, [couponInput, cart, couponBusy, t, buildCouponPayload, onCouponApplied, couponErrText]);
+
+  const removeCoupon = useCallback(() => {
+    if (!cart?.coupon || couponBusy) return;
+    onCouponRemoved?.();
+    toast.success(t('coupon_removed_ok'));
+  }, [cart, couponBusy, t, onCouponRemoved]);
+
+  // Revalidate when the cart content, dining type or table changes while a
+  // coupon is active: a percentage discount may change and the coupon may
+  // stop qualifying (min order, dining window, table window). A re-apply with
+  // the SAME amount is a no-op, so this cannot loop.
+  const cartKey = useMemo(
+    () => (cart?.items || []).map(i => `${i.product_id}:${i.unit_price}:${i.quantity}`).join('|'),
+    [cart]
+  );
+  const couponActive = Boolean(cart?.coupon);
+  useEffect(() => {
+    if (!couponActive || couponRevalidatingRef.current) return;
+    const coupon = cart?.coupon;
+    if (!coupon) return;
+    couponRevalidatingRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiFetch('/api/campaigns/coupon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildCouponPayload(coupon.code)),
+        });
+        const d = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (d?.ok) {
+          if (Number(d.discount_amount) !== Number(coupon.discount_amount)) {
+            onCouponApplied?.({
+              code: coupon.code,
+              campaign_id: coupon.campaign_id,
+              name: d.name || coupon.name,
+              discount_amount: Number(d.discount_amount) || 0,
+            });
+          }
+        } else if (d?.error !== 'RPC_ERROR' && d?.error !== 'INTERNAL') {
+          // Definitive: the coupon no longer qualifies — drop it.
+          onCouponRemoved?.();
+          toast.error(couponErrText(d?.error));
+        }
+        // RPC/network errors: keep the coupon; the order create path
+        // re-validates server-side before anything is billed.
+      } catch {
+        // network error — keep the coupon (see above)
+      } finally {
+        if (!cancelled) couponRevalidatingRef.current = false;
+      }
+    })();
+    return () => {
+      cancelled = true;
+      couponRevalidatingRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartKey, posMode, cart?.table_number, couponActive]);
   useEffect(() => {
     if (!onAddProduct || !sugProductKey) { setOffer(null); setOfferId(null); return; }
     // Accept-no-chain: the set created by an accepted offer must not
@@ -642,6 +769,12 @@ export function CartPanel({
       }
     }
   }
+
+  // Quick-fix 4: the validated coupon is an ORDER-LEVEL discount — /api/orders
+  // subtracts it exactly once on create (deduped by campaign_id on appends),
+  // so the footer mirrors the same math for display.
+  const couponDiscount = cart.coupon ? Math.max(0, Number(cart.coupon.discount_amount) || 0) : 0;
+  if (couponDiscount > 0) total = Math.max(0, total - couponDiscount);
 
   const cartDiscountAmount = Math.max(0, originalTotal - total);
   const vatAmount = total / (1 + vatRate) * vatRate;
@@ -1141,9 +1274,62 @@ export function CartPanel({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]"
-          >
-        {/* Total */}
+             className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]"
+           >
+         {/* ── Coupon (quick-fix 4) — server-validated, order-level ── */}
+         {cart.coupon ? (
+           <motion.div
+             key={`coupon-on-${cart.coupon.campaign_id}`}
+             initial={{ opacity: 0, y: 4 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+             className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25"
+           >
+             <div className="flex items-center gap-2 min-w-0">
+               <Tag size={12} className="text-emerald-500 shrink-0" />
+               <span className="text-xs font-black tracking-wider text-emerald-500 truncate">{cart.coupon.code}</span>
+               {cart.coupon.name && (
+                 <span className="text-[11px] font-medium text-[var(--theme-text-muted)] truncate">{cart.coupon.name}</span>
+               )}
+             </div>
+             <div className="flex items-center gap-2.5 shrink-0">
+               <span className="text-xs font-bold tabular-nums text-emerald-400">−{couponDiscount.toFixed(2)} ₼</span>
+               <button
+                 type="button"
+                 onClick={removeCoupon}
+                 disabled={couponBusy}
+                 aria-label={t('coupon_remove')}
+                 className="w-6 h-6 rounded-full flex items-center justify-center text-emerald-500/70 hover:text-emerald-300 hover:bg-emerald-500/15 transition-colors disabled:opacity-40"
+               >
+                 <X size={12} strokeWidth={2.5} />
+               </button>
+             </div>
+           </motion.div>
+         ) : cart.items.length > 0 ? (
+           <form
+             key="coupon-off"
+             onSubmit={e => { e.preventDefault(); applyCoupon(); }}
+             className="flex items-center gap-2 px-1"
+           >
+             <input
+               type="text"
+               value={couponInput}
+               onChange={e => setCouponInput(e.target.value)}
+               placeholder={t('coupon_placeholder')}
+               disabled={couponBusy}
+               className="flex-1 min-w-0 rounded-full border border-dashed border-[var(--theme-border-strong)] bg-transparent px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-[var(--theme-text)] placeholder:normal-case placeholder:font-medium placeholder:tracking-normal placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[var(--theme-accent-border)] focus:ring-2 focus:ring-[var(--theme-accent-soft)] transition-colors"
+             />
+             <button
+               type="submit"
+               disabled={!couponInput.trim() || couponBusy}
+               className="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black uppercase tracking-wider text-[var(--theme-accent)] border border-[var(--theme-accent-border)] bg-[var(--theme-accent-soft)] hover:brightness-110 active:scale-[0.97] transition-all disabled:opacity-40"
+             >
+               {couponBusy ? <Loader2 size={12} className="animate-spin" /> : <Tag size={12} />}
+               {t('coupon_apply')}
+             </button>
+           </form>
+         ) : null}
+         {/* Total */}
         <motion.div
           key="std-total"
           initial={{ opacity: 0, y: -4 }}

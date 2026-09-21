@@ -51,7 +51,13 @@ export async function GET(request: Request) {
     const orderFilters: string[] = [ `location_id=eq.${encodeURIComponent(sessLoc)}` ];
     if (statusFilter) {
       const trimmed = statusFilter.trim();
-      const notInMatch = trimmed.match(/^not\.in\.(([^)]*))$/);
+      // AUDIT FIX (2026-09-21): the old regex /^not\.in\.(([^)]*))$/ could NEVER
+      // match the client's `not.in.(a,b,c)` form (the closing paren was
+      // unconsumable by [^)]*) — so every takeaway/delivery list request
+      // fell into the else branch, produced status=eq.not.in.(cancelled...,
+      // and PostgREST returned 0 rows: newly created orders were invisible
+      // in their own lists. Consume the outer parens explicitly.
+      const notInMatch = trimmed.match(/^not\.in\.\(([^)]*)\)$/);
       if (notInMatch) {
         const values = notInMatch[1].split(',').map((v) => v.trim()).filter(Boolean);
         if (values.length > 0) {
@@ -250,7 +256,7 @@ export async function POST(request: Request) {
         if (!id || !items?.length) throw new Error('id and items required');
 
         // G4: the target order must belong to the session's active location
-        const addOrdRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=id,location_id&limit=1`, { headers: svc().headers });
+        const addOrdRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=id,location_id,discount_amount,discount_type,campaign_id&limit=1`, { headers: svc().headers });
         const addOrd = addOrdRes.ok ? await addOrdRes.json() : [];
         if (!Array.isArray(addOrd) || addOrd.length === 0 || addOrd[0].location_id !== sessLoc) {
           const err = new Error('Order not found in your active location') as any;
@@ -286,13 +292,39 @@ export async function POST(request: Request) {
         }
 
         // Mark the order active (in case it was still a draft) and recompute total.
+        // Quick-fix 4: the recompute must RE-APPLY the order-level discount —
+        // a plain item-sum would silently drop an order-level percentage/coupon
+        // discount that was applied on the first send (latent defect, fixed here
+        // for both types). The discount is stored on the order, so it is
+        // applied exactly once per order regardless of how many sends happen.
         const totalRes = await fetch(`${svc().url}/rest/v1/order_items?select=total_price&order_id=eq.${id}`, { headers: svc().headers });
         const totalRows: any[] = await totalRes.json();
-        const newTotal = (totalRows || []).reduce((s: number, r: any) => s + (Number(r.total_price) || 0), 0);
+        let newTotal = (totalRows || []).reduce((s: number, r: any) => s + (Number(r.total_price) || 0), 0);
+        const addDiscAmt = Number(addOrd[0]?.discount_amount) || 0;
+        if (addDiscAmt > 0 && addOrd[0]?.discount_type === 'percentage') {
+          newTotal = newTotal * (1 - addDiscAmt / 100);
+        } else if (addDiscAmt > 0 && addOrd[0]?.discount_type === 'coupon') {
+          newTotal = Math.max(0, newTotal - addDiscAmt);
+        }
+        // Coupon stamping: a fresh order (no campaign yet) receives the coupon
+        // fields from the first addItems send that carries them.
+        const couponStamp = body.coupon && !addOrd[0]?.campaign_id && body.coupon.campaign_id
+          ? {
+              campaign_id: body.coupon.campaign_id,
+              discount_amount: Math.max(0, Number(body.coupon.amount) || 0),
+              discount_type: 'coupon',
+            }
+          : {};
+        // If the coupon is stamped THIS send, the recompute above used the
+        // pre-stamp discount fields — recompute with the stamp included.
+        if (couponStamp.discount_amount) {
+          newTotal = (totalRows || []).reduce((s: number, r: any) => s + (Number(r.total_price) || 0), 0) - couponStamp.discount_amount;
+          newTotal = Math.max(0, newTotal);
+        }
         await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}`, {
           method: 'PATCH',
           headers: svc().headers,
-          body: JSON.stringify({ total_amount: newTotal, is_draft: false, status: 'confirmed', updated_at: new Date().toISOString() }),
+          body: JSON.stringify({ total_amount: newTotal, is_draft: false, status: 'confirmed', updated_at: new Date().toISOString(), ...couponStamp }),
         });
 
         const updatedRes = await fetch(
@@ -333,12 +365,17 @@ export async function POST(request: Request) {
       // into unit_price). We deliberately do NOT subtract a fixed discount here,
       // otherwise the discount would be applied twice (once in unit_price, once
       // here).
-      const rawDiscount = Number(discount_amount) || 0;
+      let rawDiscount = Number(discount_amount) || 0;
       const totalFromItems = items.reduce((s: number, i: any) => s + ((i.unit_price || 0) * (i.quantity || 1)), 0);
       let discountedTotal = totalFromItems;
       if (rawDiscount > 0 && discount_type === 'percentage') {
         discountedTotal = totalFromItems * (1 - rawDiscount / 100);
       }
+      // Quick-fix 4: order-level COUPON discount. Unlike manual fixed
+      // discounts (which the client bakes into unit_price), a coupon discount
+      // is NEVER baked into item prices — it is applied here exactly once,
+      // and re-sends to the same order are deduped by campaign_id below.
+      const isCouponDiscount = rawDiscount > 0 && discount_type === 'coupon' && !!campaign_id;
 
       // Check for existing active order on this table (dine-in only; takeaway
       // and delivery always create a fresh order)
@@ -365,12 +402,20 @@ export async function POST(request: Request) {
         // otherwise the discount would be applied again on top of an already
         // discounted total.
         activeOrderId = existingOrder.id;
-        const newTotal = (existingOrder.total_amount || 0) + discountedTotal;
+        // Quick-fix 4: a coupon discount applies ONCE per order. If this
+        // order already carries the same campaign_id, this send adds only
+        // the plain item total (no re-subtraction, no re-accumulation).
+        const couponAlreadyApplied = isCouponDiscount
+          && String(existingOrder.campaign_id || '') === String(campaign_id || '');
+        const sendTotal = (isCouponDiscount && !couponAlreadyApplied)
+          ? Math.max(0, discountedTotal - rawDiscount)
+          : discountedTotal;
+        const newTotal = (existingOrder.total_amount || 0) + sendTotal;
         const newVersion = (existingOrder.version || 0) + 1;
 
         // Accumulate discount metadata; the new send only carries its own
         // delta, so add it to whatever was already recorded.
-        const accumulatedDiscount = (Number(existingOrder.discount_amount) || 0) + rawDiscount;
+        const accumulatedDiscount = (Number(existingOrder.discount_amount) || 0) + (couponAlreadyApplied ? 0 : rawDiscount);
 
         const patchRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}&version=eq.${existingOrder.version || 0}`, {
           method: 'PATCH',
@@ -456,6 +501,11 @@ export async function POST(request: Request) {
           orderLocationId = sessLoc;
         }
 
+        // Quick-fix 4: first send of a new order — the coupon discount is
+        // subtracted here exactly once (item unit_prices stay pure).
+        const createTotal = isCouponDiscount
+          ? Math.max(0, discountedTotal - rawDiscount)
+          : discountedTotal;
         const insertRes = await fetch(`${svc().url}/rest/v1/orders`, {
           method: 'POST',
           headers: { ...svc().headers, 'Prefer': 'return=representation' },
@@ -463,7 +513,7 @@ export async function POST(request: Request) {
             table_number,
             organization_id: orderOrganizationId,
             location_id: orderLocationId,
-            total_amount: discountedTotal,
+            total_amount: createTotal,
             status: 'confirmed',
             guest_count: guest_count || 1,
             customer_note: customer_note || null,
@@ -492,6 +542,15 @@ export async function POST(request: Request) {
             delivery_zone: delivery_zone || null,
             delivery_fee: delivery_fee || 0,
             estimated_delivery_time: estimated_delivery_time || null,
+            // AUDIT FIX (2026-09-21): the generic create path left
+            // delivery_status NULL for delivery orders. The UI reads
+            // `delivery_status || status` (so the order LOOKED confirmed)
+            // while transition_delivery_status reads delivery_status
+            // (NULL → 'pending') — and pending→preparing is invalid in the
+            // state machine, so EVERY delivery transition failed silently.
+            // Start at 'pending' (same as create_delivery_order's contract),
+            // so the machine and the UI agree from the first moment.
+            delivery_status: (order_type === 'delivery' || order_source === 'delivery') ? 'pending' : null,
             scheduled_date: scheduled_date || null,
             payment_method: null,
             is_rush: is_rush || false,
@@ -516,7 +575,7 @@ export async function POST(request: Request) {
             `${svc().url}/rest/v1/table_floors?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}`,
             {
               method: 'PATCH', headers: svc().headers,
-              body: JSON.stringify({ status: 'occupied', current_order_id: activeOrderId, total_amount: discountedTotal, last_activity_at: new Date().toISOString() }),
+              body: JSON.stringify({ status: 'occupied', current_order_id: activeOrderId, total_amount: createTotal, last_activity_at: new Date().toISOString() }),
             }
           );
           console.log('[API /orders POST] table_floors update result:', tablePatchRes3.status);

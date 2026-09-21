@@ -43,6 +43,14 @@ export async function POST(request: NextRequest) {
         p_courier_id: courier_id || null,
         p_courier_name: courier_name || null,
         p_performed_by_terminal_id: terminal_id || null,
+        // AUDIT FIX (2026-09-21): the live RPC has 7 args with NO defaults —
+        // omitting p_metadata made PostgREST fail resolution (PGRST202),
+        // killing the ENTIRE delivery status machine (confirmed → preparing
+        // → ready → picked_up → delivered all dead; the UI still showed a
+        // false "Status yeniləndi:" toast). p_metadata is vestigial (never
+        // referenced in the function body). Must be `{}` not `null` —
+        // PostgREST rejects JSON null for jsonb args (PGRST102).
+        p_metadata: {},
       }),
     });
 
@@ -51,13 +59,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Delivery status transition failed: ${errText}` }, { status: 400 });
     }
 
-    const rpcResult = await rpcRes.json();
+    const callRpc = (target: string) =>
+      fetch(`${s.url}/rest/v1/rpc/transition_delivery_status`, {
+        method: 'POST',
+        headers: s.headers,
+        body: JSON.stringify({
+          p_token: auth.token,
+          p_order_id: order_id,
+          p_new_status: target,
+          p_courier_id: courier_id || null,
+          p_courier_name: courier_name || null,
+          p_performed_by_terminal_id: terminal_id || null,
+          // 7-arg RPC, no defaults: must be `{}` — PostgREST rejects JSON
+          // null for jsonb args (PGRST102); omitting it broke resolution
+          // entirely (PGRST202) — audit 2026-09-21.
+          p_metadata: {},
+        }),
+      });
+
+    let rpcResult = await rpcRes.json().catch(() => null);
+
+    // Bridge: legacy orders (delivery_status NULL/'pending', created before
+    // the 2026-09-21 create-path fix) sit one step behind the state machine.
+    // When the operator asks for a post-confirmed state, run the explicit
+    // 'confirmed' step once, then retry the requested target.
+    const POST_CONFIRMED = ['preparing', 'ready', 'picked_up', 'in_transit', 'delivered', 'paid'];
+    if (rpcResult && rpcResult.success === false && POST_CONFIRMED.includes(status)) {
+      const preRes = await callRpc('confirmed');
+      const preResult = await preRes.json().catch(() => null);
+      if (preResult && preResult.success === true) {
+        const retryRes = await callRpc(status);
+        rpcResult = await retryRes.json().catch(() => null);
+      }
+    }
+
+    // AUDIT FIX (2026-09-21): PostgREST returns HTTP 200 even when the RPC
+    // body is {success:false, error} — the old code ignored the body and
+    // echoed success:true, so the UI toasted "Status yeniləndi:" while
+    // NOTHING was persisted. Surface the real error instead.
+    if (!rpcResult || rpcResult.success === false) {
+      return NextResponse.json(
+        { error: (rpcResult && rpcResult.error) || `Delivery status transition failed` },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       order: {
         id: order_id,
-        delivery_status: status,
+        delivery_status: rpcResult.new_delivery_status || status,
         courier_id: courier_id || null,
         courier_name: courier_name || null,
         tracking_number: tracking_number || null,

@@ -1985,9 +1985,9 @@ export default function POSPage() {
                                terminal_id: pos.terminalId,
                              }),
                            });
-                           if (res.ok) {
-                             toast.success(t('tables_merged'));
-                             pos.fetchData();
+                            if (res.ok) {
+                              toast.success(t('tables_merged').replace('{tables}', tableNums.join(' + ')));
+                              pos.fetchData();
                            } else {
                              const err = await res.json().catch(() => ({ error: t('error') }));
                              toast.error(err.error || t('merge_failed'));
@@ -2468,11 +2468,19 @@ export default function POSPage() {
                             // logic, merge-by-line, modifier state preserved).
                             // pos.products is the server-loaded grid list —
                             // suggestions only ever reference active products.
-                            const product = (pos.products || []).find((p: any) => p.id === s.product_id);
-                            if (product) { handleProductTap(product as any); return; }
-                            // Fallback (grid not loaded yet): minimal product row.
-                            pos.addToCart({ id: s.product_id, name: s.name, price: Number(s.discount_price != null ? s.discount_price : s.price) || 0 } as any, { variantId: null });
-                          }}
+                             const product = (pos.products || []).find((p: any) => p.id === s.product_id);
+                             if (product) { handleProductTap(product as any); return; }
+                             // Fallback (grid not loaded yet): minimal product row.
+                             pos.addToCart({ id: s.product_id, name: s.name, price: Number(s.discount_price != null ? s.discount_price : s.price) || 0 } as any, { variantId: null });
+                           }}
+                           onCouponApplied={(c) => {
+                             if (!pos.cart) return;
+                             pos.setCart({ ...pos.cart, coupon: c });
+                           }}
+                           onCouponRemoved={() => {
+                             if (!pos.cart) return;
+                             pos.setCart({ ...pos.cart, coupon: null });
+                           }}
                            onOpenModifiers={(productId) => {
                              const product = pos.products.find((p: any) => p.id === productId);
                              if (product) gridRef.current?.openEditor(productId);

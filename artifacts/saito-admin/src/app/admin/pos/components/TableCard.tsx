@@ -272,6 +272,36 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
     },
   };
 
+  // Archived table: immutable (DB trigger blocks ordering). Rendered as a
+  // calm dashed placeholder — still visible on the floor map (staff context),
+  // but clearly non-operational. Tap/action are guarded in the page (toast).
+  const isArchived = !!(table as any).is_archived;
+  if (isArchived) {
+    return (
+      <div
+        data-archived-table
+        onClick={onTap}
+        aria-disabled="true"
+        className={`relative h-[180px] rounded-4xl p-5 text-left overflow-hidden border border-dashed shadow-card cursor-not-allowed select-none
+          ${lightMode ? 'bg-zinc-50/60 border-zinc-300' : 'bg-zinc-900/30 border-white/10'}`}
+      >
+        <div className="absolute top-4 left-5 right-4 flex items-start justify-between gap-2">
+          <span className={`text-2xl font-black tracking-tighter ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
+            {t('table' as any)} {table.table_number}
+          </span>
+          <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-black leading-none uppercase tracking-wide border ${
+            lightMode ? 'bg-zinc-100 text-zinc-500 border-zinc-300' : 'bg-white/5 text-white/50 border-white/15'
+          }`}>
+            {(t as any)('archived_table') || 'Arxiv'}
+          </span>
+        </div>
+        <div className={`absolute bottom-4 left-5 text-[11px] font-semibold uppercase tracking-wide ${lightMode ? 'text-zinc-400' : 'text-white/25'}`}>
+          {(t as any)('archived_table_info') || 'Arxivlənib — sifariş mümkün deyil'}
+        </div>
+      </div>
+    );
+  }
+
   const currentStatus = statusConfig[table.status as keyof typeof statusConfig] || statusConfig.empty;
   const StatusIcon = currentStatus.icon;
   const seatedNoOrder = table.status === 'occupied' && !table.current_order_id;

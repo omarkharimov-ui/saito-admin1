@@ -111,6 +111,9 @@ export interface PosTable {
   pre_order_count?: number;
   pre_order?: boolean;
   current_order_id?: string | null;
+  /** Archived tables are immutable (DB trigger blocks new orders, TABLE_ARCHIVED);
+   *  the POS floor renders them non-selectable. */
+  is_archived?: boolean | null;
 }
 
 export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'reserved' | 'waiting' | 'occupied' | 'dirty' | string;

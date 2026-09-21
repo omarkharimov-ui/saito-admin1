@@ -1580,6 +1580,8 @@ export const az = {
   hint_void_not_ready: 'Servis olunub — ləğv etmək olmaz, "Geri qaytar" istifadə edin',
   hint_void_not_sent: 'Mətbəxə göndərilməyib — "Ləğv et" ilə ləğv edin',
   void_mode_title: 'Ləğv rejimi',
+  archived_table: 'Arxiv',
+  archived_table_info: 'Bu masa arxivlənib — sifariş oluna bilməz',
   void_mode_explanation: 'Ləğv etmək istədiyiniz məhsulu "+" ilə seçin',
   void_select_hint: 'Qarşısında "+" olan məhsulları seçin — miqdarı artırıb azalda bilərsiniz',
   void_select_prompt: 'Ləğv edəcəyiniz məhsulları seçin',

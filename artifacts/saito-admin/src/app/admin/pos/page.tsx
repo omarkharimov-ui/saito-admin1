@@ -1157,6 +1157,12 @@ export default function POSPage() {
   };
 
   const handleTableTap = (table: any) => {
+    // Archived tables: DB trigger already blocks ordering (TABLE_ARCHIVED);
+    // the UI guard stops the navigation attempt up front with a clear toast.
+    if (table?.is_archived) {
+      toast.error((t as any)('archived_table_info') || 'Bu masa arxivlənib — sifariş oluna bilməz', { id: 'action-toast' });
+      return;
+    }
     if (posMode !== 'dine_in') {
       toast.error(t('table_selection_disabled'), { id: 'action-toast' });
       return;
@@ -1601,6 +1607,10 @@ export default function POSPage() {
   );
 
    const handleOpenAction = (table: any) => {
+    if (table?.is_archived) {
+      toast.error((t as any)('archived_table_info') || 'Bu masa arxivlənib — sifariş oluna bilməz', { id: 'action-toast' });
+      return;
+    }
     playHapticSound('on');
     if (posMode !== 'dine_in') {
       setActionSheetTable({

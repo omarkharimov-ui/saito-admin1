@@ -86,6 +86,12 @@ const CLEANUP_SQL = `
   S(`SELECT public.archive_table_atomic(${q(tMgr)},104)`);
   const rOrd = sql(`INSERT INTO orders (table_number,status,guest_count,total_amount,location_id,organization_id,kitchen_status,is_draft,created_at,updated_at,version) VALUES (104,'confirmed',1,10,${q(LOC_A)},${q(ORG)},'pending',false,now(),now(),1)`);
   check('M8', 'archived table → new order = BLOCKED (TABLE_ARCHIVED)', rOrd.ok === false && /TABLE_ARCHIVED/i.test(rOrd.err), (rOrd.err || 'ok?!').slice(0, 80));
+  // M8b (quick-fix 1, 09-21): UI data contract — /api/pos/tables must expose
+  // is_archived so the floor renders archived tables as non-selectable tiles.
+  const rTables = await api('GET', '/api/pos/tables', { cookie: tMgr });
+  const flatT = Array.isArray(rTables.data?.floors) ? rTables.data.floors.flatMap((f) => f.tables) : [];
+  const t104 = flatT.find((t) => t.table_number === 104);
+  check('M8b', '/api/pos/tables exposes is_archived=true on archived table 104', rTables.status === 200 && t104?.is_archived === true, `status=${rTables.status} t104=${JSON.stringify(t104 ? { is_archived: t104.is_archived, status: t104.status } : null)}`);
   const rDel = sql(`DELETE FROM table_floors WHERE table_number=104`);
   check('M9', 'hard DELETE = BLOCKED (TABLE_ARCHIVE_ONLY)', rDel.ok === false && /TABLE_ARCHIVE_ONLY/i.test(rDel.err), (rDel.err || 'ok?!').slice(0, 80));
 

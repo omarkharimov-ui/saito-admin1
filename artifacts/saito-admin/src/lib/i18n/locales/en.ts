@@ -1582,6 +1582,8 @@ export const en: TranslationMap = {
   hint_void_not_ready: 'Already served — cannot void, use "Return"',
   hint_void_not_sent: 'Not sent yet — use "Void" to cancel',
   void_mode_title: 'Void mode',
+  archived_table: 'Archived',
+  archived_table_info: 'This table is archived — cannot take orders',
   void_mode_explanation: 'Tap "+" on the items you want to void',
   void_select_hint: 'Tap the "+" on items to add them — increase or decrease the quantity',
   void_select_prompt: 'Select items to void',

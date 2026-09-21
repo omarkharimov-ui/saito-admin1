@@ -1583,6 +1583,8 @@ export const ru: TranslationMap = {
   hint_void_not_ready: 'Подано — нельзя отменить, используйте "Вернуть"',
   hint_void_not_sent: 'Ещё не отправлено — используйте "Отменить"',
   void_mode_title: 'Режим отмены',
+  archived_table: 'Архив',
+  archived_table_info: 'Стол в архиве — приём заказов невозможен',
   void_mode_explanation: 'Нажмите "+" на позиции, которые нужно списать',
   void_select_hint: 'Нажмите "+" на позиции, чтобы добавить её — количество можно увеличить или уменьшить',
   void_select_prompt: 'Выберите товары для отмены',

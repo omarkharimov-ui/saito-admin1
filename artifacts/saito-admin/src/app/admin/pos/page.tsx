@@ -1833,7 +1833,12 @@ export default function POSPage() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/40" />
-                  <span className="text-xs font-bold text-white/30 hidden sm:inline">{posSession.name}</span>
+                  {/* Owner request (2026-09-22): show the STAFF ROLE, not the
+                      raw name ("DEV User" was cryptic). Role in caps, real
+                      name on hover. */}
+                  <span className="text-xs font-bold uppercase tracking-wider text-white/30 hidden sm:inline" title={posSession.name}>
+                    {String(posSession.role || '').toUpperCase() || posSession.name}
+                  </span>
                 </div>
                  {/* Shift clock buttons removed by owner request (2026-09-21).
                      The X logout here was ALSO removed (2026-09-22, owner):

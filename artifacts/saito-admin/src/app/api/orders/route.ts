@@ -121,8 +121,19 @@ export async function GET(request: Request) {
       }
     }
 
+    // Voided lines (kitchen_status='voided', total_price=0 — set by
+    // void_items_state_aware) are tombstones, not live items. The live POS
+    // feed must exclude them or the cart keeps showing "deleted" lines
+    // after a void (owner bug report 2026-09-21). The history/audit routes
+    // intentionally keep showing them.
+    orderItems = orderItems.filter((it: any) => it.kitchen_status !== 'voided');
+    const liveOrders = (orders || []).map((o: any) => ({
+      ...o,
+      order_items: (o.order_items || []).filter((it: any) => it.kitchen_status !== 'voided'),
+    }));
+
     return NextResponse.json({
-      orders: orders || [],
+      orders: liveOrders,
       orderItems,
       tableCount: settings?.[0]?.qr_table_count ?? null,
       delayThreshold: settings?.[0]?.order_delay_minutes ?? null,
@@ -255,9 +266,90 @@ export async function POST(request: Request) {
           throw new Error(msg);
         }
         return { success: true, data: rpcData };
-      }
+       }
 
-      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id, order_source, customer_phone, delivery_address, delivery_district, delivery_street, delivery_building, delivery_floor, delivery_apartment, delivery_intercom, delivery_zone, delivery_fee, estimated_delivery_time, scheduled_date, payment_method, is_rush, assigned_to, terminal_id } = body;
+       // updateItem (owner fix 2026-09-21): edit an EXISTING order line —
+       // course / modifiers / notes / variant / price / quantity / allergens.
+       // Without this, modal edits of SENT lines only changed the local cart
+       // and were lost on the next server refetch ("course dəyişmir").
+       if (action === 'updateItem') {
+        const { order_item_id, course, modifiers, special_notes, variant_id, unit_price, quantity, allergens } = data || {};
+        if (!id || !order_item_id) throw new Error('id (order) and data.order_item_id required');
+
+        const uiOrdRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&location_id=eq.${encodeURIComponent(sessLoc)}&select=id,status,table_number,version,discount_amount,discount_type&limit=1`, { headers: svc().headers });
+        const uiOrd = uiOrdRes.ok ? await uiOrdRes.json() : [];
+        if (!Array.isArray(uiOrd) || uiOrd.length === 0) throw new Error('Order not found');
+        const uiOrder = uiOrd[0];
+        if (['paid', 'closed', 'refunded', 'cancelled'].includes(uiOrder.status)) {
+          const err = new Error('Cannot modify a finalized order') as any; err.status = 409; throw err;
+        }
+
+        const uiItemRes = await fetch(`${svc().url}/rest/v1/order_items?id=eq.${order_item_id}&order_id=eq.${id}&select=id,quantity,unit_price,total_price,kitchen_status&limit=1`, { headers: svc().headers });
+        const uiItem = uiItemRes.ok ? await uiItemRes.json() : [];
+        if (!Array.isArray(uiItem) || uiItem.length === 0) throw new Error('Order item not found');
+        if (uiItem[0].kitchen_status === 'voided') {
+          const err = new Error('Item is voided') as any; err.status = 409; throw err;
+        }
+
+        const patch: Record<string, any> = {};
+        if (course !== undefined) patch.course = course;
+        if (modifiers !== undefined) patch.modifiers = modifiers;
+        if (special_notes !== undefined) patch.special_notes = special_notes;
+        if (variant_id !== undefined) patch.variant_id = variant_id;
+        if (Array.isArray(allergens)) patch.allergens = allergens;
+        const newUnit = unit_price !== undefined ? Number(unit_price) : Number(uiItem[0].unit_price);
+        const newQty = quantity !== undefined ? Number(quantity) : Number(uiItem[0].quantity);
+        if (!Number.isFinite(newUnit) || newUnit < 0) throw new Error('Invalid unit_price');
+        if (!Number.isInteger(newQty) || newQty < 0) throw new Error('Invalid quantity');
+        if (unit_price !== undefined || quantity !== undefined) {
+          patch.unit_price = newUnit;
+          patch.quantity = newQty;
+          patch.total_price = Math.round(newUnit * newQty * 100) / 100;
+        }
+        if (Object.keys(patch).length === 0) return { success: true, data: uiItem[0] };
+
+        const uiPatch = await fetch(`${svc().url}/rest/v1/order_items?id=eq.${order_item_id}`, {
+          method: 'PATCH',
+          headers: { ...svc().headers, 'Prefer': 'return=representation' },
+          body: JSON.stringify(patch),
+        });
+        if (!uiPatch.ok) throw new Error('Item update failed');
+        const uiPatched = await uiPatch.json();
+
+        // Price/qty changed → refresh the order total (same non-VAT math as
+        // addItems: sum of live lines − absolute discount) + table sync.
+        if (patch.total_price !== undefined) {
+          const sumRes = await fetch(`${svc().url}/rest/v1/order_items?order_id=eq.${id}&select=total_price,kitchen_status`, { headers: svc().headers });
+          const allIts = sumRes.ok ? await sumRes.json() : [];
+          const liveSum = (Array.isArray(allIts) ? allIts : [])
+            .filter((i: any) => i.kitchen_status !== 'voided')
+            .reduce((s: number, i: any) => s + Number(i.total_price || 0), 0);
+          const disc = Number(uiOrder.discount_amount ?? 0);
+          const newOrderTotal = Math.max(0, liveSum - disc);
+          await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&version=eq.${uiOrder.version || 0}`, {
+            method: 'PATCH',
+            headers: { ...svc().headers, 'Prefer': 'return=representation' },
+            body: JSON.stringify({ total_amount: newOrderTotal, version: (uiOrder.version || 0) + 1 }),
+          });
+          if (uiOrder.table_number) {
+            const tableOrdersRes = await fetch(
+              `${svc().url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(uiOrder.table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}&status=${NOT_FINAL}&select=total_amount`,
+              { headers: svc().headers }
+            );
+            const tableOrders = tableOrdersRes.ok ? await tableOrdersRes.json() : [];
+            const tableTotal = (Array.isArray(tableOrders) ? tableOrders : []).reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
+            await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${encodeURIComponent(String(uiOrder.table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}`, {
+              method: 'PATCH',
+              headers: svc().headers,
+              body: JSON.stringify({ total_amount: tableTotal }),
+            });
+          }
+        }
+
+        return { success: true, data: Array.isArray(uiPatched) ? uiPatched[0] : uiPatched };
+       }
+
+       const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id, order_source, customer_phone, delivery_address, delivery_district, delivery_street, delivery_building, delivery_floor, delivery_apartment, delivery_intercom, delivery_zone, delivery_fee, estimated_delivery_time, scheduled_date, payment_method, is_rush, assigned_to, terminal_id } = body;
       
       // Append items to an EXISTING active order (used by reservation-handoff tables
       // that already have a draft/active order, so we never create a 2nd active order).

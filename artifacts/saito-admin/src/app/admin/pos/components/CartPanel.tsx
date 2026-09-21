@@ -449,18 +449,17 @@ export function CartPanel({
     return sum + (item ? item.unit_price * qty : 0);
   }, 0);
 
-  // Owner UX (2026-09-21): void selection is DIRECT PRESS, not +/- stepping —
-  // the stepper in serving mode was "mənasız" (meaningless). One tap on +
-  // selects the WHOLE voidable line; tapping another line moves the selection
-  // there (single active line); − (or + again) clears.
+  // Owner UX (2026-09-21): void selection = DIRECT PRESS MARKS, no numbers.
+  // Tap the check → the WHOLE line is marked as a void request; multiple lines
+  // can be marked ("1 seçim, 2 seçim"); tap again to unmark. No +/- stepping.
   const selectVoidItem = (id: string, maxQty: number) => {
-    setVoidSelection(prev => (prev[id] ? {} : { [id]: maxQty }));
-  };
-  const deselectVoidItem = (id: string) => {
     setVoidSelection(prev => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
+      if (prev[id]) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: maxQty };
     });
   };
 
@@ -929,9 +928,11 @@ export function CartPanel({
         </div>
       )}
 
-        {/* Items — void mode gets a distinct rose tint so the operator always
-            knows they are in void mode (was white/invisible before). */}
-        <div className="flex-1 py-3 relative overflow-y-auto min-h-0 overscroll-contain transition-[background-color] duration-300" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0, backgroundColor: voidMode ? (lightMode ? 'rgba(244,63,94,0.05)' : 'rgba(244,63,94,0.08)') : undefined }}>
+        {/* Items — void mode indicator: a thin rose strip on top (owner 2026-09-21:
+            the FULL background tint was too aggressive — strip + the inverted
+            VOID toggle button are the signals). */}
+        <div className="flex-1 py-3 relative overflow-y-auto min-h-0 overscroll-contain" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0 }}>
+          <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-rose-500/80 via-rose-400 to-rose-500/80 transition-opacity duration-200 ${voidMode ? 'opacity-100' : 'opacity-0'}`} />
         <div
           className="absolute inset-0 transition-opacity duration-150 ease-in-out"
           style={{ opacity: isEmpty ? 1 : 0, pointerEvents: isEmpty ? 'auto' : 'none' }}
@@ -1045,20 +1046,20 @@ export function CartPanel({
                    </span>
                      {voidMode && isVoidableItem ? (
                        <div className="flex items-center gap-2">
-                         <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
-                           <motion.button
-                             onClick={() => deselectVoidItem(item.id || `idx-${originalIdx}`)}
-                             whileTap={{ scale: 0.88 }} transition={TAP}
-                             className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)] disabled:opacity-30"
-                             disabled={!(voidSelection[item.id || `idx-${originalIdx}`] ?? 0)}
-                           >−</motion.button>
-                           <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-[var(--theme-text)]">{voidSelection[item.id || `idx-${originalIdx}`] || '—'}</span>
-                           <motion.button
-                             onClick={() => selectVoidItem(item.id || `idx-${originalIdx}`, maxVoidQty)}
-                             whileTap={{ scale: 0.88 }} transition={TAP}
-                             className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)]"
-                           >+</motion.button>
-                         </div>
+                         {/* Void mark — whole line, no number (owner: serving
+                             zamanı +/- mənasızdır, "istek kimi" işarə olsun). */}
+                         <motion.button
+                           onClick={() => selectVoidItem(item.id || `idx-${originalIdx}`, maxVoidQty)}
+                           whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.85 }} transition={TAP}
+                           aria-label={voidSelection[item.id || `idx-${originalIdx}`] ? 'Seçimi ləğv et' : 'Void seç'}
+                           className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${
+                             voidSelection[item.id || `idx-${originalIdx}`]
+                               ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/25'
+                               : lightMode ? 'border-zinc-300 text-transparent hover:border-rose-400' : 'border-white/25 text-transparent hover:border-rose-400'
+                           }`}
+                         >
+                           <Check size={16} />
+                         </motion.button>
                        </div>
                      ) : (
                     <div className="flex items-center gap-2">

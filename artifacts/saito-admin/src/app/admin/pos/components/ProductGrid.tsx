@@ -33,6 +33,9 @@ export interface EditorPreset {
   // Allergens flagged on this line (customer allergy → kitchen warning),
   // persisted to order_items.allergens (jsonb).
   allergens?: string[];
+  // Exact cart line being edited (stable replace target — owner fix 2026-09-21:
+  // config edits must update THAT line even when it's already sent).
+  lineIndex?: number;
 }
 
 export interface ProductGridRef {
@@ -340,7 +343,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
           const mod = (expandedItem.modifiers || []).find((x: any) => x.id === id);
           return { id, name: mod?.name || '', price: Number(mod?.price || 0), quantity: q };
         });
-      onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods, __editOf: identity ? { identity } : undefined, __course: editCourse, __is_hold: editIsHold, __allergens: selectedAllergens } as any);
+      onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods, __editOf: identity ? { identity, lineIndex: presetRef.current?.lineIndex } : undefined, __course: editCourse, __is_hold: editIsHold, __allergens: selectedAllergens, __newUnitPrice: modalUnitPrice } as any);
     }
     setNoteForProduct('');
     setSelectedVariant(undefined);

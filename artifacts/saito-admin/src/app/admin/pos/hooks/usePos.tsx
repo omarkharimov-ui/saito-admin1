@@ -898,7 +898,7 @@ export function usePos() {
 
   const addToCart = (
     p: PosProduct,
-    opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[]; quantity?: number; editOf?: { identity?: string }; course?: string | null; isHold?: boolean; allergens?: string[] }
+    opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[]; quantity?: number; editOf?: { identity?: string; lineIndex?: number }; course?: string | null; isHold?: boolean; allergens?: string[] }
   ) => {
     const addQty = Math.max(1, Number(opts?.quantity) || 1);
     const base = cartRef.current ?? {
@@ -930,33 +930,48 @@ export function usePos() {
     const campaignId = typeof effective === 'object' && effective?.campaign_id ? effective.campaign_id : null;
     const campaignDiscount = typeof effective === 'object' && effective?.discount_amount ? effective.discount_amount : 0;
     const campaignDiscountType = typeof effective === 'object' && effective?.discount_type ? effective.discount_type : null;
-    // EditOf: modal mövcud sətri redaktə edirdisə — köhnə konfiqurasiyalı
-    // sətri tapıb əvəz edirik (merge yox). Yalnız göndərilməmiş sətirlər.
-    if (opts?.editOf?.identity) {
-      const target = items.find(
-        i => String(i.product_id) === String(p.id)
-          && !(i.sentQuantity ?? 0)
-          && cartLineKey(i.variant_id, i.special_notes, i.modifiers as any) === opts.editOf!.identity
-      );
-        if (target) {
-          const replaced = {
-            ...target,
-            unit_price: unitPrice,
-            original_unit_price: originalWithMods,
-            quantity: addQty,
-            total_price: Math.round(unitPrice * addQty * 100) / 100,
-            modifiers: opts?.modifiers ?? [],
-            variant_id: variantId,
-            special_notes: opts?.notes ?? '',
-            // Course/hold: only override when the modal carried them (a plain
-            // re-add without course info must not wipe the line's course).
-            ...(opts?.course !== undefined ? { course: opts.course } : {}),
-            ...(opts?.isHold !== undefined ? { is_hold: opts.isHold } : {}),
-            allergens: opts?.allergens ?? (target as any).allergens ?? [],
-          };
-          setCart({ ...base, items: items.map(i => (i === target ? replaced : i)) });
-          return;
-        }
+    // EditOf: modal mövcud sətri redaktə edirdisə — həmin sətri əvəz edirik
+    // (merge yox, count+ yox). Owner fix 2026-09-21: the exact tapped line is
+    // the target (lineIndex), SENT lines included — the old "unsent only +
+    // config-hash" lookup made edits of sent lines fall through to the merge
+    // below (course/modifier change → quantity +1, config lost). Two
+    // Philadelphias with different modifiers each keep their own line.
+    if (opts?.editOf) {
+      let target: (typeof items)[number] | undefined;
+      if (typeof opts.editOf.lineIndex === 'number' && opts.editOf.lineIndex >= 0 && opts.editOf.lineIndex < items.length) {
+        const li = opts.editOf.lineIndex;
+        const cand = items[li];
+        if (String(cand.product_id) === String(p.id) && !(cand as any).__isCombo) target = cand;
+      }
+      if (!target && opts.editOf.identity) {
+        target = items.find(
+          i => String(i.product_id) === String(p.id)
+            && !(i.sentQuantity ?? 0)
+            && cartLineKey(i.variant_id, i.special_notes, i.modifiers as any) === opts.editOf!.identity
+        );
+      }
+      if (target) {
+        const sentQty = (target as any).sentQuantity ?? 0;
+        // A sent line can't be un-sent: the editable part is (qty − sentQty).
+        const newQty = Math.max(addQty, sentQty);
+        const replaced = {
+          ...target,
+          unit_price: unitPrice,
+          original_unit_price: originalWithMods,
+          quantity: newQty,
+          total_price: Math.round(unitPrice * newQty * 100) / 100,
+          modifiers: opts?.modifiers ?? [],
+          variant_id: variantId,
+          special_notes: opts?.notes ?? '',
+          // Course/hold: only override when the modal carried them (a plain
+          // re-add without course info must not wipe the line's course).
+          ...(opts?.course !== undefined ? { course: opts.course } : {}),
+          ...(opts?.isHold !== undefined ? { is_hold: opts.isHold } : {}),
+          allergens: opts?.allergens ?? (target as any).allergens ?? [],
+        };
+        setCart({ ...base, items: items.map(i => (i === target ? replaced : i)) });
+        return;
+      }
     }
     const existing = items.find(
       i => String(i.product_id) === String(p.id)

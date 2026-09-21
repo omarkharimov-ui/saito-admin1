@@ -608,6 +608,8 @@ export default function POSPage() {
     if (p.__expanded) {
       // Tək çağırış — quantity opts ilə. Dövr ilə çağırmaq olmaz: cartRef
       // yalnız re-render-dan sonra sync olur, loop stale cart oxuyur.
+      const preItems = (pos.cart?.items || []) as any[];
+      const origLine = p.__editOf?.lineIndex != null ? preItems[p.__editOf.lineIndex] : undefined;
        pos.addToCart(product, {
          variantId: p.variant_id ?? null,
          notes: p.special_notes || undefined,
@@ -618,6 +620,35 @@ export default function POSPage() {
          isHold: p.__is_hold !== undefined ? p.__is_hold : undefined,
          allergens: p.__allergens || [],
        });
+      // Smart-edit sync (owner fix 2026-09-21): when the edited line is a
+      // SERVER line (already sent), push the new config to the DB — otherwise
+      // course/modifier edits only lived in the local cart and were lost on
+      // the next refetch ("course dəyişmir").
+      if (origLine?.id && p.__editOf) {
+        void (async () => {
+          try {
+            await apiFetch('/api/orders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'updateItem',
+                id: (pos.cart as any)?.order_id || origLine.order_id,
+                data: {
+                  order_item_id: origLine.id,
+                  course: p.__course !== undefined ? p.__course : origLine.course,
+                  modifiers: p.__modifiers || origLine.modifiers || [],
+                  special_notes: p.special_notes !== undefined ? p.special_notes : (origLine.special_notes || ''),
+                  variant_id: p.variant_id !== undefined ? p.variant_id : origLine.variant_id,
+                  unit_price: p.__newUnitPrice,
+                  // A sent line can't shrink below what was already sent.
+                  quantity: Math.max(1, Number(p.__qty) || 1, Number(origLine.sentQuantity ?? origLine.quantity ?? 0)),
+                  allergens: Array.isArray(p.__allergens) ? p.__allergens : undefined,
+                },
+              }),
+            });
+          } catch { /* non-fatal: local cart already updated */ }
+        })();
+      }
       return;
     }
     // Kart toxunuşu = BİRBAŞA səbətə. Variantlı məhsulda default variant
@@ -1545,10 +1576,8 @@ export default function POSPage() {
     }
   };
 
-  // U-4: close the panel without discarding an unsent cart.
-  const closeCartPanel = () => {
-    pos.clearCart(); pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null); if (pos.selectedTable && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(pos.selectedTable.status)) { setFlashInfo({ tableNumber: pos.selectedTable.table_number, nonce: Date.now() }); } pos.setActiveView('floor'); setEditingOrder(null);
-  };
+  // (U-4 closeCartPanel removed 2026-09-21: it called pos.clearCart() and was
+  // the reason for the unsent-guard-on-exit. Exit now keeps the draft.)
 
   // Escape key (2026-09-21 QA): payment view → back; action sheet → close.
   // Previously Escape did nothing on these modals.
@@ -2500,14 +2529,15 @@ export default function POSPage() {
                            cart={pos.cart}
                            cartHydrating={pos.cartHydrating}
                            onPlaceOrder={sendCurrentOrder}
-                           onBack={() => {
-                             // U-4: an unsent cart must never be discarded
-                             // silently. unsent = quantity beyond what was
-                             // already sent (placeOrder tracks sentQuantity).
-                             const unsentQty = (pos.cart?.items || []).reduce((s: number, i: any) => s + Math.max(0, (i.quantity || 0) - (i.sentQuantity || 0)), 0);
-                             if (!pos.placingOrder && unsentQty > 0) { setUnsentCartGuard(true); return; }
-                             closeCartPanel();
-                           }}
+                            onBack={() => {
+                              // Owner UX (2026-09-21): exiting the cart keeps
+                              // the items as a DRAFT — no guard modal, nothing
+                              // is discarded. Drafts are carried when the same
+                              // table is reopened (selectTable carryDrafts).
+                              if (pos.placingOrder) return;
+                              pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null);
+                              pos.setActiveView('floor'); setEditingOrder(null);
+                            }}
                          orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
                          onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
                           onEditGuestCount={() => { setActionSheetOpen(true); }}
@@ -2578,32 +2608,37 @@ export default function POSPage() {
                               const items = (pos.cart?.items || []) as any[];
                               // Dəqiq sətir: CartPanel öz indeksini göndərir —
                               // eyni məhsuldan çox sətir olanda həmişə birincini yığmamaq üçün.
+                              // Owner fix (2026-09-21): SENT lines are editable too —
+                              // the old !sentQuantity filter made "edit" fall through
+                              // to a plain add (course/modifier change → count +1).
                               const byIndex = typeof lineIndex === 'number' ? items[lineIndex] : undefined;
-                              const match = byIndex && byIndex.product_id === productId && !byIndex.__isCombo && !(byIndex.sentQuantity ?? 0)
+                              const match = byIndex && byIndex.product_id === productId && !byIndex.__isCombo
                                 ? byIndex
                                 : items.find((it: any) =>
-                                    it.product_id === productId &&
-                                    !(it.sentQuantity ?? 0) && !it.__isCombo
+                                    it.product_id === productId && !it.__isCombo
                                   );
                               if (!match) {
                                 gridRef.current?.toggleEditor(productId);
                                 return;
                               }
                                const preset = {
-                                 variantId: match.variant_id ?? null,
-                                 note: match.special_notes || '',
-                                 modifiers: (match.modifiers || []).reduce((acc: Record<string, number>, m: any) => {
-                                   acc[m.id] = (acc[m.id] || 0) + (m.quantity || 1);
-                                   return acc;
-                                 }, {} as Record<string, number>),
-                                 quantity: match.quantity || 1,
-                                 identity: cartLineKey(match.variant_id, match.special_notes, match.modifiers),
-                                 // Course + hold must survive a modal re-open:
-                                 course: match.course ?? null,
-                                 is_hold: !!(match.is_hold || match.hold_until),
-                                 // Allergen flags must survive a modal re-open too.
-                                 allergens: Array.isArray(match.allergens) ? match.allergens : [],
-                               };
+                                  variantId: match.variant_id ?? null,
+                                  note: match.special_notes || '',
+                                  modifiers: (match.modifiers || []).reduce((acc: Record<string, number>, m: any) => {
+                                    acc[m.id] = (acc[m.id] || 0) + (m.quantity || 1);
+                                    return acc;
+                                  }, {} as Record<string, number>),
+                                  quantity: match.quantity || 1,
+                                  identity: cartLineKey(match.variant_id, match.special_notes, match.modifiers),
+                                  // Exact line reference (stable target for the
+                                  // replace — survives config changes in the modal).
+                                  lineIndex: typeof lineIndex === 'number' && byIndex ? lineIndex : items.indexOf(match),
+                                  // Course + hold must survive a modal re-open:
+                                  course: match.course ?? null,
+                                  is_hold: !!(match.is_hold || match.hold_until),
+                                  // Allergen flags must survive a modal re-open too.
+                                  allergens: Array.isArray(match.allergens) ? match.allergens : [],
+                                };
                               gridRef.current?.toggleEditor(productId, preset);
                             }}
                          />
@@ -3167,12 +3202,10 @@ export default function POSPage() {
                 </motion.button>
                 <p className={`text-lg font-black tracking-tight text-center ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{t('unsent_items_title')}</p>
                 <p className={`text-xs text-center mt-2 leading-relaxed ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>{t('unsent_items_question')}</p>
+                {/* Owner UX (2026-09-21): bottom GERİ removed — the top-left X
+                    (and backdrop tap) already close the modal. */}
                 <div className="flex gap-3 mt-6">
-                  <motion.button onClick={() => setUnsentCartGuard(false)} whileTap={{ scale: 0.97 }} transition={TAP}
-                    className={`flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest border ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
-                    {t('back')}
-                  </motion.button>
-                  <motion.button onClick={() => { setUnsentCartGuard(false); closeCartPanel(); }} whileTap={{ scale: 0.97 }} transition={TAP}
+                  <motion.button onClick={() => { setUnsentCartGuard(false); pos.clearCart(); pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null); pos.setActiveView('floor'); setEditingOrder(null); }} whileTap={{ scale: 0.97 }} transition={TAP}
                     className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-rose-500 text-white shadow-lg shadow-rose-500/20">
                     {t('unsent_items_discard')}
                   </motion.button>

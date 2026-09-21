@@ -598,11 +598,13 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                   const setModQty = (id: string, q: number, group?: any) => {
                     setSelectedModifiers(prev => {
                       const next = { ...prev };
-                      // Exclusive group (max 1): picking one clears the rest.
-                      if (group && Number(group.max_select) === 1 && q > 0) {
+                      const isExclusive = !!group && Number(group.max_select) === 1;
+                      // Exclusive group (max 1): picking one clears the rest,
+                      // and the quantity itself is capped at 1 (radio, not stack).
+                      if (isExclusive && q > 0) {
                         for (const oid of group.item_ids || []) if (oid !== id) next[oid] = 0;
                       }
-                      next[id] = q;
+                      next[id] = isExclusive ? Math.min(q, 1) : q;
                       return next;
                     });
                   };
@@ -616,7 +618,11 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     return (
                       <div key={m.id || m.name} className={`flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl text-sm font-semibold transition-all border ${mQty > 0 ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
                         <span
-                          onClick={() => setModQty(m.id, (selectedModifiers[m.id] || 0) + 1, group)}
+                          onClick={() => {
+                            // Exclusive group: tapping an already-selected chip deselects it.
+                            if (group && Number(group.max_select) === 1 && mQty > 0) setModQty(m.id, 0, group);
+                            else if (!maxReached) setModQty(m.id, (selectedModifiers[m.id] || 0) + 1, group);
+                          }}
                           className={`whitespace-nowrap select-none active:scale-95 ${maxReached ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                           {m.name} {m.price ? <span className={mQty > 0 ? 'opacity-70' : 'opacity-50'}>+₼{Number(m.price).toFixed(2)}</span> : ''}
@@ -627,7 +633,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                             <span className="min-w-[1.1rem] text-center tabular-nums text-xs font-bold">{mQty}</span>
                           </>
                         )}
-                        <button onClick={() => setModQty(m.id, (selectedModifiers[m.id] || 0) + 1, group)} disabled={maxReached} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-95 disabled:opacity-30">+</button>
+                        <button onClick={() => setModQty(m.id, (selectedModifiers[m.id] || 0) + 1, group)} disabled={maxReached || (!!group && Number(group.max_select) === 1 && mQty >= 1)} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-95 disabled:opacity-30">+</button>
                       </div>
                     );
                   };

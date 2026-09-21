@@ -212,9 +212,17 @@ function ModifierGroupSelector({
   const addGroup = () => {
     onChange([...groups, { name: '', min_select: '0', max_select: '', is_required: false, item_ids: [] }]);
   };
+  // Duplicate handling: a modifier may belong to AT MOST ONE group — a chip
+  // clicked into this group is removed from every other group (shared
+  // membership double-counts selections and breaks group min/max rules).
   const toggleItem = (i: number, modId: string) => {
     const g = groups[i];
-    updateRow(i, { item_ids: g.item_ids.includes(modId) ? g.item_ids.filter(id => id !== modId) : [...g.item_ids, modId] });
+    const adding = !g.item_ids.includes(modId);
+    onChange(groups.map((grp, idx) => {
+      if (idx === i) return { ...grp, item_ids: adding ? [...grp.item_ids, modId] : grp.item_ids.filter(id => id !== modId) };
+      if (adding && grp.item_ids.includes(modId)) return { ...grp, item_ids: grp.item_ids.filter(id => id !== modId) };
+      return grp;
+    }));
   };
 
   return (

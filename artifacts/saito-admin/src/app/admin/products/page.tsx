@@ -479,6 +479,11 @@ const ProductsPage = () => {
       toast.error((error as any)?.message || t('error_sql_update'), { id: 'action-toast' });
     }
     else if (savedProduct) {
+        // Child-write error collector — product row saved, but child tables
+        // (allergens / variants / modifiers / groups / translations) must not
+        // fail silently (QF2: no silent fallbacks, no toast-less errors).
+        const childErrors: string[] = [];
+        const noteChildError = (ctx: string, e: any) => { childErrors.push(`${ctx}: ${e?.message || e}`); };
         // ─── Allergen sync (SSOT: product_allergens junction) ───
         try {
           const wanted = Array.from(new Set(productForm.allergenIds.filter(Boolean)));
@@ -487,10 +492,11 @@ const ProductsPage = () => {
           const existingIds = new Set((existingLinks || []).map((l: any) => l.allergen_id));
           const toAdd = wanted.filter(id => !existingIds.has(id));
           const toRemove = (existingLinks || []).filter((l: any) => !wanted.includes(l.allergen_id)).map((l: any) => l.id);
-          if (toRemove.length) await supabase.from('product_allergens').delete().in('id', toRemove);
-          if (toAdd.length) await supabase.from('product_allergens').insert(toAdd.map(allergen_id => ({ product_id: savedProduct.id, allergen_id })));
-        } catch (allergenErr) {
+          if (toRemove.length) { const r = await supabase.from('product_allergens').delete().in('id', toRemove); if (r.error) noteChildError('Allergenlər', r.error); }
+          if (toAdd.length) { const r = await supabase.from('product_allergens').insert(toAdd.map(allergen_id => ({ product_id: savedProduct.id, allergen_id }))); if (r.error) noteChildError('Allergenlər', r.error); }
+        } catch (allergenErr: any) {
           console.error('[Products Save] allergen sync failed:', allergenErr);
+          noteChildError('Allergenlər', allergenErr);
         }
 
         // ─── Variant CRUD (olcu only) ───
@@ -518,12 +524,14 @@ const ProductsPage = () => {
           const existingIds = (existing || []).map((r: any) => r.id);
           const keptIds = validVariants.filter(v => v.id).map(v => v.id as string);
           const toDelete = existingIds.filter((id: string) => !keptIds.includes(id));
-          if (toDelete.length) await supabase.from('product_variants').delete().in('id', toDelete);
+          if (toDelete.length) { const r = await supabase.from('product_variants').delete().in('id', toDelete); if (r.error) noteChildError('Olcular', r.error); }
         }
         for (const v of validVariants) {
           const vData = { product_id: savedProduct.id, name: v.name.trim(), price: parseFloat(v.price) || 0, is_default: v.is_default, discount_price: null as null, image_url: null, variant_type: 'olcu' as const, description: null, ingredients: null, is_special: false, is_spicy: false, parent_variant_id: null as null, translations: getTranslations(v) };
-          if (v.id) { await supabase.from('product_variants').update(vData).eq('id', v.id); }
-          else { await supabase.from('product_variants').insert([vData]); }
+          const r = v.id
+            ? await supabase.from('product_variants').update(vData).eq('id', v.id)
+            : await supabase.from('product_variants').insert([vData]);
+          if (r.error) noteChildError(`Olcu "${v.name.trim()}"`, r.error);
         }
         // ─── Modifier CRUD ───
         const validModifiers = productForm.modifiers.filter(m => m.name.trim());
@@ -532,28 +540,34 @@ const ProductsPage = () => {
           const existingModIds = (existingMods || []).map((r: any) => r.id);
           const keptModIds = validModifiers.filter(m => m.id).map(m => m.id as string);
           const toDeleteMods = existingModIds.filter((id: string) => !keptModIds.includes(id));
-          if (toDeleteMods.length) await supabase.from('product_modifiers').delete().in('id', toDeleteMods);
+          if (toDeleteMods.length) { const r = await supabase.from('product_modifiers').delete().in('id', toDeleteMods); if (r.error) noteChildError('Modifier-lər', r.error); }
         }
         for (const m of validModifiers) {
           const mData = { product_id: savedProduct.id, name: m.name.trim(), price: parseFloat(m.price) || 0, is_available: m.is_available, translations: m.translations || null };
-          if (m.id) { await supabase.from('product_modifiers').update(mData).eq('id', m.id); }
-          else { await supabase.from('product_modifiers').insert([mData]); }
+          const r = m.id
+            ? await supabase.from('product_modifiers').update(mData).eq('id', m.id)
+            : await supabase.from('product_modifiers').insert([mData]);
+          if (r.error) noteChildError(`Modifier "${m.name.trim()}"`, r.error);
         }
         // ─── Modifier group CRUD (QF2 P3) ───
         // Note: only SAVED modifiers (with id) can be group members — new
         // modifier rows get their id on this save, so assign them next time.
         const validGroups = productForm.modifier_groups.filter(g => g.name.trim());
         if (editingProduct) {
-          const { data: existingLinks } = await supabase.from('product_modifier_groups').select('id, group_id').eq('product_id', savedProduct.id);
+          const { data: existingLinks, error: gLinkErr } = await supabase.from('product_modifier_groups').select('id, group_id').eq('product_id', savedProduct.id);
+          if (gLinkErr) noteChildError('Qrup linkləri', gLinkErr);
           const keptGroupIds = validGroups.filter(g => g.id).map(g => g.id as string);
           for (const link of existingLinks || []) {
             if (!keptGroupIds.includes(link.group_id)) {
-              await supabase.from('product_modifier_groups').delete().eq('id', link.id);
+              const dl = await supabase.from('product_modifier_groups').delete().eq('id', link.id);
+              if (dl.error) noteChildError('Qrup sil', dl.error);
               // Delete the group itself only if no other product uses it.
               const { data: otherLinks } = await supabase.from('product_modifier_groups').select('id').eq('group_id', link.group_id);
               if (!otherLinks || otherLinks.length === 0) {
-                await supabase.from('modifier_group_items').delete().eq('group_id', link.group_id);
-                await supabase.from('modifier_groups').delete().eq('id', link.group_id);
+                const di = await supabase.from('modifier_group_items').delete().eq('group_id', link.group_id);
+                if (di.error) noteChildError('Qrup sil', di.error);
+                const dg = await supabase.from('modifier_groups').delete().eq('id', link.group_id);
+                if (dg.error) noteChildError('Qrup sil', dg.error);
               }
             }
           }
@@ -569,25 +583,27 @@ const ProductsPage = () => {
           };
           let gid = g.id;
           if (gid) {
-            await supabase.from('modifier_groups').update(gData).eq('id', gid);
+            const ru = await supabase.from('modifier_groups').update(gData).eq('id', gid);
+            if (ru.error) noteChildError(`Qrup "${g.name.trim()}"`, ru.error);
           } else {
-            const { data: ins } = await supabase.from('modifier_groups').insert([gData]).select('id').single();
+            const { data: ins, error: ie } = await supabase.from('modifier_groups').insert([gData]).select('id').single();
             gid = ins?.id;
-            if (!gid) continue;
+            if (!gid) { if (ie) noteChildError(`Qrup "${g.name.trim()}"`, ie); continue; }
           }
           // Product ↔ group link
           const { data: linkExists } = await supabase.from('product_modifier_groups').select('id').eq('product_id', savedProduct.id).eq('group_id', gid).maybeSingle();
           if (!linkExists) {
-            await supabase.from('product_modifier_groups').insert({ product_id: savedProduct.id, group_id: gid, sort_order: gi });
+            const rl = await supabase.from('product_modifier_groups').insert({ product_id: savedProduct.id, group_id: gid, sort_order: gi });
+            if (rl.error) noteChildError(`Qrup linki "${g.name.trim()}"`, rl.error);
           }
           // Group members sync (item rows cascade when a modifier is deleted)
           const { data: existingItems } = await supabase.from('modifier_group_items').select('modifier_id').eq('group_id', gid);
           const oldItemIds = (existingItems || []).map((r: any) => r.modifier_id);
           const newItemIds = (g.item_ids || []).filter(Boolean);
           const toRemove = oldItemIds.filter((id: string) => !newItemIds.includes(id));
-          if (toRemove.length) await supabase.from('modifier_group_items').delete().in('modifier_id', toRemove).eq('group_id', gid);
+          if (toRemove.length) { const rd = await supabase.from('modifier_group_items').delete().in('modifier_id', toRemove).eq('group_id', gid); if (rd.error) noteChildError(`Qrup üzvləri "${g.name.trim()}"`, rd.error); }
           const toAdd = newItemIds.filter((id: string) => !oldItemIds.includes(id));
-          if (toAdd.length) await supabase.from('modifier_group_items').insert(toAdd.map((id) => ({ group_id: gid, modifier_id: id })));
+          if (toAdd.length) { const ri = await supabase.from('modifier_group_items').insert(toAdd.map((id) => ({ group_id: gid, modifier_id: id }))); if (ri.error) noteChildError(`Qrup üzvləri "${g.name.trim()}"`, ri.error); }
         }
         try {
           const langToLabel: Record<string, string> = { az: 'Azerbaijani', en: 'English', ru: 'Russian' };
@@ -654,8 +670,12 @@ const ProductsPage = () => {
               if (!flat.name_ru) flat.name_ru = productForm.name;
             }
           }
-          await supabase.from('products').update(flat).eq('id', savedProduct.id);
-        } catch { /* silent */ }
+          const rFlat = await supabase.from('products').update(flat).eq('id', savedProduct.id);
+          if (rFlat.error) noteChildError('Tərcümələr', rFlat.error);
+        } catch (flatErr: any) {
+          console.error('[Products Save] translations failed:', flatErr);
+          noteChildError('Tərcümələr', flatErr);
+        }
 
       // ─── Translate variant names ───
       const validVarItems = productForm.variants.filter(v => v.name.trim());
@@ -683,9 +703,9 @@ const ProductsPage = () => {
               name_en: tr?.en?.name || v.name.trim(),
               name_ru: tr?.ru?.name || v.name.trim(),
             };
-            if (v.id) { await supabase.from('product_variants').update(flatV).eq('id', v.id); }
+            if (v.id) { const r = await supabase.from('product_variants').update(flatV).eq('id', v.id); if (r.error) noteChildError(`Olcu tərcümə "${v.name.trim()}"`, r.error); }
           }
-        } catch { /* silent */ }
+        } catch (vtErr: any) { console.error('[Products Save] variant translations failed:', vtErr); noteChildError('Olcu tərcümələri', vtErr); }
       }
 
       // ─── Translate modifier names ───
@@ -714,12 +734,17 @@ const ProductsPage = () => {
               name_en: tr?.en?.name || m.name.trim(),
               name_ru: tr?.ru?.name || m.name.trim(),
             };
-            if (m.id) { await supabase.from('product_modifiers').update(flatM).eq('id', m.id); }
+            if (m.id) { const r = await supabase.from('product_modifiers').update(flatM).eq('id', m.id); if (r.error) noteChildError(`Modifier tərcümə "${m.name.trim()}"`, r.error); }
           }
-        } catch { /* silent */ }
+        } catch (mtErr: any) { console.error('[Products Save] modifier translations failed:', mtErr); noteChildError('Modifier tərcümələri', mtErr); }
       }
 
-      toast.success(editingProduct ? t('product_updated') : t('product_created'), { id: 'action-toast' });
+      if (childErrors.length > 0) {
+        console.error('[Products Save] child write errors:', childErrors);
+        toast.error(`${t('error')}: ${childErrors[0]}${childErrors.length > 1 ? ` (+${childErrors.length - 1} daha)` : ''}`, { id: 'action-toast' });
+      } else {
+        toast.success(editingProduct ? t('product_updated') : t('product_created'), { id: 'action-toast' });
+      }
       setIsModalOpen(false);
       const { data: freshVariants } = await supabase.from('product_variants').select('*').eq('product_id', savedProduct!.id).order('is_default', { ascending: false });
       if (freshVariants) setProductForm(prev => ({ ...prev, variants: freshVariants.map(v => ({ id: v.id, name: v.name, price: v.price.toString(), is_default: v.is_default, variant_type: 'olcu' as const, translations: null })) }));

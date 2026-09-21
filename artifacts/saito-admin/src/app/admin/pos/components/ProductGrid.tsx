@@ -758,34 +758,32 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                        );
                      }
 
-                     // ADDITIVE (max>1, e.g. Əlavələr): the whole chip is the
-                     // +1 button (big touch target, no tiny-button hunting), a
-                     // count badge shows how many, and ONE × tap clears it
-                     // (owner: "toxunmaq-artırmaq çox narahatdır, yaxşı bir
-                     // şey düşünelik").
+                     // ADDITIVE (max>1, e.g. Əlavələr): +/- steppers are
+                     // MANDATORY here (owner 2026-09-22: "elavələrdə +/-
+                     // mütləkdir"). Name tap also adds 1; −/count/+ control the
+                     // quantity. (The serving group above stays direct-select
+                     // — it has no quantity.)
                      return (
                        <motion.div key={m.id || m.name} whileHover={{ y: -1.5 }} transition={SPRING}
-                         className={`flex items-center gap-1 pl-4 pr-1.5 py-2 rounded-xl text-sm font-semibold border ${on ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'} ${maxReached && !on ? 'opacity-40' : ''}`}>
-                         <motion.button
+                         className={`flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl text-sm font-semibold border ${on ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
+                         <span
                            onClick={() => { if (!maxReached) setModQty(m.id, mQty + 1, group); }}
-                           whileTap={{ scale: 0.96 }} transition={TAP}
-                           className="flex items-center gap-1.5 whitespace-nowrap select-none"
+                           className={`whitespace-nowrap select-none active:scale-95 ${maxReached && !on ? 'opacity-40' : 'cursor-pointer'}`}
                          >
                            {m.name} {m.price ? <span className={on ? 'opacity-70' : 'opacity-50'}>+₼{Number(m.price).toFixed(2)}</span> : ''}
-                           {on && (
-                             <span className="min-w-[1.4rem] px-1 py-0.5 rounded-md bg-blue-500 text-white text-[11px] font-black text-center tabular-nums">×{mQty}</span>
-                           )}
-                         </motion.button>
+                         </span>
                          {on && (
-                           <motion.button
-                             onClick={() => setModQty(m.id, 0, group)}
-                             whileTap={{ scale: 0.85 }} transition={TAP}
-                             aria-label="Təmizlə"
-                             className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10"
-                           >
-                             <X size={13} />
-                           </motion.button>
+                           <>
+                             <motion.button whileTap={{ scale: 0.85 }} transition={TAP}
+                               onClick={() => setModQty(m.id, mQty - 1, group)}
+                               className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10">−</motion.button>
+                             <span className="min-w-[1.1rem] text-center tabular-nums text-xs font-bold">{mQty}</span>
+                           </>
                          )}
+                         <motion.button whileTap={{ scale: 0.85 }} transition={TAP}
+                           onClick={() => { if (!maxReached) setModQty(m.id, mQty + 1, group); }}
+                           disabled={maxReached}
+                           className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30">+</motion.button>
                        </motion.div>
                      );
                    };

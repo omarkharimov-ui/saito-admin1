@@ -199,7 +199,9 @@ export default function POSPage() {
   const tableTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [walkInOpen, setWalkInOpen] = useState(false);
   // QF3: MASANI BOŞALT is gated by a verified manager PIN (destructive op).
-  const [clearPinTable, setClearPinTable] = useState<number | null>(null);
+  // mode 'dismiss' = occupied table (cancels the order via dismiss_table_atomic);
+  // mode 'clear'   = empty/dirty table (clear_table_atomic).
+  const [clearPinTable, setClearPinTable] = useState<{ num: number; mode: 'clear' | 'dismiss' } | null>(null);
   // QF5: delivery zones (public data, RLS off) — zone picker + auto fee.
   const [deliveryZones, setDeliveryZones] = useState<{ id: string; name: string; fee: number; free_delivery_threshold: number; estimated_minutes: number }[]>([]);
   useEffect(() => {
@@ -877,8 +879,11 @@ export default function POSPage() {
           paymentDate: paymentNow.toLocaleDateString('az-AZ'),
           paymentTime: paymentNow.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
           staffName: receiptSettings?.staffName || '',
-          taxAmount: Number(specificOrder.tax_amount) || 0,
-          taxPct: Number(specificOrder.tax_pct) || 0,
+          // QF4: the order row historically carries tax_amount=0 (VAT is
+          // embedded in menu prices) — mirror the cart's 18% tax-inclusive
+          // reference line for dine-in receipts.
+          taxAmount: Number(specificOrder.tax_amount) || ((specificOrder.order_type === 'takeaway' || specificOrder.order_type === 'delivery') ? 0 : (Number(specificOrder.total_amount) || 0) / 1.18 * 0.18),
+          taxPct: Number(specificOrder.tax_pct) || 18,
           orderType: specificOrder.order_type || null,
           paymentMethodName: receiptSettings?.paymentMethod || '',
         });
@@ -1003,8 +1008,8 @@ export default function POSPage() {
         paymentTime: paymentNow2.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
         staffName: receiptSettings2?.staffName || '',
         paymentMethodName: receiptSettings2?.paymentMethod || '',
-        taxAmount: activeOrders.reduce((s: number, o: any) => s + (Number(o.tax_amount) || 0), 0),
-        taxPct: Number(activeOrders[0]?.tax_pct) || 0,
+        taxAmount: activeOrders.reduce((s: number, o: any) => s + (Number(o.tax_amount) || 0), 0) || ((activeOrders[0]?.order_type === 'takeaway' || activeOrders[0]?.order_type === 'delivery') ? 0 : total / 1.18 * 0.18),
+        taxPct: Number(activeOrders[0]?.tax_pct) || 18,
         orderType: activeOrders[0]?.order_type || null,
       });
       setReceiptTendered(method === 'cash' ? tenderedAmount : undefined);
@@ -2660,11 +2665,12 @@ export default function POSPage() {
                } else {
                  await orderStateMachine.transition(actionSheetTable.id, 'cancelled');
                }
-             } else {
-               pos.dismissTable(actionSheetTable.table_number);
-               setActionSheetOpen(false);
-             }
-           }}
+              } else {
+                // QF3: dine-in "MASANI BOŞALT" on an occupied table is
+                // destructive (cancels the order) — manager-PIN gate first.
+                setClearPinTable({ num: actionSheetTable.table_number, mode: 'dismiss' });
+              }
+            }}
            onReleaseTable={async () => {
              if (!actionSheetTable) return;
              const res = await pos.releaseTable(actionSheetTable.table_number);
@@ -2709,7 +2715,7 @@ export default function POSPage() {
             onClearTable={() => {
               // QF3: open the manager-PIN gate first; the destructive clear
               // runs only after the PIN is verified server-side.
-              if (actionSheetTable) setClearPinTable(actionSheetTable.table_number);
+              if (actionSheetTable) setClearPinTable({ num: actionSheetTable.table_number, mode: 'clear' });
             }}
           posRole={posRole}
             groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
@@ -2909,15 +2915,16 @@ export default function POSPage() {
       <AnimatePresence>
         <ClearTablePinModal
           open={clearPinTable != null}
-          tableNumber={clearPinTable || 0}
+          tableNumber={clearPinTable?.num || 0}
           onClose={() => setClearPinTable(null)}
           onConfirm={(pin, reason) => {
-            const num = clearPinTable;
+            const gate = clearPinTable;
             setClearPinTable(null);
             setActionSheetOpen(false);
-            if (num != null) {
-              if (pos.selectedTable && pos.selectedTable.table_number === num) pos.resetCart();
-              pos.clearTable(num, { manager_pin: pin, reason });
+            if (gate) {
+              if (pos.selectedTable && pos.selectedTable.table_number === gate.num) pos.resetCart();
+              if (gate.mode === 'dismiss') pos.dismissTable(gate.num, { manager_pin: pin, reason, terminal_id: undefined });
+              else pos.clearTable(gate.num, { manager_pin: pin, reason });
             }
           }}
         />

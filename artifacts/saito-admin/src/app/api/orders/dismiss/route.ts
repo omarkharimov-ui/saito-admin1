@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/api-auth';
 import { validateCsrfToken } from '@/lib/csrf';
 import { paymentRateLimit } from '@/lib/rate-limit';
+import { verifyManagerPin } from '@/lib/managerPin';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -24,9 +25,22 @@ export async function POST(req: NextRequest) {
     const rateLimitResult = paymentRateLimit(req);
     if (rateLimitResult) return rateLimitResult;
 
-    const { table_number } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { table_number, manager_pin, reason, terminal_id } = body;
     if (!table_number) {
       return NextResponse.json({ error: 'Table number required' }, { status: 400 });
+    }
+
+    // QF3 (RED #2): the dine-in "MASANI BOŞALT" destructive path runs through
+    // dismiss_table_atomic — the UI PIN gate sends manager_pin here and it is
+    // verified. Takeaway/delivery cancels don't send a PIN and stay ungated
+    // (a normal cancel, not a destructive table wipe).
+    if (manager_pin) {
+      const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+      const pinCheck = await verifyManagerPin(String(manager_pin), ip);
+      if (!pinCheck.ok) {
+        return NextResponse.json({ error: pinCheck.error, pin_required: true }, { status: 403 });
+      }
     }
 
     const s = svc();
@@ -41,10 +55,10 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         p_token: auth.token,
         p_table_number: Number(table_number),
-        p_reason: 'dismiss_table',
+        p_reason: reason || 'dismiss_table',
         p_final_status: 'empty',
         p_performed_by: auth.user.id,
-        p_terminal_id: null,
+        p_terminal_id: terminal_id || null,
       }),
     });
 

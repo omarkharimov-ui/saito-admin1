@@ -786,12 +786,12 @@ export function usePos() {
     });
   };
 
-  const dismissTable = async (num: number) => {
+  const dismissTable = async (num: number, opts?: { manager_pin?: string; reason?: string; terminal_id?: string | null }) => {
     return withOperationLock(`dismiss_${num}`, async () => {
       const res = await apiFetch('/api/orders/dismiss', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_number: num }),
+        body: JSON.stringify({ table_number: num, manager_pin: opts?.manager_pin || null, reason: opts?.reason || null, terminal_id: opts?.terminal_id ?? null }),
       });
       if (res.ok) {
         const childNums: number[] = [];

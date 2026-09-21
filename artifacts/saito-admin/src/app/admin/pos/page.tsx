@@ -21,6 +21,7 @@ import TakeawayOrders from './components/TakeawayOrders';
 import DeliveryOrders from './components/DeliveryOrders';
 import { CashDrawerPanel } from './components/CashDrawerPanel';
 import { VirtualKeyboardProvider } from './components/VirtualKeyboard';
+import ClearTablePinModal from './components/ClearTablePinModal';
 import { OrderHistory } from './components/OrderHistory';
 import { FloorSkeleton, ProductGridSkeleton, CartSkeleton } from './components/PosSkeletons';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
@@ -50,6 +51,10 @@ interface PosReceipt {
   paymentTime?: string;
   staffName?: string;
   paymentMethodName?: string;
+  // QF4: VAT + order type for the receipt (takeaway/delivery have no table).
+  taxAmount?: number;
+  taxPct?: number;
+  orderType?: string | null;
 }
 
 export default function POSPage() {
@@ -193,6 +198,24 @@ export default function POSPage() {
   const [tableTapPulse, setTableTapPulse] = useState<{ tableNumber: number; nonce: number } | null>(null);
   const tableTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [walkInOpen, setWalkInOpen] = useState(false);
+  // QF3: MASANI BOŞALT is gated by a verified manager PIN (destructive op).
+  const [clearPinTable, setClearPinTable] = useState<number | null>(null);
+  // QF5: delivery zones (public data, RLS off) — zone picker + auto fee.
+  const [deliveryZones, setDeliveryZones] = useState<{ id: string; name: string; fee: number; free_delivery_threshold: number; estimated_minutes: number }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('delivery_zones')
+          .select('id, name, fee, free_delivery_threshold, estimated_minutes')
+          .eq('is_active', true)
+          .order('name');
+        if (!cancelled) setDeliveryZones((data || []) as any);
+      } catch { /* non-blocking: manual fee stays available */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [walkInTable, setWalkInTable] = useState('');
   const [walkInGuests, setWalkInGuests] = useState('1');
   const [walkInName, setWalkInName] = useState('');
@@ -854,6 +877,9 @@ export default function POSPage() {
           paymentDate: paymentNow.toLocaleDateString('az-AZ'),
           paymentTime: paymentNow.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
           staffName: receiptSettings?.staffName || '',
+          taxAmount: Number(specificOrder.tax_amount) || 0,
+          taxPct: Number(specificOrder.tax_pct) || 0,
+          orderType: specificOrder.order_type || null,
           paymentMethodName: receiptSettings?.paymentMethod || '',
         });
         setReceiptTendered(method === 'cash' ? tenderedAmount : undefined);
@@ -977,6 +1003,9 @@ export default function POSPage() {
         paymentTime: paymentNow2.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
         staffName: receiptSettings2?.staffName || '',
         paymentMethodName: receiptSettings2?.paymentMethod || '',
+        taxAmount: activeOrders.reduce((s: number, o: any) => s + (Number(o.tax_amount) || 0), 0),
+        taxPct: Number(activeOrders[0]?.tax_pct) || 0,
+        orderType: activeOrders[0]?.order_type || null,
       });
       setReceiptTendered(method === 'cash' ? tenderedAmount : undefined);
 
@@ -1432,6 +1461,12 @@ export default function POSPage() {
         estimated_delivery_time: pos.cart?.estimated_delivery_time || undefined,
         payment_method: pos.cart?.payment_method || 'cash',
       }, posSession?.staffId);
+      // QF7: the TA/delivery list must not sit stale after a send — realtime
+      // + the 15s poll cover it, but refresh immediately (600ms) for UX.
+      window.setTimeout(() => {
+        if (posMode === 'takeaway') fetchTakeawayOrders();
+        if (posMode === 'delivery') fetchDeliveryOrders();
+      }, 600);
     } else {
       const autoCampaign = pos.getAutoCampaign(pos.cart);
       pos.placeOrder(autoCampaign ? { id: autoCampaign.id, type: 'AUTO' } : undefined, undefined, posSession?.staffId);
@@ -2377,14 +2412,58 @@ export default function POSPage() {
                                   rows={2}
                                   className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all resize-none ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                                 />
-                              </div>
-                            )}
+                               </div>
+                             )}
 
-                           <div className="grid grid-cols-2 gap-2">
-                             {posMode === 'delivery' && (
+                             {posMode === 'delivery' && deliveryZones.length > 0 && (
                                <div>
-                                  <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                    {t('delivery_fee')} (₼)
+                                 <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                   {t('delivery_zone')}
+                                 </label>
+                                 <select
+                                   value={pos.cart?.delivery_zone || ''}
+                                   onChange={async (e) => {
+                                     const zoneName = e.target.value;
+                                     if (!pos.cart) return;
+                                     const nextCart = { ...pos.cart, delivery_zone: zoneName || null };
+                                     const zone = deliveryZones.find(z => z.name === zoneName);
+                                     if (zone) {
+                                       // Auto-fee from the zone's free-delivery threshold (server RPC).
+                                       const itemsTotal = (pos.cart.items || []).reduce((s: number, i: any) => s + (i.unit_price || 0) * (i.quantity || 0), 0);
+                                       let fee = Number(zone.fee) || 0;
+                                       try {
+                                         const res = await apiFetch('/api/rpc/calculate_delivery_fee', {
+                                           method: 'POST',
+                                           headers: { 'Content-Type': 'application/json' },
+                                           body: JSON.stringify({ p_zone_name: zone.name, p_order_amount: itemsTotal, p_customer_address: pos.cart.delivery_address || null }),
+                                         });
+                                         if (res.ok) {
+                                           const data: any = await res.json();
+                                           fee = Number(typeof data === 'number' ? data : data?.fee ?? fee) || 0;
+                                         }
+                                       } catch { /* keep the zone's base fee */ }
+                                       pos.setCart({ ...nextCart, delivery_fee: fee });
+                                     } else {
+                                       pos.setCart({ ...nextCart, delivery_fee: 0 });
+                                     }
+                                   }}
+                                   className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
+                                 >
+                                   <option value="">{t('delivery_zone_none')}</option>
+                                   {deliveryZones.map(z => (
+                                     <option key={z.id} value={z.name}>
+                                       {z.name} · ₼{Number(z.fee).toFixed(0)} · {z.estimated_minutes} dəq{z.free_delivery_threshold > 0 ? ` (pulsuz ₼${Number(z.free_delivery_threshold).toFixed(0)}+)` : ''}
+                                     </option>
+                                   ))}
+                                 </select>
+                               </div>
+                             )}
+
+                            <div className="grid grid-cols-2 gap-2">
+                              {posMode === 'delivery' && (
+                                <div>
+                                   <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                     {t('delivery_fee')} (₼)
                                   </label>
                                  <input
                                    type="number"
@@ -2627,15 +2706,11 @@ export default function POSPage() {
             }}
           onBillRequest={handleBillRequest}
           onPrintBill={handlePrintBill}
-           onClearTable={() => { 
-             if (actionSheetTable) { 
-               pos.clearTable(actionSheetTable.table_number); 
-               if (pos.selectedTable && pos.selectedTable.table_number === actionSheetTable.table_number) {
-                 pos.resetCart();
-               }
-               setActionSheetOpen(false); 
-             } 
-           }}
+            onClearTable={() => {
+              // QF3: open the manager-PIN gate first; the destructive clear
+              // runs only after the PIN is verified server-side.
+              if (actionSheetTable) setClearPinTable(actionSheetTable.table_number);
+            }}
           posRole={posRole}
             groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
              customerId={pos.cart?.customer_id}
@@ -2753,19 +2828,24 @@ export default function POSPage() {
 
               {/* Inline receipt items */}
               <div className="px-3 pb-3">
-                <ReceiptPreview
-                  title={receiptView.receiptTitle || 'SİFARİŞ ÇEKİ'}
-                  tableNumber={receiptView.tableNumber}
-                  items={receiptView.items}
-                  showServiceFee={false}
-                  serviceFeePct={0}
-                  currency="₼"
-                  discountAmount={receiptView.discount}
-                  campaignName={receiptView.discountName || undefined}
-                  transparent
-                  date={receiptView.paymentDate}
-                  time={receiptView.paymentTime}
-                />
+                 <ReceiptPreview
+                   title={receiptView.receiptTitle || 'SİFARİŞ ÇEKİ'}
+                   tableNumber={receiptView.tableNumber}
+                   items={receiptView.items}
+                   showServiceFee={false}
+                   serviceFeePct={0}
+                   currency="₼"
+                   discountAmount={receiptView.discount}
+                   campaignName={receiptView.discountName || undefined}
+                   transparent
+                   date={receiptView.paymentDate}
+                   time={receiptView.paymentTime}
+                   vatAmount={receiptView.taxAmount ?? null}
+                   vatPct={receiptView.taxPct ?? 0}
+                   paymentMethodLabel={receiptView.paymentMethodName || (receiptView.paymentMethod === 'cash' ? 'Nağd' : receiptView.paymentMethod === 'card' ? 'Kart' : receiptView.paymentMethod === 'gift_card' ? 'Hediye Kartı' : receiptView.paymentMethod === 'split' ? 'Bölünmüş' : receiptView.paymentMethod || undefined)}
+                   orderTypeLabel={receiptView.orderType === 'takeaway' ? 'Gel-Al' : receiptView.orderType === 'delivery' ? 'Çatdırılma' : undefined}
+                   orderRef={receiptView.orderType && receiptView.orderType !== 'dine_in' && receiptView.orderId && !receiptView.orderId.includes(',') ? `#${String(receiptView.orderId).slice(-8)}` : undefined}
+                 />
               </div>
 
               {/* Cash tendered + change */}
@@ -2827,6 +2907,21 @@ export default function POSPage() {
 
       {/* Walk-In Modal */}
       <AnimatePresence>
+        <ClearTablePinModal
+          open={clearPinTable != null}
+          tableNumber={clearPinTable || 0}
+          onClose={() => setClearPinTable(null)}
+          onConfirm={(pin, reason) => {
+            const num = clearPinTable;
+            setClearPinTable(null);
+            setActionSheetOpen(false);
+            if (num != null) {
+              if (pos.selectedTable && pos.selectedTable.table_number === num) pos.resetCart();
+              pos.clearTable(num, { manager_pin: pin, reason });
+            }
+          }}
+        />
+
         {walkInOpen && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -2859,17 +2954,22 @@ export default function POSPage() {
                   </div>
                 </div>
                 <div>
-                  <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('customer_name')}</label>
+                   <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('customer_name')} *</label>
                    <input type="text" value={walkInName} onChange={e => setWalkInName(e.target.value)} placeholder={t('customer_name_placeholder')}
                      className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
                    />
                 </div>
                 <div>
-                  <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('customer_phone')}</label>
-                  <input type="tel" value={walkInPhone} onChange={e => setWalkInPhone(e.target.value)} placeholder={t('phone_placeholder')}
-                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
-                  />
-                </div>
+                   <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('customer_phone')} *</label>
+                   <input type="tel" value={walkInPhone} onChange={e => setWalkInPhone(e.target.value)} placeholder={t('phone_placeholder')}
+                      className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
+                   />
+                 </div>
+                 {/* QF6: client validation — name/phone are NOT NULL in the DB;
+                     fail friendly here, never with a raw PG constraint error. */}
+                 {(walkInName.trim().length < 2 || !/^\+?\d[\d\s-]{6,}$/.test(walkInPhone.trim())) && (
+                   <p className="text-[11px] font-bold text-rose-500 -mt-1">{t('walk_in_name_phone_required')}</p>
+                 )}
                 <div>
                   <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('notes')}</label>
                   <textarea value={walkInNotes} onChange={e => setWalkInNotes(e.target.value)} placeholder={t('note_placeholder')}
@@ -2907,23 +3007,25 @@ export default function POSPage() {
                 <button onClick={() => { setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes(''); setWalkInPreOrder(false); setWalkInScheduledDate(''); setWalkInScheduledTime(''); }} className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-wider border ${lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
                   {t('cancel')}
                 </button>
-                <button
-                  onClick={async () => {
-                    const tableNum = Number(walkInTable);
-                    const guests = Number(walkInGuests) || 1;
-                    if (!tableNum) return;
-                    try {
-                      const res = await apiFetch('/api/reservations/walk-in', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ table_number: tableNum, guests, name: walkInName || null, phone: walkInPhone || null, order_type: 'dine_in', notes: walkInNotes || null, pre_order: walkInPreOrder, scheduled_date: walkInPreOrder ? walkInScheduledDate : null, scheduled_time: walkInPreOrder ? walkInScheduledTime : null }),
-                      });
-                      if (res.ok) { toast.success(t('walk_in_created')); pos.fetchData(); }
-                      else { const err = await res.json(); toast.error(err.error || t('walk_in_failed')); }
-                    } catch { toast.error(t('error')); }
-                    setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes(''); setWalkInPreOrder(false); setWalkInScheduledDate(''); setWalkInScheduledTime('');
-                  }}
-                  disabled={!walkInTable || Number(walkInTable) < 1}
+                 <button
+                   onClick={async () => {
+                     const tableNum = Number(walkInTable);
+                     const guests = Number(walkInGuests) || 1;
+                     const nameOk = walkInName.trim().length >= 2;
+                     const phoneOk = /^\+?\d[\d\s-]{6,}$/.test(walkInPhone.trim());
+                     if (!tableNum || !nameOk || !phoneOk) return;
+                     try {
+                       const res = await apiFetch('/api/reservations/walk-in', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({ table_number: tableNum, guests, name: walkInName.trim(), phone: walkInPhone.trim(), order_type: 'dine_in', notes: walkInNotes || null, pre_order: walkInPreOrder, scheduled_date: walkInPreOrder ? walkInScheduledDate : null, scheduled_time: walkInPreOrder ? walkInScheduledTime : null }),
+                       });
+                       if (res.ok) { toast.success(t('walk_in_created')); pos.fetchData(); }
+                       else { const err = await res.json(); toast.error(err.error || t('walk_in_failed')); }
+                     } catch { toast.error(t('error')); }
+                     setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes(''); setWalkInPreOrder(false); setWalkInScheduledDate(''); setWalkInScheduledTime('');
+                   }}
+                   disabled={!walkInTable || Number(walkInTable) < 1 || walkInName.trim().length < 2 || !/^\+?\d[\d\s-]{6,}$/.test(walkInPhone.trim())}
                   className="flex-1 py-4 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-wider hover:bg-amber-600 transition-all active:scale-95 disabled:opacity-30 shadow-lg shadow-amber-500/20"
                 >
                   {t('confirm')}

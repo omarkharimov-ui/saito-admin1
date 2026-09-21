@@ -81,14 +81,23 @@ export async function GET(request: Request) {
     // location's orders — order_items has no own location_id; RLS is bypassed
     // by the service role, so we scope explicitly to 0 cross-location leakage).
     const ordersQuery = `${svc().url}/rest/v1/orders?select=*,campaigns(name),order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc&${orderFilters.join('&')}`;
-    const [ordersRes, tablesRes, settingsRes] = await Promise.all([
+    const fetchTrio = () => Promise.all([
       fetch(ordersQuery, { headers: svc().headers }),
       fetch(`${svc().url}/rest/v1/table_floors?select=table_number,status,reservation_name,reservation_time&location_id=eq.${encodeURIComponent(sessLoc)}`, { headers: svc().headers }),
       fetch(`${svc().url}/rest/v1/settings?select=qr_table_count,opening_hours&limit=1`, { headers: svc().headers }),
     ]);
 
+    let [ordersRes, tablesRes, settingsRes] = await fetchTrio();
     if (!ordersRes.ok || !tablesRes.ok || !settingsRes.ok) {
-      console.error('[API /orders] Fetch error');
+      // QF9: intermittent first-load 500 — a cold pooler connection can make
+      // one of the three PostgREST calls flake; retry once before failing.
+      await new Promise(r => setTimeout(r, 250));
+      [ordersRes, tablesRes, settingsRes] = await fetchTrio();
+    }
+    if (!ordersRes.ok || !tablesRes.ok || !settingsRes.ok) {
+      console.error('[API /orders] Fetch error (after retry)', {
+        orders: ordersRes.status, tables: tablesRes.status, settings: settingsRes.status,
+      });
       return NextResponse.json({ error: 'Data fetch failed' }, { status: 500 });
     }
 

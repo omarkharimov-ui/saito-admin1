@@ -23,6 +23,13 @@ interface ReceiptPreviewProps {
   discountAmount?: number;
   campaignName?: string;
   transparent?: boolean;
+  // QF4 (RED #3): VAT line, payment-method label, and order-type-aware header
+  // (takeaway/delivery have no table — printing "Masa: <uuid>" was wrong).
+  vatAmount?: number | null;
+  vatPct?: number;
+  paymentMethodLabel?: string;
+  orderTypeLabel?: string;
+  orderRef?: string;
 }
 
 export default function ReceiptPreview({
@@ -39,6 +46,11 @@ export default function ReceiptPreview({
   discountAmount = 0,
   campaignName,
   transparent = false,
+  vatAmount = null,
+  vatPct = 0,
+  paymentMethodLabel,
+  orderTypeLabel,
+  orderRef,
 }: ReceiptPreviewProps) {
   const subtotal = items.reduce((sum, i) => sum + i.total_price, 0);
   const serviceFee = showServiceFee ? subtotal * (serviceFeePct / 100) : 0;
@@ -64,7 +76,11 @@ export default function ReceiptPreview({
       <div style={{ borderTop: '1px dashed #999', margin: '6px 0' }} />
 
       <div style={{ fontSize: transparent ? 11 : 10, marginBottom: 2 }}>
-        <span>Masa: </span><span style={{ fontWeight: 700 }}>{tableNumber}</span>
+        {orderTypeLabel ? (
+          <><span>Sifariş növü: </span><span style={{ fontWeight: 700 }}>{orderTypeLabel}{orderRef ? ` · ${orderRef}` : ''}</span></>
+        ) : (
+          <><span>Masa: </span><span style={{ fontWeight: 700 }}>{tableNumber}</span></>
+        )}
       </div>
       <div style={{ fontSize: transparent ? 11 : 10, marginBottom: 6 }}>
         {displayDate}&nbsp;&nbsp;&nbsp;{displayTime}
@@ -103,10 +119,24 @@ export default function ReceiptPreview({
         </div>
       )}
 
+      {(vatAmount ?? 0) > 0 && (
+        <div style={{ display: 'flex', fontSize: transparent ? 11 : 10, marginBottom: 4 }}>
+          <span style={{ flex: 1 }}>DVQ ({vatPct}%)</span>
+          <span style={{ width: transparent ? 64 : 48, textAlign: 'right' }}>{Number(vatAmount).toFixed(2)}</span>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: transparent ? 20 : 18, marginTop: 4 }}>
         <b>YEKUN:</b>
         <b>{total.toFixed(2)}&nbsp;{currency}</b>
       </div>
+
+      {paymentMethodLabel && (
+        <div style={{ display: 'flex', fontSize: transparent ? 11 : 10, marginTop: 2 }}>
+          <span style={{ flex: 1 }}>Ödəniş</span>
+          <span style={{ width: transparent ? 64 : 48, textAlign: 'right', fontWeight: 600 }}>{paymentMethodLabel}</span>
+        </div>
+      )}
 
       {footerText && (
         <div style={{ textAlign: 'center', fontSize: transparent ? 10 : 9, color: '#555', lineHeight: 1.5, marginTop: 4 }}>{footerText}</div>

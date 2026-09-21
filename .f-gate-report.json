@@ -1,6 +1,6 @@
 {
-  "startTotal": 105,
-  "endTotal": 105,
+  "startTotal": 107,
+  "endTotal": 107,
   "results": [
     {
       "id": "M1",
@@ -51,6 +51,12 @@
       "evidence": "ERROR:  TABLE_ARCHIVED: cannot create an order for archived table 104\nCONTEXT:  "
     },
     {
+      "id": "M8b",
+      "name": "/api/pos/tables exposes is_archived=true on archived table 104",
+      "pass": true,
+      "evidence": "status=200 t104={\"is_archived\":true,\"status\":\"empty\"}"
+    },
+    {
       "id": "M9",
       "name": "hard DELETE = BLOCKED (TABLE_ARCHIVE_ONLY)",
       "pass": true,
@@ -84,7 +90,7 @@
       "id": "F10-3",
       "name": "undo-merge outbox event exists (count increased)",
       "pass": true,
-      "evidence": "outbox table.*: 4907 -> 4915"
+      "evidence": "outbox table.*: 5291 -> 5299"
     },
     {
       "id": "F10-4",
@@ -198,7 +204,7 @@
       "id": "Z3",
       "name": "production table count restored to baseline",
       "pass": true,
-      "evidence": "baseline=105 end=105"
+      "evidence": "baseline=107 end=107"
     },
     {
       "id": "Z4",
@@ -210,7 +216,7 @@
       "id": "Z5",
       "name": "table 1 production row untouched (status = baseline)",
       "pass": true,
-      "evidence": "baseline=empty"
+      "evidence": "baseline=occupied"
     }
   ]
 }

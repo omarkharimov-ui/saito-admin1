@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { requireActiveShift } from '@/lib/shiftLock';
+import { shiftGate } from '@/lib/shiftLock';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -13,12 +13,12 @@ export async function POST(request: NextRequest) {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
-    const shiftCheck = await requireActiveShift();
+    const body = await request.json().catch(() => ({}));
+    const shiftCheck = await shiftGate(request, body);
     if (!shiftCheck.ok) {
-      return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
+      return NextResponse.json({ error: shiftCheck.error, pin_required: !!shiftCheck.pin_required }, { status: 403 });
     }
 
-    const body = await request.json();
     const { order_id, status, courier_id, courier_name, tracking_number, terminal_id } = body;
     if (!order_id || !status) {
       return NextResponse.json({ error: 'order_id and status are required' }, { status: 400 });

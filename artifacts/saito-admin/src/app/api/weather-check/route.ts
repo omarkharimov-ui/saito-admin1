@@ -14,7 +14,9 @@ export async function GET(req: NextRequest) {
     const apiKey = process.env.OPENWEATHER_API_KEY || process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
     
     if (!apiKey) {
-      return NextResponse.json({ error: 'API key missing' }, { status: 500 });
+      // QF9: missing API key is a config state, not a server error — 200 +
+      // disabled flag so the UI degrades quietly instead of 500ing per page.
+      return NextResponse.json({ disabled: true, city });
     }
     
     const res = await fetch(

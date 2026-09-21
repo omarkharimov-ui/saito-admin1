@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createAuthClient } from '@/lib/api-auth';
-import { requireActiveShift } from '@/lib/shiftLock';
+import { shiftGate } from '@/lib/shiftLock';
 import { requireKdsAction } from '@/lib/kds-guard';
 
 /**
@@ -14,10 +14,11 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
-    const shiftCheck = await requireActiveShift();
-    if (!shiftCheck.ok) return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
+    const body = await req.json().catch(() => ({}));
+    const shiftCheck = await shiftGate(req, body);
+    if (!shiftCheck.ok) return NextResponse.json({ error: shiftCheck.error, pin_required: !!shiftCheck.pin_required }, { status: 403 });
 
-    const { action, order_item_id, reason, terminal_id } = await req.json();
+    const { action, order_item_id, reason, terminal_id } = body;
     if (!action || !order_item_id) return NextResponse.json({ error: 'action and order_item_id required' }, { status: 400 });
     if (!['void', 'comp', 'waste'].includes(action)) return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 

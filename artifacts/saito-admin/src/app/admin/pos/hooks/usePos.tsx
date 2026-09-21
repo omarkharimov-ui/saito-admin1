@@ -810,12 +810,12 @@ export function usePos() {
     });
   };
 
-  const clearTable = async (num: number) => {
+  const clearTable = async (num: number, opts?: { manager_pin?: string; reason?: string }) => {
     return withOperationLock(`clear_${num}`, async () => {
       const res = await apiFetch('/api/orders/clear-table', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_number: num, terminal_id: terminalId }),
+        body: JSON.stringify({ table_number: num, terminal_id: terminalId, manager_pin: opts?.manager_pin || null, reason: opts?.reason || null }),
       });
       if (res.ok) {
         markTableEmptyLocal([num]);

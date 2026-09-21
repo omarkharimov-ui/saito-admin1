@@ -317,6 +317,11 @@ export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit, c
                 width={302}
                 discountAmount={discountAmount}
                 campaignName={campaign?.name}
+                vatAmount={Number((order as any).tax_amount) || 0}
+                vatPct={Number((order as any).tax_pct) || 0}
+                paymentMethodLabel={(order as any).payment_method === 'cash' ? 'Nağd' : (order as any).payment_method === 'card' ? 'Kart' : (order as any).payment_method || undefined}
+                orderTypeLabel={(order as any).order_type === 'takeaway' ? 'Gel-Al' : (order as any).order_type === 'delivery' ? 'Çatdırılma' : undefined}
+                orderRef={(order as any).order_type && (order as any).order_type !== 'dine_in' && (order as any).id ? `#${String((order as any).id).slice(-8)}` : undefined}
               />
             )}
           </div>

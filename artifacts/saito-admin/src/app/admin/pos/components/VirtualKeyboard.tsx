@@ -191,6 +191,21 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('focusin', onFocusIn, true);
   }, [close]);
 
+  // QF (yellow #2): no full-screen backdrop — it sat ABOVE modals (z-998 >
+  // z-125) and swallowed their clicks (gift-card confirm blocked once).
+  // Auto-close when focus leaves inputs/textarea entirely (button clicks
+  // already close via the focusin 'none' branch).
+  useEffect(() => {
+    const onFocusOut = () => {
+      requestAnimationFrame(() => {
+        const a = document.activeElement;
+        if (!a || (a !== document.body && !a.classList.contains('vk-active') && !(a instanceof HTMLInputElement) && !(a instanceof HTMLTextAreaElement))) setActiveEl(null);
+      });
+    };
+    document.addEventListener('focusout', onFocusOut);
+    return () => document.removeEventListener('focusout', onFocusOut);
+  }, []);
+
   useEffect(() => {
     highlightRef.current?.classList.remove('vk-active');
     if (activeEl) {
@@ -291,19 +306,6 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
     <VirtualKeyboardContext.Provider value={{ close, isOpen: !!activeEl, mode, height }}>
       {children}
       <style>{'.vk-active { box-shadow: 0 0 0 2px rgba(245,158,11,0.9) !important; }'}</style>
-      <AnimatePresence>
-        {activeEl && (
-          <motion.div
-            key="vk-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={fastExit}
-            className="fixed inset-0 z-[998] bg-black/40"
-            onPointerDown={close}
-          />
-        )}
-      </AnimatePresence>
       <AnimatePresence>
         {keyboard && (
           <motion.div

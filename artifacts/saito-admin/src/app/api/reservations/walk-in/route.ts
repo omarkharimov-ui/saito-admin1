@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { requireActiveShift } from '@/lib/shiftLock';
+import { shiftGate } from '@/lib/shiftLock';
 import { resolveWriteLocationContext } from '@/lib/location-context';
 
 function svc() {
@@ -15,12 +15,13 @@ export async function POST(request: NextRequest) {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
-    const shiftCheck = await requireActiveShift();
+    const body = await request.json().catch(() => ({}));
+    const shiftCheck = await shiftGate(request, body);
     if (!shiftCheck.ok) {
-      return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
+      return NextResponse.json({ error: shiftCheck.error, pin_required: !!shiftCheck.pin_required }, { status: 403 });
     }
 
-    const { table_number, guests, name, phone, order_type, notes, pre_order, scheduled_date, scheduled_time } = await request.json();
+    const { table_number, guests, name, phone, order_type, notes, pre_order, scheduled_date, scheduled_time } = body;
     if (!table_number) {
       return NextResponse.json({ error: 'table_number is required' }, { status: 400 });
     }

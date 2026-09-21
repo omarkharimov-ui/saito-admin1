@@ -368,15 +368,18 @@ export function ActionSheet({
                               : isOccupied ? (
                                   <span className="flex flex-col items-center gap-1">
                                     <span>{table?.guest_count} {t('guests')} · ₼{(table?.total_amount || 0).toFixed(2)}</span>
-                                    {(table?.total_amount ?? 0) > 0 && (
-                                      <span className={`font-semibold ${
-                                        table?.status === 'paid' || table?.status === 'cleaning'
-                                          ? 'text-green-400'
-                                          : 'text-amber-400'
-                                      }`}>
-                                        {table?.status === 'paid' || table?.status === 'cleaning' ? `✓ ${t('paid' as any)}` : t('unpaid' as any)}
-                                      </span>
-                                    )}
+                                    {(table?.total_amount ?? 0) > 0 && (() => {
+                                       // QF (yellow #8): a refunded table must not read
+                                       // "Ödənilməyib" — the table status flips off 'paid'
+                                       // after refund, but the order says it was settled.
+                                       const refunded = ((table as any)?.orders || []).some((o: any) => o?.status === 'refunded' || o?.status === 'partially_refunded');
+                                       const paid = table?.status === 'paid' || table?.status === 'cleaning';
+                                       const color = paid || refunded ? 'text-green-400' : 'text-amber-400';
+                                       const label = paid ? `✓ ${t('paid' as any)}` : refunded ? `✓ ${t('refunded' as any)}` : t('unpaid' as any);
+                                       return (
+                                         <span className={`font-semibold ${color}`}>{label}</span>
+                                       );
+                                     })()}
                                   </span>
                                 ) : t('empty_table')
                         }

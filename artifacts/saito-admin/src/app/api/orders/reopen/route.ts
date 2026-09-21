@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { requireAuth, requirePermission } from '@/lib/api-auth';
-import { requireActiveShift } from '@/lib/shiftLock';
+import { shiftGate } from '@/lib/shiftLock';
 
 // P-6 D-1 (ratified 2026-09-13): reopen is a FULL financial reversal (the RPC
 // DELETEs every order_payments row). The route now requires `orders.edit`; the
@@ -27,12 +27,13 @@ export async function POST(req: NextRequest) {
     const perm = await requirePermission('orders.edit');
     if (perm instanceof NextResponse) return perm;
 
-    const shiftCheck = await requireActiveShift();
+    const body = await req.json().catch(() => ({}));
+    const shiftCheck = await shiftGate(req, body);
     if (!shiftCheck.ok) {
-      return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
+      return NextResponse.json({ error: shiftCheck.error, pin_required: !!shiftCheck.pin_required }, { status: 403 });
     }
 
-    const { order_id, terminal_id } = await req.json();
+    const { order_id, terminal_id } = body;
     if (!order_id) {
       return NextResponse.json({ error: 'order_id required' }, { status: 400 });
     }

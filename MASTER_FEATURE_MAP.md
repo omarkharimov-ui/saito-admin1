@@ -409,6 +409,7 @@ Suggested modifier, recommended item, combo upsell, cross-sell, AI recommendatio
 |---|---|---|---|
 | Campaign-based upsell (best cart campaign) | 🟡 | `get_best_cart_campaign` | POS-də "recommend" UI bloku yox |
 | AI recommendation (Sensei) | ✅ | `ai_cache`, `popular_queries`, Sensei routes | `/api/sensei/*`, `recipes/ai-suggest` |
+| **Predictive upsell engine (staff)** | ✅ **v2 (09-21, `8732fdc2`)** | `upsell_offers` + `suggest_addons_v2` (per-order budget 2 shown/1 accepted, dismiss cooldown 120s, 2.5× price-jump, ≥15% evidence, offer types complement/beverage/generic) | `/api/upsell/suggest` + `/api/upsell/outcome` (gate 36/36, E2E 2 rənd); **UI = PARKED P-3** (A: predictive bar / B: menyu ✦ — user co-design); upgrade+addon tipləri staged (variant/modifier pairing data lazımdır) |
 
 ---
 
@@ -609,6 +610,8 @@ Menu, ordering, pickup, delivery, reservations, loyalty.
 
 ### 31. KIOSK
 Self order, upsell, payment, loyalty. → **❌ YOX** — Addım 3.
+> **PARKED (user, 2026-09-21):** "mənə hələ lazım deyil" — kiosk + customer-facing upsell birlikdə açılacaq (upsell kiosk-da qonağa baxan formada).
+> Hardware araşdırması (09-21): portrait 15.6–21.5" (9:16) = QSR standartı; countertop/wall-mount/in-car/mobile digər form faktorlar; responsive layout.
 
 ### 32. MOBILE / APP
 Capacitor plugin-ləri `artifacts/saito-admin/package.json`-da var (@capacitor/android+ios) → **⚪ STUB**. Wave A/C.
@@ -756,7 +759,7 @@ menecerin ☐ siyahısından əvvəlcədən gedir — bunlar yeni iş deyil, qor
 ### Wave B — "Guest channels" (Addım 2-in son yarısı)
 1. **Online ordering (customer UI)**: pickup/delivery, phone-dan sifariş, loyalty bağlantısı
 2. **Kiosk** (self-order, upsell, payment, loyalty)
-3. **Upsell UI** (get_best_cart_campaign → POS/QR-da recommend bloku)
+3. **Upsell UI** — **engine v2 BİTİB (09-21, `8732fdc2`)**: `upsell_offers` + `suggest_addons_v2` + `/api/upsell/suggest|outcome` (gate 36/36). UI forması = PARKED P-3 (user co-design: predictive bar / menyu ✦); kiosk customer-facing upsell = PARKED P-2. `get_best_cart_campaign` bloku ayrıca
 4. **Advanced analytics blokları** (retention, AOV, table revenue, delivery performance)
 5. **Batch/expiry tracking** (inventory-də sahələr + UI)
 

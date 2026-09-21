@@ -1188,7 +1188,20 @@ export default function POSPage() {
       if (selectedForMerge.includes(table.table_number)) {
         setSelectedForMerge(p => p.filter(n => n !== table.table_number));
       } else {
-        setSelectedForMerge(p => [...p, table.table_number]);
+        const next = [...selectedForMerge, table.table_number];
+        setSelectedForMerge(next);
+        if (next.length === 2) {
+          // QF1 (audit 2026-09-21): unify merge with the transfer flow — the
+          // moment the second table is tapped, open the sheet's confirm bar
+          // (parent = first tap). Previously the floor-tap merge showed a
+          // floating preview bar whose "Təsdiqlə" only opened the sheet, so
+          // merge took one extra confusing step and looked different from
+          // transfer (tap A → tap B → confirm). 3+ tables still use the
+          // floating bar below.
+          const parentTable = visibleTables?.find((t: any) => t.table_number === next[0]) || null;
+          setActionSheetTable(parentTable);
+          setActionSheetOpen(true);
+        }
       }
       return;
     }
@@ -1207,6 +1220,11 @@ export default function POSPage() {
       } else {
         setTransferTarget(table.table_number);
         setTransferConfirm(true);
+        // QF1: same pattern as merge — the confirm bar lives in the ActionSheet
+        // (currentView='transfer'); open it on the source table immediately.
+        const sourceTable = visibleTables?.find((t: any) => t.table_number === transferSource) || null;
+        setActionSheetTable(sourceTable);
+        setActionSheetOpen(true);
       }
       return;
     }
@@ -2069,7 +2087,9 @@ export default function POSPage() {
                   )}
  
                  {/* Merge Preview — Apple-style summary card */}
-                 {mergeMode && selectedForMerge.length >= 2 && (() => {
+                  {/* QF1: 2-table merge now auto-opens the sheet confirm bar;
+                      this floating bar remains only for the 3+ table case. */}
+                  {mergeMode && selectedForMerge.length >= 3 && (() => {
                    const mergeTables = selectedForMerge
                      .map(num => visibleTables?.find((t: any) => t.table_number === num) || { table_number: num, guest_count: 0, status: 'empty', total_amount: 0, kitchen_status: null })
                      .filter(Boolean);

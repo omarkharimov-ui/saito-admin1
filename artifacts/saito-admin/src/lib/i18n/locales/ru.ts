@@ -1395,6 +1395,12 @@ export const ru: TranslationMap = {
   change_short: 'Не хватает',
   takeaway_short: 'Вынос',
   delivery_short: 'Доставка',
+  editing_order: 'Редактирование заказа',
+  back_to_list: 'К списку',
+  zone_fee_hint: 'Комиссия выставляется автоматически по выбранной зоне',
+  auto: 'авто',
+  pin_required_hint: 'Для этого действия потребуется PIN-код администратора',
+  pin_length_hint: 'PIN-код администратора из 4–6 цифр',
   final_total: 'Итого',
 
   // Checkout

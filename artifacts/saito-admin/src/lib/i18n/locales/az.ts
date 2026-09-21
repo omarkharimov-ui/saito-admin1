@@ -1390,8 +1390,14 @@ export const az = {
   given: 'Verilən',
   change: 'Qalıq',
   change_short: 'Çatışmır',
-  takeaway_short: 'Gel-Al',
-  delivery_short: 'Çatdırılma',
+   takeaway_short: 'Gel-Al',
+   delivery_short: 'Çatdırılma',
+   editing_order: 'Mövcud sifariş redaktə olunur',
+   back_to_list: 'Siyahətə qayıt',
+   zone_fee_hint: 'Haqq seçilən zonaya görə avtomatik təyin olunur',
+   auto: 'avtomatik',
+   pin_required_hint: 'Bu əməliyyat üçün admin PIN tələb olunacaq',
+   pin_length_hint: '4–6 rəqəmli admin PIN',
 
   // Checkout
   pay_online: 'Online',

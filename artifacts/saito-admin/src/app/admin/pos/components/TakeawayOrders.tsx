@@ -63,7 +63,9 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
               const elapsed = order.created_at
                 ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)
                 : 0;
-              const elapsedText = elapsed < 1 ? '< 1 min' : elapsed < 60 ? `${elapsed} min` : `${Math.floor(elapsed / 60)}h ${elapsed % 60}m`;
+              // QA bug 4 (2026-09-22): hours unbounded → "679h 15m", "1200h".
+              // Now: <1h minutes, <24h hours, beyond → days.
+              const elapsedText = elapsed < 1 ? '< 1 min' : elapsed < 60 ? `${elapsed} min` : elapsed < 1440 ? `${Math.floor(elapsed / 60)}h ${elapsed % 60}m` : `${Math.floor(elapsed / 1440)}d`;
 
               return (
                 <div
@@ -99,23 +101,22 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                         </span>
                       )}
 
+                  {/* QA bug 5 (2026-09-22): missing name/phone rows vanished,
+                      so cards looked broken/shifted. Always render both rows,
+                      with a "—" placeholder when the data is absent. */}
                   <div className="absolute top-[68px] left-5 right-5 flex flex-col gap-1">
-                    {order.customer_name && (
-                      <div className="flex items-center gap-1.5">
-                        <User size={11} className="text-emerald-400" />
-                        <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                          {order.customer_name}
-                        </span>
-                      </div>
-                    )}
-                    {order.customer_phone && (
-                      <div className="flex items-center gap-1.5">
-                        <Phone size={11} className="text-emerald-400" />
-                        <span className={`text-xs font-bold tabular-nums ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                          {order.customer_phone}
-                        </span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      <User size={11} className="text-emerald-400" />
+                      <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                        {order.customer_name || '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Phone size={11} className="text-emerald-400" />
+                      <span className={`text-xs font-bold tabular-nums ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                        {order.customer_phone || '—'}
+                      </span>
+                    </div>
                   </div>
 
                    <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">

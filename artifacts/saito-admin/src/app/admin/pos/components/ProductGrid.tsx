@@ -323,7 +323,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const variantUnitPrice = selectedVariantObj
     ? Number(selectedVariantObj.discount_price != null && selectedVariantObj.discount_price !== '' ? selectedVariantObj.discount_price : (selectedVariantObj.price ?? 0))
     : null;
-  const baseUnitPrice = Number(expandedItem?.effective_price?.effective_price ?? expandedItem?.price ?? 0);
+  const baseUnitPrice = Number(expandedItem?.effective_price?.effective_price ?? expandedItem?.effective_price ?? expandedItem?.price ?? 0);
   // Single source of truth: must match addToCart's unit-price math (variant
   // base minus campaign amount; the no-variant path already uses
   // effective_price with the campaign baked in) so the modal total and the
@@ -566,8 +566,13 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                               <p className={`text-sm font-black ${cardPrice}`}>₼ {item.effective_price.effective_price.toFixed(2)}</p>
                               <p className={`text-xs font-bold line-through ${compactPriceLine}`}>₼ {item.effective_price.base_price.toFixed(2)}</p>
                             </>
-                          ) : (
-                            <p className={`text-sm font-black ${cardPrice}`}>₼ {(item.effective_price?.effective_price ?? item.price)?.toFixed(2)}</p>
+                           ) : (
+                            /* QA bug 6 (2026-09-22): hardened fallback chain —
+                               the API always returns an effective_price OBJECT,
+                               but any partial/stale shape (number, null) used
+                               to render an empty price. Number() guard makes a
+                               blank price impossible when ANY price source exists. */
+                            <p className={`text-sm font-black ${cardPrice}`}>₼ {Number(item.effective_price?.effective_price ?? item.effective_price ?? item.price ?? 0).toFixed(2)}</p>
                           )}
                         </div>
                          <div className="flex items-center gap-1.5 min-w-0">
@@ -609,11 +614,15 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
               layoutId={`product-card-${expandedItem.id}`}
               transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
               exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              // QA bug 1 (2026-09-22): bounded flex column — the card used to be
+              // header + max-h-[55vh] body + footer in unbounded flow, so on shorter
+              // screens the footer button overlapped the QEYD input by ~14px. Now:
+              // card ≤ 92vh, body scrolls internally, footer stays visible.
               onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-[820px] rounded-4xl border shadow-elevated overflow-hidden ${expandedBg}`}
-            >
-              {/* Header: görsəl · ad · qiymət · allergenlər */}
-              <div className={`flex items-start justify-between gap-4 p-5 pb-4 border-b ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
+               className={`w-full max-w-[820px] max-h-[92vh] flex flex-col rounded-4xl border shadow-elevated overflow-hidden ${expandedBg}`}
+             >
+               {/* Header: görsəl · ad · qiymət · allergenlər */}
+               <div className={`flex-shrink-0 items-start justify-between gap-4 p-5 pb-4 border-b ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
                 <div className="flex items-center gap-4 min-w-0">
                   <div className={`w-[72px] h-[72px] rounded-3xl overflow-hidden shrink-0 ${lightMode ? 'bg-zinc-100' : 'bg-white/10'}`}>
                     {expandedItem.image_url && !failedImages.has(expandedItem.image_url) ? (
@@ -674,8 +683,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 </motion.button>
               </div>
 
-              {/* Body: miqdar · variantlar · modifikatorlar · qeyd */}
-              <div className="p-5 space-y-5 max-h-[55vh] overflow-y-auto">
+               {/* Body: miqdar · variantlar · modifikatorlar · qeyd —
+                   flex-1 + min-h-0: scroll region is bounded by the card's
+                   92vh cap (footer can never overlap it). */}
+               <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto">
                 {/* Miqdar */}
                 <div>
                   <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Miqdar:</span>
@@ -861,8 +872,8 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 </div>
               </div>
 
-              {/* Footer: ƏLAVƏ ET */}
-              <div className="p-5 pt-0">
+               {/* Footer: ƏLAVƏ ET — sticky (flex-shrink-0) */}
+               <div className="p-5 pt-0 flex-shrink-0">
                 <motion.button onClick={handleModalAdd}
                   whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} transition={SPRING}
                   className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider shadow-lg hover:brightness-105"

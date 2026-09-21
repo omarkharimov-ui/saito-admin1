@@ -335,7 +335,11 @@ export function DragTabSwitcher({ items, value, onChange, containerClassName, ac
         }}
       />
 
+      {/* QA bug 15 (2026-09-22): this sliding layer re-renders every label as a
+          visual mirror of the base buttons — the duplicated text was exposed to
+          the DOM/accessibility tree. It is pure decoration now. */}
       <motion.div
+        aria-hidden="true"
         className="absolute rounded-full z-20 pointer-events-none"
         style={{
           left: pillX,

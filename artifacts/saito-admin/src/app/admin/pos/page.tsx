@@ -1252,6 +1252,10 @@ export default function POSPage() {
     if (!activeFloor?.tables) return [];
     return activeFloor.tables.filter((table: any) => {
       const isChild = table.parent_table_number && table.table_number !== table.parent_table_number;
+      // QA bug 10 (2026-09-22): 75+ archived test tables (1104–1605) cluttered
+      // the floor grid. Archived tables are immutable (DB trigger) and
+      // non-operational — hide them from the live floor entirely.
+      if (table.is_archived) return false;
       return !isChild;
     });
   }, [activeFloor?.tables]);
@@ -1874,14 +1878,16 @@ export default function POSPage() {
                 >
                 <AnimatePresence mode="wait" initial={false}>
                 {cleanMode ? (
-                  <motion.div
-                    key="clean-toolbar"
-                    initial={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
-                    transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-                    className="flex items-center justify-end gap-3 mb-6"
-                  >
+                   <motion.div
+                     key="clean-toolbar"
+                     initial={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
+                     animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                     exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
+                     transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+                     // QA bug 17 (2026-09-22): pinned header — flex-shrink-0 so
+                     // the toolbar can never be squeezed by the scroll region.
+                     className="flex-shrink-0 flex items-center justify-end gap-3 mb-6"
+                   >
                     <div className="flex items-center gap-2">
                      <button
                        onClick={() => router.push('/admin/reservations')}
@@ -1932,14 +1938,15 @@ export default function POSPage() {
                      </div>
                    </motion.div>
                 ) : (
-                  <motion.div
-                    key="normal-toolbar"
-                    initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    exit={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
-                    transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-                  >
-                    <div className="flex items-center justify-end gap-3 mb-6">
+                   <motion.div
+                     key="normal-toolbar"
+                     initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+                     animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                     exit={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+                     transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+                     className="flex-shrink-0"
+                   >
+                     <div className="flex items-center justify-end gap-3 mb-6">
                      <button
                        onClick={() => router.push('/admin/reservations')}
                        className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
@@ -2165,10 +2172,10 @@ export default function POSPage() {
                          key="merge-preview"
                          initial={{ opacity: 0, y: -8, scale: 0.96 }}
                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                         exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                         transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                         className="mb-4"
-                       >
+                          exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                          className="flex-shrink-0 mb-4"
+                        >
                            <div className={`flex items-center gap-3 px-4 py-3 rounded-4xl border shadow-lg ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
                              <Users size={16} className="text-[var(--theme-accent)] shrink-0" />
                              <div className="flex flex-col flex-1 min-w-0">
@@ -2394,12 +2401,37 @@ export default function POSPage() {
                             filterData={filterData}
                            />
                       </div>
-                      <div
-                         className="w-[440px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
-                        >
-                             {posMode !== 'dine_in' && (
-                             <div className="flex-shrink-0 overflow-y-auto min-h-0 max-h-[44%] px-4 pt-3 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10 overscroll-contain">
-                             <div className="grid grid-cols-2 gap-2">
+                       <div
+                          className="w-[440px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
+                         >
+                              {/* QA bug 3 (2026-09-22): when the cart is bound to an
+                                  EXISTING takeaway/delivery order, make the binding
+                                  EXPLICIT — the old flow let product taps silently
+                                  append to whatever order happened to be loaded. */}
+                              {posMode !== 'dine_in' && pos.cart?.order_id && (
+                              <div className="flex-shrink-0 px-4 pt-3">
+                                <div className={`flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border ${lightMode ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/30'}`}>
+                                  <div className="min-w-0">
+                                    <p className={`text-[10px] font-black uppercase tracking-widest ${lightMode ? 'text-blue-600' : 'text-blue-400'}`}>
+                                      {t('editing_order') || 'Mövcud sifariş redaktə olunur'}
+                                    </p>
+                                    <p className={`text-sm font-black truncate ${lightMode ? 'text-zinc-800' : 'text-white'}`}>
+                                      {(posMode === 'takeaway' ? t('takeaway_short') : t('delivery_short'))} #{editingOrder?.order_number || ''}
+                                      {(editingOrder?.customer_name || pos.cart?.customer_name) ? ` — ${editingOrder?.customer_name || pos.cart?.customer_name}` : ''}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => { pos.setCart(null); setEditingOrder(null); pos.setActiveView('floor'); }}
+                                    className={`flex-shrink-0 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${lightMode ? 'bg-white border border-blue-300 text-blue-600 hover:bg-blue-100' : 'bg-white/10 border border-blue-500/30 text-blue-300 hover:bg-white/15'}`}
+                                  >
+                                    {t('back_to_list') || 'Siyahətə'}
+                                  </button>
+                                </div>
+                              </div>
+                              )}
+                              {posMode !== 'dine_in' && (
+                              <div className="flex-shrink-0 overflow-y-auto min-h-0 max-h-[44%] px-4 pt-3 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10 overscroll-contain">
+                              <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                                   {t('customer_phone')} {posMode === 'delivery' ? '*' : ''}
@@ -2452,9 +2484,12 @@ export default function POSPage() {
 
                              {posMode === 'delivery' && deliveryZones.length > 0 && (
                                <div>
-                                 <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                   {t('delivery_zone')}
-                                 </label>
+                                  <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                    {t('delivery_zone')}
+                                  </label>
+                                  <p className={`text-[10px] font-semibold mb-1.5 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                                    {t('zone_fee_hint') || 'Haqq seçilən zonaya görə avtomatik təyin olunur'}
+                                  </p>
                                  <select
                                    value={pos.cart?.delivery_zone || ''}
                                    onChange={async (e) => {
@@ -2497,9 +2532,9 @@ export default function POSPage() {
                             <div className="grid grid-cols-2 gap-2">
                               {posMode === 'delivery' && (
                                 <div>
-                                   <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                     {t('delivery_fee')} (₼)
-                                  </label>
+                                    <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                      {t('delivery_fee')} (₼) <span className="normal-case tracking-normal opacity-60">· {t('auto') || 'avtomatik'}</span>
+                                   </label>
                                  <input
                                    type="number"
                                    step="0.01"

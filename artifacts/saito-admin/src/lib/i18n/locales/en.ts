@@ -1393,6 +1393,12 @@ export const en: TranslationMap = {
   change_short: 'Short',
   takeaway_short: 'Takeaway',
   delivery_short: 'Delivery',
+  editing_order: 'Editing existing order',
+  back_to_list: 'Back to list',
+  zone_fee_hint: 'Fee is set automatically from the selected zone',
+  auto: 'auto',
+  pin_required_hint: 'An admin PIN will be required for this action',
+  pin_length_hint: '4–6 digit admin PIN',
 
   // Checkout
   pay_online: 'Online',

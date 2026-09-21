@@ -34,6 +34,10 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    // QA bug 7 (2026-09-22): reset to the start when the category list changes
+    // (floor/mode remounts) — stale scroll positions left the first pill
+    // clipped mid-word at the left edge ("AMISI", "QARA K…").
+    el.scrollLeft = 0;
     checkScroll();
     el.addEventListener('scroll', checkScroll, { passive: true });
     return () => el.removeEventListener('scroll', checkScroll);
@@ -53,7 +57,7 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
   }, [activeId, items]);
   
   return (
-    <div className={`relative flex items-center overflow-x-auto scrollbar-none no-scrollbar select-none py-2 px-3 rounded-full ${
+    <div ref={containerRef} className={`relative overflow-x-auto scrollbar-none no-scrollbar select-none py-2 rounded-full ${
       lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'
     }`}>
       {showLeftFade && (
@@ -64,6 +68,7 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
         <div className="absolute right-0 top-0 bottom-0 w-8 z-20 pointer-events-none rounded-r-full"
           style={{ background: `linear-gradient(to left, ${lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.05)'}, transparent)` }} />
       )}
+      <div className="flex items-center px-1.5">
       {items.map((item, idx) => {
         const isActive = activeId === item.id;
         
@@ -96,6 +101,7 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
           </motion.button>
         );
       })}
+      </div>
     </div>
   );
 }

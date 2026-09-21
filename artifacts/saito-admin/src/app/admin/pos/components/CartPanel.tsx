@@ -932,7 +932,24 @@ export function CartPanel({
         {/* Items — void mode indicator: a thin rose strip on top (owner 2026-09-21:
             the FULL background tint was too aggressive — strip + the inverted
             VOID toggle button are the signals). */}
-        <div className="flex-1 py-3 relative overflow-y-auto min-h-0 overscroll-contain" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0 }}>
+        {/* QA bug 2 (2026-09-22): the 4th+ cart line was invisible — the list
+            scrolled but with no scrollbar and no affordance (clientHeight 276
+            vs scrollHeight 332). Thin visible scrollbar + bottom fade now make
+            the overflow discoverable. */}
+        <div
+          className="flex-1 py-3 relative overflow-y-auto min-h-0 overscroll-contain cart-scroll-thin"
+          style={{
+            paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0,
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(120,120,140,0.45) transparent',
+          }}
+        >
+          <style>{`
+            .cart-scroll-thin::-webkit-scrollbar { width: 6px; }
+            .cart-scroll-thin::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
+            .cart-scroll-thin::-webkit-scrollbar-thumb { background: rgba(120,120,140,0.45); border-radius: 999px; }
+            .cart-scroll-thin::-webkit-scrollbar-thumb:hover { background: rgba(120,120,140,0.7); }
+          `}</style>
           <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-rose-500/80 via-rose-400 to-rose-500/80 transition-opacity duration-200 ${voidMode ? 'opacity-100' : 'opacity-0'}`} />
         <div
           className="absolute inset-0 transition-opacity duration-150 ease-in-out"
@@ -1091,19 +1108,22 @@ export function CartPanel({
                          className="w-11 h-11 flex items-center justify-center text-lg font-black hover:bg-white/10 transition-colors active:scale-95"
                        >+</motion.button>
                      </div>
+                    {/* QA bug 14 (2026-09-22): all line action buttons now share
+                        the stepper's 44px box (h-11 w-11) — the old p-2 icon
+                        buttons were ~32px and sat off-axis with the +/− column. */}
                     {!item.sentQuantity && (
                       <button
                         onClick={() => toggleHold(item, originalIdx)}
-                        className={`p-2 rounded-xl border transition-all active:scale-95 ${(item as any).is_hold
+                        className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all active:scale-95 ${(item as any).is_hold
                           ? 'bg-orange-500/10 border-orange-500/25 text-orange-600 dark:text-orange-300/80 hover:bg-orange-500/20'
                           : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`}
                         title={(item as any).is_hold ? 'Bərpa et' : 'Saxla (mətbəxə göndərmə)'}
                       >
-                        {(item as any).is_hold ? <Play size={14} /> : <Pause size={14} />}
+                        {(item as any).is_hold ? <Play size={16} /> : <Pause size={16} />}
                       </button>
                     )}
-                    <button onClick={() => onRequestEditor?.(item.product_id, originalIdx)} className={`p-2 rounded-xl border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
-                      <SlidersHorizontal size={14} />
+                    <button onClick={() => onRequestEditor?.(item.product_id, originalIdx)} className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
+                      <SlidersHorizontal size={16} />
                     </button>
                     {(() => {
                       const ks = (item as any).kitchen_status || 'pending';

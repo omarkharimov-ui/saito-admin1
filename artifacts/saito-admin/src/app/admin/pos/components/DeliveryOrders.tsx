@@ -66,7 +66,8 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
               const elapsed = order.created_at
                 ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)
                 : 0;
-              const elapsedText = elapsed < 1 ? '< 1 min' : elapsed < 60 ? `${elapsed} min` : `${Math.floor(elapsed / 60)}h ${elapsed % 60}m`;
+              // QA bug 4 (2026-09-22): cap hours — beyond 24h show days (same as TakeawayOrders).
+              const elapsedText = elapsed < 1 ? '< 1 min' : elapsed < 60 ? `${elapsed} min` : elapsed < 1440 ? `${Math.floor(elapsed / 60)}h ${elapsed % 60}m` : `${Math.floor(elapsed / 1440)}d`;
 
               return (
                 <div
@@ -102,18 +103,17 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                         </span>
                       )}
 
-                   <div className="absolute top-[68px] left-5 right-5 flex flex-col gap-1">
-                     {order.customer_name && (
-                       <div className="flex items-center gap-1.5">
-                         <User size={11} className="text-blue-400" />
-                         <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                           {order.customer_name}
-                         </span>
-                         {order.customer_phone && (
-                           <span className="text-xs text-[var(--theme-text-muted)]">({order.customer_phone.slice(-4)})</span>
-                         )}
-                       </div>
-                     )}
+                    <div className="absolute top-[68px] left-5 right-5 flex flex-col gap-1">
+                      {/* QA bug 5 (2026-09-22): always render the customer row (— when absent). */}
+                      <div className="flex items-center gap-1.5">
+                        <User size={11} className="text-blue-400" />
+                        <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                          {order.customer_name || '—'}
+                        </span>
+                        {order.customer_phone && (
+                          <span className="text-xs text-[var(--theme-text-muted)]">({order.customer_phone.slice(-4)})</span>
+                        )}
+                      </div>
                      {(order.delivery_street || order.delivery_address) && (
                        <div className="flex items-center gap-1.5">
                          <MapPin size={11} className="text-blue-400 shrink-0" />

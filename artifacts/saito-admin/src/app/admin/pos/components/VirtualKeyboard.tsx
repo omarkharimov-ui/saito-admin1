@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { fastExit } from '@/lib/modal-transitions';
-import { Delete, CornerDownLeft, Keyboard } from 'lucide-react';
+import { Delete, CornerDownLeft, Keyboard, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 type KeyMode = 'numeric' | 'text';
@@ -206,6 +206,23 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('focusout', onFocusOut);
   }, []);
 
+  // QA bug 8 (2026-09-22): the focusout auto-close was not reliable on every
+  // interaction path (some taps never move document.activeElement), so the
+  // keyboard stayed open and blocked ~40% of the view. An outside pointerdown
+  // (any tap/click not on the keyboard and not on an input) now ALWAYS closes
+  // it, regardless of focus behavior.
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-vk-panel]')) return;      // tap on the keyboard itself
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return; // tap on an input (re)opens
+      if (activeElRef.current) setActiveEl(null);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, []);
+
   useEffect(() => {
     highlightRef.current?.classList.remove('vk-active');
     if (activeEl) {
@@ -241,13 +258,16 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
             : 'bg-zinc-800 border-zinc-700/50 text-white'}`}
         style={{ height: 54 }}
       >
-        {k.action === 'backspace' ? <Delete size={20} /> : k.action === 'enter' ? <CornerDownLeft size={20} /> : label}
+        {/* QA bug 8 (2026-09-22): the "done" key used the SAME 'Gizlə' label as
+            the header button (two identical buttons on screen). It is now a
+            distinct checkmark; the header keeps the word "Gizlə". */}
+        {k.action === 'backspace' ? <Delete size={20} /> : k.action === 'enter' ? <CornerDownLeft size={20} /> : k.action === 'done' ? <Check size={20} /> : label}
       </motion.button>
     );
   };
 
   const keyboard = activeEl && (
-    <div ref={keyboardRef} className="fixed bottom-0 left-0 right-0 z-[9999] bg-[#1E1E24] border-t border-white/10 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-elevated backdrop-blur-lg">
+    <div ref={keyboardRef} data-vk-panel className="fixed bottom-0 left-0 right-0 z-[9999] bg-[#1E1E24] border-t border-white/10 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-elevated backdrop-blur-lg">
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-white/30">
           <Keyboard size={12} />

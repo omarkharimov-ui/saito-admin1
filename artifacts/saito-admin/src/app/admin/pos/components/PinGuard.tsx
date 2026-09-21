@@ -55,6 +55,14 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
     }
   }, [open]);
 
+  // QA bug 9 (2026-09-22): Escape did not close the PIN dialog.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
   const handleSubmit = async () => {
     if (pin.length < 4) return;
     setVerifying(true);
@@ -115,21 +123,27 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
               {title || `${t(ACTION_LABELS[action] as any || 'admin_action')} ${t('pin_for')}`}
             </p>
 
-            <input
-              ref={inputRef}
-              type="password"
-              inputMode="numeric"
-              maxLength={6}
-              value={pin}
-              onChange={e => { setPin(e.target.value.replace(/\D/g, '')); setError(''); }}
-              onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
-              placeholder="• • • •"
-               className={`w-full rounded-2xl px-5 py-4 text-center text-2xl font-black tracking-[0.5em] outline-none border transition-all ${
-                 error
-                   ? 'border-red-400 focus:border-red-500'
-                   : lightMode ? 'bg-zinc-50 border-zinc-200 focus:border-zinc-400' : 'bg-white/5 border-white/10 focus:border-zinc-400/50'
-               } ${lightMode ? 'text-black' : 'text-white'}`}
-            />
+              <input
+                ref={inputRef}
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                value={pin}
+                onChange={e => { setPin(e.target.value.replace(/\D/g, '')); setError(''); }}
+                onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
+                placeholder="• • • •"
+                className={`w-full rounded-2xl px-5 py-4 text-center text-2xl font-black tracking-[0.5em] outline-none border transition-all ${
+                  error
+                    ? 'border-red-400 focus:border-red-500'
+                    : lightMode ? 'bg-zinc-50 border-zinc-200 focus:border-zinc-400' : 'bg-white/5 border-white/10 focus:border-zinc-400/50'
+                } ${lightMode ? 'text-black' : 'text-white'}`}
+              />
+              {/* QA bug 9 (2026-09-22): the confirm button sat at 30% opacity
+                  until 4 digits were typed and no hint explained why — it read
+                  as a dead/red low-contrast button. */}
+              <p className={`mt-2 text-center text-[10px] font-bold ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                {t('pin_length_hint') || '4–6 rəqəmli admin PIN'}
+              </p>
 
             <AnimatePresence>
               {error && (
@@ -150,7 +164,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
               <button
                 onClick={handleSubmit}
                 disabled={pin.length < 4 || verifying}
-                className="flex-1 py-3.5 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-widest hover:bg-amber-600 active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20"
+                className="flex-1 py-3.5 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-widest hover:bg-amber-600 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20"
               >
                 {verifying ? (
                   <span className="inline-flex items-center gap-2">

@@ -302,7 +302,10 @@ export function usePos() {
   const cartRef = useRef(cart);
   useEffect(() => { cartRef.current = cart; }, [cart]);
 
-  const draftRestoredRef = useRef(false);
+  // Per-mode one-shot: a restored draft must not re-trigger in the same
+  // session for that mode, but switching AWAY and BACK must be able to
+  // restore the other mode's draft (old single ref blocked the 2nd restore).
+  const draftRestoredForRef = useRef<Set<string>>(new Set());
 
   // --- S1 realtime coalescing scheduler ------------------------------
   // Every refresh trigger (realtime event, 3s fallback poll) funnels through
@@ -425,16 +428,16 @@ export function usePos() {
     if (posMode !== 'takeaway' && posMode !== 'delivery') return;
     if (!cart) return;
     if (cart.order_id) return;
-    if (draftRestoredRef.current) return;
+    if (draftRestoredForRef.current.has(posMode)) return;
     const isEmpty = !(cart.items?.length) && !cart.customer_name && !cart.customer_phone && !cart.delivery_address;
     if (!isEmpty) return;
     try {
-      const draft = sessionStorage.getItem('pos_takeaway_draft');
+      const draft = sessionStorage.getItem(`pos_draft_${posMode}`);
       if (draft) {
         const parsed = JSON.parse(draft);
         if (parsed.posMode === posMode && parsed.version === 1 && parsed.cart) {
           setCart(parsed.cart);
-          draftRestoredRef.current = true;
+          draftRestoredForRef.current.add(posMode);
         }
       }
     } catch {
@@ -446,16 +449,20 @@ export function usePos() {
     if (posMode !== 'takeaway' && posMode !== 'delivery') return;
     if (!cart) return;
     if (cart.order_id) {
-      try { sessionStorage.removeItem('pos_takeaway_draft'); } catch {}
+      // Order was sent (or loaded): the mode's draft is consumed.
+      try { sessionStorage.removeItem(`pos_draft_${posMode}`); } catch {}
+      draftRestoredForRef.current.add(posMode);
       return;
     }
     const hasData = (cart.items?.length || 0) > 0 || cart.customer_name || cart.customer_phone || cart.delivery_address;
     if (!hasData) {
-      try { sessionStorage.removeItem('pos_takeaway_draft'); } catch {}
+      try { sessionStorage.removeItem(`pos_draft_${posMode}`); } catch {}
       return;
     }
     try {
-      sessionStorage.setItem('pos_takeaway_draft', JSON.stringify({ posMode, cart, version: 1 }));
+      // Per-mode key (2026-09-22): takeaway and delivery drafts no longer
+      // overwrite each other in the single shared slot.
+      sessionStorage.setItem(`pos_draft_${posMode}`, JSON.stringify({ posMode, cart, version: 1 }));
     } catch {
       // ignore storage errors
     }
@@ -1488,64 +1495,13 @@ export function usePos() {
 
   const switchMode = (mode: 'dine_in' | 'takeaway' | 'delivery') => {
     setPosMode(mode);
-    setCart(prev => {
-      if (!prev) return null;
-      const base = { ...prev, order_type: mode };
-      if (mode === 'dine_in') {
-        return {
-          ...base,
-          table_number: null,
-          guest_count: 1,
-          reservation_id: null,
-          delivery_address: null,
-          delivery_district: null,
-          delivery_street: null,
-          delivery_building: null,
-          delivery_floor: null,
-          delivery_apartment: null,
-          delivery_intercom: null,
-          delivery_zone: null,
-          delivery_fee: 0,
-          estimated_delivery_time: null,
-          courier_id: null,
-          courier_name: null,
-          tracking_number: null,
-          delivered_at: null,
-        };
-      }
-      if (mode === 'takeaway') {
-        return {
-          ...base,
-          table_number: null,
-          guest_count: 1,
-          reservation_id: null,
-          delivery_address: null,
-          delivery_district: null,
-          delivery_street: null,
-          delivery_building: null,
-          delivery_floor: null,
-          delivery_apartment: null,
-          delivery_intercom: null,
-          delivery_zone: null,
-          delivery_fee: 0,
-          estimated_delivery_time: null,
-          courier_id: null,
-          courier_name: null,
-          tracking_number: null,
-          delivered_at: null,
-        };
-      }
-      if (mode === 'delivery') {
-        return {
-          ...base,
-          table_number: null,
-          guest_count: 1,
-          reservation_id: null,
-          estimated_delivery_time: null,
-        };
-      }
-      return base;
-    });
+    // QA bug 3 (2026-09-22): the old code carried the PREVIOUS mode's cart
+    // (items + order_id!) across the tab switch, so a takeaway session could
+    // silently keep a dine-in order bound (or vice versa). Each mode now
+    // starts clean; per-mode unsent work is preserved by the
+    // pos_takeaway_draft sessionStorage mechanism (takeaway/delivery).
+    setSelectedTable(null);
+    setCart(null);
   };
 
   const updateOrderType = (type: 'dine_in' | 'takeaway' | 'delivery') => {

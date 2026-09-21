@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
   User, Search, Phone, Smartphone, Building2, Gift, Car, ArrowLeftRight,
-  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag, Star,
+  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag, Star, Shield,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -542,9 +542,12 @@ export function ActionSheet({
                        )}
                     </div>
                    )}
-                     <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('close')}</button>
-                 </motion.div>
-               )}
+                  {/* QA bug 13 (2026-09-22): the bottom BAĞLA button duplicated
+                      the header X (both closed the sheet) and sat directly under
+                      the destructive MASANI BOŞALT. Removed — the X is the single
+                      close affordance. */}
+                  </motion.div>
+                )}
 
               {currentView === 'payment' && !showMorePayments && (
                 <motion.div key="ui-payment" {...morphView} className="flex flex-col gap-2" transition={fastExit}>
@@ -598,10 +601,12 @@ export function ActionSheet({
                   {/* Tip — inline, collapsed by default */}
                   {!isDeliveryOnly && (
                     <div className="mt-2">
-                      {!tipExpanded ? (
-                        <button onClick={() => setTipExpanded(true)} className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all" style={{ color: lightMode ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.25)' }}>
-                          {t('tip') || 'Çaypulu'} <span className="text-amber-400">+₼{tipAmount || '0'}</span>
-                        </button>
+                        {/* QA bug 12 (2026-09-22): was 25% opacity — "ÇAPULU +₼0"
+                            was nearly invisible. Now a visible tinted row. */}
+                        {!tipExpanded ? (
+                          <button onClick={() => setTipExpanded(true)} className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all active:scale-[0.99] ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' : 'bg-amber-500/10 border-amber-500/25 text-amber-400 hover:bg-amber-500/15'}`}>
+                            {t('tip') || 'Çaypulu'} <span className="text-amber-500 dark:text-amber-300">+₼{Number(tipAmount || 0).toFixed(2)}</span>
+                          </button>
                       ) : (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={`p-2.5 rounded-xl border ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
                           <div className="flex items-center gap-2">
@@ -1074,15 +1079,23 @@ export function ActionSheet({
                          : confirmAction === 'release_table' ? t('release_table_question')
                          : t('clear_table_question')}
                      </p>
-                     <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                       {confirmAction === 'dismiss_group'
-                         ? t('all_connected_tables_cleared')
-                         : confirmAction === 'release_table'
-                         ? t('release_table_orders_closed')
-                         : t('this_table_orders_deleted')}
-                     </p>
-                   </div>
-                   <div className="flex gap-3">
+                      <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                        {confirmAction === 'dismiss_group'
+                          ? t('all_connected_tables_cleared')
+                          : confirmAction === 'release_table'
+                          ? t('release_table_orders_closed')
+                          : t('this_table_orders_deleted')}
+                      </p>
+                      {/* QA bug 9 (2026-09-22): the admin-PIN gate was only
+                          discovered AFTER pressing TƏSDIQLƏ. Disclose it up front. */}
+                      {waiterPinRequired && confirmAction !== 'release_table' && (
+                        <p className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-[10px] font-bold text-amber-600 dark:text-amber-300">
+                          <Shield size={11} />
+                          {t('pin_required_hint') || 'Bu əməliyyat üçün admin PIN tələb olunacaq'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-3">
                      <button onClick={() => setConfirmAction(null)}
                        className={`flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest border transition-all ${lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`}>
                        {t('back')}

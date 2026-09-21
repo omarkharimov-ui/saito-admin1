@@ -61,7 +61,6 @@ interface ActionSheetProps {
   onClearTable?: () => void;
   onSeatGuests?: () => void;
   onDiscount?: () => void;
-  onToggleVat?: (apply: boolean, pinVerified?: { staffId: string; role: string; name: string }) => void;
   posRole?: string | null;
   groupNumber?: number;
   paymentView?: boolean;
@@ -93,7 +92,6 @@ export function ActionSheet({
   mergeMode, transferMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, onBillRequest, onPrintBill, onClearTable, onSeatGuests, posRole, groupNumber,
   onDiscount,
-  onToggleVat,
   paymentView, transferConfirm, transferSource, transferTarget,   onConfirmTransfer, onCancelTransfer, onCheckout,
   posMode = 'dine_in',
   statusPickerTransitions, onSelectTransition, statusPickerLoading, onCloseStatusPicker, statusPickerOpen,
@@ -539,32 +537,11 @@ export function ActionSheet({
                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">{t('payment_method_label')}</p>
                     <p className="text-2xl font-black tracking-tighter mb-1 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
 
-                  {/* 1.5 VAT toggle — POS: manager PIN required (R3).
-                      No client-side math: onToggleVat → /api/orders/apply-vat → SSOT recompute. */}
-                  {activeOrder && (
-                    <div className="flex items-center justify-between gap-2 py-2 mb-1 rounded-xl border"
-                      style={{ borderColor: lightMode ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.10)', background: lightMode ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)' }}>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: lightMode ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.45)' }}>
-                          ƏDV (VAT){(activeOrder as any).tax_amount > 0 ? ` · ₼${Number((activeOrder as any).tax_amount).toFixed(2)}` : ''}
-                        </span>
-                        <span className="text-[8px]" style={{ color: lightMode ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.30)' }}>Manager PIN tələb olunur</span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const next = !(activeOrder as any).apply_vat;
-                          setPendingAction({ fn: (v?: any) => onToggleVat?.(next, v ?? undefined), action: 'vat' });
-                          setPinGuardOpen(true);
-                        }}
-                        className="relative h-6 w-11 rounded-full transition-colors"
-                        style={{ background: (activeOrder as any).apply_vat ? '#10b981' : (lightMode ? '#d4d4d8' : '#3f3f46') }}>
-                        <span className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all"
-                          style={{ left: (activeOrder as any).apply_vat ? '22px' : '2px' }} />
-                      </button>
-                    </div>
-                  )}
+                   {/* EDV (VAT) is a GLOBAL restaurant setting now —
+                       Settings → Payment (auto_apply_vat). The per-order
+                       manager-PIN toggle that lived here was removed. */}
 
-                  {isDeliveryOnly ? (
+                   {isDeliveryOnly ? (
                     <>
                       <button onClick={() => setCardConfirmView(true)} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
                         <CreditCard size={20} strokeWidth={2.5} />

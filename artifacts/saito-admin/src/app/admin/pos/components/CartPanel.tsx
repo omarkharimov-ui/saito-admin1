@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check, Sparkles, Plus } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check, Sparkles, Plus, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -28,6 +28,10 @@ interface CartPanelProps {
   orderButtonStatus: SendOrderButtonStatus;
   onUpdateGuests?: (delta: number) => void;
   onUpdateCustomer?: (name: string | null) => void;
+  /** Customer linking — pick from the SHARED customers source (same
+   *  /api/customers as the ActionSheet customer section). Attaches customer_id
+   *  so the loyalty spine can credit points; both surfaces stay consistent. */
+  onSelectCustomer?: (customerId: string | null, customerName: string | null, customerPhone?: string | null) => void;
   mergedChildNumbers?: number[];
   onRecordLoss?: (items: LossItem[], reason: string) => Promise<void>;
   hasExistingOrder?: boolean;
@@ -126,7 +130,7 @@ const PRIORITIES = [
 
 export function CartPanel({
   cart, cartHydrating = false, onUpdateQty, onPlaceOrder,
-  onClearDraft, onBack, orderButtonStatus, onUpdateGuests, onUpdateCustomer, mergedChildNumbers, onRecordLoss,
+  onClearDraft, onBack, orderButtonStatus, onUpdateGuests, onUpdateCustomer, onSelectCustomer, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
   isReservationMode = false, reservation,
   reservationPreOrderItems = [],
@@ -157,6 +161,11 @@ export function CartPanel({
   const [globalNote, setGlobalNote] = useState('');
   const [customerEditing, setCustomerEditing] = useState(false);
   const [customerInput, setCustomerInput] = useState('');
+  // Customer linking: live suggestions from the shared /api/customers source
+  // (identical to the ActionSheet customer section) while typing.
+  const [customerSuggestions, setCustomerSuggestions] = useState<any[]>([]);
+  const customerSugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (customerSugTimerRef.current) clearTimeout(customerSugTimerRef.current); }, []);
   const [numpadOpen, setNumpadOpen] = useState(false);
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
   const [seatBusy, setSeatBusy] = useState(false);
@@ -866,29 +875,70 @@ export function CartPanel({
               </div>
             ) : posMode === 'dine_in' ? (
               customerEditing ? (
-                <div className="flex items-center gap-1.5 mt-1">
-                  <User size={12} className="text-blue-400" />
-                  <input
-                    autoFocus
-                    value={customerInput}
-                    onChange={(e) => setCustomerInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+                <div className="flex flex-col gap-1 mt-1 w-full max-w-[240px]">
+                  <div className="flex items-center gap-1.5">
+                    <User size={12} className="text-blue-400" />
+                    <input
+                      autoFocus
+                      value={customerInput}
+                      onChange={(e) => {
+                        setCustomerInput(e.target.value);
+                        // Linked source: suggest existing customers (same
+                        // /api/customers as the ActionSheet customer section)
+                        // while typing, so a customer_id gets attached.
+                        if (customerSugTimerRef.current) clearTimeout(customerSugTimerRef.current);
+                        const q = e.target.value.trim();
+                        if (q.length < 2) { setCustomerSuggestions([]); return; }
+                        customerSugTimerRef.current = setTimeout(async () => {
+                          try {
+                            const res = await apiFetch(`/api/customers?q=${encodeURIComponent(q)}&limit=6`);
+                            if (res.ok) {
+                              const data = await res.json();
+                              setCustomerSuggestions(Array.isArray(data) ? data : []);
+                            }
+                          } catch { setCustomerSuggestions([]); }
+                        }, 300);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          onUpdateCustomer?.(customerInput.trim() || null);
+                          setCustomerSuggestions([]);
+                          setCustomerEditing(false);
+                        }
+                        if (e.key === 'Escape') {
+                          setCustomerSuggestions([]);
+                          setCustomerEditing(false);
+                          setCustomerInput('');
+                        }
+                      }}
+                      onBlur={() => {
+                        // No suggestion picked → free-text name fallback (old behavior)
                         onUpdateCustomer?.(customerInput.trim() || null);
+                        setCustomerSuggestions([]);
                         setCustomerEditing(false);
-                      }
-                      if (e.key === 'Escape') {
-                        setCustomerEditing(false);
-                        setCustomerInput('');
-                      }
-                    }}
-                    onBlur={() => {
-                      onUpdateCustomer?.(customerInput.trim() || null);
-                      setCustomerEditing(false);
-                    }}
-                    placeholder={t('customer_name_placeholder')}
-                     className={`flex-1 min-w-0 rounded-lg px-2 py-0.5 text-xs font-bold outline-none border transition-all ${lightMode ? 'bg-white border-blue-300 text-black focus:border-zinc-400' : 'bg-white/5 border-blue-500/30 text-white focus:border-zinc-400/50'}`}
-                  />
+                      }}
+                      placeholder={t('customer_name_placeholder')}
+                       className={`flex-1 min-w-0 rounded-lg px-2 py-0.5 text-xs font-bold outline-none border transition-all ${lightMode ? 'bg-white border-blue-300 text-black focus:border-zinc-400' : 'bg-white/5 border-blue-500/30 text-white focus:border-zinc-400/50'}`}
+                    />
+                  </div>
+                  {customerSuggestions.length > 0 && (
+                    <div className={`flex flex-col rounded-xl border overflow-hidden shadow-lg ${lightMode ? 'bg-white border-blue-200' : 'bg-[#12141c] border-white/10'}`}>
+                      {customerSuggestions.map((c: any) => (
+                        <button key={c.id}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            onSelectCustomer?.(c.id, c.name, c.phone || null);
+                            setCustomerSuggestions([]);
+                            setCustomerEditing(false);
+                          }}
+                          className="flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors hover:bg-blue-500/10">
+                          <User size={11} className="text-blue-400 shrink-0" />
+                          <span className={`text-xs font-bold truncate ${lightMode ? 'text-black' : 'text-white'}`}>{c.name}</span>
+                          {c.phone && <span className={`text-[10px] shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{c.phone}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : cart.customer_name ? (
                 <button onClick={() => { setCustomerEditing(true); setCustomerInput(cart.customer_name || ''); }}
@@ -897,6 +947,8 @@ export function CartPanel({
                     {cart.customer_name.slice(0, 1).toUpperCase()}
                   </div>
                   <span className="text-xs font-bold text-blue-400 truncate">{cart.customer_name}</span>
+                  {/* Loyalty-linked customer (has customer_id → points accrue) */}
+                  {customerId && <Star size={11} className="text-amber-400 shrink-0" />}
                   <span className="text-xs text-[var(--theme-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">{t('edit_customer')}</span>
                 </button>
               ) : (
@@ -1113,10 +1165,18 @@ export function CartPanel({
                            </button>
                          )
                        )}
-                      {(item.hold_until || (item as any).is_hold) && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-[10px] font-semibold tracking-normal text-orange-600 dark:text-orange-300/80"><Pause size={9} />Saxlanılıb</span>
-                      )}
-                    </div>
+                       {(item.hold_until || (item as any).is_hold) && (
+                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-[10px] font-semibold tracking-normal text-orange-600 dark:text-orange-300/80"><Pause size={9} />Saxlanılıb</span>
+                       )}
+                       {/* Allergen flags (customer allergy → kitchen warning),
+                           set in the product modal; persisted in order_items.allergens */}
+                       {(item as any).allergens?.length > 0 && (
+                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-red-500/10 border border-red-500/30 text-[10px] font-semibold tracking-normal text-red-600 dark:text-red-300/90"
+                           title={String((item as any).allergens).replace(/["\[\],]/g, '')}>
+                           <AlertTriangle size={9} />{String((item as any).allergens).replace(/["\[\],]/g, ' · ')}
+                         </span>
+                       )}
+                     </div>
                   </div>
                    <span className={`text-sm font-black tabular-nums min-w-[4rem] text-right ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                      {(item.unit_price * item.quantity).toFixed(2)} ₼

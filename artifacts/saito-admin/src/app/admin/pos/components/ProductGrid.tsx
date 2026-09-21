@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause } from 'lucide-react';
+import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { LiquidCategoryNavbar } from './LiquidCategoryNavbar';
@@ -24,6 +24,9 @@ export interface EditorPreset {
   // send to kitchen etdikden sonra itir"):
   course?: string | null;
   is_hold?: boolean;
+  // Allergens flagged on this line (customer allergy → kitchen warning),
+  // persisted to order_items.allergens (jsonb).
+  allergens?: string[];
 }
 
 export interface ProductGridRef {
@@ -110,6 +113,8 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   // Course + hold of the line being edited (restored on re-open — were lost).
   const [editCourse, setEditCourse] = useState<string | null>(null);
   const [editIsHold, setEditIsHold] = useState(false);
+  // Selected allergens (customer allergy flags) for the open product modal.
+  const [selectedAllergens, setSelectedAllergens] = useState<string[]>([]);
   const [qty, setQty] = useState(1);
   const [selectedModifiers, setSelectedModifiers] = useState<Record<string, number>>({});
   const [pulseMap, setPulseMap] = useState<Record<string, number>>({});
@@ -141,6 +146,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     setNoteForProduct(preset?.note ?? '');
     setEditCourse(preset?.course ?? null);
     setEditIsHold(!!preset?.is_hold);
+    setSelectedAllergens(preset?.allergens ?? []);
     setQty(preset?.quantity && preset.quantity > 0 ? preset.quantity : 1);
     const sel: Record<string, number> = preset?.modifiers ? { ...preset.modifiers } : {};
     // House default: exclusive (max-1) groups preselect their default member
@@ -317,7 +323,15 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     ? Number(selectedVariantObj.discount_price != null && selectedVariantObj.discount_price !== '' ? selectedVariantObj.discount_price : (selectedVariantObj.price ?? 0))
     : null;
   const baseUnitPrice = Number(expandedItem?.effective_price?.effective_price ?? expandedItem?.price ?? 0);
-  const modalUnitPrice = (variantUnitPrice ?? baseUnitPrice) + modifiersTotal;
+  // Single source of truth: must match addToCart's unit-price math (variant
+  // base minus campaign amount; the no-variant path already uses
+  // effective_price with the campaign baked in) so the modal total and the
+  // cart line total never disagree.
+  const effObj = (expandedItem as any)?.effective_price;
+  const modalCampaignAmt = typeof effObj === 'object' && effObj ? Number(effObj.discount_amount) || 0 : 0;
+  const modalUnitPrice = (variantUnitPrice != null
+    ? (modalCampaignAmt > 0 ? Math.max(0, variantUnitPrice - modalCampaignAmt) : variantUnitPrice)
+    : baseUnitPrice) + modifiersTotal;
   const modalName = (language === 'az' ? expandedItem?.name_az : language === 'en' ? expandedItem?.name_en : expandedItem?.name_ru) || expandedItem?.name || '';
 
   const handleModalAdd = () => {
@@ -333,13 +347,14 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
           const mod = (expandedItem.modifiers || []).find((x: any) => x.id === id);
           return { id, name: mod?.name || '', price: Number(mod?.price || 0), quantity: q };
         });
-      onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods, __editOf: identity ? { identity } : undefined, __course: editCourse, __is_hold: editIsHold } as any);
+      onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods, __editOf: identity ? { identity } : undefined, __course: editCourse, __is_hold: editIsHold, __allergens: selectedAllergens } as any);
     }
     setNoteForProduct('');
     setSelectedVariant(undefined);
     setSelectedModifiers({});
     setEditCourse(null);
     setEditIsHold(false);
+    setSelectedAllergens([]);
     setQty(1);
     handleClose();
   };
@@ -626,11 +641,42 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     <p className={`text-xl font-black truncate leading-tight ${expandedText}`}>{modalName}</p>
                     <p className={`text-lg font-black mt-0.5 ${expandedSecondary}`}>₼ {modalUnitPrice.toFixed(2)}</p>
                     <div className="mt-1.5">
-                      <AllergenBadges item={expandedItem} lightMode={lightMode} />
+                      {/* Allergen selection — previously static badges only.
+                          Tapping flags the allergen on this line (customer
+                          allergy warning → kitchen); stored in
+                          order_items.allergens. */}
+                      {(() => {
+                        const allergenList = parseAllergens(expandedItem.allergens);
+                        if (allergenList.length === 0) return null;
+                        return (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {allergenList.map((a: any) => {
+                              const def = resolveAllergenEntry(a);
+                              const Icon = def?.icon ?? ALLERGEN_FALLBACK_ICON;
+                              const code = def?.code || (a && typeof a === 'object' ? (String(a.code || a.name || '')) : String(a));
+                              if (!code) return null;
+                              const on = selectedAllergens.includes(code);
+                              return (
+                                <button
+                                  key={code}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedAllergens(prev => on ? prev.filter(x => x !== code) : [...prev, code]);
+                                  }}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold transition-all active:scale-95 ${on ? 'bg-red-500/15 border-red-500/60 text-red-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
+                                >
+                                  <Icon size={10} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
+                                  {on && <Check size={9} />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); handleClose(); }} className={`p-2 rounded-xl border transition-colors shrink-0 ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-100' : 'border-white/10 text-white hover:bg-white/10'}`}>
+                <button onClick={(e) => { e.stopPropagation(); handleClose(); }} className={`p-2 rounded-xl border transition-all duration-200 hover:rotate-90 shrink-0 ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-100 hover:text-red-400' : 'border-white/10 text-white hover:bg-white/10 hover:text-red-400'}`}>
                   <X size={20} />
                 </button>
               </div>
@@ -655,7 +701,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('option' as any)}</span>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {(expandedItem.variants ?? []).map((v: any) => (
-                        <button key={v.id} onClick={() => setSelectedVariant(v.id)} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border active:scale-95 ${selectedVariant === v.id ? 'bg-blue-500 text-white border-blue-500' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'border-white/10 text-white/80 hover:bg-white/10'}`}>
+                        <button key={v.id} onClick={() => setSelectedVariant(v.id)} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 hover:-translate-y-px border active:scale-95 ${selectedVariant === v.id ? 'bg-blue-500 text-white border-blue-500' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'border-white/10 text-white/80 hover:bg-white/10'}`}>
                           {v.name || v.title || `#${v.id.slice(0, 6)}`} {v.price ? `(+₼${Number(v.price).toFixed(2)})` : ''}
                         </button>
                       ))}
@@ -694,7 +740,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                       : 0;
                     const maxReached = !!group && group.max_select != null && mQty === 0 && selectedInGroup >= Number(group.max_select);
                     return (
-                      <div key={m.id || m.name} className={`flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl text-sm font-semibold transition-all border ${mQty > 0 ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
+                      <div key={m.id || m.name} className={`flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:-translate-y-px hover:shadow-sm border ${mQty > 0 ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
                         <span
                           onClick={() => {
                             // Exclusive group: tapping an already-selected chip deselects it.
@@ -766,7 +812,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           whileTap={{ scale: 0.92 }}
                           transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                           onClick={() => setEditCourse(on ? null : val)}
-                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${on ? (lightMode ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-400 text-black border-amber-400') : (lightMode ? 'bg-white/60 text-zinc-500 border-zinc-200' : 'bg-white/5 text-white/50 border-white/10')}`}
+                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all duration-200 hover:-translate-y-px ${on ? (lightMode ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-400 text-black border-amber-400') : (lightMode ? 'bg-white/60 text-zinc-500 border-zinc-200' : 'bg-white/5 text-white/50 border-white/10')}`}
                         >
                           {t(key as any)}
                         </motion.button>
@@ -790,7 +836,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
               {/* Footer: ƏLAVƏ ET */}
               <div className="p-5 pt-0">
-                <button onClick={handleModalAdd} className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider hover:opacity-90 transition-all active:scale-[0.98] shadow-lg"
+                <button onClick={handleModalAdd} className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:brightness-105 active:translate-y-0 active:scale-[0.98] shadow-lg"
                 style={{ backgroundColor: '#10b981' }}
                 >
                   <Plus size={18} /> {t('add')}{qty > 1 ? ` · ${qty}` : ''}

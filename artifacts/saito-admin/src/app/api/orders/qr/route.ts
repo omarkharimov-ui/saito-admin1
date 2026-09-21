@@ -78,7 +78,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Table has no location context' }, { status: 500 });
     }
 
-    const applyVat = !!body.applyVat;
+    // EDV: the global switch (Settings → Payment, auto_apply_vat) is the
+    // default authority; an explicit client value (public menu flow) still
+    // wins when it is sent.
+    let applyVat = false;
+    if (typeof body.applyVat === 'boolean') {
+      applyVat = body.applyVat;
+    } else {
+      try {
+        const vatCfgRes = await fetch(`${s.url}/rest/v1/settings?select=auto_apply_vat&limit=1`, { headers: s.headers });
+        if (vatCfgRes.ok) {
+          const vatCfgRows = await vatCfgRes.json();
+          applyVat = !!(vatCfgRows?.[0]?.auto_apply_vat);
+        }
+      } catch {
+        applyVat = false;
+      }
+    }
 
     // W-A2 D13 (2026-09-19): server-sourced prices — the client's unit_price is
     // IGNORED (same contract as add_item_atomic). Fetch the products once and

@@ -444,8 +444,11 @@ export const az = {
   tab_location: 'Yerləşmə',
   tab_printer: 'Printer',
   tab_payroll: 'Payroll',
-  tab_devices: 'Çap Cihazları',
-  tab_loyalty: 'Məxsusiyyət',
+   tab_devices: 'Çap Cihazları',
+   tab_loyalty: 'Məxsusiyyət',
+   tab_payment: 'Ödəniş',
+   pay_vat_title: 'ƏDV (VAT)',
+   pay_vat_desc: 'Aktiv olduqda bütün yeni sifarişlər ƏDV daxilində açılır. Mövcud sifarişlərin statusu dəyişmir.',
   floor_plan_settings: 'Zal və Mərtəbə Planı',
 
   // U-2: paid table release (Core Freeze)

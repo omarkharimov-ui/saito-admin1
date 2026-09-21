@@ -447,8 +447,11 @@ export const ru: TranslationMap = {
   tab_location: 'Локация',
   tab_printer: 'Принтер',
   tab_payroll: 'Зарплата',
-  tab_devices: 'Устройства печати',
-  tab_loyalty: 'Лояльность',
+   tab_devices: 'Устройства печати',
+   tab_loyalty: 'Лояльность',
+   tab_payment: 'Платежи',
+   pay_vat_title: 'НДС (VAT)',
+   pay_vat_desc: 'При активности все новые заказы открываются с НДС. Существующие заказы сохраняют текущее состояние.',
   floor_plan_settings: 'План залов и этажей',
 
   // U-2: paid table release (Core Freeze)

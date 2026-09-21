@@ -898,7 +898,7 @@ export function usePos() {
 
   const addToCart = (
     p: PosProduct,
-    opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[]; quantity?: number; editOf?: { identity?: string }; course?: string | null; isHold?: boolean }
+    opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[]; quantity?: number; editOf?: { identity?: string }; course?: string | null; isHold?: boolean; allergens?: string[] }
   ) => {
     const addQty = Math.max(1, Number(opts?.quantity) || 1);
     const base = cartRef.current ?? {
@@ -952,6 +952,7 @@ export function usePos() {
             // re-add without course info must not wipe the line's course).
             ...(opts?.course !== undefined ? { course: opts.course } : {}),
             ...(opts?.isHold !== undefined ? { is_hold: opts.isHold } : {}),
+            allergens: opts?.allergens ?? (target as any).allergens ?? [],
           };
           setCart({ ...base, items: items.map(i => (i === target ? replaced : i)) });
           return;
@@ -976,15 +977,16 @@ export function usePos() {
       original_unit_price: originalWithMods,
       quantity: addQty,
       total_price: Math.round(unitPrice * addQty * 100) / 100,
-      modifiers: opts?.modifiers ?? [],
-      variant_id: variantId,
-      special_notes: opts?.notes ?? '',
-      campaign_id: campaignId,
-      campaign_discount_amount: campaignDiscount,
-      campaign_discount_type: campaignDiscountType,
-      is_pre_order: reservationMode,
-      pre_order_id: null,
-    };
+       modifiers: opts?.modifiers ?? [],
+       variant_id: variantId,
+       special_notes: opts?.notes ?? '',
+       allergens: opts?.allergens ?? [],
+       campaign_id: campaignId,
+       campaign_discount_amount: campaignDiscount,
+       campaign_discount_type: campaignDiscountType,
+       is_pre_order: reservationMode,
+       pre_order_id: null,
+     };
     const newIndex = items.length;
     items.push(newItem);
     setCart({ ...base, items });
@@ -1101,6 +1103,24 @@ export function usePos() {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   };
 
+  // 409 / CONCURRENCY_CONFLICT recovery: the table's order changed under us
+  // (another terminal, or a KDS/bill-request trigger on this one). Re-pull the
+  // floor and re-select the table so the cart now points at the FRESH order —
+  // the next send merges into it instead of 409ing again.
+  const recoverFromConflict = () => {
+    const num = cartRef.current?.table_number;
+    if (num == null) return;
+    (async () => {
+      try {
+        const r = await fetch('/api/pos/tables', { cache: 'no-store' });
+        if (!r.ok) return;
+        const data = await r.json();
+        const tbl = (data.floors || []).find((x: any) => x.table_number === num);
+        if (tbl) selectTable(tbl, { force: true });
+      } catch { /* floor polling will heal */ }
+    })();
+  };
+
   const placeOrder = async (campaign?: { id?: string; type?: string }, checkoutOverrides?: {
     customer_phone?: string;
     customer_name?: string;
@@ -1141,10 +1161,11 @@ export function usePos() {
           product_name: x.item.product_name,
           unit_price: x.item.unit_price,
           quantity: x.delta,
-          modifiers: x.item.modifiers || [],
-          special_notes: x.item.special_notes || '',
-          variant_id: x.item.variant_id || null,
-          course: (x.item as any).course || 'main',
+           modifiers: x.item.modifiers || [],
+           special_notes: x.item.special_notes || '',
+           allergens: (x.item as any).allergens || null,
+           variant_id: x.item.variant_id || null,
+           course: (x.item as any).course || 'main',
           is_combo: x.item.is_combo || false,
           combo_id: x.item.combo_id || null,
           original_unit_price: x.item.original_unit_price || null,
@@ -1252,6 +1273,7 @@ export function usePos() {
         if (data?.success === false) {
           if (data?.error === 'CONCURRENCY_CONFLICT') {
             toast.error(t('order_changed_by_other_terminal'), { id: 'action-toast' });
+            recoverFromConflict();
           } else {
             toast.error(data?.error || t('order_not_sent'), { id: 'action-toast' });
           }
@@ -1323,6 +1345,7 @@ export function usePos() {
         const err = await res.json().catch(() => ({}));
         if (res.status === 409) {
           toast.error(t('order_changed_by_other_terminal'), { id: 'action-toast' });
+          recoverFromConflict();
         } else if (res.status === 401) {
           // Staff session died mid-action (was previously masked by the
           // middleware's 307→HTML redirect, leaving a "seated but no order"
@@ -1437,12 +1460,14 @@ export function usePos() {
     }
   };
 
-  const updateCartCustomer = (customerId: string | null, customerName: string | null) => {
+  const updateCartCustomer = (customerId: string | null, customerName: string | null, customerPhone?: string | null) => {
+    // Customer linking: keep the phone unless a new one is explicitly passed
+    // (the linked-customer pickers send id+name+phone from the shared source).
     setCart(prev => prev ? {
       ...prev,
       customer_id: customerId,
       customer_name: customerName,
-      customer_phone: null,
+      customer_phone: customerPhone !== undefined ? customerPhone : (prev.customer_phone ?? null),
     } : null);
   };
 

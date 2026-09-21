@@ -200,8 +200,9 @@ export default function POSPage() {
   const [walkInOpen, setWalkInOpen] = useState(false);
   // QF3: MASANI BOŞALT is gated by a verified manager PIN (destructive op).
   // mode 'dismiss' = occupied table (cancels the order via dismiss_table_atomic);
-  // mode 'clear'   = empty/dirty table (clear_table_atomic).
-  const [clearPinTable, setClearPinTable] = useState<{ num: number; mode: 'clear' | 'dismiss' } | null>(null);
+  // mode 'clear'   = empty/dirty table (clear_table_atomic);
+  // mode 'group'   = merged group (unmerge children, then dismiss each).
+  const [clearPinTable, setClearPinTable] = useState<{ num: number; mode: 'clear' | 'dismiss' | 'group'; children?: number[] } | null>(null);
   // QF5: delivery zones (public data, RLS off) — zone picker + auto fee.
   const [deliveryZones, setDeliveryZones] = useState<{ id: string; name: string; fee: number; free_delivery_threshold: number; estimated_minutes: number }[]>([]);
   useEffect(() => {
@@ -615,6 +616,7 @@ export default function POSPage() {
          editOf: p.__editOf || undefined,
          course: p.__course !== undefined ? p.__course : undefined,
          isHold: p.__is_hold !== undefined ? p.__is_hold : undefined,
+         allergens: p.__allergens || [],
        });
       return;
     }
@@ -1157,15 +1159,45 @@ export default function POSPage() {
     }
   };
 
-  const handleDismissGroup = async () => {
-    if (!actionSheetTable) return;
-    toast.loading(t('clearing_group'), { id: 'action-toast' });
-    await pos.dismissTable(actionSheetTable.table_number);
-    setActionSheetOpen(false);
-    if (pos.selectedTable && pos.selectedTable.table_number === actionSheetTable.table_number) {
-      pos.resetCart();
+  // QF (defect): group clear previously dismissed ONLY the parent, so the
+  // group survived (G_TABLE_MULTIPLE_ORDERS) while the UI toasted success.
+  // Correct sequence: unmerge the children (they keep their own orders) →
+  // dismiss every child → dismiss the parent. PIN-gated, real success check.
+  const handleDismissGroup = async (pin: string, reason: string) => {
+    const parent = clearPinTable?.num;
+    const children = clearPinTable?.children || [];
+    if (parent == null) return;
+    try {
+      toast.loading(t('clearing_group'), { id: 'action-toast' });
+      if (children.length > 0) {
+        const um = await apiFetch('/api/orders/unmerge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ primary_table_number: parent, child_table_numbers: children }),
+        });
+        if (!um.ok) {
+          const e = await um.json().catch(() => ({}));
+          toast.error(`${e.error || 'Unmerge failed'} — ${t('table_clear_failed')}`, { id: 'action-toast' });
+          return;
+        }
+      }
+      for (const num of [...children, parent]) {
+        const res = await apiFetch('/api/orders/dismiss', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table_number: num, manager_pin: pin, reason: reason || null, terminal_id: null }),
+        });
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          toast.error(`${e.error || t('table_clear_failed')} (Masa ${num})`, { id: 'action-toast' });
+          return;
+        }
+      }
+      if (pos.selectedTable && pos.selectedTable.table_number === parent) pos.resetCart();
+      toast.success(t('group_cleared').replace('{table}', String(parent)), { id: 'action-toast' });
+    } catch {
+      toast.error(t('table_clear_failed'), { id: 'action-toast' });
     }
-    toast.success(t('group_cleared').replace('{table}', String(actionSheetTable.table_number)));
   };
 
   const activeFloor = selectedFloor 
@@ -1490,52 +1522,34 @@ export default function POSPage() {
     }
   };
 
+  // Customer linking (single source of truth): pick from the shared customers
+  // DB — used by BOTH the cart panel's "müşəri əlavə et" input and the
+  // ActionSheet customer section, so the linked customer (id + name + phone,
+  // for loyalty/points) stays consistent across both surfaces.
+  const handleSelectCustomer = (customerId: string | null, customerName: string | null, customerPhone?: string | null) => {
+    pos.updateCartCustomer(customerId, customerName, customerPhone ?? null);
+    // OS BUILD #1b: the order may already exist (table opened earlier) —
+    // cart state alone would send points to the wrong/none customer.
+    // PATCH the live order so the loyalty spine credits the right one.
+    const oid = actionSheetTable?.current_order_id || actionSheetTable?.orders?.[0]?.id || pos.selectedTable?.current_order_id || (pos.selectedTable as any)?.orders?.[0]?.id;
+    if (oid) {
+      void (async () => {
+        try {
+          await apiFetch('/api/orders/customer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_id: oid, customer_id: customerId, customer_name: customerName, customer_phone: customerPhone || null }),
+          });
+        } catch { /* non-blocking: earn falls back to order's prior customer */ }
+      })();
+    }
+  };
+
   // U-4: close the panel without discarding an unsent cart.
   const closeCartPanel = () => {
     pos.clearCart(); pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null); if (pos.selectedTable && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(pos.selectedTable.status)) { setFlashInfo({ tableNumber: pos.selectedTable.table_number, nonce: Date.now() }); } pos.setActiveView('floor'); setEditingOrder(null);
   };
 
-  // 1.5 — VAT toggle (POS, manager PIN verified in ActionSheet before this runs).
-  // Manager-override: if the session user lacks discount.approve, the PIN-
-  // verified staffId is sent; the server re-verifies THAT staff's permission.
-  const handleToggleVat = async (apply: boolean, pinVerified?: { staffId: string; role: string; name: string }) => {
-    const orderId = resolveSheetOrderId();
-    if (!orderId) return;
-    toast.loading('ƏDV yenilənir…', { id: 'vat-toast' });
-    try {
-      const res = await apiFetch('/api/orders/apply-vat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          order_id: orderId,
-          apply_vat: apply,
-          approver_staff_id: pinVerified?.staffId || null,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.error || t('error_occurred'), { id: 'vat-toast' });
-        return;
-      }
-      toast.success(
-        apply
-          ? `ƏDV tətbiq edildi (+₼${(data.tax_amount ?? 0).toFixed(2)}) — cəm ₼${(data.total ?? 0).toFixed(2)}`
-          : `ƏDV ləğv edildi — cəm ₼${(data.total ?? 0).toFixed(2)}`,
-        { id: 'vat-toast' }
-      );
-      // Update selectedTable.orders[0] in-place so ActionSheet toggle reflects new state
-      // on next open (fetchData refreshes tableOrderCache, not the selectedTable snapshot).
-      pos.setSelectedTable((prev: any) => {
-        if (!prev?.orders?.[0]) return prev;
-        return { ...prev, orders: [{ ...prev.orders[0], apply_vat: data.apply_vat ?? apply, total_amount: data.total, tax_amount: data.tax_amount }] };
-      });
-      setActionSheetOpen(false);
-      await pos.fetchData();
-      await reconcileOrderFromServer(orderId);
-    } catch (e: any) {
-      toast.error(e.message || t('error_occurred'), { id: 'vat-toast' });
-    }
-  };
 
   const retryFailedPayments = async () => {
     if (!payOutcome) return;
@@ -2534,8 +2548,9 @@ export default function POSPage() {
                               if (pos.cart) pos.setCart({ ...pos.cart, guest_count: count });
                               pos.fetchData();
                             }}
-                         onUpdateCustomer={(name) => pos.updateCartCustomer(pos.cart?.customer_id || null, name)}
-                         onRecordLoss={handleRecordLoss}
+                          onUpdateCustomer={(name) => pos.updateCartCustomer(pos.cart?.customer_id || null, name)}
+                          onSelectCustomer={handleSelectCustomer}
+                          onRecordLoss={handleRecordLoss}
                          onClearDraft={() => pos.clearCart()}
                          mergedChildNumbers={posMode === 'dine_in' ? activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number) : undefined}
                          customerId={pos.cart?.customer_id}
@@ -2629,6 +2644,8 @@ export default function POSPage() {
                                  // Course + hold must survive a modal re-open:
                                  course: match.course ?? null,
                                  is_hold: !!(match.is_hold || match.hold_until),
+                                 // Allergen flags must survive a modal re-open too.
+                                 allergens: Array.isArray(match.allergens) ? match.allergens : [],
                                };
                               gridRef.current?.toggleEditor(productId, preset);
                             }}
@@ -2671,7 +2688,6 @@ export default function POSPage() {
             onTakeawayStatus={() => handleOpenStatusPicker('order')}
             onMarkServed={handleMarkServed}
              onDiscount={() => setDiscountOpen(true)}
-             onToggleVat={handleToggleVat}
            onCancelTable={async () => {
              if (!actionSheetTable) return;
              if (posMode === 'takeaway' || posMode === 'delivery') {
@@ -2692,7 +2708,15 @@ export default function POSPage() {
              const res = await pos.releaseTable(actionSheetTable.table_number);
              if (res.ok) setActionSheetOpen(false);
            }}
-         onDismissGroup={handleDismissGroup}
+         onDismissGroup={() => {
+            if (!actionSheetTable) return;
+            // PIN-gated group clear (unmerge children + dismiss each).
+            setClearPinTable({
+              num: actionSheetTable.table_number,
+              mode: 'group',
+              children: tableGroupInfo[actionSheetTable.table_number]?.children || [],
+            });
+          }}
           paymentView={paymentView}
           mergeMode={mergeMode}
           transferMode={transferMode}
@@ -2737,24 +2761,7 @@ export default function POSPage() {
             groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
              customerId={pos.cart?.customer_id}
             customerName={pos.cart?.customer_name}
-            onSelectCustomer={(customerId, customerName, customerPhone) => {
-              pos.updateCartCustomer(customerId, customerName);
-              // OS BUILD #1b: the order already exists (table opened earlier) —
-              // cart state alone would send points to the wrong/none customer.
-              // PATCH the live order so the loyalty spine credits the right one.
-              const oid = actionSheetTable?.current_order_id || actionSheetTable?.orders?.[0]?.id;
-              if (oid) {
-                void (async () => {
-                  try {
-                    await apiFetch('/api/orders/customer', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ order_id: oid, customer_id: customerId, customer_name: customerName, customer_phone: customerPhone || null }),
-                    });
-                  } catch { /* non-blocking: earn falls back to order's prior customer */ }
-                })();
-              }
-            }}
+             onSelectCustomer={handleSelectCustomer}
             onLoyaltyRedeemed={() => {
               // Redeem changed the order total server-side (v3 recompute) —
               // refresh floor data + reconcile the sheet's order from server.
@@ -2938,9 +2945,13 @@ export default function POSPage() {
             setClearPinTable(null);
             setActionSheetOpen(false);
             if (gate) {
-              if (pos.selectedTable && pos.selectedTable.table_number === gate.num) pos.resetCart();
-              if (gate.mode === 'dismiss') pos.dismissTable(gate.num, { manager_pin: pin, reason, terminal_id: undefined });
-              else pos.clearTable(gate.num, { manager_pin: pin, reason });
+              if (gate.mode === 'group') {
+                void handleDismissGroup(pin, reason);
+              } else {
+                if (pos.selectedTable && pos.selectedTable.table_number === gate.num) pos.resetCart();
+                if (gate.mode === 'dismiss') pos.dismissTable(gate.num, { manager_pin: pin, reason, terminal_id: undefined });
+                else pos.clearTable(gate.num, { manager_pin: pin, reason });
+              }
             }
           }}
         />

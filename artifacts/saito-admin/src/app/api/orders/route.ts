@@ -393,15 +393,18 @@ export async function POST(request: Request) {
       let existingOrder = null;
       if (table_number) {
         const existingRes = await fetch(
-          `${svc().url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}&status=${NOT_FINAL}&order=created_at.asc&limit=1&select=id,total_amount,version`,
+          `${svc().url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}&status=${NOT_FINAL}&order=created_at.asc&limit=1&select=id,total_amount,version,apply_vat`,
           { headers: svc().headers }
         );
         const existingOrders = existingRes.ok ? await existingRes.json() : [];
         existingOrder = existingOrders?.[0];
       }
 
-      let activeOrderId: string;
-      const ks = kitchen_status || 'pending';
+       let activeOrderId: string;
+       const ks = kitchen_status || 'pending';
+       // Global EDV switch (Settings → Payment → auto_apply_vat). Set in the
+       // create branch; used after item insert to recompute the VAT total.
+       let autoApplyVat = false;
 
       if (existingOrder) {
         // Append to existing order.
@@ -419,7 +422,7 @@ export async function POST(request: Request) {
         const sendTotal = (isCouponDiscount && !couponAlreadyApplied)
           ? Math.max(0, discountedTotal - rawDiscount)
           : discountedTotal;
-        const newTotal = (existingOrder.total_amount || 0) + sendTotal;
+        let newTotal = (existingOrder.total_amount || 0) + sendTotal;
         const newVersion = (existingOrder.version || 0) + 1;
 
         // Accumulate discount metadata; the new send only carries its own
@@ -458,6 +461,24 @@ export async function POST(request: Request) {
         if (!patchRes.ok) throw new Error('CONCURRENCY_CONFLICT');
         const patched = await patchRes.json();
         if (!patched || (Array.isArray(patched) && patched.length === 0)) throw new Error('CONCURRENCY_CONFLICT');
+
+        // SSOT VAT: if this order carries VAT (set from the global Settings →
+        // Payment switch at creation), the item-sum patch above dropped the tax
+        // delta — recompute through calculate_order_total_v3 so the added
+        // items stay taxed. Runs BEFORE the table total fetch below, so the
+        // floor reflects the VAT-inclusive amount.
+        if (existingOrder.apply_vat) {
+          const vatRes = await fetch(`${svc().url}/rest/v1/rpc/calculate_order_total_v3`, {
+            method: 'POST',
+            headers: svc().headers,
+            body: JSON.stringify({ p_order_id: activeOrderId, p_apply_vat: true, p_apply_service: false }),
+          });
+          if (vatRes.ok) {
+            const vatData = await vatRes.json();
+            const vatTotal = Number(vatData?.total);
+            if (Number.isFinite(vatTotal)) newTotal = vatTotal;
+          }
+        }
 
         // Update table_floors total_amount and keep current_order_id (SSOT).
         // Must exclude ALL final states (matches sync_table_order_aggregates) —
@@ -515,6 +536,20 @@ export async function POST(request: Request) {
         const createTotal = isCouponDiscount
           ? Math.max(0, discountedTotal - rawDiscount)
           : discountedTotal;
+
+        // Global EDV switch (Settings → Payment → auto_apply_vat): new orders
+        // inherit it. Read server-side (SSOT) — the client never decides VAT.
+        autoApplyVat = false;
+        try {
+          const vatCfgRes = await fetch(`${svc().url}/rest/v1/settings?select=auto_apply_vat&limit=1`, { headers: svc().headers });
+          if (vatCfgRes.ok) {
+            const vatCfgRows = await vatCfgRes.json();
+            autoApplyVat = !!(vatCfgRows?.[0]?.auto_apply_vat);
+          }
+        } catch {
+          autoApplyVat = false;
+        }
+
         const insertRes = await fetch(`${svc().url}/rest/v1/orders`, {
           method: 'POST',
           headers: { ...svc().headers, 'Prefer': 'return=representation' },
@@ -522,9 +557,10 @@ export async function POST(request: Request) {
             table_number,
             organization_id: orderOrganizationId,
             location_id: orderLocationId,
-            total_amount: createTotal,
-            status: 'confirmed',
-            guest_count: guest_count || 1,
+             total_amount: createTotal,
+             apply_vat: autoApplyVat,
+             status: 'confirmed',
+             guest_count: guest_count || 1,
             customer_note: customer_note || null,
             order_type: order_type || 'dine_in',
             customer_id: customer_id || null,
@@ -608,6 +644,7 @@ export async function POST(request: Request) {
           total_price: up * qty,
           modifiers: i.modifiers || [],
           special_notes: i.special_notes || '',
+          allergens: i.allergens || null,
           variant_id: i.variant_id || null,
           course: i.course || 'main',
           is_combo_parent: !!i.is_combo,
@@ -651,6 +688,33 @@ export async function POST(request: Request) {
           });
         }
         throw new Error(`Order item insert failed: ${await itemRes.text()}`);
+      }
+
+      // SSOT VAT on create: when the global switch was ON, the inserted
+      // order's total is still the VAT-exclusive item sum — recompute through
+      // calculate_order_total_v3 (adds tax_amount + VAT-inclusive total) and
+      // sync table_floors.total_amount so the card and the modal agree.
+      if (autoApplyVat && !existingOrder) {
+        const vatRes = await fetch(`${svc().url}/rest/v1/rpc/calculate_order_total_v3`, {
+          method: 'POST',
+          headers: svc().headers,
+          body: JSON.stringify({ p_order_id: activeOrderId, p_apply_vat: true, p_apply_service: false }),
+        });
+        if (vatRes.ok) {
+          const vatData = await vatRes.json();
+          if (Number.isFinite(Number(vatData?.total)) && table_number) {
+            const vatTableOrdersRes = await fetch(
+              `${svc().url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}&status=${NOT_FINAL}`,
+              { headers: svc().headers }
+            );
+            const vatTableOrders = vatTableOrdersRes.ok ? await vatTableOrdersRes.json() : [];
+            const vatTableTotal = vatTableOrders.reduce((s2: number, o: any) => s2 + Number(o.total_amount || 0), 0);
+            await fetch(
+              `${svc().url}/rest/v1/table_floors?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}`,
+              { method: 'PATCH', headers: svc().headers, body: JSON.stringify({ total_amount: vatTableTotal }) }
+            );
+          }
+        }
       }
 
       // The create_order_with_items RPC does not accept reservation_id / customer_id,

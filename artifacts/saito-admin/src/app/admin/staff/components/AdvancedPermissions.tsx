@@ -42,28 +42,21 @@ export function AdvancedPermissions({ staffId, isManager }: AdvancedPermissionsP
     return acc;
   }, {} as Record<string, Permission[]>);
 
-  const handleToggle = async (permissionId: string, currentValue: boolean) => {
-    if (!isManager) return;
-    try {
-      await fetch('/api/permissions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          staffId,
-          permissionId,
-          isGranted: !currentValue,
-          reason: 'Manual override',
-          createdBy: staffId,
-        }),
-      });
-      fetchPermissions();
-    } catch {
-      // ignore
-    }
-  };
+  // Staff-level override tables are retired (P-1 M6) — grants live on the
+  // ROLE, so this tab is read-only; changes go through Admin → Roles.
+  // (The old per-staff POST /api/permissions was a dead 405.)
+
+  const grantedCount = permissions.filter(p => p.is_granted).length;
 
   return (
     <div className="space-y-4">
+      {/* Read-only notice */}
+      {permissions.length > 0 && (
+        <p className="text-[11px] text-[var(--theme-text-muted)] flex items-center gap-1.5">
+          <Lock size={11} />
+          {grantedCount} / {permissions.length} granted via role — permissions are managed on the Roles page (staff-level overrides are retired).
+        </p>
+      )}
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
         <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
@@ -102,17 +95,12 @@ export function AdvancedPermissions({ staffId, isManager }: AdvancedPermissionsP
                       <span className="px-1.5 py-0.5 rounded text-[8px] bg-amber-500/10 text-amber-400">Override</span>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleToggle(perm.permission_code, perm.is_granted)}
-                    disabled={!isManager}
-                    className={`w-8 h-5 rounded-full transition-colors ${
-                      perm.is_granted ? 'bg-emerald-500' : 'bg-zinc-600'
-                    } ${!isManager ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  <span
+                    className={`w-8 h-5 rounded-full inline-block relative ${perm.is_granted ? 'bg-emerald-500' : 'bg-zinc-600'}`}
+                    title={perm.is_granted ? 'Granted via role' : 'Not granted to this role'}
                   >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                      perm.is_granted ? 'translate-x-3.5' : 'translate-x-0.5'
-                    }`} />
-                  </button>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white ${perm.is_granted ? 'left-4' : 'left-0.5'}`} />
+                  </span>
                 </div>
               ))}
             </div>

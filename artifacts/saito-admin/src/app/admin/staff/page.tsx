@@ -1021,50 +1021,47 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
   const isOnShift = staff.shift_status === 'active';
   const [activeTab, setActiveTab] = useState<string>('overview');
 
-  const tabGroups = [
-    {
-      group: 'General',
-      tabs: [
-        { key: 'overview', label: 'Overview' },
-        { key: 'documents', label: 'Documents' },
-        { key: 'reviews', label: 'Reviews' },
-      ]
-    },
-    {
-      group: 'Time & Shifts',
-      tabs: [
-        { key: 'schedule', label: 'Schedule' },
-        { key: 'shifts', label: 'Shifts' },
-        { key: 'timeclock', label: 'Time Clock' },
-        { key: 'breaks', label: 'Breaks' },
-        { key: 'overtime', label: 'Overtime' },
-        { key: 'attendance', label: 'Attendance' },
-        { key: 'labor', label: 'Labor' },
-      ]
-    },
-    {
-      group: 'Finance & Sales',
-      tabs: [
-        { key: 'tips', label: 'Tips' },
-        { key: 'cash', label: 'Cash' },
-        { key: 'handover', label: 'Handover' },
-        { key: 'payroll', label: 'Payroll' },
-      ]
-    },
-    {
-      group: 'Communication & Logs',
-      tabs: [
-        { key: 'messages', label: 'Messages' },
-        { key: 'compliance', label: 'Compliance' },
-        { key: 'approvals', label: 'Approvals' },
-        { key: 'activity', label: 'Activity' },
-        { key: 'security', label: 'Security' },
-        { key: 'permissions', label: 'Permissions' },
-      ]
-    },
-  ];
+  // Status change (Activate / Suspend / Deactivate): stateful + instant-feel.
+  // Previously a fire-and-forget fetch + window.location.reload() — 1-2s of
+  // dead UI with no feedback. Now: optimistic local status, spinner on the
+  // button, toast on success/failure, no page reload.
+  const [statusBusy, setStatusBusy] = useState<string | null>(null);
+  const [statusOverride, setStatusOverride] = useState<string | null>(null);
+  const effStatus = statusOverride ?? staff.status ?? (staff.is_active ? 'ACTIVE' : 'INACTIVE');
 
-  const activeGroup = tabGroups.find(g => g.tabs.some(t => t.key === activeTab)) || tabGroups[0];
+  const changeStaffStatus = async (next: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE') => {
+    if (statusBusy) return;
+    setStatusBusy(next);
+    try {
+      const res = await fetch(`/api/staff/${staff.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next }),
+      });
+      if (res.ok) {
+        setStatusOverride(next); // instant UI update, no reload
+        toast.success(next === 'ACTIVE' ? 'Staff activated' : next === 'SUSPENDED' ? 'Staff suspended' : 'Staff deactivated', { id: 'staff-status-toast' });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Status change failed', { id: 'staff-status-toast' });
+      }
+    } catch {
+      toast.error('Network error — status not changed', { id: 'staff-status-toast' });
+    } finally {
+      setStatusBusy(null);
+    }
+  };
+
+  // UX overhaul: max 4 top-level tabs (was 4 groups × 19 sub-tabs, everything
+  // crammed). Each tab stacks its sections with inner scroll.
+  const tabGroups = [
+    { key: 'overview', label: 'Overview', tabs: ['overview', 'documents', 'reviews'] },
+    { key: 'time', label: 'Time & Shifts', tabs: ['schedule', 'shifts', 'timeclock', 'breaks', 'overtime', 'attendance', 'labor'] },
+    { key: 'finance', label: 'Finance', tabs: ['tips', 'cash', 'handover', 'payroll'] },
+    { key: 'logs', label: 'Logs & Access', tabs: ['messages', 'compliance', 'approvals', 'activity', 'security', 'permissions'] },
+  ];
+  const isTabActive = (key: string) => tabGroups.find(g => g.key === activeTab)?.tabs.includes(key) ?? false;
+
   const [shifts, setShifts] = useState<any[]>([]);
   const [shiftsLoading, setShiftsLoading] = useState(false);
   const [schedule, setSchedule] = useState<any[]>([]);
@@ -1083,31 +1080,31 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
 
 
   useEffect(() => {
-    if (activeTab === 'shifts' && shifts.length === 0) {
+    if (isTabActive('shifts') && shifts.length === 0) {
       setShiftsLoading(true);
       fetch(`/api/staff/${staff.id}/shifts`).then(res => res.ok ? res.json() : []).then(data => setShifts(data || [])).catch(() => setShifts([])).finally(() => setShiftsLoading(false));
     }
-    if (activeTab === 'schedule' && schedule.length === 0) {
+    if (isTabActive('schedule') && schedule.length === 0) {
       setScheduleLoading(true);
       fetch(`/api/staff/${staff.id}/schedule`).then(res => res.ok ? res.json() : []).then(data => setSchedule(data || [])).catch(() => setSchedule([])).finally(() => setScheduleLoading(false));
     }
-    if (activeTab === 'attendance' && attendance.length === 0) {
+    if (isTabActive('attendance') && attendance.length === 0) {
       setAttendanceLoading(true);
       fetch(`/api/staff/${staff.id}/attendance`).then(res => res.ok ? res.json() : []).then(data => setAttendance(data || [])).catch(() => setAttendance([])).finally(() => setAttendanceLoading(false));
     }
-    if (activeTab === 'labor' && !laborData) {
+    if (isTabActive('labor') && !laborData) {
       setLaborLoading(true);
       fetch(`/api/staff/${staff.id}/labor`).then(res => res.ok ? res.json() : null).then(data => setLaborData(data)).catch(() => setLaborData(null)).finally(() => setLaborLoading(false));
     }
-    if (activeTab === 'payroll' && payrollEntries.length === 0) {
+    if (isTabActive('payroll') && payrollEntries.length === 0) {
       setPayrollLoading(true);
       fetch(`/api/staff/${staff.id}/payroll`).then(res => res.ok ? res.json() : []).then(data => setPayrollEntries(data || [])).catch(() => setPayrollEntries([])).finally(() => setPayrollLoading(false));
     }
-    if (activeTab === 'approvals' && approvals.length === 0) {
+    if (isTabActive('approvals') && approvals.length === 0) {
       setApprovalsLoading(true);
       fetch(`/api/staff/${staff.id}/approvals`).then(res => res.ok ? res.json() : []).then(data => setApprovals(data || [])).catch(() => setApprovals([])).finally(() => setApprovalsLoading(false));
     }
-    if (activeTab === 'activity' && activity.length === 0) {
+    if (isTabActive('activity') && activity.length === 0) {
       setActivityLoading(true);
       fetch(`/api/staff/${staff.id}/activity`).then(res => res.ok ? res.json() : []).then(data => setActivity(data || [])).catch(() => setActivity([])).finally(() => setActivityLoading(false));
     }
@@ -1172,51 +1169,34 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
           </div>
         </div>
 
-        {/* Tabs - Grouped */}
+        {/* Tabs — flat max-4 (UX overhaul: was 4 groups × 19 sub-tabs) */}
         <div className="px-6 border-b border-[var(--theme-border)] flex-shrink-0">
-          <div className="flex flex-col gap-2 py-2">
-            <div className="flex items-center gap-1">
-              {tabGroups.map(group => (
-                <button
-                  key={group.group}
-                  onClick={() => setActiveTab(group.tabs[0].key)}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                    activeGroup.group === group.group
-                      ? 'bg-[var(--theme-text)] text-[var(--theme-surface)]'
-                      : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-white/5'
-                  }`}
-                >
-                  {group.group}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-1 overflow-x-auto pb-1">
-              {activeGroup.tabs.map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                    activeTab === tab.key
-                      ? 'bg-white/10 text-[var(--theme-text)]'
-                      : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-1 py-2 overflow-x-auto">
+            {tabGroups.map(group => (
+              <button
+                key={group.key}
+                onClick={() => setActiveTab(group.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                  activeTab === group.key
+                    ? 'bg-white/10 text-[var(--theme-text)]'
+                    : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'
+                }`}
+              >
+                {group.label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'overview' && (
+          {isTabActive('overview') && (
             <div className="space-y-6">
               {/* Identity & Status (0.3 contract) */}
               <div>
                 <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Identity & Status</h3>
                 <div className="bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl p-4 flex flex-wrap items-center gap-3">
-                  <StatusPill status={staff.status || (staff.is_active ? 'ACTIVE' : 'INACTIVE')} />
+                  <StatusPill status={effStatus} />
                   {staff.role_name && (
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-white/5 text-[var(--theme-text-muted)] border border-white/10">
                       {staff.role_name}
@@ -1224,32 +1204,35 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
                   )}
                   <span className="text-xs text-[var(--theme-text)]">Last login: {staff.last_login_at ? new Date(staff.last_login_at).toLocaleString() : 'Never'}</span>
                   <span className="flex-1" />
-                  <div className="flex items-center gap-2">
-                    {staff.status !== 'ACTIVE' && (
-                      <button
-                        onClick={() => { fetch(`/api/staff/${staff.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'ACTIVE' }) }).then(r => r.ok && window.location.reload()); }}
-                        className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors"
-                      >
-                        Activate
-                      </button>
-                    )}
-                    {staff.status === 'ACTIVE' && (
-                      <>
+                    <div className="flex items-center gap-2">
+                      {effStatus !== 'ACTIVE' && (
                         <button
-                          onClick={() => { fetch(`/api/staff/${staff.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'SUSPENDED' }) }).then(r => r.ok && window.location.reload()); }}
-                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors"
+                          onClick={() => changeStaffStatus('ACTIVE')}
+                          disabled={!!statusBusy}
+                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 active:scale-95 transition-all duration-200 disabled:opacity-60"
                         >
-                          Suspend
+                          {statusBusy ? '…' : 'Activate'}
                         </button>
-                        <button
-                          onClick={() => { fetch(`/api/staff/${staff.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'INACTIVE' }) }).then(r => r.ok && window.location.reload()); }}
-                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 transition-colors"
-                        >
-                          Deactivate
-                        </button>
-                      </>
-                    )}
-                  </div>
+                      )}
+                      {effStatus === 'ACTIVE' && (
+                        <>
+                          <button
+                            onClick={() => changeStaffStatus('SUSPENDED')}
+                            disabled={!!statusBusy}
+                            className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 active:scale-95 transition-all duration-200 disabled:opacity-60"
+                          >
+                            {statusBusy ? '…' : 'Suspend'}
+                          </button>
+                          <button
+                            onClick={() => changeStaffStatus('INACTIVE')}
+                            disabled={!!statusBusy}
+                            className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 active:scale-95 transition-all duration-200 disabled:opacity-60"
+                          >
+                            {statusBusy ? '…' : 'Deactivate'}
+                          </button>
+                        </>
+                      )}
+                    </div>
                 </div>
               </div>
 
@@ -1364,11 +1347,11 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             </div>
           )}
 
-          {activeTab === 'timeclock' && (
+          {isTabActive('timeclock') && (
             <TimeClockPanel staffId={staff.id} staffName={staff.full_name || staff.name} />
           )}
 
-          {activeTab === 'shifts' && (
+          {isTabActive('shifts') && (
             <div className="space-y-4">
               {shiftsLoading ? (
                 <div className="space-y-3">
@@ -1406,15 +1389,15 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             </div>
           )}
 
-          {activeTab === 'schedule' && (
+          {isTabActive('schedule') && (
             <ScheduleCalendar />
           )}
 
-          {activeTab === 'tips' && (
+          {isTabActive('tips') && (
             <TipManagement staffId={staff.id} />
           )}
 
-          {activeTab === 'cash' && (
+          {isTabActive('cash') && (
             <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
               <DollarSign size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
               <p className="text-sm text-[var(--theme-text-secondary)]">Cash reconciliation is retired (P-8, 2026-09-17)</p>
@@ -1422,42 +1405,42 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             </div>
           )}
 
-          {activeTab === 'breaks' && (
+          {isTabActive('breaks') && (
             <BreakManagement staffId={staff.id} activeShiftId={staff.active_shift?.id} />
           )}
 
-          {activeTab === 'overtime' && (
+          {isTabActive('overtime') && (
             <OvertimeTracking staffId={staff.id} />
           )}
 
-          {activeTab === 'handover' && staff.active_shift && (
+          {isTabActive('handover') && staff.active_shift && (
             <ShiftHandover shiftId={staff.active_shift.id} staffId={staff.id} staffName={staff.full_name || staff.name} />
           )}
 
-          {activeTab === 'handover' && !staff.active_shift && (
+          {isTabActive('handover') && !staff.active_shift && (
             <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
               <FileText size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
               <p className="text-sm text-[var(--theme-text-secondary)]">No active shift</p>
             </div>
           )}
 
-          {activeTab === 'documents' && (
+          {isTabActive('documents') && (
             <DocumentManagement staffId={staff.id} />
           )}
 
-          {activeTab === 'compliance' && (
+          {isTabActive('compliance') && (
             <Compliance staffId={staff.id} />
           )}
 
-          {activeTab === 'messages' && (
+          {isTabActive('messages') && (
             <Communication staffId={staff.id} staffName={staff.full_name || staff.name} />
           )}
 
-          {activeTab === 'reviews' && (
+          {isTabActive('reviews') && (
             <PerformanceReviews staffId={staff.id} isManager={staff.role_name?.toLowerCase() === 'manager'} />
           )}
 
-          {activeTab === 'attendance' && (
+          {isTabActive('attendance') && (
             <div className="space-y-4">
               {attendanceLoading ? (
                 <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
@@ -1482,7 +1465,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             </div>
           )}
 
-          {activeTab === 'labor' && (
+          {isTabActive('labor') && (
             <div className="space-y-4">
               {laborLoading ? (
                 <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
@@ -1515,7 +1498,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             </div>
           )}
 
-          {activeTab === 'payroll' && (
+          {isTabActive('payroll') && (
             <div className="space-y-4">
               {payrollLoading ? (
                 <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
@@ -1542,7 +1525,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             </div>
           )}
 
-          {activeTab === 'approvals' && (
+          {isTabActive('approvals') && (
             <div className="space-y-4">
               {approvalsLoading ? (
                 <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
@@ -1571,15 +1554,15 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             </div>
           )}
 
-          {activeTab === 'activity' && (
+          {isTabActive('activity') && (
             <ActivityTab staffId={staff.id} />
           )}
 
-          {activeTab === 'security' && (
+          {isTabActive('security') && (
             <SecurityTab staffId={staff.id} />
           )}
 
-          {activeTab === 'permissions' && (
+          {isTabActive('permissions') && (
             <AdvancedPermissions staffId={staff.id} isManager={staff.role_name?.toLowerCase() === 'manager'} />
           )}
         </div>

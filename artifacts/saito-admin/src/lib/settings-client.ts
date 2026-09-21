@@ -4,7 +4,7 @@ import { apiFetch } from '@/lib/api-fetch';
  * Client-side access to the whitelisted /api/settings/* endpoints.
  * Server enforces field whitelists; secret columns are never returned.
  */
-export type SettingsScope = 'order' | 'pos' | 'general' | 'receipt' | 'printer' | 'business' | 'loyalty';
+export type SettingsScope = 'order' | 'pos' | 'general' | 'receipt' | 'printer' | 'business' | 'loyalty' | 'payment';
 
 export async function getSettings(scope: SettingsScope): Promise<Record<string, any>> {
   try {

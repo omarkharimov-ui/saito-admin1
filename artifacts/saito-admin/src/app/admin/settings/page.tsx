@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer, Wallet, Star } from 'lucide-react';
+import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer, Wallet, Star, Percent } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { AnimatedTabs } from '../components/ui/MotionControls';
 import GeneralTab from './tabs/GeneralTab';
@@ -11,6 +11,7 @@ import HoursTab from './tabs/HoursTab';
 import AnalyticsTab from './tabs/AnalyticsTab';
 import KitchenTab from './tabs/KitchenTab';
 import ReceiptTab from './tabs/ReceiptTab';
+import PaymentTab from './tabs/PaymentTab';
 import PrinterTab from './tabs/PrinterTab';
 import DevicesTab from './tabs/DevicesTab';
 import FloorsTab from './tabs/FloorsTab';
@@ -19,7 +20,7 @@ import LocationTab from './tabs/LocationTab';
 import LoyaltyTab from './tabs/LoyaltyTab';
 
 
-type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'printer' | 'devices' | 'floors' | 'hours' | 'payroll' | 'location' | 'loyalty';
+type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'payment' | 'printer' | 'devices' | 'floors' | 'hours' | 'payroll' | 'location' | 'loyalty';
 
 type TabDef = { key: Tab; labelKey: string; icon: React.ReactNode; superadminOnly?: boolean; desc?: string };
 
@@ -30,6 +31,7 @@ const TAB_DEFS: TabDef[] = [
   { key: 'analytics', labelKey: 'tab_analytics', icon: <BrainCircuit size={20} />,desc: 'Statistika parametrləri' },
   { key: 'kitchen',   labelKey: 'tab_kitchen',   icon: <Timer size={20} />,       desc: 'Mətbəx ayarları' },
   { key: 'receipt',   labelKey: 'tab_receipt',   icon: <Receipt size={20} />,     desc: 'Çek və çıxarış' },
+  { key: 'payment',   labelKey: 'tab_payment',   icon: <Percent size={20} />,     desc: 'Ödəniş və ƏDV' },
   { key: 'printer',   labelKey: 'tab_printer',   icon: <Printer size={20} />,     desc: 'Printer ayarları' },
   { key: 'devices',   labelKey: 'tab_devices',   icon: <Printer size={20} />,     desc: 'Çap cihazları və yönləndirmə' },
   { key: 'floors',    labelKey: 'tab_floors',    icon: <MapPin size={20} />,      desc: 'Zallar, mərtəbələr, masa planı' },
@@ -53,6 +55,7 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
       {tab === 'analytics' && <AnalyticsTab initialData={settingsData} />}
       {tab === 'kitchen'   && <KitchenTab initialData={settingsData} />}
       {tab === 'receipt'   && <ReceiptTab initialData={settingsData} />}
+      {tab === 'payment'   && <PaymentTab />}
       {tab === 'printer'   && <PrinterTab initialData={settingsData} />}
       {tab === 'devices'   && <DevicesTab />}
       {tab === 'floors'    && <FloorsTab />}

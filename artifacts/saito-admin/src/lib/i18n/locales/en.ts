@@ -447,8 +447,11 @@ export const en: TranslationMap = {
   tab_location: 'Location',
   tab_printer: 'Printer',
   tab_payroll: 'Payroll',
-  tab_devices: 'Print Devices',
-  tab_loyalty: 'Loyalty',
+   tab_devices: 'Print Devices',
+   tab_loyalty: 'Loyalty',
+   tab_payment: 'Payment',
+   pay_vat_title: 'VAT (EDV)',
+   pay_vat_desc: 'When active, all new orders are opened with VAT included. Existing orders keep their current state.',
   floor_plan_settings: 'Hall & Floor Plan',
 
   // U-2: paid table release (Core Freeze)

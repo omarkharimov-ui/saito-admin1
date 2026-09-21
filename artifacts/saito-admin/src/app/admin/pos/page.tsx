@@ -2364,11 +2364,18 @@ export default function POSPage() {
                    {/* ═══════════════════════════════════════════════ */}
                    {/* SİFARİŞ — ProductGrid + CartPanel                */}
                    {/* ═══════════════════════════════════════════════ */}
-                    <div className="flex-1 flex flex-row overflow-hidden min-h-0">
-                     <div
-                          className="flex-1 p-6 overflow-y-auto min-h-0 overscroll-contain"
+                     <div className="flex-1 flex flex-row overflow-hidden min-h-0">
+                      {/* Owner fix (2026-09-22): the wrapper used to scroll the
+                          WHOLE block (search + filter tabs + categories + grid),
+                          so Hamısı/Son/Məşur "disappeared" as soon as the grid
+                          scrolled. Now the wrapper is fixed and only the grid
+                          inside ProductGrid scrolls (it already has its own
+                          overflow-y-auto) — search + tabs + categories stay
+                          pinned. */}
+                      <div
+                           className="flex-1 p-6 min-h-0 overflow-hidden"
                         >
-                           <ProductGrid
+                            <ProductGrid
                            ref={gridRef}
                            products={pos.products}
                            categories={pos.categories}

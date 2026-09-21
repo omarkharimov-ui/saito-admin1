@@ -449,17 +449,18 @@ export function CartPanel({
     return sum + (item ? item.unit_price * qty : 0);
   }, 0);
 
-  // Owner UX (2026-09-21): void selection = DIRECT PRESS MARKS, no numbers.
-  // Tap the check → the WHOLE line is marked as a void request; multiple lines
-  // can be marked ("1 seçim, 2 seçim"); tap again to unmark. No +/- stepping.
+  // Owner UX (reverted to the previous stepper, 2026-09-22): void selection is
+  // a −/count/+ control per line, DIRECT PRESS style — one tap on + selects
+  // the whole voidable line, tapping another line moves the selection there
+  // (single active line), − clears.
   const selectVoidItem = (id: string, maxQty: number) => {
+    setVoidSelection(prev => (prev[id] ? {} : { [id]: maxQty }));
+  };
+  const deselectVoidItem = (id: string) => {
     setVoidSelection(prev => {
-      if (prev[id]) {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      }
-      return { ...prev, [id]: maxQty };
+      const next = { ...prev };
+      delete next[id];
+      return next;
     });
   };
 
@@ -1046,20 +1047,20 @@ export function CartPanel({
                    </span>
                      {voidMode && isVoidableItem ? (
                        <div className="flex items-center gap-2">
-                         {/* Void mark — whole line, no number (owner: serving
-                             zamanı +/- mənasızdır, "istek kimi" işarə olsun). */}
-                         <motion.button
-                           onClick={() => selectVoidItem(item.id || `idx-${originalIdx}`, maxVoidQty)}
-                           whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.85 }} transition={TAP}
-                           aria-label={voidSelection[item.id || `idx-${originalIdx}`] ? 'Seçimi ləğv et' : 'Void seç'}
-                           className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${
-                             voidSelection[item.id || `idx-${originalIdx}`]
-                               ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/25'
-                               : lightMode ? 'border-zinc-300 text-transparent hover:border-rose-400' : 'border-white/25 text-transparent hover:border-rose-400'
-                           }`}
-                         >
-                           <Check size={16} />
-                         </motion.button>
+                         <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
+                           <motion.button
+                             onClick={() => deselectVoidItem(item.id || `idx-${originalIdx}`)}
+                             whileTap={{ scale: 0.88 }} transition={TAP}
+                             className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)] disabled:opacity-30"
+                             disabled={!(voidSelection[item.id || `idx-${originalIdx}`] ?? 0)}
+                           >−</motion.button>
+                           <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-[var(--theme-text)]">{voidSelection[item.id || `idx-${originalIdx}`] || '—'}</span>
+                           <motion.button
+                             onClick={() => selectVoidItem(item.id || `idx-${originalIdx}`, maxVoidQty)}
+                             whileTap={{ scale: 0.88 }} transition={TAP}
+                             className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)]"
+                           >+</motion.button>
+                         </div>
                        </div>
                      ) : (
                     <div className="flex items-center gap-2">

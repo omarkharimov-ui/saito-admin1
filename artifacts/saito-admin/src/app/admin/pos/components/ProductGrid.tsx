@@ -644,15 +644,19 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                               return (
                                 <motion.button
                                   key={code}
-                                  whileHover={{ y: -1.5 }} whileTap={{ scale: 0.9 }} transition={SPRING}
+                                  whileHover={{ y: -1.5 }} whileTap={{ scale: 0.94 }} transition={TAP}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedAllergens(prev => on ? prev.filter(x => x !== code) : [...prev, code]);
                                   }}
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${on ? 'bg-red-500/15 border-red-500/60 text-red-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
+                                  /* Touch-friendly (owner 2026-09-22): min 38px
+                                     target, bigger text/icon — the old
+                                     px-2/py-0.5/text-[10px] pill was a 16px
+                                     tap hole. */
+                                  className={`inline-flex items-center gap-1.5 min-h-[38px] px-4 py-2 rounded-xl border text-xs font-bold ${on ? 'bg-red-500/15 border-red-500/60 text-red-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
                                 >
-                                  <Icon size={10} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
-                                  {on && <Check size={9} />}
+                                  <Icon size={14} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
+                                  {on && <Check size={12} />}
                                 </motion.button>
                               );
                             })}
@@ -726,36 +730,65 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     });
                   };
 
-                  const renderChip = (m: any, group?: any) => {
-                    const mQty = selectedModifiers[m.id] || 0;
-                    const selectedInGroup = group
-                      ? (group.item_ids || []).filter((oid: string) => (selectedModifiers[oid] || 0) > 0).length
-                      : 0;
-                    const maxReached = !!group && group.max_select != null && mQty === 0 && selectedInGroup >= Number(group.max_select);
-                    return (
-                      <motion.div key={m.id || m.name} whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
-                        transition={SPRING}
-                        className={`flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl text-sm font-semibold border ${mQty > 0 ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
-                        <span
-                          onClick={() => {
-                            // Exclusive group: tapping an already-selected chip deselects it.
-                            if (group && Number(group.max_select) === 1 && mQty > 0) setModQty(m.id, 0, group);
-                            else if (!maxReached) setModQty(m.id, (selectedModifiers[m.id] || 0) + 1, group);
-                          }}
-                          className={`whitespace-nowrap select-none active:scale-95 ${maxReached ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-                        >
-                          {m.name} {m.price ? <span className={mQty > 0 ? 'opacity-70' : 'opacity-50'}>+₼{Number(m.price).toFixed(2)}</span> : ''}
-                        </span>
-                        {mQty > 0 && (
-                          <>
-                            <button onClick={() => setModQty(m.id, Math.max(0, (selectedModifiers[m.id] || 0) - 1), group)} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-95">−</button>
-                            <span className="min-w-[1.1rem] text-center tabular-nums text-xs font-bold">{mQty}</span>
-                          </>
-                        )}
-                        <button onClick={() => setModQty(m.id, (selectedModifiers[m.id] || 0) + 1, group)} disabled={maxReached || (!!group && Number(group.max_select) === 1 && mQty >= 1)} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-95 disabled:opacity-30">+</button>
-                      </motion.div>
-                    );
-                  };
+                   const renderChip = (m: any, group?: any) => {
+                     const mQty = selectedModifiers[m.id] || 0;
+                     const isExclusive = !!group && Number(group.max_select) === 1;
+                     const maxSelect = group?.max_select != null ? Number(group.max_select) : 0;
+                     // Additive: the group cap counts TOTAL quantity across chips.
+                     const groupQty = group
+                       ? (group.item_ids || []).reduce((s: number, oid: string) => s + (selectedModifiers[oid] || 0), 0)
+                       : 0;
+                     const maxReached = !isExclusive && maxSelect > 0 && groupQty >= maxSelect;
+                     const on = mQty > 0;
+
+                     // EXCLUSIVE (max_select=1, e.g. Serving üslubu): DIRECT
+                     // SELECTION — tap selects (radio), tap again deselects.
+                     // No count, no +/− (owner 2026-09-22: "servingdə sayı
+                     // olur??? birbaşa seçilən olsun").
+                     if (isExclusive) {
+                       return (
+                         <motion.button
+                           key={m.id || m.name}
+                           onClick={() => setModQty(m.id, on ? 0 : 1, group)}
+                           whileHover={{ y: -1.5 }} whileTap={{ scale: 0.94 }} transition={TAP}
+                           className={`px-4 py-2.5 rounded-xl text-sm font-semibold border whitespace-nowrap ${on ? 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/25' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/80 hover:bg-white/5'}`}
+                         >
+                           {m.name} {m.price ? <span className={on ? 'opacity-80' : 'opacity-50'}>+₼{Number(m.price).toFixed(2)}</span> : ''}
+                         </motion.button>
+                       );
+                     }
+
+                     // ADDITIVE (max>1, e.g. Əlavələr): the whole chip is the
+                     // +1 button (big touch target, no tiny-button hunting), a
+                     // count badge shows how many, and ONE × tap clears it
+                     // (owner: "toxunmaq-artırmaq çox narahatdır, yaxşı bir
+                     // şey düşünelik").
+                     return (
+                       <motion.div key={m.id || m.name} whileHover={{ y: -1.5 }} transition={SPRING}
+                         className={`flex items-center gap-1 pl-4 pr-1.5 py-2 rounded-xl text-sm font-semibold border ${on ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'} ${maxReached && !on ? 'opacity-40' : ''}`}>
+                         <motion.button
+                           onClick={() => { if (!maxReached) setModQty(m.id, mQty + 1, group); }}
+                           whileTap={{ scale: 0.96 }} transition={TAP}
+                           className="flex items-center gap-1.5 whitespace-nowrap select-none"
+                         >
+                           {m.name} {m.price ? <span className={on ? 'opacity-70' : 'opacity-50'}>+₼{Number(m.price).toFixed(2)}</span> : ''}
+                           {on && (
+                             <span className="min-w-[1.4rem] px-1 py-0.5 rounded-md bg-blue-500 text-white text-[11px] font-black text-center tabular-nums">×{mQty}</span>
+                           )}
+                         </motion.button>
+                         {on && (
+                           <motion.button
+                             onClick={() => setModQty(m.id, 0, group)}
+                             whileTap={{ scale: 0.85 }} transition={TAP}
+                             aria-label="Təmizlə"
+                             className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10"
+                           >
+                             <X size={13} />
+                           </motion.button>
+                         )}
+                       </motion.div>
+                     );
+                   };
 
                   return (
                     <div className="space-y-3">

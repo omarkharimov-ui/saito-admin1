@@ -1621,7 +1621,7 @@ export const ru: TranslationMap = {
   void_mode_title: 'Режим отмены',
   archived_table: 'Архив',
   archived_table_info: 'Стол в архиве — приём заказов невозможен',
-  void_mode_explanation: 'Нажмите ✓ на позиции, которые нужно списать',
+  void_mode_explanation: 'Нажмите "+" на позиции, которые нужно списать',
   void_select_hint: 'Нажмите "+" на позиции, чтобы добавить её — количество можно увеличить или уменьшить',
   void_select_prompt: 'Выберите товары для отмены',
   void_total_label: 'Сумма к отмене',

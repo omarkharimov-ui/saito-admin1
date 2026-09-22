@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
-import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, ChevronDown, ChevronUp, Phone } from 'lucide-react';
+import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { usePos, cartLineKey } from './hooks/usePos';
@@ -15,6 +15,7 @@ import { ActionSheet } from './components/ActionSheet';
 import { PinGuard, type PinVerified } from './components/PinGuard';
 import { ProductGrid, type ProductGridRef, SPRING, TAP } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
+import CustomerPhasePanel from './components/CustomerPhasePanel';
 import { playHapticSound } from '@/lib/haptic';
 import ReservationActionSheet from './components/ReservationActionSheet';
 import TakeawayOrders from './components/TakeawayOrders';
@@ -138,13 +139,21 @@ export default function POSPage() {
   const [cashDrawerOpen, setCashDrawerOpen] = useState(false);
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
-  // 2026-09-22 (owner): the takeaway/delivery info inputs (phone/name/address/
-  // zone/fee/notes) occupied up to 44% of the cart column ABOVE the items —
-  // on a delivery order the item list was effectively blocked. Now the block
-  // is collapsible: auto-COLLAPSED when the cart has items (owner was
-  // mid-order-entry), auto-EXPANDED for a brand-new cart, and forced open
-  // when send validation finds missing phone/address.
-  const [infoOverride, setInfoOverride] = useState<boolean | null>(null);
+  // 2026-09-22 (owner, v2 — final design): the POS order view has two
+  // PHASES sharing the big (left) area:
+  //   'products'  — ProductGrid full area, cart column at MAX size (no info
+  //                 anywhere — the basket is the screen)
+  //   'customer'  — CustomerPhasePanel takes the GRID's place (grid not
+  //                 needed while entering customer info); the cart column is
+  //                 never touched (items + total stay visible).
+  // Entry: the "Müşəri" chip in the cart header, or send-validation
+  // (missing name/phone/address). customerFocus = focus+flash target.
+  const [posPhase, setPosPhase] = useState<'products' | 'customer'>('products');
+  const [customerFocus, setCustomerFocus] = useState<{ field: string; n: number } | null>(null);
+  // Cart cleared (send / temizlə / back) -> always products phase.
+  useEffect(() => {
+    if (!pos.cart) { setPosPhase('products'); setCustomerFocus(null); }
+  }, [pos.cart]);
   
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
@@ -1558,6 +1567,32 @@ export default function POSPage() {
     await doSubmitDiscount(null);
   };
 
+  // 2026-09-22 (OrderInfoStrip): zone select + auto-fee — moved out of the
+  // old inline <select> (same RPC + same semantics as before).
+  const handleZoneSelect = async (zoneName: string) => {
+    if (!pos.cart) return;
+    const nextCart = { ...pos.cart, delivery_zone: zoneName || null };
+    const zone = deliveryZones.find(z => z.name === zoneName);
+    if (zone) {
+      const itemsTotal = (pos.cart.items || []).reduce((s: number, i: any) => s + (i.unit_price || 0) * (i.quantity || 0), 0);
+      let fee = Number(zone.fee) || 0;
+      try {
+        const res = await apiFetch('/api/rpc/calculate_delivery_fee', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_zone_name: zone.name, p_order_amount: itemsTotal, p_customer_address: pos.cart.delivery_address || null }),
+        });
+        if (res.ok) {
+          const data: any = await res.json();
+          fee = Number(typeof data === 'number' ? data : data?.fee ?? fee) || 0;
+        }
+      } catch { /* keep the zone's base fee */ }
+      pos.setCart({ ...nextCart, delivery_fee: fee });
+    } else {
+      pos.setCart({ ...nextCart, delivery_fee: 0 });
+    }
+  };
+
   // Shared cart-send path (U-4): used by the CartPanel "Send" button AND by
   // the unsent-cart guard modal, so both execute identical logic.
   const sendCurrentOrder = () => {
@@ -1568,13 +1603,22 @@ export default function POSPage() {
     if (posMode !== 'dine_in') {
       const phone = pos.cart?.customer_phone?.trim();
       if (posMode === 'delivery' && !phone) {
-        setInfoOverride(true); // reveal the (possibly collapsed) inputs
+        setPosPhase('customer');
+        setCustomerFocus({ field: 'customer_phone', n: Date.now() });
         toast.error(t('enter_phone'));
         return;
       }
       if (posMode === 'delivery' && !pos.cart?.delivery_address?.trim()) {
-        setInfoOverride(true);
+        setPosPhase('customer');
+        setCustomerFocus({ field: 'delivery_address', n: Date.now() });
         toast.error(t('enter_address'));
+        return;
+      }
+      if (posMode === 'takeaway' && !pos.cart?.customer_name?.trim()) {
+        // Takeaway name = the "call-out" name: soft gate — enter the
+        // customer phase focused on the name field (no hard error toast).
+        setPosPhase('customer');
+        setCustomerFocus({ field: 'customer_name', n: Date.now() });
         return;
       }
       pos.placeOrder(undefined, {
@@ -2351,12 +2395,12 @@ export default function POSPage() {
                  onNewOrder={() => {
                    pos.initializeTakeawayCart();
                    setEditingOrder(null);
-                   setInfoOverride(null);
+                   setPosPhase('products'); setCustomerFocus(null);;
                    pos.setActiveView('order');
                  }}
                  onSelectOrder={(order) => {
                    setEditingOrder(order);
-                   setInfoOverride(null);
+                   setPosPhase('products'); setCustomerFocus(null);;
                    pos.loadOrderIntoCart(order);
                    pos.setActiveView('order');
                  }}
@@ -2381,12 +2425,12 @@ export default function POSPage() {
                  onNewOrder={() => {
                    pos.initializeTakeawayCart();
                    setEditingOrder(null);
-                   setInfoOverride(null);
+                   setPosPhase('products'); setCustomerFocus(null);;
                    pos.setActiveView('order');
                  }}
                  onSelectOrder={(order) => {
                    setEditingOrder(order);
-                   setInfoOverride(null);
+                   setPosPhase('products'); setCustomerFocus(null);;
                    pos.loadOrderIntoCart(order);
                    pos.setActiveView('order');
                  }}
@@ -2422,9 +2466,36 @@ export default function POSPage() {
                           inside ProductGrid scrolls (it already has its own
                           overflow-y-auto) — search + tabs + categories stay
                           pinned. */}
-                      <div
-                           className="flex-1 p-6 min-h-0 overflow-hidden"
-                        >
+                      <div className="flex-1 p-6 min-h-0 overflow-hidden">
+                        <AnimatePresence mode="wait">
+                          {posPhase === 'customer' && posMode !== 'dine_in' ? (
+                            <motion.div
+                              key="customer-phase"
+                              className="h-full"
+                              initial={{ opacity: 0, y: 14, scale: 0.99 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -10, scale: 0.995 }}
+                              transition={SPRING}
+                            >
+                              <CustomerPhasePanel
+                                mode={posMode}
+                                cart={pos.cart}
+                                zones={deliveryZones}
+                                onUpdate={(field, value) => { if (pos.cart) pos.setCart({ ...pos.cart, [field]: value }); }}
+                                onZoneSelect={handleZoneSelect}
+                                onBack={() => { setPosPhase('products'); setCustomerFocus(null); }}
+                                focusField={customerFocus}
+                              />
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="products-phase"
+                              className="h-full"
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10, scale: 0.995 }}
+                              transition={SPRING}
+                            >
                             <ProductGrid
                            ref={gridRef}
                            products={pos.products}
@@ -2443,6 +2514,9 @@ export default function POSPage() {
                             onRetryCatalog={() => pos.fetchData()}
                             filterData={filterData}
                            />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                        <div
                           className="w-[440px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
@@ -2474,189 +2548,6 @@ export default function POSPage() {
                                  </div>
                                </div>
                                )}
-                               {posMode !== 'dine_in' && (() => {
-                                 const cartItemCount = (pos.cart?.items ?? []).length;
-                                 // null = auto (expanded only when cart is empty)
-                                 const infoOpen = infoOverride ?? cartItemCount === 0;
-                                 const cPhone = pos.cart?.customer_phone?.trim() || '';
-                                 const cName = pos.cart?.customer_name?.trim() || '';
-                                 const cAddr = pos.cart?.delivery_address?.trim() || '';
-                                 const missing = posMode === 'delivery'
-                                   ? (!cPhone || !cAddr)
-                                   : !cPhone;
-                                 if (!infoOpen) {
-                                   // Collapsed: one slim summary line — the cart
-                                   // items get the full column back.
-                                   return (
-                                     <button
-                                       type="button"
-                                       onClick={() => setInfoOverride(true)}
-                                       className={`w-full flex-shrink-0 flex items-center gap-2 px-4 py-2.5 border-b text-left transition-colors ${lightMode ? 'border-zinc-100 bg-zinc-50/60 hover:bg-zinc-100' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}
-                                     >
-                                       <Phone size={12} className={missing ? 'text-amber-500 shrink-0' : 'text-emerald-500 shrink-0'} />
-                                       <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
-                                         {cPhone || t('phone_missing')}
-                                         {cName ? ` · ${cName}` : ''}
-                                         {posMode === 'delivery' ? ` · ${cAddr || t('address_missing')}` : ''}
-                                       </span>
-                                       {missing && (
-                                         <span className={`ml-auto flex-shrink-0 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${lightMode ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/15 text-amber-400'}`}>
-                                           {t('info_tab')}
-                                         </span>
-                                       )}
-                                       <ChevronDown size={14} className={`flex-shrink-0 ${missing ? '' : 'opacity-40'} ${lightMode ? 'text-zinc-400' : 'text-white/40'}`} />
-                                     </button>
-                                   );
-                                 }
-                                 return (
-                                 <div className="flex-shrink-0">
-                                   <button
-                                     type="button"
-                                     onClick={() => setInfoOverride(false)}
-                                     className={`w-full flex items-center justify-between px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/35 hover:text-white/60'}`}
-                                   >
-                                     <span>{posMode === 'delivery' ? (t('delivery_info') || 'Çatdırılma məlumatları') : (t('customer_info') || 'Müşəri məlumatları')}</span>
-                                     <ChevronUp size={13} />
-                                   </button>
-                                 <div className="overflow-y-auto min-h-0 max-h-[44%] px-4 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10 overscroll-contain">
-                              <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                  {t('customer_phone')} {posMode === 'delivery' ? '*' : ''}
-                                </label>
-                                <input
-                                  type="tel"
-                                  value={pos.cart?.customer_phone || ''}
-                                  onChange={e => {
-                                    if (!pos.cart) return;
-                                    pos.setCart({ ...pos.cart, customer_phone: e.target.value || null });
-                                  }}
-                                  placeholder={t('phone_placeholder')}
-                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
-                                />
-                              </div>
-                              <div>
-                                <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                  {t('customer_name')}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={pos.cart?.customer_name || ''}
-                                  onChange={e => {
-                                    if (!pos.cart) return;
-                                    pos.setCart({ ...pos.cart, customer_name: e.target.value || null });
-                                  }}
-                                  placeholder={t('customer_name_placeholder')}
-                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
-                                />
-                              </div>
-                            </div>
-
-                            {posMode === 'delivery' && (
-                              <div>
-                                <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                  {t('delivery_address')} *
-                                </label>
-                                <textarea
-                                  value={pos.cart?.delivery_address || ''}
-                                  onChange={e => {
-                                    if (!pos.cart) return;
-                                    pos.setCart({ ...pos.cart, delivery_address: e.target.value || null });
-                                  }}
-                                  placeholder={t('address_placeholder')}
-                                  rows={2}
-                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all resize-none ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
-                                />
-                               </div>
-                             )}
-
-                             {posMode === 'delivery' && deliveryZones.length > 0 && (
-                               <div>
-                                  <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                    {t('delivery_zone')}
-                                  </label>
-                                  <p className={`text-[10px] font-semibold mb-1.5 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                                    {t('zone_fee_hint') || 'Haqq seçilən zonaya görə avtomatik təyin olunur'}
-                                  </p>
-                                 <select
-                                   value={pos.cart?.delivery_zone || ''}
-                                   onChange={async (e) => {
-                                     const zoneName = e.target.value;
-                                     if (!pos.cart) return;
-                                     const nextCart = { ...pos.cart, delivery_zone: zoneName || null };
-                                     const zone = deliveryZones.find(z => z.name === zoneName);
-                                     if (zone) {
-                                       // Auto-fee from the zone's free-delivery threshold (server RPC).
-                                       const itemsTotal = (pos.cart.items || []).reduce((s: number, i: any) => s + (i.unit_price || 0) * (i.quantity || 0), 0);
-                                       let fee = Number(zone.fee) || 0;
-                                       try {
-                                         const res = await apiFetch('/api/rpc/calculate_delivery_fee', {
-                                           method: 'POST',
-                                           headers: { 'Content-Type': 'application/json' },
-                                           body: JSON.stringify({ p_zone_name: zone.name, p_order_amount: itemsTotal, p_customer_address: pos.cart.delivery_address || null }),
-                                         });
-                                         if (res.ok) {
-                                           const data: any = await res.json();
-                                           fee = Number(typeof data === 'number' ? data : data?.fee ?? fee) || 0;
-                                         }
-                                       } catch { /* keep the zone's base fee */ }
-                                       pos.setCart({ ...nextCart, delivery_fee: fee });
-                                     } else {
-                                       pos.setCart({ ...nextCart, delivery_fee: 0 });
-                                     }
-                                   }}
-                                   className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
-                                 >
-                                   <option value="">{t('delivery_zone_none')}</option>
-                                   {deliveryZones.map(z => (
-                                     <option key={z.id} value={z.name}>
-                                       {z.name} · ₼{Number(z.fee).toFixed(0)} · {z.estimated_minutes} dəq{z.free_delivery_threshold > 0 ? ` (pulsuz ₼${Number(z.free_delivery_threshold).toFixed(0)}+)` : ''}
-                                     </option>
-                                   ))}
-                                 </select>
-                               </div>
-                             )}
-
-                            <div className="grid grid-cols-2 gap-2">
-                              {posMode === 'delivery' && (
-                                <div>
-                                    <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                      {t('delivery_fee')} (₼) <span className="normal-case tracking-normal opacity-60">· {t('auto') || 'avtomatik'}</span>
-                                   </label>
-                                 <input
-                                   type="number"
-                                   step="0.01"
-                                   min="0"
-                                   value={pos.cart?.delivery_fee || ''}
-                                   onChange={e => {
-                                     if (!pos.cart) return;
-                                     pos.setCart({ ...pos.cart, delivery_fee: Number(e.target.value) || 0 });
-                                   }}
-                                   placeholder="0.00"
-                                   className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
-                                 />
-                               </div>
-                             )}
-                             <div>
-                                <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                  {t('notes')}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={pos.cart?.notes || ''}
-                                  onChange={e => {
-                                    if (!pos.cart) return;
-                                    pos.setCart({ ...pos.cart, notes: e.target.value });
-                                  }}
-                                  placeholder={t('note_placeholder')}
-                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
-                                />
-                             </div>
-                            </div>
-                          </div>
-                                 </div>
-                                 );
-                               })()}
                          <CartPanel
                            cart={pos.cart}
                            cartHydrating={pos.cartHydrating}
@@ -2668,7 +2559,7 @@ export default function POSPage() {
                               // table is reopened (selectTable carryDrafts).
                               if (pos.placingOrder) return;
                                pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null);
-                               pos.setActiveView('floor'); setEditingOrder(null); setInfoOverride(null);
+                               pos.setActiveView('floor'); setEditingOrder(null); setPosPhase('products'); setCustomerFocus(null);;
                             }}
                          orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
                          onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
@@ -2679,6 +2570,7 @@ export default function POSPage() {
                             }}
                           onUpdateCustomer={(name) => pos.updateCartCustomer(pos.cart?.customer_id || null, name)}
                           onSelectCustomer={handleSelectCustomer}
+                          onOpenCustomerPhase={() => { setPosPhase('customer'); setCustomerFocus(null); }}
                           onRecordLoss={handleRecordLoss}
                          onClearDraft={() => pos.clearCart()}
                          mergedChildNumbers={posMode === 'dine_in' ? activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number) : undefined}

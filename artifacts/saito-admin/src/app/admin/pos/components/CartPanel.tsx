@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check, Sparkles, Plus, AlertTriangle } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -33,6 +33,8 @@ interface CartPanelProps {
    *  /api/customers as the ActionSheet customer section). Attaches customer_id
    *  so the loyalty spine can credit points; both surfaces stay consistent. */
   onSelectCustomer?: (customerId: string | null, customerName: string | null, customerPhone?: string | null) => void;
+  /** Opens the customer phase (panel replaces the grid area; cart untouched). */
+  onOpenCustomerPhase?: () => void;
   mergedChildNumbers?: number[];
   onRecordLoss?: (items: LossItem[], reason: string) => Promise<void>;
   hasExistingOrder?: boolean;
@@ -123,7 +125,7 @@ const PRIORITIES = [
 
 export function CartPanel({
   cart, cartHydrating = false, onUpdateQty, onPlaceOrder,
-  onClearDraft, onBack, orderButtonStatus, onUpdateGuests, onUpdateCustomer, onSelectCustomer, mergedChildNumbers, onRecordLoss,
+  onClearDraft, onBack, orderButtonStatus, onUpdateGuests, onUpdateCustomer, onSelectCustomer, onOpenCustomerPhase, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
   isReservationMode = false, reservation,
   reservationPreOrderItems = [],
@@ -728,14 +730,31 @@ export function CartPanel({
               </div>
             )}
               {headerMeta}
-            {(posMode === 'takeaway' || posMode === 'delivery') && cart.customer_name ? (
-              <div className="flex items-center gap-2 mt-1.5">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${lightMode ? 'bg-blue-100 text-blue-600' : 'bg-blue-500/20 text-blue-400'}`}>
-                  {cart.customer_name.slice(0, 1).toUpperCase()}
-                </div>
-                <span className="text-sm font-bold text-blue-400 truncate">{cart.customer_name}</span>
-              </div>
-            ) : posMode === 'dine_in' ? (
+             {/* 2026-09-22 (owner, v2): the customer chip is the ENTRY to the
+                 customer phase (CustomerPhasePanel takes the grid's place —
+                 the cart column never shrinks). Always rendered for
+                 takeaway/delivery: empty = dashed "+ Müşəri", filled =
+                 avatar + name + phone. */}
+             {(posMode === 'takeaway' || posMode === 'delivery') ? (
+               <button
+                 type="button"
+                 onClick={() => onOpenCustomerPhase?.()}
+                 className={`mt-1.5 flex items-center gap-2 px-2.5 h-8 rounded-full border text-left transition-all active:scale-[0.98] ${
+                   cart.customer_name
+                     ? (lightMode ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' : 'bg-blue-500/10 border-blue-400/25 hover:bg-blue-500/20')
+                     : (lightMode ? 'bg-transparent border-dashed border-zinc-300 hover:border-zinc-400' : 'bg-transparent border-dashed border-white/20 hover:border-white/40')
+                 }`}
+               >
+                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${lightMode ? 'bg-blue-100 text-blue-600' : 'bg-blue-500/25 text-blue-300'}`}>
+                   {cart.customer_name ? cart.customer_name.slice(0, 1).toUpperCase() : <User size={10} />}
+                 </div>
+                 <span className={`text-xs font-bold truncate max-w-[150px] ${cart.customer_name ? (lightMode ? 'text-blue-600' : 'text-blue-300') : (lightMode ? 'text-zinc-400' : 'text-white/40')}`}>
+                   {cart.customer_name || t('add_customer_phase')}
+                 </span>
+                 {cart.customer_phone ? <span className={`text-[10px] tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{cart.customer_phone}</span> : null}
+                 <ChevronRight size={11} className={lightMode ? 'text-zinc-300' : 'text-white/25'} />
+               </button>
+             ) : posMode === 'dine_in' ? (
               customerEditing ? (
                 <div className="flex flex-col gap-1 mt-1 w-full max-w-[240px]">
                   <div className="flex items-center gap-1.5">

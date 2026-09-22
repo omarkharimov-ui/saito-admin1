@@ -1814,6 +1814,9 @@ export const az = {
   active_orders_short: 'aktiv sifariş',
   all_orders_ready: 'Bütün sifarişlər hazırdır',
   complete_order: 'Sifarişi Tamamla',
+  kds_all_stations: 'BƏNÝƏ',
+  kds_station_empty: 'Bu stansiyada aktiv sifariş yoxdur',
+  kds_other_stations_pending: 'Digər stansiyalar hazırlayır',
 
   void_item: 'Məhsulu silmək',
   loss: 'İtki yazmaq',

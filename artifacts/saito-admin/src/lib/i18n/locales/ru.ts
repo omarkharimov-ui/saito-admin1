@@ -1817,6 +1817,9 @@ export const ru: TranslationMap = {
   active_orders_short: 'активных заказов',
   all_orders_ready: 'Все заказы готовы',
   complete_order: 'Завершить заказ',
+  kds_all_stations: 'ВСЕ',
+  kds_station_empty: 'Нет активных заказов на этой станции',
+  kds_other_stations_pending: 'Другие станции ещё готовят',
 
   void_item: 'Списать товар',
   loss: 'Списать убыток',

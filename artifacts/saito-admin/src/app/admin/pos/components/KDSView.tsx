@@ -28,7 +28,14 @@ interface KDSItem {
    *  timing. Both are persisted on order_items; the KDS just didn't map them. */
   course?: string | null;
   is_hold?: boolean;
+  /** BDS #28: station snapshot (order_items.station_id, set by the
+   *  BEFORE INSERT trigger from products.station_id). Legacy locked lines
+   *  and manual (product-less) lines are NULL → displayed at the Main
+   *  Kitchen default board. */
+  station_id?: string | null;
 }
+
+interface KDSStation { id: string; name: string; }
 
 interface KDSOrder {
   id: string;
@@ -112,6 +119,25 @@ export function KDSView({ onBack }: { onBack: () => void }) {
   const [delayMin, setDelayMin] = useState(30);
   const prevOrderCountRef = useRef(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // BDS #28 — station boards. SSOT: `stations` (via /api/stations; the
+  // stations RLS policy is location-scoped so the browser client can't be
+  // relied on). stationFilter = null → "BƏNÝƏ" board (all stations).
+  const [stations, setStations] = useState<KDSStation[]>([]);
+  const [stationFilter, setStationFilter] = useState<string | null>(null);
+  useEffect(() => {
+    fetch('/api/stations', { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : []))
+      .then((d: any) => setStations(Array.isArray(d) ? d : []))
+      .catch(() => setStations([]));
+  }, []);
+  // Items with no station snapshot (legacy locked lines / manual lines)
+  // display at the Main Kitchen default board (matches the backfill rule).
+  const fallbackStationId = stations.find(s => s.name === 'Main Kitchen')?.id || stations[0]?.id || null;
+  const itemStation = (i: KDSItem) => i.station_id || fallbackStationId;
+  const isItemReady = (i: KDSItem) => i.kitchen_status === 'ready' || i.kitchen_status === 'completed';
+  const stationPendingCount = (stId: string) =>
+    orders.reduce((sum, o) => sum + o.items.filter(i => itemStation(i) === stId && !isItemReady(i)).length, 0);
 
   // pr v1 — this KDS terminal is a browser print terminal too: claims
   // kitchen (and receipt) jobs routed to browser devices of the location.
@@ -279,6 +305,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
               special_notes: i.special_notes,
               course: i.course ?? null,
               is_hold: Boolean(i.is_hold),
+              station_id: i.station_id ?? null,
             })),
             created_at: o.created_at,
             kitchen_status: o.kitchen_status || 'pending',
@@ -330,18 +357,34 @@ export function KDSView({ onBack }: { onBack: () => void }) {
   };
 
   const handleMarkReady = async (orderId: string) => {
+    // 2026-09-22 (BDS E2E finding): the old body never checked res.ok — a
+    // 500 from mark-ready would still drop the ticket + show success.
     try {
-      await apiFetch('/api/orders/mark-ready', {
+      const res = await apiFetch('/api/orders/mark-ready', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_id: orderId }),
       });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
+        return;
+      }
       setOrders(prev => prev.filter(o => o.id !== orderId));
       toast.success(`${t('order_ready')}!`, { id: 'kds-toast' });
     } catch {
       toast.error(t('status_update_error'), { id: 'kds-toast' });
     }
   };
+
+  // BDS #28 — the active board: on a station tab only tickets with ≥1 item
+  // routed to that station are shown; each ticket lists ONLY its items for
+  // that station. The complete-order button stays on the whole-order
+  // invariant (all stations done) so a station can never pull the order
+  // into TƏHVİLƏ HAZIR while another station is still cooking.
+  const boardOrders = stationFilter
+    ? orders.filter(o => o.items.some(i => itemStation(i) === stationFilter))
+    : orders;
 
   return (
     <div className="flex flex-col h-full">
@@ -369,20 +412,66 @@ export function KDSView({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
+      {/* BDS #28 — station board tabs (SSOT: stations). One board per
+          station; a ticket appears on a station board while it has ≥1 item
+          routed there. Items without a snapshot land at Main Kitchen. */}
+      {stations.length > 0 && (
+        <div className="flex items-center gap-2 flex-shrink-0 px-0.5 pb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          <button
+            type="button"
+            onClick={() => setStationFilter(null)}
+            className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border transition-all ${stationFilter === null ? (lightMode ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-black border-white') : (lightMode ? 'bg-white text-gray-500 border-gray-200 hover:border-gray-300' : 'bg-white/[0.04] text-white/45 border-white/[0.08] hover:text-white/70')}`}
+          >
+            {t('kds_all_stations')} · {orders.length}
+          </button>
+          {stations.map(st => {
+            const pending = stationPendingCount(st.id);
+            const active = stationFilter === st.id;
+            return (
+              <button
+                key={st.id}
+                type="button"
+                onClick={() => setStationFilter(active ? null : st.id)}
+                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border transition-all ${active ? (lightMode ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-black border-white') : (lightMode ? 'bg-white text-gray-500 border-gray-200 hover:border-gray-300' : 'bg-white/[0.04] text-white/45 border-white/[0.08] hover:text-white/70')}`}
+              >
+                <ChefHat size={11} className={active ? '' : 'opacity-50'} />
+                {st.name}
+                {pending > 0 && (
+                  <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black flex items-center justify-center ${active ? 'bg-white/20' : (lightMode ? 'bg-red-100 text-red-600' : 'bg-red-500/20 text-red-300')}`}>
+                    {pending}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Orders Grid */}
       <div className="flex-1 overflow-y-auto py-3">
-        {orders.length === 0 ? (
+        {boardOrders.length === 0 ? (
           <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/15'}`}>
             <CheckCircle2 size={40} className="mb-3 opacity-30" />
-            <p className="text-sm">{t('all_orders_ready')}</p>
+            <p className="text-sm">{stationFilter ? t('kds_station_empty') : t('all_orders_ready')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <AnimatePresence>
-              {orders.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map(order => {
+              {boardOrders.slice().sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map(order => {
                 const criticalMin = Math.max(1, Math.round(delayMin / 2));
                 const timer = getItemTimerStatus(order.created_at, criticalMin, delayMin);
-                const allItemsReady = order.items.every(i => i.kitchen_status === 'ready' || i.kitchen_status === 'completed');
+                const allItemsReady = order.items.every(isItemReady);
+                // BDS #28: on a station board the ticket lists only that
+                // station's items; progress + the "other stations" hint are
+                // computed on the visible subset.
+                const visibleItems = stationFilter
+                  ? order.items.filter(i => itemStation(i) === stationFilter)
+                  : order.items;
+                const visibleReady = visibleItems.filter(isItemReady).length;
+                const visibleAllReady = visibleItems.length > 0 && visibleReady === visibleItems.length;
+                const otherPending = stationFilter
+                  ? order.items.filter(i => itemStation(i) !== stationFilter && !isItemReady(i)).length
+                  : 0;
                 return (
                   <div
                     key={order.id}
@@ -401,6 +490,11 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                           {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
                         </span>
                         {getOrderBadge(order, lightMode)}
+                        {stationFilter && visibleItems.length > 1 && (
+                          <span className={`text-[11px] font-black px-2 py-1 rounded-full border ${visibleAllReady ? (lightMode ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20') : (lightMode ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-white/[0.05] text-white/55 border-white/[0.08]')}`}>
+                            {visibleReady}/{visibleItems.length}
+                          </span>
+                        )}
                         {(timer.color === 'red' || timer.color === 'purple') && (
                           <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold tracking-wider border ${getTimerStyles(timer.color, lightMode)}`}>
                             <AlertTriangle size={10} />
@@ -432,9 +526,9 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                       </p>
                     )}
 
-                    {/* Items */}
+                    {/* Items (BDS #28: filtered to the active station board) */}
                     <div className="space-y-1.5 mb-3">
-                      {order.items.map(item => {
+                      {visibleItems.map(item => {
                         const itemReady = item.kitchen_status === 'ready' || item.kitchen_status === 'completed';
                         // Modifier names with quantities — "add 2 cheese" must
                         // reach the kitchen as "Cheese ×2", not "Cheese".
@@ -489,15 +583,22 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                       </div>
                     )}
 
-                    {/* Action */}
-                    {allItemsReady && (
+                    {/* Action — whole-order invariant: the complete button
+                        appears only when EVERY station's items are ready.
+                        On a station board with this station done but others
+                        still cooking, show the pending count instead. */}
+                    {allItemsReady ? (
                       <button
                         onClick={() => handleMarkReady(order.id)}
                         className={`w-full py-2.5 rounded-2xl text-xs font-bold transition-all ${lightMode ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-emerald-500 text-white hover:bg-emerald-400'}`}
                       >
                         {t('complete_order')}
                       </button>
-                    )}
+                    ) : stationFilter && visibleAllReady && otherPending > 0 ? (
+                      <div className={`w-full py-2.5 rounded-2xl text-xs font-bold text-center border cursor-not-allowed ${lightMode ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-amber-500/5 text-amber-300 border-amber-500/15'}`}>
+                        {t('kds_other_stations_pending')} · {otherPending}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}

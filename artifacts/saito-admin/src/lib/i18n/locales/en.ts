@@ -1816,6 +1816,9 @@ export const en: TranslationMap = {
   active_orders_short: 'active orders',
   all_orders_ready: 'All orders ready',
   complete_order: 'Complete Order',
+  kds_all_stations: 'ALL',
+  kds_station_empty: 'No active orders at this station',
+  kds_other_stations_pending: 'Other stations still preparing',
 
   void_item: 'Void item',
   loss: 'Write off',

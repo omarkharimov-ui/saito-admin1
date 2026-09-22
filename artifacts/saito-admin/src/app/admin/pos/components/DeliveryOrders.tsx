@@ -3,7 +3,6 @@
 import { Plus, Phone, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical, Navigation, UserCheck, Route, Wallet, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { isFinalOrderStatus } from '@/lib/pos-tables';
 import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
 
 interface DeliveryOrdersProps {
@@ -171,8 +170,10 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                          <div className={`w-1.5 h-1.5 rounded-full ${lightMode ? status.dot : status.dotDark}`} />
                          <span className={`${lightMode ? status.text : status.textDark}`}>{t(status.labelKey as any)}</span>
                        </div>
-                        {/* Amount chip: CreditCard icon removed (owner request). */}
-                        {!isFinalOrderStatus(order.status) && (
+                        {/* Amount chip: CreditCard icon removed (owner request).
+                            2026-09-22: always render — the active list is
+                            fulfillment-filtered (paid orders stay visible). */}
+                        {(
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${stage === 'paid' || stage === 'ready' ? (lightMode ? 'bg-green-50 border-green-200 text-green-700' : 'bg-green-500/10 border-green-500/20 text-green-400') : (lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400')}`}>
                             {stage === 'paid' || stage === 'ready' ? <CheckCircle2 size={10} strokeWidth={2.5} /> : <Wallet size={10} strokeWidth={2.5} />}
                             ₼{Number(order.total_amount || 0).toFixed(2)}

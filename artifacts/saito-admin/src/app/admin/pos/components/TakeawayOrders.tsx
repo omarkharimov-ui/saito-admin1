@@ -3,7 +3,6 @@
 import { Plus, Phone, User, Clock, ShoppingBag, UserCheck, MoreVertical, Wallet, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { isFinalOrderStatus } from '@/lib/pos-tables';
 import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
 
 interface TakeawayOrdersProps {
@@ -137,8 +136,12 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                          <span className={`${lightMode ? status.text : status.textDark}`}>{t(status.labelKey as any)}</span>
                        </div>
                         {/* Amount chip: no more CreditCard icon (owner: remove the
-                            bank-card chip). Paid state shown via check + color. */}
-                        {!isFinalOrderStatus(order.status) && (
+                            bank-card chip). Paid state shown via check + color.
+                            2026-09-22: the old !isFinalOrderStatus guard HID the
+                            chip on PAID orders (paid ∈ FINAL_ORDER_STATUSES) —
+                            but paid orders now STAY in the active list, so always
+                            render (the list is already fulfillment-filtered). */}
+                        {(
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${stage === 'paid' || stage === 'ready' ? (lightMode ? 'bg-green-50 border-green-200 text-green-700' : 'bg-green-500/10 border-green-500/20 text-green-400') : (lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400')}`}>
                             {stage === 'paid' || stage === 'ready' ? <CheckCircle2 size={10} strokeWidth={2.5} /> : <Wallet size={10} strokeWidth={2.5} />}
                             ₼{Number(order.total_amount || 0).toFixed(2)}

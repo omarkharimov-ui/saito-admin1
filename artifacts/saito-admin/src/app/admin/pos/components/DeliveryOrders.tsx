@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Phone, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical, Navigation, UserCheck, Route, Wallet, CheckCircle2 } from 'lucide-react';
+import { Plus, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical, Navigation, UserCheck, Route, Wallet, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
@@ -110,59 +110,69 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                         </span>
                       )}
 
-                    <div className="absolute top-[68px] left-5 right-5 flex flex-col gap-1">
-                      {/* QA bug 5 (2026-09-22): always render the customer row (— when absent). */}
-                      <div className="flex items-center gap-1.5">
-                        <User size={11} className="text-blue-400" />
-                        <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                    {/* 2026-09-22 (owner: "kartlarda min cür şey var"): the old
+                        block rendered UP TO 6 rows inside a fixed h-[180px] card
+                        starting at top-[68px] — with 5-6 rows the block ran INTO
+                        the bottom status badges (measured DOM overlap ~100%), and
+                        the phone appeared TWICE (once full, once as a
+                        slice(-4) "(0 03)" suffix). Now: hard cap of 4 rows,
+                        name+phone merged into one row, courier+ETA merged. */}
+                    <div className="absolute top-[62px] left-5 right-5 flex flex-col gap-[3px] overflow-hidden">
+                      {/* pr-16: keep the name+phone row clear of the
+                          top-right elapsed-time timer (measured 6px crowding). */}
+                      <div className="flex items-center gap-1.5 min-w-0 pr-16 leading-[15px]">
+                        <User size={11} className="text-blue-400 shrink-0" />
+                        <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
                           {order.customer_name || '—'}
                         </span>
                         {order.customer_phone && (
-                          <span className="text-xs text-[var(--theme-text-muted)]">({order.customer_phone.slice(-4)})</span>
+                          <span className={`text-[11px] font-semibold tabular-nums truncate ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                            {order.customer_phone}
+                          </span>
                         )}
                       </div>
-                     {(order.delivery_street || order.delivery_address) && (
-                       <div className="flex items-center gap-1.5">
-                         <MapPin size={11} className="text-blue-400 shrink-0" />
-                         <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                           {[order.delivery_street, order.delivery_building].filter(Boolean).join(' ')}{order.delivery_district ? `, ${order.delivery_district}` : ''}
-                           {!order.delivery_street && order.delivery_address}
-                         </span>
-                       </div>
-                     )}
-                     {order.delivery_zone && (
-                       <div className="flex items-center gap-1.5">
-                         <Route size={11} className="text-purple-400 shrink-0" />
-                         <span className={`text-xs font-bold text-purple-500`}>
-                           {order.delivery_zone}
-                         </span>
-                       </div>
-                     )}
-                     {order.courier_name && (
-                       <div className="flex items-center gap-1.5">
-                         <UserCheck size={11} className="text-emerald-400 shrink-0" />
-                         <span className={`text-xs font-bold text-emerald-500`}>
-                           {order.courier_name}
-                         </span>
-                       </div>
-                     )}
-                     {order.estimated_delivery_time && (
-                       <div className="flex items-center gap-1.5">
-                         <Clock size={11} className="text-amber-400 shrink-0" />
-                         <span className={`text-xs font-bold text-amber-500`}>
-                            {t('estimated')}: {new Date(order.estimated_delivery_time).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                         </span>
-                       </div>
-                     )}
-                     {order.customer_phone && (
-                       <div className="flex items-center gap-1.5">
-                         <Phone size={11} className="text-blue-400" />
-                         <span className={`text-xs font-bold tabular-nums ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                           {order.customer_phone}
-                         </span>
-                       </div>
-                     )}
-                   </div>
+                      {(order.delivery_street || order.delivery_address) && (
+                        <div className="flex items-center gap-1.5 min-w-0 leading-[15px]">
+                          <MapPin size={11} className="text-blue-400 shrink-0" />
+                          <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                            {[order.delivery_street, order.delivery_building].filter(Boolean).join(' ')}{order.delivery_district ? `, ${order.delivery_district}` : ''}
+                            {!order.delivery_street && order.delivery_address}
+                          </span>
+                        </div>
+                      )}
+                      {order.delivery_zone && (
+                        <div className="flex items-center gap-1.5 min-w-0 leading-[15px]">
+                          <Route size={11} className="text-purple-400 shrink-0" />
+                          <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-purple-600' : 'text-purple-300'}`}>
+                            {order.delivery_zone}
+                          </span>
+                        </div>
+                      )}
+                      {(order.courier_name || order.estimated_delivery_time) && (
+                        <div className="flex items-center gap-1.5 min-w-0 leading-[15px]">
+                          {order.courier_name ? (
+                            <>
+                              <UserCheck size={11} className="text-emerald-400 shrink-0" />
+                              <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-emerald-700' : 'text-emerald-300'}`}>
+                                {order.courier_name}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock size={11} className="text-amber-400 shrink-0" />
+                              <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
+                                {t('estimated')}: {new Date(order.estimated_delivery_time).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </>
+                          )}
+                          {order.courier_name && order.estimated_delivery_time && (
+                            <span className={`text-[11px] font-semibold tabular-nums shrink-0 ${lightMode ? 'text-amber-600' : 'text-amber-300/80'}`}>
+                              · {new Date(order.estimated_delivery_time).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                    <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">
                      <div className="flex items-center gap-2 flex-wrap">

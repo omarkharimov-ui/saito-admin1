@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
-import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft } from 'lucide-react';
+import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, ChevronDown, ChevronUp, Phone } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { usePos, cartLineKey } from './hooks/usePos';
@@ -138,6 +138,13 @@ export default function POSPage() {
   const [cashDrawerOpen, setCashDrawerOpen] = useState(false);
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
+  // 2026-09-22 (owner): the takeaway/delivery info inputs (phone/name/address/
+  // zone/fee/notes) occupied up to 44% of the cart column ABOVE the items —
+  // on a delivery order the item list was effectively blocked. Now the block
+  // is collapsible: auto-COLLAPSED when the cart has items (owner was
+  // mid-order-entry), auto-EXPANDED for a brand-new cart, and forced open
+  // when send validation finds missing phone/address.
+  const [infoOverride, setInfoOverride] = useState<boolean | null>(null);
   
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
@@ -1561,10 +1568,12 @@ export default function POSPage() {
     if (posMode !== 'dine_in') {
       const phone = pos.cart?.customer_phone?.trim();
       if (posMode === 'delivery' && !phone) {
+        setInfoOverride(true); // reveal the (possibly collapsed) inputs
         toast.error(t('enter_phone'));
         return;
       }
       if (posMode === 'delivery' && !pos.cart?.delivery_address?.trim()) {
+        setInfoOverride(true);
         toast.error(t('enter_address'));
         return;
       }
@@ -2339,16 +2348,18 @@ export default function POSPage() {
                 key="takeaway-list"
                 orders={takeawayOrders}
                 onRefresh={fetchTakeawayOrders}
-                onNewOrder={() => {
-                  pos.initializeTakeawayCart();
-                  setEditingOrder(null);
-                  pos.setActiveView('order');
-                }}
-                onSelectOrder={(order) => {
-                  setEditingOrder(order);
-                  pos.loadOrderIntoCart(order);
-                  pos.setActiveView('order');
-                }}
+                 onNewOrder={() => {
+                   pos.initializeTakeawayCart();
+                   setEditingOrder(null);
+                   setInfoOverride(null);
+                   pos.setActiveView('order');
+                 }}
+                 onSelectOrder={(order) => {
+                   setEditingOrder(order);
+                   setInfoOverride(null);
+                   pos.loadOrderIntoCart(order);
+                   pos.setActiveView('order');
+                 }}
                 onOpenActionSheet={handleOpenOrderSheet}
               />
               </motion.div>
@@ -2367,16 +2378,18 @@ export default function POSPage() {
                  key="delivery-list"
                 orders={deliveryOrders}
                 onRefresh={fetchDeliveryOrders}
-                onNewOrder={() => {
-                  pos.initializeTakeawayCart();
-                  setEditingOrder(null);
-                  pos.setActiveView('order');
-                }}
-                onSelectOrder={(order) => {
-                  setEditingOrder(order);
-                  pos.loadOrderIntoCart(order);
-                  pos.setActiveView('order');
-                }}
+                 onNewOrder={() => {
+                   pos.initializeTakeawayCart();
+                   setEditingOrder(null);
+                   setInfoOverride(null);
+                   pos.setActiveView('order');
+                 }}
+                 onSelectOrder={(order) => {
+                   setEditingOrder(order);
+                   setInfoOverride(null);
+                   pos.loadOrderIntoCart(order);
+                   pos.setActiveView('order');
+                 }}
                 onOpenActionSheet={handleOpenOrderSheet}
               />
               </motion.div>
@@ -2461,8 +2474,51 @@ export default function POSPage() {
                                  </div>
                                </div>
                                )}
-                              {posMode !== 'dine_in' && (
-                              <div className="flex-shrink-0 overflow-y-auto min-h-0 max-h-[44%] px-4 pt-3 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10 overscroll-contain">
+                               {posMode !== 'dine_in' && (() => {
+                                 const cartItemCount = (pos.cart?.items ?? []).length;
+                                 // null = auto (expanded only when cart is empty)
+                                 const infoOpen = infoOverride ?? cartItemCount === 0;
+                                 const cPhone = pos.cart?.customer_phone?.trim() || '';
+                                 const cName = pos.cart?.customer_name?.trim() || '';
+                                 const cAddr = pos.cart?.delivery_address?.trim() || '';
+                                 const missing = posMode === 'delivery'
+                                   ? (!cPhone || !cAddr)
+                                   : !cPhone;
+                                 if (!infoOpen) {
+                                   // Collapsed: one slim summary line — the cart
+                                   // items get the full column back.
+                                   return (
+                                     <button
+                                       type="button"
+                                       onClick={() => setInfoOverride(true)}
+                                       className={`w-full flex-shrink-0 flex items-center gap-2 px-4 py-2.5 border-b text-left transition-colors ${lightMode ? 'border-zinc-100 bg-zinc-50/60 hover:bg-zinc-100' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}
+                                     >
+                                       <Phone size={12} className={missing ? 'text-amber-500 shrink-0' : 'text-emerald-500 shrink-0'} />
+                                       <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
+                                         {cPhone || t('phone_missing')}
+                                         {cName ? ` · ${cName}` : ''}
+                                         {posMode === 'delivery' ? ` · ${cAddr || t('address_missing')}` : ''}
+                                       </span>
+                                       {missing && (
+                                         <span className={`ml-auto flex-shrink-0 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${lightMode ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/15 text-amber-400'}`}>
+                                           {t('info_tab')}
+                                         </span>
+                                       )}
+                                       <ChevronDown size={14} className={`flex-shrink-0 ${missing ? '' : 'opacity-40'} ${lightMode ? 'text-zinc-400' : 'text-white/40'}`} />
+                                     </button>
+                                   );
+                                 }
+                                 return (
+                                 <div className="flex-shrink-0">
+                                   <button
+                                     type="button"
+                                     onClick={() => setInfoOverride(false)}
+                                     className={`w-full flex items-center justify-between px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/35 hover:text-white/60'}`}
+                                   >
+                                     <span>{posMode === 'delivery' ? (t('delivery_info') || 'Çatdırılma məlumatları') : (t('customer_info') || 'Müşəri məlumatları')}</span>
+                                     <ChevronUp size={13} />
+                                   </button>
+                                 <div className="overflow-y-auto min-h-0 max-h-[44%] px-4 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10 overscroll-contain">
                               <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className={`text-xs font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
@@ -2596,10 +2652,12 @@ export default function POSPage() {
                                   className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                                 />
                              </div>
-                           </div>
-                         </div>
-                       )}
-                        <CartPanel
+                            </div>
+                          </div>
+                                 </div>
+                                 );
+                               })()}
+                         <CartPanel
                            cart={pos.cart}
                            cartHydrating={pos.cartHydrating}
                            onPlaceOrder={sendCurrentOrder}
@@ -2609,8 +2667,8 @@ export default function POSPage() {
                               // is discarded. Drafts are carried when the same
                               // table is reopened (selectTable carryDrafts).
                               if (pos.placingOrder) return;
-                              pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null);
-                              pos.setActiveView('floor'); setEditingOrder(null);
+                               pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null);
+                               pos.setActiveView('floor'); setEditingOrder(null); setInfoOverride(null);
                             }}
                          orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
                          onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}

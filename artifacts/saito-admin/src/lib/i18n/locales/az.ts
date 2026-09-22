@@ -318,6 +318,8 @@ export const az = {
   product_name: 'Məhsul adı',
   product_price: 'Qiymət',
   product_category: 'Kateqoriya',
+  station_label: 'Stansiya',
+  station_hint: 'Sifariş zamanı bu məhsul seçilən stansiyaya göndərilir (KDS/BDS). Təkrar toxunun = seçim ləğv.',
   product_stock: 'Stok',
   product_image: 'Şəkil',
   product_description: 'Təsvir',

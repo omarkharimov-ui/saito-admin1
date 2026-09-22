@@ -38,7 +38,7 @@ export type ProductModifierGroupForm = {
 };
 
 type ProductForm = {
-  name: string; category_id: string; price: string; image_url: string;
+  name: string; category_id: string; station_id: string | null; price: string; image_url: string;
   description: string; ingredients: string; is_in_stock: boolean;
   is_special: boolean; is_spicy: boolean;
   is_ready_product: boolean; direct_ingredient_id: string;
@@ -53,7 +53,7 @@ type ProductForm = {
 type CategoryForm = { id: string; name: string; slug: string; image_url: string };
 
 const emptyProductForm = (defaultCatId = ''): ProductForm => ({
-  name: '', category_id: defaultCatId, price: '', image_url: '',
+  name: '', category_id: defaultCatId, station_id: null, price: '', image_url: '',
   description: '', ingredients: '', is_in_stock: true,
   is_special: false, is_spicy: false,
   is_ready_product: false, direct_ingredient_id: '',
@@ -427,7 +427,7 @@ const ProductsPage = () => {
         }));
     }
     setProductForm({
-      name: localName, category_id: product.category_id, price: product.price.toString(),
+      name: localName, category_id: product.category_id, station_id: (product as any).station_id || null, price: product.price.toString(),
       image_url: product.image_url, description: localDesc,
       ingredients: localIngr,
       is_in_stock: product.is_in_stock, is_special: product.is_special || false, is_spicy: product.is_spicy || false,
@@ -458,7 +458,7 @@ const ProductsPage = () => {
     }
     setUpdating(true);
     const productData = {
-      name: productForm.name, category_id: productForm.category_id, price: parseFloat(productForm.price),
+      name: productForm.name, category_id: productForm.category_id, station_id: productForm.station_id || null, price: parseFloat(productForm.price),
       image_url: productForm.image_url, description: productForm.description,
       ingredients: productForm.ingredients.split(',').map(i => i.trim()).filter(Boolean),
       is_in_stock: productForm.is_in_stock, is_special: productForm.is_special, is_spicy: productForm.is_spicy,

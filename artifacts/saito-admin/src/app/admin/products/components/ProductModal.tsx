@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Tag, X, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft, PackagePlus, ScrollText, Layers } from 'lucide-react';
+import { Tag, X, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft, PackagePlus, ScrollText, Layers, ChefHat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -299,9 +299,47 @@ function ModifierGroupSelector({
   );
 }
 
+function StationPills({
+  stations,
+  value,
+  onChange,
+  variant = 'soft',
+}: {
+  stations: Array<{ id: string; name: string }>;
+  value: string | null;
+  onChange: (id: string | null) => void;
+  variant?: 'soft' | 'dark';
+}) {
+  const { t } = useLanguage();
+  const softOn = 'bg-[var(--theme-surface-soft)] text-[var(--theme-text)] border-[var(--theme-border-strong)]';
+  const softOff = 'bg-[var(--theme-surface-muted)] text-[var(--theme-text-secondary)] border-[var(--theme-border)] hover:bg-[var(--theme-surface-soft)] hover:text-[var(--theme-text)] hover:border-[var(--theme-border-strong)]';
+  const darkOn = 'bg-white/10 text-white border-white/30';
+  const darkOff = 'bg-white/[0.05] text-white/40 border-white/[0.12]';
+  const on = variant === 'dark' ? darkOn : softOn;
+  const off = variant === 'dark' ? darkOff : softOff;
+  if (stations.length === 0) return null;
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+      {stations.map(st => (
+        <button
+          key={st.id}
+          type="button"
+          onClick={() => onChange(value === st.id ? null : st.id)}
+          title={t('station_hint')}
+          className={`shrink-0 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border transition-all ${value === st.id ? on : off}`}
+        >
+          <ChefHat size={11} className="inline mr-1.5 -mt-0.5" />
+          {st.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 interface ProductForm {
   name: string;
   category_id: string;
+  station_id: string | null;
   price: string;
   image_url: string;
   description: string;
@@ -419,6 +457,22 @@ export function ProductModal({
     supabase.from('allergens').select('id, code, name, translations').eq('is_active', true).order('code').then(({ data }) => {
       setAllergenList((data || []) as any[]);
     });
+  }, [open]);
+
+  // Station referans siyahısı — SSOT: Supabase `stations` cədvəli (BDS #27).
+  // Product-level assignment: each product routes to exactly one kitchen
+  // station; order items snapshot it at insert time (DB trigger).
+  // Loaded via /api/stations (service role) — the stations RLS policy is
+  // location-scoped and the browser JWT doesn't always carry that context.
+  const [stations, setStations] = useState<Array<{ id: string; name: string }>>([]);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch('/api/stations', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => { if (!cancelled) setStations(Array.isArray(data) ? data : []); })
+      .catch(() => { if (!cancelled) setStations([]); });
+    return () => { cancelled = true; };
   }, [open]);
 
   // Recipe / cost info for recipe-based products
@@ -657,6 +711,19 @@ export function ProductModal({
                   ))}
                 </div>
               </div>
+
+              {/* Group 2b: Stansiya (BDS #27) — product-level station routing */}
+              {stations.length > 0 && (
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
+                    <span className="w-4 h-px bg-[var(--theme-border)]" />
+                    {t('station_label')}
+                    <span className="flex-1 h-px bg-[var(--theme-border)]" />
+                  </p>
+                  <StationPills stations={stations} value={productForm.station_id} onChange={(id) => onFormChange({ ...productForm, station_id: id })} />
+                  <p className="text-[10px] text-white/25 mt-1.5">{t('station_hint')}</p>
+                </div>
+              )}
 
               {/* Group 3: Şəkil + Mətn */}
               <div>
@@ -1139,6 +1206,16 @@ export function ProductModal({
                   ))}
                 </div>
               </div>
+
+              {/* Station (BDS #27) — dark variant */}
+              {stations.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[9px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-bold flex items-center gap-2">
+                    <span className="w-4 h-px bg-white/10" />{t('station_label')}<span className="flex-1 h-px bg-white/5" />
+                  </p>
+                  <StationPills variant="dark" stations={stations} value={productForm.station_id} onChange={(id) => onFormChange({ ...productForm, station_id: id })} />
+                </div>
+              )}
 
               {/* Sales Params */}
               <div className="space-y-3">

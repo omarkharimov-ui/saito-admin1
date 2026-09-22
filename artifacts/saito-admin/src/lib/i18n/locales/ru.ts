@@ -322,6 +322,8 @@ export const ru: TranslationMap = {
   product_name: 'Название продукта',
   product_price: 'Цена',
   product_category: 'Категория',
+  station_label: 'Станция',
+  station_hint: 'При заказе это блюдо уйдёт на выбранную станцию (KDS/BDS). Нажмите снова, чтобы сбросить.',
   product_stock: 'Запас',
   product_image: 'Изображение',
   product_description: 'Описание',

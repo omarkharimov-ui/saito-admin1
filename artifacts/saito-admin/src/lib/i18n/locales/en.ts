@@ -322,6 +322,8 @@ export const en: TranslationMap = {
   product_name: 'Product name',
   product_price: 'Price',
   product_category: 'Category',
+  station_label: 'Station',
+  station_hint: 'On order this product is routed to the selected station (KDS/BDS). Tap again to clear.',
   product_stock: 'Stock',
   product_image: 'Image',
   product_description: 'Description',

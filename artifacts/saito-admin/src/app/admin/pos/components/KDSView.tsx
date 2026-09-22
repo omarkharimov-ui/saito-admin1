@@ -45,9 +45,19 @@ interface KDSOrder {
 
 function getItemTimerStatus(createdAt: string, criticalMin: number, delayMin: number): { color: 'green' | 'yellow' | 'red' | 'purple'; text: string; elapsed: number } {
   const elapsed = (Date.now() - new Date(createdAt).getTime()) / 60000;
-  if (elapsed < criticalMin) return { color: 'green', text: `${Math.floor(elapsed)}d`, elapsed };
+  if (elapsed < criticalMin) return { color: 'green', text: formatElapsedMin(elapsed), elapsed };
   if (elapsed < delayMin) return { color: 'red', text: 'KRİTİK', elapsed };
   return { color: 'purple', text: 'GEÇİKME', elapsed };
+}
+
+// 2026-09-22 (E2E finding): the timer rendered MINUTES with a 'd' (day)
+// suffix and no cap — 9 days of age showed as "13040d" (looked like 36 years).
+// Now: proper m / h m / d h units, same convention as the pickup list.
+function formatElapsedMin(elapsed: number): string {
+  if (!isFinite(elapsed) || elapsed < 0) return '0m';
+  if (elapsed < 60) return `${Math.floor(elapsed)}m`;
+  if (elapsed < 1440) return `${Math.floor(elapsed / 60)}h ${Math.floor(elapsed % 60)}m`;
+  return `${Math.floor(elapsed / 1440)}d ${Math.floor((elapsed % 1440) / 60)}h`;
 }
 
 function getTimerStyles(color: 'green' | 'yellow' | 'red' | 'purple', lightMode: boolean) {
@@ -244,8 +254,13 @@ export function KDSView({ onBack }: { onBack: () => void }) {
           // the kitchen. Terminal/fulfilled statuses (closed, refunded, ...)
           // must NOT show — a closed order on the KDS makes the ✓ no-op
           // (mark-ready rejects it) and the ticket is "stuck" forever.
-          .filter((o: any) => !['paid','cancelled','closed','refunded','partially_refunded','voided'].includes(o.status)
-            && o.kitchen_status !== null && o.kitchen_status !== 'completed' && o.kitchen_status !== 'cancelled')
+           .filter((o: any) => !['paid','cancelled','closed','refunded','partially_refunded','voided'].includes(o.status)
+             && o.kitchen_status !== null && o.kitchen_status !== 'completed' && o.kitchen_status !== 'cancelled'
+             // 2026-09-22 (zombie root-cause): an order is a KDS ticket ONLY
+             // while it has ≥1 active (non-terminal, qty>0) kitchen item.
+             // Item-less probe orders used to leak in as empty "Masa ?" tickets.
+             && (o.order_items || []).some((i: any) =>
+               (i.quantity ?? 0) > 0 && !['completed','cancelled','voided'].includes(i.kitchen_status || 'pending')))
           .map((o: any) => ({
             id: o.id,
             table_number: o.table_number,
@@ -396,7 +411,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                       <div className="flex items-center gap-2">
                         <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold tracking-[0.18em] border ${getTimerStyles(timer.color, lightMode)}`}>
                           <Timer size={10} />
-                          {Math.floor(timer.elapsed)}d
+                          {formatElapsedMin(timer.elapsed)}
                         </span>
                         {(timer.color === 'red' || timer.color === 'purple') && <AlertTriangle size={14} className="animate-pulse text-red-500" />}
                         <button

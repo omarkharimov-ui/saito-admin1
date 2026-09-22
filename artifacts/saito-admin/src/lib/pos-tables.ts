@@ -28,6 +28,35 @@ export const FINAL_ORDER_STATUSES: readonly string[] = [
 export const isFinalOrderStatus = (s: string | null | undefined): boolean =>
   s != null && (FINAL_ORDER_STATUSES as readonly string[]).includes(s);
 
+/**
+ * Fulfillment-final order states for the TAKEAWAY/DELIVERY ACTIVE lists
+ * (2026-09-22, payment ↔ fulfillment separation).
+ *
+ * Unlike FINAL_ORDER_STATUSES (which includes 'paid' — correct for DINE-IN,
+ * where paid releases the table), a PAID takeaway/delivery order is NOT done:
+ * it still needs HANDOVER (takeaway) or DELIVERY (courier). So 'paid' is
+ * deliberately EXCLUDED (stays visible), and 'served' (handed over) is
+ * INCLUDED (fulfillment complete).
+ *
+ * Delivery adds its own completion signal via delivery_status
+ * (delivered/completed/cancelled), handled client-side.
+ */
+export const FULFILLMENT_FINAL_STATUSES: readonly string[] = [
+  'served',
+  'cancelled',
+  'closed',
+  'refunded',
+  'partially_refunded',
+  'voided',
+] as const;
+
+/** Delivery-side fulfillment completion (separate from orders.status). */
+export const DELIVERY_FINAL_STATUSES: readonly string[] = [
+  'delivered',
+  'completed',
+  'cancelled',
+] as const;
+
 export interface OpenOrderLike {
   id: string;
   table_number: number | null;

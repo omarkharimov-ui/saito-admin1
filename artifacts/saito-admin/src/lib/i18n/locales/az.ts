@@ -15,6 +15,8 @@ export const az = {
   confirmed: 'Təsdiqləndi',
   paid: 'Ödənildi',
   unpaid: 'Ödənilməyib',
+  handover: 'TƏHVİL ET',
+  handover_done: 'Sifariş təhvil verildi',
   cancelled: 'Ləğv edildi',
   table: 'Masa',
   total: 'Cəmi',

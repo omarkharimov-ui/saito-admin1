@@ -26,8 +26,9 @@ export type OrderStage =
 export function deriveOrderStage(order: any): OrderStage {
   const st = order?.status;
 
-  // Final states first.
-  if (st === 'completed' || st === 'closed') return 'closed';
+  // Final / fulfillment-complete states first.
+  // 'served' = handed over (takeaway) — fulfillment done (2026-09-22).
+  if (st === 'completed' || st === 'closed' || st === 'served') return 'closed';
   if (st === 'cancelled' || st === 'voided') return 'cancelled';
   if (st === 'refunded' || st === 'partially_refunded') return 'closed';
 
@@ -40,8 +41,10 @@ export function deriveOrderStage(order: any): OrderStage {
   // NOTE: the earlier version read `items_sent_to_kitchen`, a column that does
   // NOT exist — so kitchenDone was always false and the status was stuck.
   const k = order?.kitchen_status;
-  if (k === 'completed') return 'closed';
-  if (k === 'ready') return 'ready';
+  // For takeaway/delivery, kitchen 'ready' OR 'completed' both mean the food is
+  // done and waiting for HANDOVER (not "order finished"). The fulfillment-final
+  // state is `served` (orders.status), handled above.
+  if (k === 'ready' || k === 'completed') return 'ready';
 
   // Delivery machine (delivery only): confirmed→preparing→ready→picked_up→
   // in_transit→delivered. Read via the transition_delivery_status RPC.

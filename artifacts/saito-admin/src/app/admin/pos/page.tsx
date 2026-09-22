@@ -8,7 +8,7 @@ import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLe
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { usePos, cartLineKey } from './hooks/usePos';
-import { isFinalOrderStatus, FINAL_ORDER_STATUSES } from '@/lib/pos-tables';
+import { isFinalOrderStatus, FULFILLMENT_FINAL_STATUSES, DELIVERY_FINAL_STATUSES } from '@/lib/pos-tables';
 import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
 import { TableCard } from './components/TableCard';
 import { ActionSheet } from './components/ActionSheet';
@@ -256,9 +256,14 @@ export default function POSPage() {
     setFlashInfo(null);
   }, [posMode]);
 
+  // 2026-09-22 (payment ↔ fulfillment separation): the active lists must keep
+  // PAID orders visible (they still need handover/delivery) and only drop
+  // FULFILLMENT-final ones. The old FINAL_ORDER_STATUSES included 'paid', so a
+  // paid takeaway order vanished from the list the moment it was paid —
+  // before it could be handed over.
   const fetchTakeawayOrders = useCallback(async () => {
     try {
-      const res = await apiFetch(`/api/orders?order_source=takeaway&status=not.in.(${FINAL_ORDER_STATUSES.join(',')})`);
+      const res = await apiFetch(`/api/orders?order_source=takeaway&status=not.in.(${FULFILLMENT_FINAL_STATUSES.join(',')})`);
       if (res.ok) {
         const data = await res.json();
         setTakeawayOrders(data.orders || []);
@@ -273,10 +278,14 @@ export default function POSPage() {
 
   const fetchDeliveryOrders = useCallback(async () => {
     try {
-      const res = await apiFetch(`/api/orders?order_source=delivery&status=not.in.(${FINAL_ORDER_STATUSES.join(',')})`);
+      const res = await apiFetch(`/api/orders?order_source=delivery&status=not.in.(${FULFILLMENT_FINAL_STATUSES.join(',')})`);
       if (res.ok) {
         const data = await res.json();
-        setDeliveryOrders(data.orders || []);
+        // Delivery completion is tracked in delivery_status (not orders.status),
+        // so drop delivered/completed/cancelled here (client-side).
+        const active = (data.orders || []).filter((o: any) =>
+          !o.delivery_status || !(DELIVERY_FINAL_STATUSES as readonly string[]).includes(o.delivery_status));
+        setDeliveryOrders(active);
       } else {
         toast.error(t('delivery_orders_load_error'));
       }
@@ -844,6 +853,35 @@ export default function POSPage() {
       pos.fetchData();
     } catch (e: any) {
       toast.error(e.message || t('error_occurred'));
+    }
+  };
+
+  // 2026-09-22: TAKEAWAY HANDOVER (TƏHVİL ET) — fulfillment event, independent
+  // of payment. Transitions the order to `served` (works from BOTH `ready` and
+  // `paid`, thanks to the new paid→served state edge). Payment can happen
+  // before or after; this only records that the customer took the order.
+  const handleTakeawayHandover = async () => {
+    if (!actionSheetTable) return;
+    const orderId = actionSheetTable.id
+      || actionSheetTable.current_order_id
+      || actionSheetTable.order_ids?.[0]
+      || (Array.isArray(actionSheetTable.orders) ? actionSheetTable.orders[0]?.id : undefined);
+    if (!orderId) { toast.error(t('error_occurred')); return; }
+    toast.loading(t('processing_payment'), { id: 'action-toast' });
+    try {
+      const result = await orderStateMachine.transition(orderId, 'served', { reason: 'takeaway handover' });
+      if (result.success) {
+        toast.success(t('handover_done') || 'Təhvil edildi', { id: 'action-toast' });
+        setActionSheetOpen(false);
+        // Drop the just-handed order from the open cart if it was being edited.
+        if (pos.cart?.order_id === orderId) pos.setCart(null);
+        fetchTakeawayOrders();
+        pos.fetchData();
+      } else {
+        toast.error(result.error || t('error_occurred'), { id: 'action-toast' });
+      }
+    } catch (e: any) {
+      toast.error(e.message || t('error_occurred'), { id: 'action-toast' });
     }
   };
 
@@ -2713,8 +2751,9 @@ export default function POSPage() {
           onSplitConfirm={handleSplitConfirm}
            onBackFromPayment={handleBackFromPayment}
             onDeliveryStatus={handleDeliveryStatusPick}
-            onTakeawayStatus={() => handleOpenStatusPicker('order')}
-            onMarkServed={handleMarkServed}
+             onTakeawayStatus={() => handleOpenStatusPicker('order')}
+             onHandover={handleTakeawayHandover}
+             onMarkServed={handleMarkServed}
              onDiscount={() => setDiscountOpen(true)}
            onCancelTable={async () => {
              if (!actionSheetTable) return;

@@ -54,6 +54,7 @@ interface ActionSheetProps {
   onBackFromPayment?: () => void;
   onDeliveryStatus?: () => void;
   onTakeawayStatus?: () => void;
+  onHandover?: () => void;
   onMarkServed?: () => void;
   onSelectCustomer?: (customerId: string | null, customerName: string | null, customerPhone?: string | null) => void;
   customerId?: string | null;
@@ -103,6 +104,7 @@ interface ActionSheetProps {
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onUnmerge, onCancelTable, onReleaseTable,
   onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
+  onHandover,
   onBackFromPayment, onDeliveryStatus, onTakeawayStatus, onMarkServed, onSelectCustomer, customerId, customerName, onLoyaltyRedeemed,
   mergeMode, transferMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, onBillRequest, onPrintBill, onClearTable, onSeatGuests, posRole, groupNumber,
@@ -255,6 +257,10 @@ export function ActionSheet({
   // Resolve order data from table_floors → orders relationship
   const activeOrder = (table as any)?.orders?.[0] ?? null;
   const activeOrderId = activeOrder?.id ?? (table as any)?.current_order_id ?? (table as any)?.order_ids?.[0] ?? '';
+  // For takeaway/delivery the `table` prop IS the flat order (no .orders
+  // wrapper), so its id/status live directly on `table`.
+  const flatOrderId = (table as any)?.id ?? activeOrderId;
+  const handoverOrderStatus = (table as any)?.status ?? activeOrder?.status;
   const activeOrderItems: any[] = activeOrder?.order_items ?? [];
   const activePaidAt = activeOrder?.paid_at ?? null;
   const activePaidAmount = activeOrder?.total_amount ?? 0;
@@ -277,6 +283,9 @@ export function ActionSheet({
       { id: 'assign_courier', icon: UserCheck, label: t('assign_courier' as any) || 'Assign Courier', visible: true },
     ] : []),
     ...(posMode === 'takeaway' ? [
+      // 2026-09-22: TƏHVİL ET — fulfillment event, independent of payment.
+      // Available when the order can transition to `served` (ready or paid).
+      { id: 'handover', icon: CheckCircle, label: t('handover') || 'TƏHVİL ET', visible: !!flatOrderId && (handoverOrderStatus === 'ready' || handoverOrderStatus === 'paid') },
       { id: 'takeaway_status', icon: ChevronRight, label: t('next_step'), visible: true },
     ] : []),
     ...(posMode === 'dine_in' && table?.status === 'ready' ? [
@@ -465,8 +474,8 @@ export function ActionSheet({
                        <div>
                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('main_actions')}</p>
                          <div className="grid grid-cols-3 gap-3">
-                             {visibleActions.filter(a => ['customer', 'close_bill', 'clear', 'release_table'].includes(a.id)).map((action) => {
-                              if (action.id === 'customer') {
+                              {visibleActions.filter(a => ['customer', 'handover', 'close_bill', 'clear', 'release_table'].includes(a.id)).map((action) => {
+                               if (action.id === 'customer') {
                                 return (
                                   <button key={action.id} onClick={() => setShowCustomerSearch(true)}
                                     className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
@@ -477,27 +486,30 @@ export function ActionSheet({
                               }
                                  return (
                                 <button key={action.id} onClick={() => {
-                                  const fn = {
-                                    close_bill: onOpenPayment,
-                                    cancel_table: () => setConfirmAction('cancel_table'),
-                                    release_table: () => setConfirmAction('release_table'),
-                                    delivery_status: onDeliveryStatus,
-                                    takeaway_status: onTakeawayStatus,
-                                    mark_served: onMarkServed,
-                                    assign_courier: onOpenCourierPicker,
-                                    bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
-                                    print_bill: onPrintBill,
-                                    clear: onClearTable,
-                                  }[action.id as string];
-                                  if (fn) fn();
-                                }}
-                                 className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
-                                   action.id === 'bill_request'
-                                     ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                     : action.id === 'cancel_table'
-                                     ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                                     : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
-                                 } active:scale-95`}>
+                                   const fn = {
+                                     close_bill: onOpenPayment,
+                                     handover: onHandover,
+                                     cancel_table: () => setConfirmAction('cancel_table'),
+                                     release_table: () => setConfirmAction('release_table'),
+                                     delivery_status: onDeliveryStatus,
+                                     takeaway_status: onTakeawayStatus,
+                                     mark_served: onMarkServed,
+                                     assign_courier: onOpenCourierPicker,
+                                     bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
+                                     print_bill: onPrintBill,
+                                     clear: onClearTable,
+                                   }[action.id as string];
+                                   if (fn) fn();
+                                 }}
+                                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
+                                    action.id === 'handover'
+                                      ? lightMode ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600' : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                                      : action.id === 'bill_request'
+                                      ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                      : action.id === 'cancel_table'
+                                      ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                      : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
+                                  } active:scale-95`}>
                                  <action.icon size={24} strokeWidth={2.5} />
                                  <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{action.label}</span>
                                </button>

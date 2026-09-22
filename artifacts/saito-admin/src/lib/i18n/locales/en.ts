@@ -19,6 +19,8 @@ export const en: TranslationMap = {
   confirmed: 'Confirmed',
   paid: 'Paid',
   unpaid: 'Unpaid',
+  handover: 'HAND OVER',
+  handover_done: 'Order handed over',
   cancelled: 'Cancelled',
   table: 'Table',
   total: 'Total',

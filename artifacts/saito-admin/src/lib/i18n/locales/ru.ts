@@ -19,6 +19,8 @@ export const ru: TranslationMap = {
   confirmed: 'Подтверждено',
   paid: 'Оплачено',
   unpaid: 'Не оплачено',
+  handover: 'ВЫДАТЬ',
+  handover_done: 'Заказ передан',
   cancelled: 'Отменено',
   table: 'Стол',
   total: 'Итого',

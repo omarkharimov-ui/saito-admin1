@@ -31,23 +31,35 @@ export function deriveOrderStage(order: any): OrderStage {
   if (st === 'cancelled' || st === 'voided') return 'cancelled';
   if (st === 'refunded' || st === 'partially_refunded') return 'closed';
 
-  const total = Number(order?.total_amount ?? 0);
-  const paidAmt = Number(order?.paid_amount ?? 0);
-  const isPaid =
-    !!order?.is_fully_paid || st === 'paid' || (total > 0 && paidAmt >= total);
+  const isPaid = isOrderPaid(order);
 
-  const sent = Number(order?.items_sent_to_kitchen ?? 0);
-  const count = Number(order?.item_count ?? 0);
-  const kitchenDone = count > 0 && sent >= count;
+  // Kitchen rollup (order-level) — the REAL automatic signal, driven by the
+  // KDS "mark ready" action (mark_item_ready_atomic updates order_items +
+  // rolls up to orders.kitchen_status). Values: pending | preparing |
+  // partially_ready | ready | completed.
+  // NOTE: the earlier version read `items_sent_to_kitchen`, a column that does
+  // NOT exist — so kitchenDone was always false and the status was stuck.
+  const k = order?.kitchen_status;
+  if (k === 'completed') return 'closed';
+  if (k === 'ready') return 'ready';
 
-  // Ready for handover: explicitly ready, or the whole ticket is prepared.
-  if (st === 'ready' || kitchenDone) return 'ready';
-  // Paid but still in preparation.
+  // Delivery machine (delivery only): confirmed→preparing→ready→picked_up→
+  // in_transit→delivered. Read via the transition_delivery_status RPC.
+  const d = order?.delivery_status;
+  if (d === 'delivered') return 'closed';
+  if (d === 'in_transit' || d === 'picked_up') return 'ready';
+  if (d === 'ready') return 'ready';
+  if (d === 'preparing') return 'kitchen';
+
+  // In the kitchen / being prepared (incl. partially ready).
+  if (k === 'preparing' || k === 'partially_ready' || st === 'preparing') return 'kitchen';
+
+  // Paid but not ready yet — staff should know money is in.
   if (isPaid) return 'paid';
-  // In the kitchen / being prepared.
-  if (st === 'preparing' || st === 'in_kitchen' || sent > 0) return 'kitchen';
+
   // Confirmed, waiting for the kitchen.
-  if (st === 'confirmed') return 'confirmed';
+  if (st === 'confirmed' || k === 'pending') return 'confirmed';
+
   // Brand new / pending confirmation.
   return 'new';
 }

@@ -96,4 +96,52 @@ BEGIN
 END;
 $$;
 
+-- AUDIT §4.4: payment rows in the drawer log carry no staff attribution
+-- (the frozen payment RPC writes them without created_by). Backfill from the
+-- session's opener — BEFORE INSERT, only touches NULL created_by.
+CREATE OR REPLACE FUNCTION trg_cash_log_backfill_staff() RETURNS trigger AS $$
+BEGIN
+  IF NEW.created_by IS NULL AND NEW.type = 'payment' AND NEW.session_id IS NOT NULL THEN
+    SELECT opened_by INTO NEW.created_by
+    FROM cash_drawer_sessions WHERE id = NEW.session_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_cash_log_backfill_staff ON cash_drawer_log;
+CREATE TRIGGER trg_cash_log_backfill_staff
+  BEFORE INSERT ON cash_drawer_log
+  FOR EACH ROW EXECUTE FUNCTION trg_cash_log_backfill_staff();
+
+-- AUDIT §4.5: card payments never reached the drawer log (the KART tile was
+-- always 0). Mirror each captured card payment into the open/paused drawer's
+-- log (type=card_payment, staff = payments.performed_by). Balance walks
+-- deliberately EXCLUDE card_payment (cards never sit in the drawer).
+-- Dry-run verified in-transaction (test session + fake card payment, rollback).
+CREATE OR REPLACE FUNCTION trg_payment_card_to_drawer() RETURNS trigger AS $$
+DECLARE
+  v_loc uuid;
+  v_session uuid;
+BEGIN
+  IF NEW.payment_method = 'card' AND NEW.status = 'captured' AND NOT COALESCE(NEW.is_refund, false) THEN
+    SELECT location_id INTO v_loc FROM orders WHERE id = NEW.order_id;
+    IF v_loc IS NOT NULL THEN
+      SELECT id INTO v_session
+      FROM cash_drawer_sessions
+      WHERE location_id = v_loc AND status IN ('open', 'paused')
+      ORDER BY opened_at DESC LIMIT 1;
+      IF v_session IS NOT NULL THEN
+        INSERT INTO cash_drawer_log (session_id, type, amount, description, order_id, created_by)
+        VALUES (v_session, 'card_payment', NEW.amount, 'Kart ödənişi', NEW.order_id, NEW.performed_by);
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_payment_card_to_drawer ON payments;
+CREATE TRIGGER trg_payment_card_to_drawer
+  AFTER INSERT ON payments
+  FOR EACH ROW EXECUTE FUNCTION trg_payment_card_to_drawer();
+
 COMMIT;

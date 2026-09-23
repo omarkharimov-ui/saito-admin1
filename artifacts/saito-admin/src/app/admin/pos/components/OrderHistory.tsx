@@ -828,7 +828,9 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                         {t('timeline') || 'Tarixçə'}
                       </p>
                       <div className="space-y-2">
-                        {auditLogs.slice(0, 20).map((log) => (
+                        {/* AUDIT 2026-09-23 §4.6: the API returns up to 100 — the
+                            old UI cap of 20 hid the rest of busy orders' history. */}
+                        {auditLogs.slice(0, 100).map((log) => (
                           <div key={log.id} className="flex items-start gap-2">
                             <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
                             <div className="flex-1 min-w-0">

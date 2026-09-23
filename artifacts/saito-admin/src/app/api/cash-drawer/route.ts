@@ -21,6 +21,32 @@ function localDate(iso: string, tz: string): string {
   }
 }
 
+// Walk the movement log EXACTLY like the UI's canonical balance (P-8 D-4/Q2):
+// 'open' rows carry the opening amount; cash_in/payment add; cash_out/refund/
+// void/cash_drop subtract; 'reopen' rows are signed-negative and are
+// subtracted (restoring the previous close amount). Card payments do NOT
+// physically sit in the drawer, so they are excluded — same as the UI.
+// The session row's expected_balance is NULL while open/paused (the frozen
+// RPCs don't maintain it), so it must be computed.
+async function computeExpected(s: ReturnType<typeof svc>, session: any): Promise<number> {
+  const { data: logs } = await s
+    .from('cash_drawer_log')
+    .select('type, amount')
+    .eq('session_id', session.id);
+  if (!logs?.length && session.expected_balance != null) {
+    return Number(session.expected_balance) || 0;
+  }
+  const ADD = new Set(['open', 'cash_in', 'payment']);
+  const SUB = new Set(['cash_out', 'refund', 'void', 'reopen', 'cash_drop']);
+  let expected = 0;
+  for (const l of logs || []) {
+    const amt = Number(l.amount) || 0;
+    if (ADD.has(l.type)) expected += amt;
+    else if (SUB.has(l.type)) expected -= amt;
+  }
+  return Math.round(expected * 100) / 100;
+}
+
 // Manual finalization (no frozen-RPC changes): used by the 4AM auto-close,
 // the paused-drawer "SAY" flow, and deposit logging. Mirrors what
 // close_cash_register_v2 writes: session fields + a 'close' log row.
@@ -32,7 +58,7 @@ async function finalizeSession(
   managerId: string | null,
   note: string | null,
 ) {
-  const expected = Number(session.expected_balance) || 0;
+  const expected = await computeExpected(s, session);
   const difference = Math.round((counted - expected) * 100) / 100;
   const { error: pErr } = await s
     .from('cash_drawer_sessions')
@@ -109,9 +135,10 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle();
     if (openSession && localDate(openSession.opened_at, tz) < localDate(new Date().toISOString(), tz)) {
+      const autoExpected = await computeExpected(s, openSession);
       await finalizeSession(
         s, openSession,
-        Number(openSession.expected_balance) || 0,
+        autoExpected,
         null, null,
         'Avtomatik bağlandı — növbəti iş günü (4AM qaydası)',
       );
@@ -185,7 +212,7 @@ export async function GET(req: Request) {
 
     // 2026-09-23 (owner, Toast "count this drawer later"): paused sessions
     // wait for their final count while a new active drawer runs.
-    const { data: pausedSession } = await s
+    const { data: pausedSessionRaw } = await s
       .from('cash_drawer_sessions')
       .select('*, opened_by:opened_by(name)')
       .eq('status', 'paused')
@@ -193,6 +220,11 @@ export async function GET(req: Request) {
       .order('opened_at', { ascending: false })
       .limit(1)
       .maybeSingle();
+    // The paused row's expected_balance is NULL (see computeExpected) — attach
+    // the log-walked expected so the UI "SAY" flow prefills the right number.
+    const pausedSession = pausedSessionRaw
+      ? { ...pausedSessionRaw, paused_expected: await computeExpected(s, pausedSessionRaw) }
+      : null;
 
     let movements: any[] = [];
     if (session) {
@@ -396,7 +428,7 @@ export async function POST(req: Request) {
       if (!ses) return NextResponse.json({ error: 'SESSION_NOT_FOUND' }, { status: 404 });
 
       const counted = Number(amount) || 0;
-      const expected = Number(ses.expected_balance) || 0;
+      const expected = await computeExpected(s, ses);
       const difference = Math.round((counted - expected) * 100) / 100;
       let managerId: string | null = null;
       if (Math.abs(difference) > 0.005) {

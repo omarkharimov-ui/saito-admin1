@@ -1549,9 +1549,37 @@ export default function POSPage() {
         fee = data?.is_free ? 0 : rpcFee;
       }
     } catch { /* keep the zone's base fee */ }
-    if ((Number(cart.delivery_fee) || 0) !== fee) {
-      pos.setCart({ ...cart, delivery_fee: fee });
+    // 2026-09-23 (owner, Wolt-like): a matching active FREE_DELIVERY campaign
+    // zeroes the fee — display mirrors the server (which is authoritative at
+    // creation; E2E probe #D049: cart said ₼2, server billed ₼0).
+    if (fee > 0) {
+      try {
+        const productIds = Array.from(new Set((cart.items || []).map((i: any) => i.product_id).filter(Boolean))) as string[];
+        const { data: camps } = await supabase
+          .from('campaigns')
+          .select('id, applicable_products, applicable_categories, target_type, target_id, min_purchase_amount, start_date, end_date')
+          .eq('type', 'FREE_DELIVERY')
+          .eq('status', 'active')
+          .eq('is_active', true)
+          .limit(20);
+        const now = new Date();
+        const match = (camps || []).some((c: any) => {
+          if (c.start_date && new Date(c.start_date) > now) return false;
+          if (c.end_date && new Date(c.end_date) < now) return false;
+          if (c.min_purchase_amount && Number(c.min_purchase_amount) > 0 && itemsTotal < Number(c.min_purchase_amount)) return false;
+          const productHit = (c.applicable_products || []).some((p: string) => productIds.includes(p))
+            || (c.target_type === 'product' && !!c.target_id && productIds.includes(String(c.target_id)));
+          const global = !(c.applicable_products || []).length && !(c.applicable_categories || []).length && !c.target_id;
+          return productHit || global;
+        });
+        if (match) fee = 0;
+      } catch { /* server decides at creation */ }
     }
+    // 2026-09-23 (E2E catch): ALWAYS persist — the old "only if fee changed"
+    // guard skipped setCart when a campaign made the fee 0 == current 0, so
+    // delivery_zone was never stored and the zone chip stayed unselected.
+    pos.setCart({ ...cart, delivery_fee: fee });
+    // No loop risk: the recalc effect deps are itemsTotal/zoneName, not cart identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryZones]);
 

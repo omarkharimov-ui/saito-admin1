@@ -349,7 +349,7 @@ export async function POST(request: Request) {
         return { success: true, data: Array.isArray(uiPatched) ? uiPatched[0] : uiPatched };
        }
 
-       const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id, order_source, customer_phone, delivery_address, delivery_district, delivery_street, delivery_building, delivery_floor, delivery_apartment, delivery_intercom, delivery_zone, delivery_fee, estimated_delivery_time, scheduled_date, payment_method, is_rush, assigned_to, terminal_id } = body;
+       const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id, order_number, order_source, customer_phone, delivery_address, delivery_district, delivery_street, delivery_building, delivery_floor, delivery_apartment, delivery_intercom, delivery_zone, delivery_fee, estimated_delivery_time, scheduled_date, payment_method, is_rush, assigned_to, terminal_id } = body;
       
       // Append items to an EXISTING active order (used by reservation-handoff tables
       // that already have a draft/active order, so we never create a 2nd active order).
@@ -506,7 +506,11 @@ export async function POST(request: Request) {
        // the campaigns page now has a real effect on the billed total.
        let finalFee = baseFee;
        let freeDeliveryCampaignId: string | null = null;
-       if (isDeliveryOrder && baseFee > 0) {
+       // 2026-09-23 (E2E catch #D050): resolve the campaign even when the
+       // CLIENT already sent fee 0 (it computed the campaign itself) —
+       // otherwise the order carries no campaign_id stamp and the free
+       // delivery is invisible to reports. Zone set + delivery is enough.
+       if (isDeliveryOrder && delivery_zone) {
          try {
            const productIds = Array.from(new Set(items.map((i: any) => i.product_id).filter(Boolean))) as string[];
            const cRes = await fetch(
@@ -687,6 +691,24 @@ export async function POST(request: Request) {
           orderLocationId = sessLoc;
         }
 
+         // 2026-09-23 (E2E gap): order_number was never generated on this
+         // path — new delivery/takeaway orders displayed UUID fragments.
+         // Race-free daily sequences (next_order_number, per prefix+location).
+         let finalOrderNumber = order_number || null;
+         if (!finalOrderNumber) {
+           try {
+             const prefix = order_source === 'delivery' ? '#D' : order_source === 'takeaway' ? '#A' : 'ORD-';
+             const numRes = await fetch(`${svc().url}/rest/v1/rpc/next_order_number`, {
+               method: 'POST',
+               headers: svc().headers,
+               body: JSON.stringify({ p_prefix: prefix, p_location: sessLoc }),
+             });
+             if (numRes.ok) {
+               finalOrderNumber = String(await numRes.json());
+             }
+           } catch { /* order_number stays null — UI falls back to uuid slice */ }
+         }
+
          // Quick-fix 4: first send of a new order — the coupon discount is
          // subtracted here exactly once (item unit_prices stay pure).
          // 2026-09-23: + the delivery fee (billed once, at creation).
@@ -714,9 +736,10 @@ export async function POST(request: Request) {
             table_number,
             organization_id: orderOrganizationId,
             location_id: orderLocationId,
-             total_amount: createTotal,
-             apply_vat: autoApplyVat,
-             status: 'confirmed',
+              total_amount: createTotal,
+              order_number: finalOrderNumber,
+              apply_vat: autoApplyVat,
+              status: 'confirmed',
              guest_count: guest_count || 1,
             customer_note: customer_note || null,
             order_type: order_type || 'dine_in',

@@ -27,6 +27,8 @@ interface CashDrawerSession {
   closed_by?: { name?: string };
   /** 2026-09-23 (owner, Toast benchmark): manager-locked drawer. */
   locked?: boolean;
+  /** Log-walked expected balance (the row's expected_balance is NULL while open/paused). */
+  paused_expected?: number | null;
 }
 
 interface CashDrawerMovement {
@@ -104,12 +106,13 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
     // P-8 (D-4/Q2): canonical walk — cash_out/refund/void subtract positive
     // amounts; reopen rows carry SIGNED negative amounts, so subtracting them
     // restores the previous close amount back into the drawer balance.
-    if (m.type === 'cash_out' || m.type === 'refund' || m.type === 'void' || m.type === 'reopen') return sum - m.amount;
+    // 2026-09-23 (E2E catch): cash_drop (→ House/safe) also leaves the drawer.
+    if (m.type === 'cash_out' || m.type === 'refund' || m.type === 'void' || m.type === 'reopen' || m.type === 'cash_drop') return sum - m.amount;
     return sum;
   }, 0);
 
   const cashInTotal = movements.filter(m => m.type === 'cash_in').reduce((s, m) => s + m.amount, 0);
-  const cashOutTotal = movements.filter(m => m.type === 'cash_out').reduce((s, m) => s + m.amount, 0);
+  const cashOutTotal = movements.filter(m => m.type === 'cash_out' || m.type === 'cash_drop').reduce((s, m) => s + m.amount, 0);
   const paymentTotal = movements.filter(m => m.type === 'payment').reduce((s, m) => s + m.amount, 0);
   const cardPaymentTotal = movements.filter(m => m.type === 'card_payment').reduce((s, m) => s + m.amount, 0);
 
@@ -254,7 +257,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
 
   const openFinalize = (s: CashDrawerSession) => {
     setClosingTarget(s.id);
-    setCashAmount(String(Number(s.expected_balance) || 0));
+    setCashAmount(String(Number(s.paused_expected ?? s.expected_balance) || 0));
     setCashDesc(''); setManagerPin(''); setManagerError(''); setNeedsApproval(false);
     setBillCounts({}); setShowBillCount(false);
     setView('close');
@@ -312,8 +315,11 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
 
   const shiftDuration = session?.opened_at ? formatDuration(session.opened_at, session.closed_at) : '0s 0dq';
 
-  // Close view expected balance: active session = live walk; paused target = its stored expected.
-  const closeExpected = closingTarget ? (Number(pausedSession?.expected_balance) || 0) : currentBalance;
+  // Close view expected balance: active session = live walk; paused target =
+  // the API-attached log walk (the row's expected_balance is NULL while open).
+  const closeExpected = closingTarget
+    ? (Number(pausedSession?.paused_expected ?? pausedSession?.expected_balance) || 0)
+    : currentBalance;
 
   const typeLabels: Record<string, { labelKey: string; icon: typeof Wallet; color: string }> = {
     open: { labelKey: 'cash_drawer_open', icon: Unlock, color: 'text-green-500' },
@@ -410,7 +416,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                           <Hourglass size={13} /> Gözləyən sayım — {pausedSession.opened_by?.name || 'Kassir'}
                         </p>
                         <p className="text-[11px] text-[var(--theme-text-muted)] mt-0.5">
-                          Gözlənilən: <span className="font-black tabular-nums">{(Number(pausedSession.expected_balance) || 0).toFixed(2)}₼</span>
+                          Gözlənilən: <span className="font-black tabular-nums">{(Number(pausedSession.paused_expected ?? pausedSession.expected_balance) || 0).toFixed(2)}₼</span>
                         </p>
                       </div>
                       <button

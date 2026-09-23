@@ -229,7 +229,10 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                            <Wallet size={14} className={isFree ? 'text-emerald-500' : lightMode ? 'text-zinc-400' : 'text-white/35'} />
                            {isFree ? (
                              <span className="text-sm font-black tabular-nums text-emerald-500">
-                               {t('free') || 'Pulsuz'}{threshold > 0 ? <span className="text-[10px] font-bold opacity-70"> (₼{threshold.toFixed(0)}+)</span> : null}
+                               {t('free') || 'Pulsuz'}
+                               {threshold > 0 && itemsTotal >= threshold
+                                 ? <span className="text-[10px] font-bold opacity-70"> (₼{threshold.toFixed(0)}+)</span>
+                                 : <span className="text-[10px] font-bold opacity-70"> (kampaniya)</span>}
                              </span>
                            ) : (
                              <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-zinc-700' : 'text-white/75'}`}>

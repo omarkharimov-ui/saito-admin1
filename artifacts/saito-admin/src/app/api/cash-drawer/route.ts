@@ -506,6 +506,55 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true });
     }
 
+    // 2026-09-24 (owner, Toast "Adjust Closing Entries" / "Edit Historical
+    // Data"): a CLOSED session's counted amount can be corrected by a
+    // manager. Re-computes difference, stamps the approver + note, and logs
+    // an 'adjust_close' row (no status change → state-guard not involved).
+    if (action === 'adjust_close') {
+      const auth = await requirePermission('cash.close');
+      if (!auth.authenticated) return auth;
+      const opLoc2 = await resolveWriteLocationContext(auth.user!.id);
+      const { data: ses } = await s
+        .from('cash_drawer_sessions')
+        .select('*')
+        .eq('id', session_id)
+        .eq('status', 'closed')
+        .eq('location_id', opLoc2?.locationId)
+        .maybeSingle();
+      if (!ses) return NextResponse.json({ error: 'SESSION_NOT_FOUND_OR_NOT_CLOSED' }, { status: 404 });
+
+      const mgr = await verifyManagerPin(s, body.manager_pin);
+      if (!mgr) return NextResponse.json({ error: 'Invalid manager PIN' }, { status: 401 });
+      const { data: mgrPerm } = await s.rpc('has_permission', { p_staff_id: mgr.id, p_permission: 'cash.close.approve' });
+      if (!mgrPerm) return NextResponse.json({ error: 'Manager cannot edit historical cash data' }, { status: 403 });
+
+      const newCounted = Number(amount);
+      if (!Number.isFinite(newCounted) || newCounted < 0) {
+        return NextResponse.json({ error: 'INVALID_AMOUNT' }, { status: 400 });
+      }
+      const expected = await computeExpected(s, ses);
+      const difference = Math.round((newCounted - expected) * 100) / 100;
+
+      const { error: upErr } = await s
+        .from('cash_drawer_sessions')
+        .update({
+          closing_balance: newCounted,
+          difference,
+          approved_by: mgr.id,
+          approval_note: `Manual adjustment (old: ${(Number(ses.closing_balance) || 0).toFixed(2)}₼): ${description || 'no note'}`,
+        })
+        .eq('id', ses.id);
+      if (upErr) throw upErr;
+      await s.from('cash_drawer_log').insert({
+        session_id: ses.id,
+        type: 'adjust_close',
+        amount: newCounted,
+        description: description || 'Sayım düzəldildi',
+        created_by: mgr.id,
+      });
+      return NextResponse.json({ success: true, expected, counted: newCounted, difference });
+    }
+
     // Drawer lock (Toast: locked drawer restricted to the staff member).
     if (action === 'lock' || action === 'unlock') {
       const auth = await requirePermission('cash.close');

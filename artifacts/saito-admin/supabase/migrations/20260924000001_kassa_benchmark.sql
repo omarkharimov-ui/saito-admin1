@@ -13,7 +13,8 @@ ALTER TABLE cash_drawer_log DROP CONSTRAINT cash_drawer_log_type_check;
 ALTER TABLE cash_drawer_log ADD CONSTRAINT cash_drawer_log_type_check
   CHECK (type = ANY (ARRAY[
     'cash_in','cash_out','payment','card_payment','voucher_payment',
-    'open','close','refund','void','reopen','no_sale','cash_drop','deposit'
+    'open','close','refund','void','reopen','no_sale','cash_drop','deposit',
+    'adjust_close'
   ]::text[]));
 
 ALTER TABLE cash_drawer_sessions DROP CONSTRAINT cash_drawer_sessions_status_check;

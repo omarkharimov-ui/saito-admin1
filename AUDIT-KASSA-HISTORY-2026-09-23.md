@@ -93,3 +93,48 @@ Bu fayl live DB (Supabase, service-role) + kod qarşılaştırması əsasında y
    deposits, paused drawer ("Sonra say"), 4AM auto-close, /admin/cash-reports
    (Drawer History + Cash Activity + Close-Out-Day checklist) — migration
    `20260924000001_kassa_benchmark.sql`
+
+---
+
+## 5. FİNAL TOAST QAPILARI (2026-09-24, "toastdaki her şey?")
+
+### 5.1 Z-Report "any time" (read-only daily Z, does NOT roll the day)
+- POS Kassa panelinə `Z` action əlavə olundu (active session) + **sessiya
+  açıq olmasa belə** "Z-Report" düyməsi (Toast semantics: Z he vaxt əlçatandır).
+- **E2E cavi (bug)**: browser client-in Supabase JWT-yi yoxdur (custom PIN
+  session → `anon` role) → `supabase.rpc('get_z_report')` = *permission denied*.
+  **Fiks**: yeni `GET /api/reports/z?date=YYYY-MM-DD` route (service-role,
+  `requireAuth`) — digər report route-ları ilə eyni pattern.
+- Z görünüşü `z-report-print` class + `@media print` CSS ilə print-ready.
+- E2E (2026-09-24): report render olunur — Satış/Ödənişlər/Ləğvlər(3, ₼11)/
+  Kassa/Fəx bölmələri + ÇAP ET (screenshot `screenshots-2026-09-24/z-report-ok.png`).
+
+### 5.2 Adjust Closing Entries (Toast "Edit Historical Data")
+- API: `POST /api/cash-drawer` action `adjust_close` — sessiya **closed**
+  olmalı; manager PIN + `cash.close.approve` permission; difference
+  `computeExpected` (log-walk) ilə yenidən hesablanır;
+  `approved_by` + `approval_note` (old dəyər daxil) stamp olunur;
+  `cash_drawer_log`-a `adjust_close` sətiri düşür (status dəyişmir →
+  state-guard trigger-a toxunmur).
+- UI: closed sessiya sətirlərinə bənövşəyi **DÜZƏLT** düyməsi → form
+  (gözlənilən/fərq + yeni məbləğ + səbəb + manager PIN) → confirm → toast.
+- **E2E cavi (bug)**: adjust view "active session" branch-in içində idi →
+  sessiya bağlandıqda (`session=null`) klik inert idi. **Fiks**: Z + adjust
+  view-lar CONTAINER səviyyəsinə köçürüldü (sessiya olmasa da render olunur).
+- E2E (2026-09-24): test sessiya 0.00₼ → 2.50₼ (PIN 4321) → DB sübutu:
+  `adjust_close` log row (2.50, "E2E adjust test"), session closing_balance=2.50,
+  difference=+2.50, approval_note="Manual adjustment (old: 0.00₼): E2E adjust
+  test". Screenshot-lar: `adjust-form.png`, `adjust-done.png`, `adjust-verified.png`.
+  Test sessiyaları + log sətirləri təmizləndi (residue 0).
+
+### 5.3 Multi-location reports
+- /admin/cash-reports + bütün kassa API-ları artıq operator-un **active
+  location** context-inə bağlıdır (`resolveWriteLocationContext`) — global
+  location switcher ilə ikinci locada da eyni report-lar (Toast: per-location
+  drawer history). Heç bir əlavə iş tələb etmir.
+
+### 5.4 Card auto-capture — N/A
+- Payment provider (terminal) integrasiyası frozen payment core-a aiddir;
+  bu POS-da kart ödənişi "manually captured" modeli ilə işləyir. Toast-da
+  auto-capture provider configuration (Visa/MC gateway)-dir. Scope- dışında
+  qeyd olundu (feature map).

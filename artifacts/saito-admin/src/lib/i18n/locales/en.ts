@@ -1901,6 +1901,7 @@ export const en: TranslationMap = {
   no_sale: 'No Sale',
   cash_drop: 'Cash Drop to House',
   deposit: 'Deposit',
+  adjust_close: 'Closing Adjustment',
   exceptions: 'Exceptions',
   status_refunded: 'Refunded',
   all_orders: 'All',

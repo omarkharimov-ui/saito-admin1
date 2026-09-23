@@ -810,6 +810,13 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - **/admin/cash-reports** (yeni səhifə + nav "Kassa"): Close-Out-Day checklist (açıq sessiyalar, açıq sifarişlər, depozitlər + `/api/finance/close-day` aksiyası), Drawer History cədvəli (60 gün), Nağd Aktivliyi (300 hərəkət, order ref + staff), No Sale istisnaları.
 - Frozen sərhəd toxunulmayıb: `close_cash_register_v2` RPC dəyişməyib (paused finalize ayrı manual yol; denominations close-dan SONRA yazılır).
 
+### Jurnal sətiri — 2026-09-24 (owner: "toastdaki her şey?" — final Toast qapıları)
+- **Z-Report any time** (POS Kassa): bənövşəyi `Z` action (active session) + sessiya açılmayıb olanda da "Z-Report" düyməsi. Read-only daily Z (günü ROLL etmir — close-day ayrıca). `@media print` CSS (`z-report-print`) ilə print-ready. **E2E cavi**: browser client-ın Supabase JWT-i yoxdur (PIN session → anon role) → RPC permission denied → yeni `GET /api/reports/z` (service-role, digər report route-larının patterni). E2E PASS (report render + bölmələr, `screenshots-2026-09-24/z-report-ok.png`).
+- **Adjust Closing Entries** (Toast "Edit Historical Data"): `POST /api/cash-drawer` action `adjust_close` — yalnız CLOSED sessiya, manager PIN + `cash.close.approve`, difference log-walk ilə recompute, `approved_by`+`approval_note` (old dəyər) + `adjust_close` log sətiri (CHECK constraint-a əlavə olundu). UI: closed sətirlərdə **DÜZƏLT** düyməsi. **E2E cavi**: view "active session" branch-i içində idi → sessiya yoxduqda inert; Z+adjust view-lar container səviyyəsinə köçdü. E2E PASS (0.00→2.50₼, DB: adjust_close row + closing_balance + approval_note; test sessiyaları təmizləndi).
+- **Multi-location reports**: /admin/cash-reports + bütün kassa API-ları operator-un active location context-inə bağlıdır (global location switcher ilə ikinci loca) — Toast per-location drawer history təmin olunur, əlavə iş yox idi.
+- **Card auto-capture — N/A (scope- dışında)**: payment provider (terminal gateway) konfiqurasiyasıdır; frozen payment core-a aiddir (Q7 provider qərarı). Manually-captured card modeli ilə qeyd olundu.
+- Toast/Square kassa+history parity tamamlandı — qalan heç bir ❌ yoxdur (bax: `AUDIT-KASSA-HISTORY-2026-09-23.md` §5).
+
 ### Jurnal sətiri — 2026-09-23 (owner pass, `6a9897aa`)
 - **TableCard**: guest+item ikonları TOP row (boşluq dolduruldu), status/HESAB chip bottom-RIGHT (owner screenshot).
 - **BDS**: default **Bütün (ALL)** tab — dine-in + delivery + pickup həmişə ekranda; per-order kind badge; **courier = real staff record** (DB `roles.courier` yaradıldı; /api/orders/courier; BDS kartında picker).

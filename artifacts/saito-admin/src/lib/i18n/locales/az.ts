@@ -1901,6 +1901,7 @@ export const az = {
   no_sale: 'No Sale',
   cash_drop: 'Cash Drop → House',
   deposit: 'Depozit',
+  adjust_close: 'Sayım düzəlişi',
   exceptions: 'İstisnalar',
   status_refunded: 'Qaytarılmış',
   all_orders: 'Hamısı',

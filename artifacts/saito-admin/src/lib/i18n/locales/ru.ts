@@ -1902,6 +1902,7 @@ export const ru: TranslationMap = {
   no_sale: 'Без продажи',
   cash_drop: 'Сброс наличных в кассу',
   deposit: 'Депозит',
+  adjust_close: 'Корректировка закрытия',
   exceptions: 'Исключения',
   status_refunded: 'Возвращено',
   all_orders: 'Все',

@@ -59,7 +59,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
   const [cashAmount, setCashAmount] = useState('');
   const [cashDesc, setCashDesc] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [view, setView] = useState<'main' | 'cash-in' | 'cash-out' | 'close' | 'no-sale' | 'cash-drop' | 'deposit' | 'lock'>('main');
+  const [view, setView] = useState<'main' | 'cash-in' | 'cash-out' | 'close' | 'no-sale' | 'cash-drop' | 'deposit' | 'lock' | 'adjust' | 'z'>('main');
   const [managerPin, setManagerPin] = useState('');
   const [managerError, setManagerError] = useState('');
   const [needsApproval, setNeedsApproval] = useState(false);
@@ -73,6 +73,12 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
   const [noSaleReason, setNoSaleReason] = useState('');
   const [depositExpected, setDepositExpected] = useState('');
   const [depositActual, setDepositActual] = useState('');
+  // 2026-09-24 (owner, Toast "Adjust Closing Entries"): correct a CLOSED
+  // session's counted amount (manager, PIN, logged as adjust_close).
+  const [adjustTarget, setAdjustTarget] = useState<CashDrawerSession | null>(null);
+  // 2026-09-24 (owner, Toast "print Z at any time"): read-only daily Z.
+  const [zData, setZData] = useState<any>(null);
+  const [zLoading, setZLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -297,6 +303,43 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
     ).then(ok => { if (ok) { setDepositExpected(''); setDepositActual(''); setManagerPin(''); } });
   };
 
+  const openAdjust = (s: CashDrawerSession) => {
+    setAdjustTarget(s);
+    setCashAmount(String(Number(s.closing_balance) || 0));
+    setCashDesc(''); setManagerPin(''); setManagerError('');
+    setView('adjust');
+  };
+
+  const handleAdjust = () => {
+    if (!adjustTarget) return;
+    if (!managerPin || managerPin.length < 4) { setManagerError(t('pin_required')); return; }
+    const was = Number(adjustTarget.closing_balance) || 0;
+    const now = Number(cashAmount) || 0;
+    if (!window.confirm(`Sayım dəyəri ${was.toFixed(2)}₼ → ${now.toFixed(2)}₼ düzəldilsin? (manager təsdiqi ilə)`)) return;
+    postAction(
+      { action: 'adjust_close', session_id: adjustTarget.id, amount: now, description: cashDesc || null, manager_pin: managerPin },
+      'Sayım düzəldildi',
+    ).then(ok => { if (ok) { setAdjustTarget(null); setManagerPin(''); setCashAmount(''); } });
+  };
+
+  const openZ = async () => {
+    setView('z');
+    setZLoading(true);
+    setZData(null);
+    try {
+      // 2026-09-24 (E2E catch): the browser client has no Supabase JWT (custom
+      // PIN session → anon role), so the RPC must run server-side (service role).
+      const res = await apiFetch(`/api/reports/z?date=${new Date().toISOString().split('T')[0]}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(`Z report: ${err.error || 'failed'}`);
+        return;
+      }
+      setZData(await res.json());
+    } catch { toast.error('Z report əldə edilə bilmədi'); }
+    finally { setZLoading(false); }
+  };
+
   if (!open) return null;
 
   const formatTime = (iso: string) => {
@@ -336,6 +379,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
     no_sale: { labelKey: 'no_sale', icon: FileText, color: 'text-amber-500' },
     cash_drop: { labelKey: 'cash_drop', icon: Landmark, color: 'text-sky-500' },
     deposit: { labelKey: 'deposit', icon: Banknote, color: 'text-green-500' },
+    adjust_close: { labelKey: 'adjust_close', icon: FileText, color: 'text-violet-500' },
   };
 
   return (
@@ -394,6 +438,14 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                     {submitting ? <Loader2 size={16} className="animate-spin mx-auto" /> : t('open_cash')}
                   </button>
                 </div>
+                {/* 2026-09-24 (owner, Toast "print Z at any time"): the daily Z
+                    is available even before the drawer is opened. */}
+                <button
+                  onClick={openZ}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-violet-500/30 bg-violet-500/10 text-violet-400 text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all"
+                >
+                  <FileText size={14} /> Z-Report
+                </button>
               </div>
             ) : (
               /* Active session */
@@ -511,9 +563,10 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                     </div>
                   )}
 
-                  {/* 2026-09-23 (owner, Toast benchmark): secondary drawer actions */}
+                  {/* 2026-09-23 (owner, Toast benchmark): secondary drawer actions
+                      (2026-09-24: + Z-report — Toast "print Z at any time") */}
                   {view === 'main' && (
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-5 gap-2">
                       <button
                         onClick={() => { setView('no-sale'); setNoSaleReason(''); }}
                         className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}
@@ -541,6 +594,13 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       >
                         {session.locked ? <Unlock size={15} strokeWidth={2.5} /> : <Lock size={15} strokeWidth={2.5} />}
                         <span className="text-[9px] font-black uppercase tracking-widest">{session.locked ? 'Aç' : 'Qıfıl'}</span>
+                      </button>
+                      <button
+                        onClick={openZ}
+                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-violet-50 border-violet-200 text-violet-600' : 'bg-violet-500/10 border-violet-500/20 text-violet-300'}`}
+                      >
+                        <FileText size={15} strokeWidth={2.5} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Z</span>
                       </button>
                     </div>
                   )}
@@ -683,7 +743,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                    </div>
                  )}
 
-                 {/* Close drawer */}
+                  {/* Close drawer */}
                  {view === 'close' && (
                    <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
                      <p className="text-sm font-bold text-zinc-500">
@@ -847,9 +907,98 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
               </div>
             )}
 
-             {todaySessions.length > 0 && (
-               <div>
-                 <p className="text-xs font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('shift_entry')}</p>
+              {/* 2026-09-24 (E2E catch): Z + adjust views live at CONTAINER level
+                  — they must render even when NO drawer is open (Toast: Z report
+                  is available any time; adjust targets a CLOSED session, by
+                  definition there is no open one). */}
+              {view === 'z' && (
+                <div className={`p-5 rounded-2xl border space-y-3 z-report-print ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                  <style>{`@media print { body * { visibility: hidden !important; } .z-report-print, .z-report-print * { visibility: visible !important; } .z-report-print { position: absolute !important; inset: 0 !important; width: 100% !important; } }`}</style>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-violet-500">Z-Report — {new Date().toLocaleDateString('az')}</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => window.print()} className="px-3 py-1.5 rounded-lg bg-violet-500 text-white text-[10px] font-black uppercase tracking-widest active:scale-[0.97]">Çap et</button>
+                      <button onClick={() => setView('main')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-600' : 'bg-white/10 text-zinc-300'}`}>{t('back')}</button>
+                    </div>
+                  </div>
+                  {zLoading ? (
+                    <div className="flex items-center justify-center py-10"><div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" /></div>
+                  ) : !zData ? (
+                    <p className="text-xs opacity-40 py-6 text-center">Z report əldə edilə bilmədi</p>
+                  ) : (
+                    <div className="space-y-3 text-[12px]">
+                      <div className={`p-3 rounded-xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5">Satış</p>
+                        <div className="flex justify-between"><span>Ümumi gəlir</span><b className="tabular-nums">{(zData.sales?.total_revenue ?? 0).toFixed(2)}₼</b></div>
+                        <div className="flex justify-between"><span>Sifarişlər</span><b className="tabular-nums">{zData.sales?.total_orders ?? 0}</b></div>
+                        <div className="flex justify-between"><span>Məhsul satışı</span><b className="tabular-nums">{zData.sales?.items_sold ?? 0}</b></div>
+                      </div>
+                      <div className={`p-3 rounded-xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5">Ödənişlər</p>
+                        <div className="flex justify-between"><span>Nağd</span><b className="tabular-nums">{(zData.payments?.cash_total ?? 0).toFixed(2)}₼</b></div>
+                        <div className="flex justify-between"><span>Kart</span><b className="tabular-nums">{(zData.payments?.card_total ?? 0).toFixed(2)}₼</b></div>
+                        <div className="flex justify-between"><span>Xüsusiləndirmələr</span><b className="tabular-nums text-amber-500">−{(zData.payments?.discounts_total ?? 0).toFixed(2)}₼</b></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className={`p-3 rounded-xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                          <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5">Ləğvlər</p>
+                          <div className="flex justify-between"><span>Sayı</span><b className="tabular-nums">{zData.voids?.count ?? 0}</b></div>
+                          <div className="flex justify-between"><span>Məbləğ</span><b className="tabular-nums text-red-400">{(zData.voids?.amount ?? 0).toFixed(2)}₼</b></div>
+                        </div>
+                        <div className={`p-3 rounded-xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                          <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5">Kassa</p>
+                          <div className="flex justify-between"><span>Açılış</span><b className="tabular-nums">{(zData.cash_drawer?.starting_cash ?? 0).toFixed(2)}₼</b></div>
+                          <div className="flex justify-between"><span>Gözlənilən</span><b className="tabular-nums">{(zData.cash_drawer?.expected_cash ?? 0).toFixed(2)}₼</b></div>
+                        </div>
+                      </div>
+                      <div className={`p-3 rounded-xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5">Fəx</p>
+                        <div className="flex justify-between"><span>Xalis</span><b className={`tabular-nums ${(zData.profit?.net ?? 0) >= 0 ? 'text-green-500' : 'text-red-400'}`}>{(zData.profit?.net ?? 0).toFixed(2)}₼</b></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 2026-09-24 (owner, Toast "Adjust Closing Entries"): correct
+                  a closed session's counted amount (manager PIN + log row). */}
+              {view === 'adjust' && adjustTarget && (
+                <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                  <p className="text-sm font-bold text-violet-500">Sayımın düzəldilməsi (closed drawer)</p>
+                  <div className={`p-3 rounded-xl ${lightMode ? 'bg-white border border-zinc-200' : 'bg-white/5 border border-white/10'}`}>
+                    <div className="flex justify-between text-xs"><span className="opacity-50">Gözlənilən</span><b className="tabular-nums">{(Number(adjustTarget.expected_balance) || 0).toFixed(2)}₼</b></div>
+                    <div className="flex justify-between text-xs mt-1"><span className="opacity-50">Hazırkı fərq</span><b className={`tabular-nums ${Number(adjustTarget.difference || 0) < 0 ? 'text-red-500' : 'text-green-500'}`}>{(Number(adjustTarget.difference) || 0).toFixed(2)}₼</b></div>
+                  </div>
+                  <input
+                    type="number" step="0.01" value={cashAmount}
+                    onChange={e => setCashAmount(e.target.value)}
+                    placeholder="Yeni təsdiqlənən məbləğ"
+                    className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-violet-400' : 'bg-white/5 border-white/10 text-white focus:border-violet-400/50'}`}
+                  />
+                  <input
+                    value={cashDesc} onChange={e => setCashDesc(e.target.value)}
+                    placeholder="Səbəb (məcburi deyil, log-a düşür)"
+                    className={`w-full rounded-xl px-4 py-3 text-sm outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-violet-400' : 'bg-white/5 border-white/10 text-white focus:border-violet-400/50'}`}
+                  />
+                  <input
+                    type="password" inputMode="numeric" maxLength={6} value={managerPin}
+                    onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
+                    placeholder="Manager PIN"
+                    className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-amber-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-amber-400/50'}`}
+                  />
+                  {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => { setView('main'); setAdjustTarget(null); }} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-600' : 'bg-white/10 text-zinc-300'}`}>{t('back')}</button>
+                    <button onClick={handleAdjust} disabled={submitting} className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-violet-500 text-white disabled:opacity-50">
+                      {submitting ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Düzəlt'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {todaySessions.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('shift_entry')}</p>
                  <div className="space-y-1.5">
                     {todaySessions.map(s => {
                       const isOpen = s.status === 'open';
@@ -873,6 +1022,16 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                                   className="px-3 py-1 rounded-lg bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest active:scale-[0.97] transition-all"
                                 >
                                   Say
+                                </button>
+                              )}
+                              {/* 2026-09-24 (owner, Toast "Adjust Closing Entries"):
+                                  correct a closed session's counted amount */}
+                              {!isOpen && !isPaused && s.closing_balance != null && (
+                                <button
+                                  onClick={() => openAdjust(s)}
+                                  className="px-3 py-1 rounded-lg bg-violet-500 text-white text-[10px] font-black uppercase tracking-widest active:scale-[0.97] transition-all"
+                                >
+                                  Düzəlt
                                 </button>
                               )}
                             </div>

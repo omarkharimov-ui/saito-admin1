@@ -137,4 +137,27 @@ Bu fayl live DB (Supabase, service-role) + kod qarşılaştırması əsasında y
 - Payment provider (terminal) integrasiyası frozen payment core-a aiddir;
   bu POS-da kart ödənişi "manually captured" modeli ilə işləyir. Toast-da
   auto-capture provider configuration (Visa/MC gateway)-dir. Scope- dışında
-  qeyd olundu (feature map).
+  qeyd olundu (feature map; Wave C #1 altında ⏸ YADDADA — owner 09-24:
+  "lazım olsa edəcəyik").
+
+### 5.5 Custom error ekran — OPEN_SHIFT_REQUIRED (owner: "error ekranlarımız
+yoxdurmu?")
+- Problemi: POS-da clock-in button YOXDU (owner 09-21 istəyi ilə çıxarılıb —
+  `handleClockIn` dead code idi). Vardiya olmadan kassa açmağa çalışanda
+  raw DB kodu (`OPEN_SHIFT_REQUIRED`) toast-da düşürdü.
+- **Həll (on-demand custom error dialog):** Kassa panelində `OPEN_SHIFT_REQUIRED`
+  olduqda custom modal açılır: amber clock icon + "VARDIYA AÇIQ DEYIL" +
+  izah + 2 düymə: **BAĞLA** və **İŞƏ BAŞLA (CLOCK-IN)** (green). Clock-in
+  uğurla olarsa dialog öz-özünə bağlanır + kassa açma AUTO-RETRY olunur
+  (operator-un niyyəti artıq təsdiqlənib). Digər raw kodlar (məs.
+  'No active location in session') dost toast-lara map olunur.
+- **E2E round-2 cavi (bug):** `handleClockIn` body-də `role_id: posSession?.role`
+  göndərirdi — bu role NAME string-dir ('superadmin'), route isə staff.role_id
+  UUID ilə müqayisə edir → shift yaradılır, amma `400 INVALID_ROLE` qayıtır →
+  clock-in "fail" görünür (3 test shift-in hamısı `active_role_id=NULL` qalıb).
+  Fiks: `role_id` göndərilir DEYİL (single-role model D-19; `active_role_id`
+  heç bir yerdə oxunmur — dead column).
+- E2E (round 3): PASS — dialog ~11s-də bağlanır (ilk req cold-compile), toast
+  + active session view (Cari Balans) + cleanup BAĞLI. Screenshot:
+  `screenshots-2026-09-24/shift-required-dialog.png`, `r3-after-clockin.png`.
+  Test shift/sessiyalar təmizləndi (residue 0).

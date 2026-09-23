@@ -45,9 +45,14 @@ interface CashDrawerMovement {
 interface CashDrawerPanelProps {
   open: boolean;
   onClose: () => void;
+  /** 2026-09-24 (owner "error ekranlarımız yoxdurmu"): the custom
+      OPEN_SHIFT_REQUIRED dialog needs a real clock-in action. The POS
+      removed the permanent clock button (09-21 owner request) — so the
+      button lives on-demand inside that dialog. Returns success. */
+  onClockIn?: () => Promise<boolean>;
 }
 
-export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
+export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelProps) {
   const { lightMode } = useTheme();
   const keyboardHeight = useKeyboardHeight();
   const { t } = useLanguage();
@@ -63,6 +68,9 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
   const [managerPin, setManagerPin] = useState('');
   const [managerError, setManagerError] = useState('');
   const [needsApproval, setNeedsApproval] = useState(false);
+  // 2026-09-24 (owner): custom error screen for OPEN_SHIFT_REQUIRED + one-click clock-in.
+  const [shiftRequired, setShiftRequired] = useState(false);
+  const [clockingIn, setClockingIn] = useState(false);
   // 2026-09-23 (owner, Toast benchmark): paused drawer ("sayımı sonra")
   const [pausedSession, setPausedSession] = useState<CashDrawerSession | null>(null);
   const [closingTarget, setClosingTarget] = useState<string | null>(null); // null = active session
@@ -122,27 +130,47 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
   const paymentTotal = movements.filter(m => m.type === 'payment').reduce((s, m) => s + m.amount, 0);
   const cardPaymentTotal = movements.filter(m => m.type === 'card_payment').reduce((s, m) => s + m.amount, 0);
 
+  // 2026-09-24 (owner: "bizde error ekranlarımız yoxdurmu"): raw DB codes are
+  // never user-facing. OPEN_SHIFT_REQUIRED opens a custom error dialog
+  // (explanation + one-click clock-in); other codes get friendly toasts.
+  const tryOpenDrawer = async (amount: number): Promise<boolean> => {
+    const res = await apiFetch('/api/cash-drawer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'open', amount }),
+    });
+    if (res.ok) {
+      toast.success(t('cash_drawer_open'));
+      setOpeningBalance('');
+      await fetchData();
+      return true;
+    }
+    const err = await res.json().catch(() => ({} as any));
+    if (err.error === 'OPEN_SHIFT_REQUIRED') { setShiftRequired(true); return false; }
+    if (err.error === 'No active location in session') { toast.error(t('no_active_location')); return false; }
+    toast.error(err.error || t('error'));
+    return false;
+  };
+
   const handleOpenDrawer = async () => {
     setSubmitting(true);
-    try {
-      const res = await apiFetch('/api/cash-drawer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'open', amount: Number(openingBalance) || 0 }),
-      });
-      if (res.ok) {
-        toast.success(t('cash_drawer_open'));
-        setOpeningBalance('');
-        await fetchData();
-      } else {
-        const err = await res.json();
-        // 2026-09-24 (owner: "open_shift_required deye error var, anlamadım"):
-        // frozen open_cash_register RPC requires the operator's OPEN shift
-        // (drawer binds 1:1 to it). Raw code was confusing → friendly hint.
-        toast.error(err.error === 'OPEN_SHIFT_REQUIRED' ? t('open_shift_required') : (err.error || t('error')));
-      }
-    } catch (e: any) { toast.error(e.message); }
+    try { await tryOpenDrawer(Number(openingBalance) || 0); }
+    catch (e: any) { toast.error(e.message); }
     setSubmitting(false);
+  };
+
+  // One-click clock-in from the error dialog, then auto-retry the drawer open
+  // the operator already confirmed (their intent was "open the drawer").
+  const handleClockInNow = async () => {
+    if (!onClockIn) return;
+    setClockingIn(true);
+    try {
+      const ok = await onClockIn();
+      if (!ok) { toast.error(t('error')); return; }
+      setShiftRequired(false);
+      toast.success(t('shift_opened'));
+      await tryOpenDrawer(Number(openingBalance) || 0);
+    } finally { setClockingIn(false); }
   };
 
   const handleCashMove = async (type: 'cash_in' | 'cash_out') => {
@@ -386,6 +414,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
   };
 
   return (
+    <>
     <AnimatePresence>
       <div className="fixed inset-0 z-[130] flex items-end justify-center pointer-events-none" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
         <motion.div
@@ -1064,9 +1093,47 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                  </div>
                </div>
              )}
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
-  );
-}
+           </div>
+         </motion.div>
+       </div>
+     </AnimatePresence>
+     {/* 2026-09-24 (owner "bizde error ekranlarımız yoxdurmu"): custom error
+         screen for OPEN_SHIFT_REQUIRED. The POS has NO permanent clock
+         button (removed 2026-09-21 by owner request) — so the clock-in
+         action lives on-demand here: explain → one click → auto-retry. */}
+     <AnimatePresence>
+       {shiftRequired && (
+         <motion.div
+           key="shift-required"
+           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit}
+           className="fixed inset-0 z-[140] flex items-center justify-center p-4"
+           style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
+         >
+           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { if (!clockingIn) setShiftRequired(false); }} />
+           <motion.div
+             initial={{ scale: 0.94, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 8, opacity: 0 }}
+             transition={appleBackdrop}
+             className={`relative w-full max-w-sm rounded-3xl border p-6 text-center shadow-2xl ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+           >
+             <div className={`mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${lightMode ? 'bg-amber-50' : 'bg-amber-500/10'}`}>
+               <Clock size={26} className="text-amber-500" />
+             </div>
+             <h3 className="text-base font-black uppercase tracking-tight mb-2">{t('shift_required_title')}</h3>
+             <p className={`text-xs leading-relaxed mb-5 ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>{t('open_shift_required')}</p>
+             <div className="flex gap-3">
+               <button onClick={() => setShiftRequired(false)} disabled={clockingIn}
+                 className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-wider border ${lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
+                 {t('close')}
+               </button>
+               <button onClick={handleClockInNow} disabled={clockingIn || !onClockIn}
+                 className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-emerald-500/20">
+                 {clockingIn ? <Loader2 size={14} className="animate-spin mx-auto" /> : t('clock_in_now')}
+               </button>
+             </div>
+           </motion.div>
+         </motion.div>
+       )}
+     </AnimatePresence>
+    </>
+   );
+ }

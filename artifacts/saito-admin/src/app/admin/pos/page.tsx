@@ -422,13 +422,21 @@ export default function POSPage() {
     return () => clearInterval(interval);
   }, [posSession]);
 
-  const handleClockIn = async () => {
+  // 2026-09-24 (owner "bizde error ekranlarımız yoxdurmu"): wired to the
+  // CashDrawerPanel OPEN_SHIFT_REQUIRED dialog (one-click clock-in). No
+  // permanent header button — that was removed by owner request on 09-21.
+  const handleClockIn = async (): Promise<boolean> => {
     try {
       const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
       const res = await fetch('/api/pos/staff/clock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-        body: JSON.stringify({ action: 'in', role_id: posSession?.role }),
+        // 2026-09-24 (E2E round-2 catch): role_id must NOT be sent. posSession.role
+        // is a role NAME string ('superadmin'), but the route compares it to the
+        // staff's role_id UUID → 400 INVALID_ROLE after the shift was already
+        // created (clock-in silently "failed"). Single-role model (D-19): the
+        // route's active_role_id patch is dead weight — omitting role_id skips it.
+        body: JSON.stringify({ action: 'in' }),
       });
       if (res.ok) {
         setIsClockedIn(true);
@@ -437,8 +445,10 @@ export default function POSPage() {
           const data = await staffRes.json();
           setActiveStaff(data.activeStaff || []);
         }
+        return true;
       }
     } catch {}
+    return false;
   };
 
   const handleClockOut = async () => {
@@ -2805,10 +2815,11 @@ export default function POSPage() {
              onCloseCourierStatus={() => setCourierStatusOpen(false)}
            />
 
-      <CashDrawerPanel
-        open={cashDrawerOpen}
-        onClose={() => setCashDrawerOpen(false)}
-      />
+       <CashDrawerPanel
+         open={cashDrawerOpen}
+         onClose={() => setCashDrawerOpen(false)}
+         onClockIn={handleClockIn}
+       />
 
       <OrderHistory
         open={orderHistoryOpen}

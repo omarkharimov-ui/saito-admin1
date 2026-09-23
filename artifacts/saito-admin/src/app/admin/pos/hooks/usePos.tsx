@@ -80,6 +80,14 @@ export function usePos() {
   // Batch 3). Set by fetchCatalog on failure, cleared on success.
   const [catalogLoadFailed, setCatalogLoadFailed] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
+  // 2026-09-24 (owner: "bir terminaldan ediram, bezi masalarda hələ də
+  // 'başqa terminaldan dəyişdirildi'"): React state (placingOrder) only
+  // re-renders AFTER the microtask, so a fast double-tap on the touch
+  // screen fires TWO sends before the button re-disables — both read
+  // placingOrder=false, both append, the 1st bumps the order version, the
+  // 2nd's conditional PATCH matches 0 rows → spurious CONCURRENCY_CONFLICT
+  // ("another terminal"). This synchronous ref closes that window.
+  const placingRef = useRef(false);
   const operationLocks = useRef<Set<string>>(new Set());
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<any>(null);
@@ -1166,10 +1174,11 @@ export function usePos() {
       cartItems: cart?.items?.length,
       posMode 
     });
-    if (!cart || placingOrder) {
-      console.log('[placeOrder] early return', { cart: !!cart, placingOrder });
+    if (!cart || placingOrder || placingRef.current) {
+      console.log('[placeOrder] early return', { cart: !!cart, placingOrder, placingRef: placingRef.current });
       return;
     }
+    placingRef.current = true; // synchronous — blocks a double-tap before re-render
     setPlacingOrder(true);
     try {
       const unsent = cart.items
@@ -1380,10 +1389,11 @@ export function usePos() {
         // Refresh to clear any stale state so the user sees current server data
         fetchFloor().catch(() => {});
       }
-    } catch (e: any) {
+     } catch (e: any) {
       console.error('[placeOrder] failed:', e);
       toast.error(e.message || t('order_not_sent'), { id: 'action-toast' });
     } finally {
+      placingRef.current = false;
       setPlacingOrder(false);
     }
   };

@@ -17,16 +17,16 @@
  * Triggers: the "Müşəri" chip in the cart header, or send-validation
  * (missing name/phone/address) which enters the phase + focuses the field.
  *
- * Takeaway = light (name + phone + WA + note). Delivery = full guest card:
- * CRM match on phone, zone chips with fee+ETA, address, fee, note.
+ * Takeaway = light (name + phone + WA + note). Delivery = full order card:
+ * zone chips with fee+ETA, address, fee, note. (CRM profile match lives in
+ * the ActionSheet customer view — intentional separation.)
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, User, Phone, MapPin, Route, Wallet, StickyNote, Star, MessageCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowLeft, User, Route, Wallet, MessageCircle } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { apiFetch } from '@/lib/api-fetch';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 26 } as const;
 
@@ -53,11 +53,6 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const { lightMode } = useTheme();
   const { t } = useLanguage();
 
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [sugOpen, setSugOpen] = useState(false);
-  const sugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (sugTimerRef.current) clearTimeout(sugTimerRef.current); }, []);
-
   const [flashField, setFlashField] = useState<string | null>(null);
   const fieldRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -80,36 +75,12 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const zoneName = cart?.delivery_zone || '';
   const feeNum = Number(cart?.delivery_fee) || 0;
 
+  // 2026-09-23 (owner): PROF vs CONTACT separation — this panel is ORDER
+  // CONTACT INFO only (name/phone/address). CRM profile linking (per-letter
+  // customer search, loyalty) lives in the ActionSheet customer view; the
+  // two paths must not blur together.
   const setField = (f: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value;
-    if (f === 'customer_phone') {
-      // CRM autocomplete (same source as CartPanel / ActionSheet).
-      if (sugTimerRef.current) clearTimeout(sugTimerRef.current);
-      const q = v.replace(/[^0-9]/g, '');
-      if (q.length < 4) { setSuggestions([]); setSugOpen(false); }
-      else {
-        sugTimerRef.current = setTimeout(async () => {
-          try {
-            const res = await apiFetch(`/api/customers?q=${encodeURIComponent(v)}&limit=6`);
-            if (res.ok) {
-              const data = await res.json();
-              setSuggestions(Array.isArray(data) ? data : []);
-              setSugOpen(true);
-            }
-          } catch { setSuggestions([]); }
-        }, 300);
-      }
-    }
-    onUpdate(f, v);
-  };
-
-  const pickCustomer = (c: any) => {
-    onUpdate('customer_name', c.name || null);
-    onUpdate('customer_phone', c.phone || null);
-    // Link customer_id (loyalty spine) — same as handleSelectCustomer.
-    onUpdate('customer_id', c.id || null);
-    setSuggestions([]);
-    setSugOpen(false);
+    onUpdate(f, e.target.value);
   };
 
   const waLink = phone ? `https://wa.me/${phone.replace(/[^0-9]/g, '')}` : null;
@@ -166,7 +137,7 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                       ref={el => { fieldRefs.current['customer_name'] = el; }}
                       value={name}
                       onChange={setField('customer_name')}
-                      placeholder={mode === 'takeaway' ? 'Sifarişi çağıraq deyə — ad vacibdir' : t('customer_name_placeholder')}
+                      placeholder={mode === 'takeaway' ? t('cph_name_required') : t('customer_name_placeholder')}
                       className={inputCls('customer_name', 'h-11 text-base font-bold')}
                     />
                   </div>
@@ -177,7 +148,6 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                         ref={el => { fieldRefs.current['customer_phone'] = el; }}
                         value={phone}
                         onChange={setField('customer_phone')}
-                        onBlur={() => { setSugOpen(false); if (sugTimerRef.current) clearTimeout(sugTimerRef.current); }}
                         placeholder="+994 50 123 45 67"
                         type="tel"
                         className={inputCls('customer_phone', 'h-11 text-base font-semibold flex-1')}
@@ -196,49 +166,9 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                         </a>
                       )}
                     </div>
-                    {/* CRM match — the part classic POS doesn't have */}
-                    <AnimatePresence>
-                      {sugOpen && suggestions.length > 0 && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -6 }}
-                          transition={SPRING}
-                          className={`absolute left-0 right-0 top-full mt-2 z-30 rounded-2xl border shadow-xl overflow-hidden ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}
-                        >
-                          {suggestions.map((c: any) => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => pickCustomer(c)}
-                              className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${lightMode ? 'hover:bg-zinc-50' : 'hover:bg-white/[0.05]'}`}
-                            >
-                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black flex-shrink-0 ${lightMode ? 'bg-blue-50 text-blue-500' : 'bg-blue-500/15 text-blue-300'}`}>
-                                {(c.name || '?').slice(0, 1).toUpperCase()}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-bold truncate ${lightMode ? 'text-zinc-800' : 'text-white/85'}`}>{c.name}</p>
-                                <p className={`text-xs truncate ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                                  {c.phone || '—'}
-                                  {Number(c.total_visits) > 0 && ` · ${c.total_visits}× ${t('visits')}`}
-                                </p>
-                              </div>
-                              <Star size={13} className={lightMode ? 'text-amber-400 shrink-0' : 'text-amber-300 shrink-0'} />
-                            </button>
-                          ))}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {mode === 'delivery' ? (
-            <>
-              {/* Zones as chips — fee + ETA visible on the chip itself */}
-              {zones.length > 0 && (
+               {mode === 'delivery' ? (
+                 <>
+               {zones.length > 0 && (
                 <div>
                   <p className={labelCls}>{t('delivery_zone')}</p>
                   <div className="flex flex-wrap gap-2">
@@ -301,9 +231,9 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                     className={inputCls('notes', 'h-12 text-sm')}
                   />
                 </div>
-              </div>
-            </>
-          ) : (
+               </div>
+                 </>
+               ) : (
             /* Takeaway: keep it light — name + phone (+ WA) is the job */
             <div>
               <p className={labelCls}>{t('notes')}</p>
@@ -314,9 +244,14 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                 placeholder={t('note_placeholder')}
                 className={inputCls('notes', 'h-11 text-sm')}
               />
+             </div>
+               )}
+              </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
+      </div>
       </div>
     </div>
   );

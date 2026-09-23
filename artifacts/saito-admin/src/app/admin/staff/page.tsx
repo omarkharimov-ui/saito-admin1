@@ -147,7 +147,7 @@ export default function StaffPage() {
         setStaff(data.staff || []);
       }
     } catch {
-      toast.error('Failed to load staff');
+      toast.error(t('st_load_failed'));
     } finally {
       setLoading(false);
     }
@@ -170,7 +170,7 @@ export default function StaffPage() {
   useEffect(() => { fetchLifecycle(); }, [fetchLifecycle]);
 
   const handleForceClockOut = async (member: StaffMember) => {
-    if (!confirm(`Force clock out ${member.full_name || member.name}?`)) return;
+    if (!confirm(t('st_confirm_clock_out').replace('{name}', member.full_name || member.name))) return;
     try {
       const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
       const res = await fetch('/api/staff/force-clock-out', {
@@ -179,13 +179,13 @@ export default function StaffPage() {
         body: JSON.stringify({ staff_id: member.id, reason: 'Forced by admin' }),
       });
       if (res.ok) {
-        toast.success('Staff clocked out');
+        toast.success(t('st_clocked_out'));
         fetchDirectory();
       } else {
-        toast.error('Failed');
+        toast.error(t('st_failed'));
       }
     } catch {
-      toast.error('Error');
+      toast.error(t('error'));
     }
   };
 
@@ -199,12 +199,12 @@ export default function StaffPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        toast.success(`New PIN: ${data.new_pin}`);
+        toast.success(`${t('st_new_pin')} ${data.new_pin}`);
       } else {
-        toast.error('Failed');
+        toast.error(t('st_failed'));
       }
     } catch {
-      toast.error('Error');
+      toast.error(t('error'));
     }
   };
 
@@ -240,14 +240,14 @@ export default function StaffPage() {
         <div>
           <h1 className="flex items-center gap-3">
             <span className="text-2xl font-black text-[var(--theme-text)] tracking-tight">
-              TEAM <span className="text-[var(--theme-text-muted)]">·</span> <span className="text-base font-medium text-[var(--theme-text-muted)]">{kpis?.total_staff ?? staff.length} Total Staff</span>
+              TEAM <span className="text-[var(--theme-text-muted)]">·</span> <span className="text-base font-medium text-[var(--theme-text-muted)]">{kpis?.total_staff ?? staff.length} {t('st_total_staff')}</span>
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 whitespace-nowrap">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
               </span>
-              <span className="text-[10px] font-bold tracking-widest text-emerald-300">LIVE · {onShiftCount} ON SHIFT</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">{t('st_live')} · {onShiftCount} {t('st_on_shift')}</span>
             </span>
           </h1>
         </div>
@@ -255,11 +255,11 @@ export default function StaffPage() {
           <button
             onClick={() => {
               const csv = [
-                ['Name', 'Role', 'Status', 'Orders', 'Revenue', 'Shift'].join(','),
+                [t('st_csv_name'), t('st_csv_role'), t('status'), t('st_csv_orders'), t('st_csv_revenue'), t('st_shift_label')].join(','),
                 ...staff.map(s => [
                   s.full_name || s.name,
                   s.role_name,
-                  s.shift_status === 'active' ? 'On Shift' : 'Off Shift',
+                  s.shift_status === 'active' ? t('st_on_shift') : t('st_off_shift'),
                   s.total_orders,
                   s.total_revenue,
                   s.shift || 'N/A'
@@ -272,19 +272,19 @@ export default function StaffPage() {
               a.download = `staff-report-${new Date().toISOString().split('T')[0]}.csv`;
               a.click();
               URL.revokeObjectURL(url);
-              toast.success('Exported to CSV');
+              toast.success(t('st_exported_csv'));
             }}
             className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-xl text-xs font-medium text-[var(--theme-text)] hover:bg-white/[0.06] transition-all"
           >
             <Download size={14} />
-            Export
+            {t('st_export')}
           </button>
           <button
             onClick={() => setShowCreateSheet(true)}
             className="flex items-center gap-2 px-5 py-2.5 bg-[var(--theme-text)] text-[var(--theme-surface)] rounded-2xl text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all shadow-xl active:scale-95"
           >
             <Plus size={14} />
-            Add Staff
+            {t('st_add_staff')}
           </button>
         </div>
       </div>
@@ -301,17 +301,17 @@ export default function StaffPage() {
             }}
           >
             <MetricStripCell
-              label="Labor Cost"
+              label={t('st_labor_cost')}
               value={`${(kpis.labor_cost_today ?? 0).toFixed(2)} ₼`}
               hint="Bu gün smenada olan heyətin iş saatlarına əsasən hesablanan ümumi əməkhaqqı xərci."
             />
             <MetricStripCell
-              label="Avg Ticket"
+              label={t('st_avg_ticket')}
               value={`${(kpis.avg_ticket_size ?? 0).toFixed(2)} ₼`}
               hint="Bu gün qəbul edilən sifarişlərin orta məbləği."
             />
             <MetricStripCell
-              label="High Risk Voids"
+              label={t('st_high_risk_voids')}
               value={`${kpis.high_risk_voids ?? 0}`}
               dot="rose"
               hint="Ödənişdən və ya mətbəxə verildikdən sonra ləğv edilən şübhəli sifarişlərin sayı."
@@ -368,7 +368,7 @@ export default function StaffPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search staff..."
+            placeholder={t('st_search_staff')}
             className="w-full rounded-full pl-9 pr-4 py-2 text-xs text-white placeholder:text-zinc-500 outline-none transition-all bg-zinc-900/50 border border-white/5 focus:border-white/20"
           />
         </div>
@@ -380,11 +380,11 @@ export default function StaffPage() {
         <div className="flex-1 min-w-0 flex justify-end">
           <DragTabSwitcher
             items={[
-              { id: 'all', label: `All (${staff.length})` },
-              { id: 'owners', label: `Owners (${ownerCount})` },
-              { id: 'on_shift', label: `On Shift (${onShiftCount})` },
-              { id: 'off_shift', label: `Off Shift (${staff.length - onShiftCount})` },
-              { id: 'schedule', label: 'Schedule' },
+              { id: 'all', label: `${t('st_all')} (${staff.length})` },
+              { id: 'owners', label: `${t('st_owners')} (${ownerCount})` },
+              { id: 'on_shift', label: `${t('st_on_shift')} (${onShiftCount})` },
+              { id: 'off_shift', label: `${t('st_off_shift')} (${staff.length - onShiftCount})` },
+              { id: 'schedule', label: t('st_schedule') },
             ]}
             value={activeView}
             onChange={(v) => setActiveView(v as 'all' | 'on_shift' | 'off_shift' | 'schedule' | 'owners')}
@@ -411,9 +411,9 @@ export default function StaffPage() {
           <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
             <div className="flex items-center gap-2">
               <CalendarDays size={14} className="text-zinc-500" />
-              <h2 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Team Shift Schedule</h2>
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">{t('st_team_shift_schedule')}</h2>
             </div>
-            <span className="text-[10px] text-zinc-600">Weekly plan</span>
+            <span className="text-[10px] text-zinc-600">{t('st_weekly_plan')}</span>
           </div>
           <div className="px-4 pb-4">
             <ScheduleCalendar />
@@ -436,8 +436,8 @@ export default function StaffPage() {
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <Users size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
-              <p className="text-sm font-medium text-[var(--theme-text-secondary)]">No staff found</p>
-              <p className="text-xs text-[var(--theme-text-muted)] mt-1">Try adjusting your search or filters</p>
+              <p className="text-sm font-medium text-[var(--theme-text-secondary)]">{t('st_no_staff')}</p>
+              <p className="text-xs text-[var(--theme-text-muted)] mt-1">{t('st_no_staff_sub')}</p>
             </div>
           </div>
         ) : (
@@ -496,11 +496,12 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin, lifecy
   onResetPin: (member: StaffMember) => void;
   lifecycle?: Lifecycle;
 }) {
+  const { t } = useLanguage();
   const lc = lifecycle;
   const isOnShift = lc ? (lc.phase === 'on_shift' || lc.phase === 'on_break' || lc.phase === 'unclosed') : member.shift_status === 'active';
   const roleColor = getRoleColor(member.role_name);
   const RoleIcon = getRoleIcon(member.role_name);
-  const assignmentText = getAssignmentText(member);
+  const assignmentText = getAssignmentText(member, t);
 
   // Live timer with sanity cap: never show absurd multi-day durations.
   const [liveDuration, setLiveDuration] = useState('');
@@ -533,25 +534,25 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin, lifecy
   let phaseText: string;
   if (phase === 'on_break') phaseText = onBreak && lc?.break_started_at ? `Fasilə: ${formatElapsed(lc.break_started_at)}` : 'Fasilə';
   else if (phase === 'on_shift') phaseText = member.shift_opened_at ? `İşdədir: ${liveDuration}` : 'İşdə';
-  else if (phase === 'unclosed') phaseText = 'Shift Unclosed';
+  else if (phase === 'unclosed') phaseText = t('st_shift_unclosed');
   else if (phase === 'scheduled') {
     phaseText = member.shift
       ? `Smena: ${member.shift}`
       : lc?.scheduled_start && lc?.scheduled_end
         ? `Plan: ${lc.scheduled_start.slice(0,5)}–${lc.scheduled_end.slice(0,5)}`
         : 'Planlı smena';
-  } else if (phase === 'completed') phaseText = 'Tamamlandı';
-  else phaseText = !member.is_active ? 'Off duty' : (member.shift ? `Smena: ${member.shift}` : 'Off duty');
+  } else if (phase === 'completed') phaseText = t('st_phase_completed');
+  else phaseText = !member.is_active ? t('st_off_duty') : (member.shift ? `Smena: ${member.shift}` : t('st_off_duty'));
 
   const metric = (() => {
     const r = (member.role_name || '').toLowerCase();
-    if (r === 'kitchen') return { value: member.avg_prep_time ? formatDurationShort(member.avg_prep_time) : '—', label: 'Avg Prep' };
-    if (r === 'waiter') return { value: `${member.guests_served ?? 0}`, label: 'Guests' };
-    if (r === 'cashier') return { value: `${formatCurrencyShort(member.cash_sales ?? 0)}`, label: 'Cash Sales' };
-    if (r === 'bartender') return { value: `${formatCurrencyShort(member.total_revenue ?? 0)}`, label: 'Sales' };
-    if (r === 'manager') return { value: `${member.approvals_count ?? 0}`, label: 'Approvals' };
-    if (r === 'host') return { value: `${member.seated_guests ?? 0}`, label: 'Seated' };
-    return { value: `${member.total_orders ?? 0}`, label: 'Orders' };
+    if (r === 'kitchen') return { value: member.avg_prep_time ? formatDurationShort(member.avg_prep_time) : '—', label: t('st_avg_prep') };
+    if (r === 'waiter') return { value: `${member.guests_served ?? 0}`, label: t('guests') };
+    if (r === 'cashier') return { value: `${formatCurrencyShort(member.cash_sales ?? 0)}`, label: t('st_cash_sales') };
+    if (r === 'bartender') return { value: `${formatCurrencyShort(member.total_revenue ?? 0)}`, label: t('st_sales') };
+    if (r === 'manager') return { value: `${member.approvals_count ?? 0}`, label: t('st_approvals') };
+    if (r === 'host') return { value: `${member.seated_guests ?? 0}`, label: t('st_seated') };
+    return { value: `${member.total_orders ?? 0}`, label: t('st_orders_short') };
   })();
 
   return (
@@ -595,8 +596,8 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin, lifecy
             </span>
           </div>
           {!member.is_active && (
-            <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-bold tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20 mt-[-14px]">
-              INACTIVE
+            <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-bold tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20 mt-[-14px] uppercase">
+              {t('st_inactive')}
             </span>
           )}
         </div>
@@ -643,14 +644,14 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin, lifecy
         {/* Col 4 — Status badge (only when it adds info the left column already shows) */}
         <div className="w-[150px] shrink-0 flex justify-end">
           {!isOnShift && !member.is_active ? (
-            <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[9px] font-semibold tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20 whitespace-nowrap">
-              INACTIVE
+            <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[9px] font-semibold tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20 whitespace-nowrap uppercase">
+              {t('st_inactive')}
             </span>
           ) : (
             <span className="text-[10px] text-zinc-500 font-medium whitespace-nowrap">
               {isOnShift
-                ? (shiftStale ? 'Unclosed' : 'On shift')
-                : member.is_active ? 'Off shift' : ''}
+                ? (shiftStale ? t('st_unclosed') : t('st_on_shift_short'))
+                : member.is_active ? t('st_off_shift_short') : ''}
             </span>
           )}
         </div>
@@ -661,7 +662,7 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin, lifecy
             {isOnShift && (
               <button
                 onClick={(e) => { e.stopPropagation(); onForceClockOut(member); }}
-                title="Force Clock Out"
+                title={t('st_force_clock_out')}
                 className="p-2 rounded-full text-zinc-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
               >
                 <LogOut size={14} />
@@ -669,7 +670,7 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin, lifecy
             )}
             <button
               onClick={(e) => { e.stopPropagation(); onResetPin(member); }}
-              title="Reset PIN"
+              title={t('st_reset_pin')}
               className="p-2 rounded-full text-zinc-500 hover:bg-white/5 hover:text-white transition-colors"
             >
               <RotateCcw size={14} />
@@ -688,7 +689,7 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin, lifecy
 }
 
 // Role-aware live assignment / domain context for the middle of the row
-function getAssignmentText(member: StaffMember): string {
+function getAssignmentText(member: StaffMember, t: (k: any) => string): string {
   const r = (member.role_name || '').toLowerCase();
   if (r === 'waiter') {
     if (member.active_tables && member.active_tables > 0) {
@@ -696,7 +697,7 @@ function getAssignmentText(member: StaffMember): string {
     }
     return member.guests_served && member.guests_served > 0
       ? `${member.guests_served} qonaq`
-      : 'No active tables';
+      : t('st_no_active_tables');
   }
   if (r === 'kitchen') {
     if (member.active_tickets && member.active_tickets > 0) {
@@ -704,18 +705,18 @@ function getAssignmentText(member: StaffMember): string {
     }
     return member.completed_tickets && member.completed_tickets > 0
       ? `${member.completed_tickets} ticket hazır · ${member.late_tickets ?? 0} gecikmiş`
-      : 'Kitchen station idle';
+      : t('st_kitchen_idle');
   }
   if (r === 'cashier') {
     const v = Number(member.drawer_variance || 0);
     const expected = member.expected_cash ? `Gözlənilən ₼${member.expected_cash.toFixed(0)}` : null;
     if (v !== 0) return [expected, `Drawer fərqi ${v > 0 ? '+' : ''}₼${v.toFixed(0)}`].filter(Boolean).join(' · ');
-    return expected || 'Drawer synced ₼0';
+    return expected || t('st_drawer_synced');
   }
   if (r === 'bartender') {
     return member.total_revenue
       ? `Bu gün ${formatCurrencyShort(member.total_revenue)} satış`
-      : member.shift || 'Bar station idle';
+      : member.shift || t('st_bar_idle');
   }
   if (r === 'manager') {
     return `${member.approvals_count ?? 0} təsdiq gözləyir · ${member.exceptions_count ?? 0} müstəsna hal`;
@@ -725,7 +726,7 @@ function getAssignmentText(member: StaffMember): string {
   }
   return member.total_orders && member.total_orders > 0
     ? `${member.total_orders} sifariş · ${formatCurrencyShort(member.total_revenue ?? 0)} satış`
-    : 'Operations';
+    : t('st_operations');
 }
 
 function MetricChip({ icon: Icon, value, label, accent }: {
@@ -757,6 +758,7 @@ function MetricChip({ icon: Icon, value, label, accent }: {
 }
 
 function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState({ name: '', email: '', phone: '', role_id: '', shift: '', pin: '', hourly_rate: '', assignment: '', location_id: '' });
   const [creating, setCreating] = useState(false);
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
@@ -841,14 +843,14 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
         }),
       });
       if (res.ok) {
-        toast.success('Staff created');
+        toast.success(t('st_staff_created'));
         onClose();
         onSuccess();
       } else {
-        toast.error('Failed to create');
+        toast.error(t('st_failed_create'));
       }
     } catch {
-      toast.error('Error');
+      toast.error(t('error'));
     } finally {
       setCreating(false);
     }
@@ -866,15 +868,15 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
         className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-[700px] ml-auto bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col rounded-l-3xl"
       >
         <div className="p-6 border-b border-[var(--theme-border)]">
-          <h2 className="text-base font-black text-[var(--theme-text)]">New Staff</h2>
-          <p className="text-[10px] text-[var(--theme-text-muted)] mt-1 uppercase tracking-widest">Create a new team member</p>
+          <h2 className="text-base font-black text-[var(--theme-text)]">{t('st_new_staff')}</h2>
+          <p className="text-[10px] text-[var(--theme-text-muted)] mt-1 uppercase tracking-widest">{t('st_new_staff_sub')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-          <FormInput label="Full Name *" value={form.name} onChange={v => setForm({ ...form, name: v })} required />
+          <FormInput label={t('st_full_name')} value={form.name} onChange={v => setForm({ ...form, name: v })} required />
           
           <div className="space-y-1.5">
-            <label className="text-[10px] uppercase tracking-wider text-[var(--theme-text-secondary)] font-bold">Role *</label>
+            <label className="text-[10px] uppercase tracking-wider text-[var(--theme-text-secondary)] font-bold">{t('st_role')}</label>
             <select
               value={form.role_id}
               onChange={e => setForm({ ...form, role_id: e.target.value })}
@@ -885,7 +887,7 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
               }}
               required
             >
-              <option value="">Select a role</option>
+              <option value="">{t('st_select_role')}</option>
               {roles.map(role => (
                 <option key={role.id} value={role.id}>{role.name}</option>
               ))}
@@ -895,13 +897,13 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
           {selectedRole && (
             <div className="space-y-1.5">
               <label className="text-[10px] uppercase tracking-wider text-[var(--theme-text-secondary)] font-bold">
-                {selectedRole.name.toLowerCase() === 'waiter' ? 'Assigned Tables/Floors' :
-                 selectedRole.name.toLowerCase() === 'cashier' ? 'Assigned Cash Register' :
-                 selectedRole.name.toLowerCase() === 'bartender' ? 'Bar Station' :
-                 selectedRole.name.toLowerCase() === 'kitchen' ? 'Kitchen Station' :
-                 selectedRole.name.toLowerCase() === 'manager' ? 'Location / Zone' :
-                 selectedRole.name.toLowerCase() === 'host' ? 'Location / Zone' :
-                 'Assignment'}
+                {selectedRole.name.toLowerCase() === 'waiter' ? t('st_assigned_tables') :
+                 selectedRole.name.toLowerCase() === 'cashier' ? t('st_assigned_register') :
+                 selectedRole.name.toLowerCase() === 'bartender' ? t('st_bar_station') :
+                 selectedRole.name.toLowerCase() === 'kitchen' ? t('st_kitchen_station') :
+                 selectedRole.name.toLowerCase() === 'manager' ? t('st_location_zone') :
+                 selectedRole.name.toLowerCase() === 'host' ? t('st_location_zone') :
+                 t('st_assignment')}
               </label>
               {assignmentsLoading ? (
                 <div className="w-full rounded-xl px-4 py-3 text-sm text-[var(--theme-text-muted)]"
@@ -909,7 +911,7 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
                     background: 'rgba(255,255,255,0.02)',
                     border: '1px solid rgba(255,255,255,0.08)',
                   }}>
-                  Loading assignments...
+                  {t('st_loading_assignments')}
                 </div>
               ) : assignments.length > 0 ? (
                 <select
@@ -921,10 +923,10 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
                     border: '1px solid rgba(255,255,255,0.08)',
                   }}
                 >
-                  <option value="">Select assignment</option>
+                  <option value="">{t('st_select_assignment')}</option>
                   {assignments.map(opt => (
                     <option key={opt.id} value={opt.id} disabled={opt.assigned}>
-                      {opt.label}{opt.sublabel ? ` · ${opt.sublabel}` : ''}{opt.assigned ? ` (assigned${opt.assignedTo ? ` to ${opt.assignedTo}` : ''})` : ''}
+                      {opt.label}{opt.sublabel ? ` · ${opt.sublabel}` : ''}{opt.assigned ? ` (${t('st_assigned')}${opt.assignedTo ? ` ${t('st_assigned_to')} ${opt.assignedTo}` : ''})` : ''}
                     </option>
                   ))}
                 </select>
@@ -933,7 +935,7 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
                   type="text"
                   value={form.assignment}
                   onChange={e => setForm({ ...form, assignment: e.target.value })}
-                  placeholder="Enter assignment manually"
+                  placeholder={t('st_enter_assignment')}
                   className="w-full rounded-xl px-4 py-3 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
                   style={{
                     background: 'rgba(255,255,255,0.02)',
@@ -943,14 +945,14 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
               )}
           {form.assignment && assignments.length > 0 && (
             <p className="text-[10px] text-[var(--theme-text-muted)]">
-              Selected: {assignments.find(a => a.id === form.assignment)?.label || form.assignment}
+              {t('st_selected')} {assignments.find(a => a.id === form.assignment)?.label || form.assignment}
             </p>
           )}
           </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="text-[10px] uppercase tracking-wider text-[var(--theme-text-secondary)] font-bold">Primary Location *</label>
+            <label className="text-[10px] uppercase tracking-wider text-[var(--theme-text-secondary)] font-bold">{t('st_primary_location')}</label>
             <select
               value={form.location_id}
               onChange={e => setForm({ ...form, location_id: e.target.value })}
@@ -961,23 +963,23 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
               }}
               required
             >
-              <option value="">Select location</option>
+              <option value="">{t('st_select_location')}</option>
               {locations.map(loc => (
                 <option key={loc.id} value={loc.id}>{loc.name}</option>
               ))}
             </select>
           </div>
 
-          <FormInput label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
-          <FormInput label="Phone" value={form.phone} onChange={v => setForm({ ...form, phone: v })} />
-          <FormInput label="Shift" value={form.shift} onChange={v => setForm({ ...form, shift: v })} placeholder="e.g. 09:00 - 18:00" />
-          <FormInput label="Hourly Rate (AZN)" value={form.hourly_rate} onChange={v => setForm({ ...form, hourly_rate: v })} type="number" />
-          <FormInput label="PIN (4 digits)" value={form.pin} onChange={v => setForm({ ...form, pin: v.replace(/\D/g, '').slice(0, 4) })} type="password" placeholder="****" />
+          <FormInput label={t('st_email')} value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
+          <FormInput label={t('phone')} value={form.phone} onChange={v => setForm({ ...form, phone: v })} />
+          <FormInput label={t('st_shift_label')} value={form.shift} onChange={v => setForm({ ...form, shift: v })} placeholder={t('st_shift_ph')} />
+          <FormInput label={t('st_hourly_rate')} value={form.hourly_rate} onChange={v => setForm({ ...form, hourly_rate: v })} type="number" />
+          <FormInput label={t('st_pin_label')} value={form.pin} onChange={v => setForm({ ...form, pin: v.replace(/\D/g, '').slice(0, 4) })} type="password" placeholder="****" />
         </form>
 
         <div className="p-6 border-t border-[var(--theme-border)] flex items-center justify-end gap-3">
           <button type="button" onClick={onClose} className="px-5 py-2.5 text-xs font-bold text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-xl">
-            Cancel
+            {t('cancel')}
           </button>
           <button
             onClick={handleSubmit}
@@ -985,7 +987,7 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
             className="flex items-center gap-2 bg-[var(--theme-text)] text-[var(--theme-surface)] px-6 py-2.5 rounded-2xl font-bold text-xs tracking-wide transition-all disabled:opacity-40 shadow-xl active:scale-95"
           >
             {creating ? <span className="w-3.5 h-3.5 border-2 border-[var(--theme-surface)]/20 border-t-[var(--theme-surface)] rounded-full animate-spin" /> : <Plus size={12} />}
-            Create
+            {t('create')}
           </button>
         </div>
       </motion.div>
@@ -1016,6 +1018,8 @@ function FormInput({ label, value, onChange, type = 'text', required, placeholde
 }
 
 function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () => void }) {
+  const { t, language } = useLanguage();
+  const dateLocale = language === 'ru' ? 'ru-RU' : language === 'az' ? 'az-AZ' : 'en-US';
   const roleColor = getRoleColor(staff.role_name);
   const RoleIcon = getRoleIcon(staff.role_name);
   const isOnShift = staff.shift_status === 'active';
@@ -1040,13 +1044,13 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
       });
       if (res.ok) {
         setStatusOverride(next); // instant UI update, no reload
-        toast.success(next === 'ACTIVE' ? 'Staff activated' : next === 'SUSPENDED' ? 'Staff suspended' : 'Staff deactivated', { id: 'staff-status-toast' });
+        toast.success(next === 'ACTIVE' ? t('st_activated') : next === 'SUSPENDED' ? t('st_suspended_toast') : t('st_deactivated'), { id: 'staff-status-toast' });
       } else {
         const data = await res.json().catch(() => ({}));
-        toast.error(data.error || 'Status change failed', { id: 'staff-status-toast' });
+        toast.error(data.error || t('st_status_failed'), { id: 'staff-status-toast' });
       }
     } catch {
-      toast.error('Network error — status not changed', { id: 'staff-status-toast' });
+      toast.error(t('st_network_status'), { id: 'staff-status-toast' });
     } finally {
       setStatusBusy(null);
     }
@@ -1055,10 +1059,10 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
   // UX overhaul: max 4 top-level tabs (was 4 groups × 19 sub-tabs, everything
   // crammed). Each tab stacks its sections with inner scroll.
   const tabGroups = [
-    { key: 'overview', label: 'Overview', tabs: ['overview', 'documents', 'reviews'] },
-    { key: 'time', label: 'Time & Shifts', tabs: ['schedule', 'shifts', 'timeclock', 'breaks', 'overtime', 'attendance', 'labor'] },
-    { key: 'finance', label: 'Finance', tabs: ['tips', 'cash', 'handover', 'payroll'] },
-    { key: 'logs', label: 'Logs & Access', tabs: ['messages', 'compliance', 'approvals', 'activity', 'security', 'permissions'] },
+    { key: 'overview', label: t('st_tab_overview'), tabs: ['overview', 'documents', 'reviews'] },
+    { key: 'time', label: t('st_tab_time'), tabs: ['schedule', 'shifts', 'timeclock', 'breaks', 'overtime', 'attendance', 'labor'] },
+    { key: 'finance', label: t('st_tab_finance'), tabs: ['tips', 'cash', 'handover', 'payroll'] },
+    { key: 'logs', label: t('st_tab_logs'), tabs: ['messages', 'compliance', 'approvals', 'activity', 'security', 'permissions'] },
   ];
   const isTabActive = (key: string) => tabGroups.find(g => g.key === activeTab)?.tabs.includes(key) ?? false;
 
@@ -1147,11 +1151,11 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
                       </span>
-                      ON SHIFT
+                      {t('st_on_shift_upper')}
                     </span>
                   ) : (
                     <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-                      OFF SHIFT
+                      {t('st_off_shift_upper')}
                     </span>
                   )}
                   {staff.shift && (
@@ -1194,7 +1198,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             <div className="space-y-6">
               {/* Identity & Status (0.3 contract) */}
               <div>
-                <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Identity & Status</h3>
+                <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">{t('st_identity_status')}</h3>
                 <div className="bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl p-4 flex flex-wrap items-center gap-3">
                   <StatusPill status={effStatus} />
                   {staff.role_name && (
@@ -1211,7 +1215,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
                           disabled={!!statusBusy}
                           className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 active:scale-95 transition-all duration-200 disabled:opacity-60"
                         >
-                          {statusBusy ? '…' : 'Activate'}
+                          {statusBusy ? '…' : t('st_activate')}
                         </button>
                       )}
                       {effStatus === 'ACTIVE' && (
@@ -1221,14 +1225,14 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
                             disabled={!!statusBusy}
                             className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 active:scale-95 transition-all duration-200 disabled:opacity-60"
                           >
-                            {statusBusy ? '…' : 'Suspend'}
+                            {statusBusy ? '…' : t('st_suspend')}
                           </button>
                           <button
                             onClick={() => changeStaffStatus('INACTIVE')}
                             disabled={!!statusBusy}
                             className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 active:scale-95 transition-all duration-200 disabled:opacity-60"
                           >
-                            {statusBusy ? '…' : 'Deactivate'}
+                            {statusBusy ? '…' : t('st_deactivate')}
                           </button>
                         </>
                       )}
@@ -1239,12 +1243,12 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               {/* Current Shift - if active */}
               {staff.active_shift && (
                 <div>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Current Shift</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">{t('st_current_shift')}</h3>
                   <div className="grid grid-cols-4 gap-3">
-                    <StatCard label="Started" value={new Date(staff.active_shift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} icon={Clock} />
-                    <StatCard label="Duration" value={`${Math.round(staff.active_shift.duration_minutes)}m`} icon={Timer} />
-                    <StatCard label="Starting Cash" value={`₼${staff.active_shift.starting_cash}`} icon={DollarSign} />
-                    <StatCard label="Expected Cash" value={`₼${staff.expected_cash ?? 0}`} icon={DollarSign} />
+                    <StatCard label={t('st_started')} value={new Date(staff.active_shift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} icon={Clock} />
+                    <StatCard label={t('st_duration')} value={`${Math.round(staff.active_shift.duration_minutes)}m`} icon={Timer} />
+                    <StatCard label={t('st_starting_cash')} value={`₼${staff.active_shift.starting_cash}`} icon={DollarSign} />
+                    <StatCard label={t('st_expected_cash')} value={`₼${staff.expected_cash ?? 0}`} icon={DollarSign} />
                   </div>
                 </div>
               )}
@@ -1252,64 +1256,64 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               {/* Role-specific Today's Performance */}
               {staff.role_name?.toLowerCase() === 'waiter' && (
                 <div>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Today&apos;s Service</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">{t('st_today_service')}</h3>
                   <div className="grid grid-cols-4 gap-3">
-                    <StatCard label="Orders Taken" value={staff.total_orders} icon={ShoppingBag} />
-                    <StatCard label="Tables Served" value={staff.tables_served ?? 0} icon={Users} />
-                    <StatCard label="Guests" value={staff.guests_served ?? 0} icon={UserCheck} />
-                    <StatCard label="Avg Check" value={formatCurrency(staff.avg_order_value)} icon={DollarSign} />
+                    <StatCard label={t('st_orders_taken')} value={staff.total_orders} icon={ShoppingBag} />
+                    <StatCard label={t('st_tables_served')} value={staff.tables_served ?? 0} icon={Users} />
+                    <StatCard label={t('guests')} value={staff.guests_served ?? 0} icon={UserCheck} />
+                    <StatCard label={t('st_avg_check')} value={formatCurrency(staff.avg_order_value)} icon={DollarSign} />
                   </div>
                   <div className="grid grid-cols-3 gap-3 mt-3">
-                    <StatCard label="Tips" value={formatCurrency(staff.total_tips ?? 0)} icon={DollarSign} accent="emerald" />
-                    <StatCard label="Active Tables" value={staff.active_tables ?? 0} icon={Users} />
-                    <StatCard label="Voids" value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
+                    <StatCard label={t('st_tips')} value={formatCurrency(staff.total_tips ?? 0)} icon={DollarSign} accent="emerald" />
+                    <StatCard label={t('st_active_tables')} value={staff.active_tables ?? 0} icon={Users} />
+                    <StatCard label={t('st_voids')} value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
                   </div>
                 </div>
               )}
 
               {staff.role_name?.toLowerCase() === 'kitchen' && (
                 <div>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Today&apos;s Kitchen</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">{t('st_today_kitchen')}</h3>
                   <div className="grid grid-cols-4 gap-3">
-                    <StatCard label="Tickets Done" value={staff.completed_tickets ?? 0} icon={ChefHat} />
-                    <StatCard label="Active Tickets" value={staff.active_tickets ?? 0} icon={ShoppingBag} accent="amber" />
-                    <StatCard label="Avg Prep Time" value={staff.avg_prep_time ? formatDurationShort(staff.avg_prep_time) : '—'} icon={Timer} />
-                    <StatCard label="Items Made" value={staff.items_prepared ?? 0} icon={Component} />
+                    <StatCard label={t('st_tickets_done')} value={staff.completed_tickets ?? 0} icon={ChefHat} />
+                    <StatCard label={t('st_active_tickets')} value={staff.active_tickets ?? 0} icon={ShoppingBag} accent="amber" />
+                    <StatCard label={t('st_avg_prep_time')} value={staff.avg_prep_time ? formatDurationShort(staff.avg_prep_time) : '—'} icon={Timer} />
+                    <StatCard label={t('st_items_made')} value={staff.items_prepared ?? 0} icon={Component} />
                   </div>
                   <div className="grid grid-cols-3 gap-3 mt-3">
-                    <StatCard label="Late Tickets" value={staff.late_tickets ?? 0} icon={AlertTriangle} accent="rose" />
-                    <StatCard label="Re-fired" value={staff.re_fired ?? 0} icon={AlertTriangle} accent="amber" />
-                    <StatCard label="Cancelled" value={staff.cancelled_tickets ?? 0} icon={XCircle} accent="rose" />
+                    <StatCard label={t('st_late_tickets')} value={staff.late_tickets ?? 0} icon={AlertTriangle} accent="rose" />
+                    <StatCard label={t('st_refired')} value={staff.re_fired ?? 0} icon={AlertTriangle} accent="amber" />
+                    <StatCard label={t('st_cancelled')} value={staff.cancelled_tickets ?? 0} icon={XCircle} accent="rose" />
                   </div>
                 </div>
               )}
 
               {(staff.role_name?.toLowerCase() === 'cashier' || staff.role_name?.toLowerCase() === 'bartender') && (
                 <div>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Today&apos;s Sales</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">{t('st_today_sales')}</h3>
                   <div className="grid grid-cols-4 gap-3">
-                    <StatCard label="Orders Closed" value={staff.total_orders} icon={ShoppingBag} />
-                    <StatCard label="Total Sales" value={formatCurrency(staff.total_revenue)} icon={DollarSign} />
-                    <StatCard label="Cash Sales" value={formatCurrency(staff.cash_sales ?? 0)} icon={DollarSign} />
-                    <StatCard label="Card Sales" value={formatCurrency(staff.card_sales ?? 0)} icon={CreditCard} />
+                    <StatCard label={t('st_orders_closed')} value={staff.total_orders} icon={ShoppingBag} />
+                    <StatCard label={t('st_total_sales')} value={formatCurrency(staff.total_revenue)} icon={DollarSign} />
+                    <StatCard label={t('st_cash_sales')} value={formatCurrency(staff.cash_sales ?? 0)} icon={DollarSign} />
+                    <StatCard label={t('st_card_sales')} value={formatCurrency(staff.card_sales ?? 0)} icon={CreditCard} />
                   </div>
                   <div className="grid grid-cols-4 gap-3 mt-3">
-                    <StatCard label="Avg Transaction" value={formatCurrency(staff.avg_ticket_value)} icon={TrendingUp} />
-                    <StatCard label="Voids" value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
-                    <StatCard label="Refunds" value={formatCurrency(staff.total_refunds ?? 0)} icon={AlertTriangle} accent="rose" />
-                    <StatCard label="Cash Variance" value={`₼${staff.drawer_variance ?? 0}`} icon={AlertTriangle} accent={staff.drawer_variance && Math.abs(staff.drawer_variance) > 5 ? 'amber' : 'emerald'} />
+                    <StatCard label={t('st_avg_transaction')} value={formatCurrency(staff.avg_ticket_value)} icon={TrendingUp} />
+                    <StatCard label={t('st_voids')} value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
+                    <StatCard label={t('st_refunds')} value={formatCurrency(staff.total_refunds ?? 0)} icon={AlertTriangle} accent="rose" />
+                    <StatCard label={t('st_cash_variance')} value={`₼${staff.drawer_variance ?? 0}`} icon={AlertTriangle} accent={staff.drawer_variance && Math.abs(staff.drawer_variance) > 5 ? 'amber' : 'emerald'} />
                   </div>
                 </div>
               )}
 
               {staff.role_name?.toLowerCase() === 'manager' && (
                 <div>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Today&apos;s Overview</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">{t('st_today_overview')}</h3>
                   <div className="grid grid-cols-4 gap-3">
-                    <StatCard label="Team Orders" value={staff.total_orders} icon={ShoppingBag} />
-                    <StatCard label="Team Revenue" value={formatCurrency(staff.total_revenue)} icon={DollarSign} />
-                    <StatCard label="Approvals Given" value={staff.approvals_count ?? 0} icon={CheckCircle} />
-                    <StatCard label="Exceptions" value={staff.exceptions_count ?? 0} icon={AlertTriangle} accent="amber" />
+                    <StatCard label={t('st_team_orders')} value={staff.total_orders} icon={ShoppingBag} />
+                    <StatCard label={t('st_team_revenue')} value={formatCurrency(staff.total_revenue)} icon={DollarSign} />
+                    <StatCard label={t('st_approvals_given')} value={staff.approvals_count ?? 0} icon={CheckCircle} />
+                    <StatCard label={t('st_exceptions')} value={staff.exceptions_count ?? 0} icon={AlertTriangle} accent="amber" />
                   </div>
                 </div>
               )}
@@ -1317,28 +1321,28 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               {/* Issues - shown for all if any */}
               {((staff.total_voids ?? 0) > 0 || (staff.total_refunds ?? 0) > 0 || (staff.total_discounts ?? 0) > 0) && (
                 <div>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Issues</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">{t('st_issues')}</h3>
                   <div className="grid grid-cols-3 gap-3">
-                    <StatCard label="Voids" value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
-                    <StatCard label="Refunds" value={formatCurrency(staff.total_refunds ?? 0)} icon={AlertTriangle} accent="rose" />
-                    <StatCard label="Discounts" value={formatCurrency(staff.total_discounts ?? 0)} icon={DollarSign} />
+                    <StatCard label={t('st_voids')} value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
+                    <StatCard label={t('st_refunds')} value={formatCurrency(staff.total_refunds ?? 0)} icon={AlertTriangle} accent="rose" />
+                    <StatCard label={t('st_discounts')} value={formatCurrency(staff.total_discounts ?? 0)} icon={DollarSign} />
                   </div>
                 </div>
               )}
 
               {/* Contact Info */}
               <div>
-                <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Contact</h3>
+                <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">{t('st_contact')}</h3>
                 <div className="space-y-2">
                   {staff.email && (
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                      <span className="text-[var(--theme-text-muted)] text-xs">Email:</span>
+                      <span className="text-[var(--theme-text-muted)] text-xs">{t('st_email_colon')}</span>
                       <span className="text-xs text-[var(--theme-text)]">{staff.email}</span>
                     </div>
                   )}
                   {staff.phone && (
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                      <span className="text-[var(--theme-text-muted)] text-xs">Phone:</span>
+                      <span className="text-[var(--theme-text-muted)] text-xs">{t('st_phone_colon')}</span>
                       <span className="text-xs text-[var(--theme-text)]">{staff.phone}</span>
                     </div>
                   )}
@@ -1362,24 +1366,24 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               ) : shifts.length === 0 ? (
                 <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
                   <Clock size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
-                  <p className="text-sm text-[var(--theme-text-secondary)]">No shifts found</p>
+                  <p className="text-sm text-[var(--theme-text-secondary)]">{t('st_no_shifts')}</p>
                 </div>
               ) : (
                 <>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Shift History</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">{t('st_shift_history')}</h3>
                   <div className="space-y-2">
                     {shifts.map((shift: any) => (
                       <div key={shift.id} className="p-4 rounded-xl border" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                         <div className="flex items-center gap-4">
                           <div className="min-w-[120px]">
-                            <p className="text-xs font-medium text-[var(--theme-text)]">{new Date(shift.opened_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                            <p className="text-xs font-medium text-[var(--theme-text)]">{new Date(shift.opened_at).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}</p>
                             <p className="text-[10px] text-[var(--theme-text-muted)]">{new Date(shift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{shift.closed_at && ` - ${new Date(shift.closed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}</p>
                           </div>
-                          <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{shift.duration_minutes ? `${Math.round(shift.duration_minutes)}m` : 'Active'}</p><p className="text-[10px] text-[var(--theme-text-muted)]">duration</p></div>
-                          <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{shift.orders_count || 0}</p><p className="text-[10px] text-[var(--theme-text-muted)]">orders</p></div>
-                          <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">₼{shift.expected_cash || 0}</p><p className="text-[10px] text-[var(--theme-text-muted)]">expected</p></div>
-                          <div className="min-w-[80px]">{shift.difference !== null ? <p className={`text-xs font-medium ${Math.abs(shift.difference) > 5 ? 'text-amber-400' : 'text-emerald-400'}`}>{shift.difference > 0 ? '+' : ''}₼{shift.difference}</p> : <p className="text-xs text-[var(--theme-text-muted)]">—</p>}<p className="text-[10px] text-[var(--theme-text-muted)]">variance</p></div>
-                          <div className="ml-auto"><span className={`px-2 py-1 rounded-lg text-[10px] font-medium ${shift.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : shift.status === 'force_closed' ? 'bg-rose-500/10 text-rose-400' : 'bg-zinc-500/10 text-zinc-400'}`}>{shift.status === 'active' ? 'ACTIVE' : shift.status === 'force_closed' ? 'FORCE CLOSED' : 'CLOSED'}</span></div>
+                          <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{shift.duration_minutes ? `${Math.round(shift.duration_minutes)}m` : t('active')}</p><p className="text-[10px] text-[var(--theme-text-muted)]">{t('st_duration')}</p></div>
+                          <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{shift.orders_count || 0}</p><p className="text-[10px] text-[var(--theme-text-muted)]">{t('st_orders_short')}</p></div>
+                          <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">₼{shift.expected_cash || 0}</p><p className="text-[10px] text-[var(--theme-text-muted)]">{t('st_expected_short')}</p></div>
+                          <div className="min-w-[80px]">{shift.difference !== null ? <p className={`text-xs font-medium ${Math.abs(shift.difference) > 5 ? 'text-amber-400' : 'text-emerald-400'}`}>{shift.difference > 0 ? '+' : ''}₼{shift.difference}</p> : <p className="text-xs text-[var(--theme-text-muted)]">—</p>}<p className="text-[10px] text-[var(--theme-text-muted)]">{t('st_variance')}</p></div>
+                          <div className="ml-auto"><span className={`px-2 py-1 rounded-lg text-[10px] font-medium uppercase ${shift.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : shift.status === 'force_closed' ? 'bg-rose-500/10 text-rose-400' : 'bg-zinc-500/10 text-zinc-400'}`}>{shift.status === 'active' ? t('active') : shift.status === 'force_closed' ? t('st_force_closed') : t('st_closed')}</span></div>
                         </div>
                       </div>
                     ))}
@@ -1400,8 +1404,8 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
           {isTabActive('cash') && (
             <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
               <DollarSign size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
-              <p className="text-sm text-[var(--theme-text-secondary)]">Cash reconciliation is retired (P-8, 2026-09-17)</p>
-              <p className="text-xs text-[var(--theme-text-muted)] mt-1">Rebuild is planned in a later phase (P-9/P-12)</p>
+              <p className="text-sm text-[var(--theme-text-secondary)]">{t('st_cash_retired')}</p>
+              <p className="text-xs text-[var(--theme-text-muted)] mt-1">{t('st_cash_rebuild')}</p>
             </div>
           )}
 
@@ -1420,7 +1424,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
           {isTabActive('handover') && !staff.active_shift && (
             <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
               <FileText size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
-              <p className="text-sm text-[var(--theme-text-secondary)]">No active shift</p>
+              <p className="text-sm text-[var(--theme-text-secondary)]">{t('st_no_active_shift')}</p>
             </div>
           )}
 
@@ -1445,18 +1449,18 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               {attendanceLoading ? (
                 <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
               ) : attendance.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><Clock size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No attendance records</p></div>
+                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><Clock size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">{t('st_no_attendance')}</p></div>
               ) : (
                 <>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Attendance History</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">{t('st_attendance_history')}</h3>
                   <div className="space-y-2">
                     {attendance.map((a: any, idx: number) => (
                       <div key={idx} className="p-4 rounded-xl border flex items-center gap-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div className="min-w-[100px]"><p className="text-xs font-medium text-[var(--theme-text)]">{new Date(a.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p></div>
-                        <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{a.scheduled_start} - {a.scheduled_end}</p><p className="text-[10px] text-[var(--theme-text-muted)]">scheduled</p></div>
-                        <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{a.actual_start || '—'} - {a.actual_end || '—'}</p><p className="text-[10px] text-[var(--theme-text-muted)]">actual</p></div>
+                        <div className="min-w-[100px]"><p className="text-xs font-medium text-[var(--theme-text)]">{new Date(a.date).toLocaleDateString(dateLocale, { weekday: 'short', month: 'short', day: 'numeric' })}</p></div>
+                        <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{a.scheduled_start} - {a.scheduled_end}</p><p className="text-[10px] text-[var(--theme-text-muted)]">{t('st_scheduled')}</p></div>
+                        <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{a.actual_start || '—'} - {a.actual_end || '—'}</p><p className="text-[10px] text-[var(--theme-text-muted)]">{t('st_actual')}</p></div>
                         <div className="min-w-[60px]">{a.late_minutes > 0 && <p className="text-xs text-amber-400">+{a.late_minutes}m</p>}</div>
-                        <div className="ml-auto"><span className={`px-2 py-1 rounded-lg text-[10px] font-medium ${a.status === 'present' ? 'bg-emerald-500/10 text-emerald-400' : a.status === 'late' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{a.status?.toUpperCase()}</span></div>
+                        <div className="ml-auto"><span className={`px-2 py-1 rounded-lg text-[10px] font-medium ${a.status === 'present' ? 'bg-emerald-500/10 text-emerald-400' : a.status === 'late' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{({ present: t('st_att_present'), late: t('st_att_late'), absent: t('st_att_absent') } as any)[a.status] || a.status?.toUpperCase()}</span></div>
                       </div>
                     ))}
                   </div>
@@ -1470,18 +1474,18 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               {laborLoading ? (
                 <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
               ) : !laborData ? (
-                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><DollarSign size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No labor data</p></div>
+                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><DollarSign size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">{t('st_no_labor')}</p></div>
               ) : (
                 <>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Labor Summary</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">{t('st_labor_summary')}</h3>
                   <div className="grid grid-cols-3 gap-3">
-                    <StatCard label="Total Hours" value={`${laborData.total_hours?.toFixed(1) || 0}h`} icon={Clock} />
-                    <StatCard label="Labor Cost" value={`₼${laborData.total_labor_cost?.toFixed(2) || 0}`} icon={DollarSign} />
-                    <StatCard label="Labor %" value={`${laborData.labor_percentage?.toFixed(1) || 0}%`} icon={TrendingUp} accent={laborData.labor_percentage > 30 ? 'amber' : undefined} />
+                    <StatCard label={t('st_total_hours')} value={`${laborData.total_hours?.toFixed(1) || 0}h`} icon={Clock} />
+                    <StatCard label={t('st_labor_cost')} value={`₼${laborData.total_labor_cost?.toFixed(2) || 0}`} icon={DollarSign} />
+                    <StatCard label={t('st_labor_pct')} value={`${laborData.labor_percentage?.toFixed(1) || 0}%`} icon={TrendingUp} accent={laborData.labor_percentage > 30 ? 'amber' : undefined} />
                   </div>
                   {laborData.role_breakdown && laborData.role_breakdown.length > 0 && (
                     <div>
-                      <h4 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mt-4 mb-2">By Role</h4>
+                      <h4 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mt-4 mb-2">{t('st_by_role')}</h4>
                       <div className="space-y-2">
                         {laborData.role_breakdown.map((role: any, idx: number) => (
                           <div key={idx} className="p-3 rounded-xl border flex items-center gap-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -1503,18 +1507,18 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               {payrollLoading ? (
                 <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
               ) : payrollEntries.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><DollarSign size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No payroll records</p></div>
+                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><DollarSign size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">{t('st_no_payroll')}</p></div>
               ) : (
                 <>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Payroll History</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">{t('st_payroll_history')}</h3>
                   <div className="space-y-2">
                     {payrollEntries.map((entry: any) => (
                       <div key={entry.id} className="p-4 rounded-xl border" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                         <div className="flex items-center gap-4">
-                          <div className="min-w-[100px]"><p className="text-xs font-medium text-[var(--theme-text)]">{new Date(entry.period_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(entry.period_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p></div>
+                          <div className="min-w-[100px]"><p className="text-xs font-medium text-[var(--theme-text)]">{new Date(entry.period_start).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })} - {new Date(entry.period_end).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}</p></div>
                           <div className="min-w-[60px]"><p className="text-xs text-[var(--theme-text)]">{entry.regular_hours?.toFixed(1)}h</p></div>
                           <div className="min-w-[60px]"><p className="text-xs text-[var(--theme-text)]">{entry.overtime_hours?.toFixed(1)}h</p><p className="text-[10px] text-[var(--theme-text-muted)]">OT</p></div>
-                          <div className="min-w-[60px]"><p className="text-xs text-[var(--theme-text)]">₼{entry.tips?.toFixed(0)}</p><p className="text-[10px] text-[var(--theme-text-muted)]">tips</p></div>
+                          <div className="min-w-[60px]"><p className="text-xs text-[var(--theme-text)]">₼{entry.tips?.toFixed(0)}</p><p className="text-[10px] text-[var(--theme-text-muted)]">{t('st_tips')}</p></div>
                           <div className="ml-auto"><p className="text-sm font-bold text-[var(--theme-text)]">₼{entry.gross_pay?.toFixed(2)}</p></div>
                         </div>
                       </div>
@@ -1530,10 +1534,10 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               {approvalsLoading ? (
                 <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
               ) : approvals.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><CheckCircle size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No approval requests</p></div>
+                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><CheckCircle size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">{t('st_no_approvals')}</p></div>
               ) : (
                 <>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Approval Requests</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">{t('st_approval_requests')}</h3>
                   <div className="space-y-2">
                     {approvals.map((approval: any) => (
                       <div key={approval.id} className="p-4 rounded-xl border flex items-center gap-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -1585,10 +1589,11 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
 }
 
 function StatusPill({ status }: { status?: string }) {
+  const { t } = useLanguage();
   const styles: Record<string, { dot: string; text: string; label: string }> = {
-    ACTIVE: { dot: 'bg-emerald-500', text: 'text-emerald-300', label: 'Active' },
-    INACTIVE: { dot: 'bg-rose-500', text: 'text-rose-300', label: 'Inactive' },
-    SUSPENDED: { dot: 'bg-amber-500', text: 'text-amber-300', label: 'Suspended' },
+    ACTIVE: { dot: 'bg-emerald-500', text: 'text-emerald-300', label: t('active') },
+    INACTIVE: { dot: 'bg-rose-500', text: 'text-rose-300', label: t('st_inactive') },
+    SUSPENDED: { dot: 'bg-amber-500', text: 'text-amber-300', label: t('st_suspended') },
   };
   const s = styles[status || 'INACTIVE'] || styles.INACTIVE;
   return (

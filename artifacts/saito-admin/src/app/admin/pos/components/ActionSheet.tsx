@@ -5,7 +5,7 @@ import { useEffect, useState, useRef, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
-  User, Search, Phone, Smartphone, Building2, Gift, Car, ArrowLeftRight,
+  User, Phone, Smartphone, Building2, Gift, ArrowLeftRight,
   ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag, Star, Shield,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-fetch';
@@ -52,9 +52,6 @@ interface ActionSheetProps {
   onSplitConfirm?: (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }, tipAmount?: number) => void;
   onDismissGroup?: () => void;
   onBackFromPayment?: () => void;
-  onDeliveryStatus?: () => void;
-  onTakeawayStatus?: () => void;
-  onHandover?: () => void;
   onMarkServed?: () => void;
   onSelectCustomer?: (customerId: string | null, customerName: string | null, customerPhone?: string | null) => void;
   customerId?: string | null;
@@ -87,11 +84,6 @@ interface ActionSheetProps {
   onConfirmTransfer?: () => void;
   onCancelTransfer?: () => void;
   onCheckout?: () => void;
-  statusPickerTransitions?: { to_status: string; description: string | null; requires_role: string | null; requires_manager_pin: boolean }[];
-  onSelectTransition?: (toStatus: string) => void;
-  statusPickerLoading?: boolean;
-  onCloseStatusPicker?: () => void;
-  statusPickerOpen?: boolean;
   courierPickerOpen?: boolean;
   couriers?: any[];
   couriersLoading?: boolean;
@@ -104,14 +96,12 @@ interface ActionSheetProps {
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onUnmerge, onCancelTable, onReleaseTable,
   onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
-  onHandover,
-  onBackFromPayment, onDeliveryStatus, onTakeawayStatus, onMarkServed, onSelectCustomer, customerId, customerName, onLoyaltyRedeemed,
+  onBackFromPayment, onMarkServed, onSelectCustomer, customerId, customerName, onLoyaltyRedeemed,
   mergeMode, transferMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, onBillRequest, onPrintBill, onClearTable, onSeatGuests, posRole, groupNumber,
   onDiscount,
   paymentView, transferConfirm, transferSource, transferTarget,   onConfirmTransfer, onCancelTransfer, onCheckout,
   posMode = 'dine_in',
-  statusPickerTransitions, onSelectTransition, statusPickerLoading, onCloseStatusPicker, statusPickerOpen,
   courierPickerOpen, couriers, couriersLoading, onOpenCourierPicker, onAssignCourier, onCloseCourierPicker,
   onRefresh
 }: ActionSheetProps) {
@@ -123,7 +113,6 @@ export function ActionSheet({
   // combine it with the native-keyboard height for bottom padding.
   const { height: vkHeight } = useVirtualKeyboard();
   const [localSplit, setLocalSplit] = useState<{ cash: string; card: string } | null>(null);
-  const [customerSearch, setCustomerSearch] = useState('');
   const [customers, setCustomers] = useState<any[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
@@ -141,7 +130,6 @@ export function ActionSheet({
   const [roomChargeModalOpen, setRoomChargeModalOpen] = useState(false);
   const [corporateModalOpen, setCorporateModalOpen] = useState(false);
   const [splitMode, setSplitMode] = useState<'amount' | 'items'>('amount');
-  const customerSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadCustomers = async (q: string) => {
     setLoadingCustomers(true);
@@ -157,6 +145,15 @@ export function ActionSheet({
       setLoadingCustomers(false);
     }
   };
+
+  // 2026-09-23 (owner): NO letter-by-letter customer search. The customer
+  // button opens the customer list straight from /api/customers (the same
+  // data the Customer page uses). Selection links the CRM customer to the
+  // order; the delivery/pickup ORDER CONTACT stays in CustomerPhasePanel.
+  useEffect(() => {
+    if (showCustomerSearch) loadCustomers('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCustomerSearch]);
 
   // ── Loyalty spine (OS BUILD #1) ─────────────────────────────────────
   // Balance + enabled state come from /api/orders/loyalty (server reads the
@@ -215,7 +212,6 @@ export function ActionSheet({
   const handleCustomerSelect = (customerId: string | null, customerName: string | null, customerPhone?: string | null) => {
     onSelectCustomer?.(customerId, customerName, customerPhone);
     setShowCustomerSearch(false);
-    setCustomerSearch('');
     // Loyalty spine (OS BUILD #1b): after the order is PATCHed with the new
     // customer, refresh the sheet's loyalty balance for that customer.
     if (customerId) setTimeout(() => loadLoyalty(), 350);
@@ -240,9 +236,6 @@ export function ActionSheet({
     }
   }, [open]);
 
-  useEffect(() => {
-    return () => { if (customerSearchTimerRef.current) clearTimeout(customerSearchTimerRef.current); };
-  }, []);
 
   const isOccupied = table?.status !== 'empty' && table?.status !== 'dirty';
   const isDirty = table?.status === 'dirty';
@@ -259,8 +252,6 @@ export function ActionSheet({
   const activeOrderId = activeOrder?.id ?? (table as any)?.current_order_id ?? (table as any)?.order_ids?.[0] ?? '';
   // For takeaway/delivery the `table` prop IS the flat order (no .orders
   // wrapper), so its id/status live directly on `table`.
-  const flatOrderId = (table as any)?.id ?? activeOrderId;
-  const handoverOrderStatus = (table as any)?.status ?? activeOrder?.status;
   const activeOrderItems: any[] = activeOrder?.order_items ?? [];
   const activePaidAt = activeOrder?.paid_at ?? null;
   const activePaidAmount = activeOrder?.total_amount ?? 0;
@@ -278,15 +269,12 @@ export function ActionSheet({
     // frees). 'cleaning' = post-payment dirty state (trigger rev. 2).
     { id: 'release_table', icon: CheckCircle, label: t('release_table'), visible: isCashierOrAbove && !isTakeawayOrDelivery && (table?.status === 'paid' || table?.status === 'cleaning' || activeOrder?.status === 'paid') },
     { id: 'clear', icon: BrushCleaning, label: t('clear'), visible: table?.status === 'empty' || table?.status === 'dirty' },
+    // 2026-09-23 (owner, STATUS OWNERSHIP): delivery/takeaway status
+    // transitions and TƏHVİL ET are pressed ONLY on the BDS board
+    // (/admin/bds) — like kitchen statuses are pressed only on KDS.
+    // POS keeps dispatch (courier assignment).
     ...(posMode === 'delivery' ? [
-      { id: 'delivery_status', icon: Car, label: t('delivery_status'), visible: true },
       { id: 'assign_courier', icon: UserCheck, label: t('assign_courier' as any) || 'Assign Courier', visible: true },
-    ] : []),
-    ...(posMode === 'takeaway' ? [
-      // 2026-09-22: TƏHVİL ET — fulfillment event, independent of payment.
-      // Available when the order can transition to `served` (ready or paid).
-      { id: 'handover', icon: CheckCircle, label: t('handover') || 'TƏHVİL ET', visible: !!flatOrderId && (handoverOrderStatus === 'ready' || handoverOrderStatus === 'paid') },
-      { id: 'takeaway_status', icon: ChevronRight, label: t('next_step'), visible: true },
     ] : []),
     ...(posMode === 'dine_in' && table?.status === 'ready' ? [
       { id: 'mark_served', icon: CheckCircle, label: t('mark_served'), visible: true },
@@ -300,7 +288,7 @@ export function ActionSheet({
   const mergedChildren = unmergeMode && table ? (mergedGroupChildren ?? []) : [];
   const showSplitForm = !!localSplit;
   const showCustomerForm = showCustomerSearch;
-  const currentView = confirmAction ? 'confirm-action' : cashTenderedView ? 'cash-tendered' : cardConfirmView ? 'card-confirm' : showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : paymentView ? 'payment' : mergeMode ? 'merge' : (transferMode || transferConfirm) ? 'transfer' : unmergeMode ? 'split' : courierPickerOpen ? 'courier-select' : statusPickerOpen ? 'status-select' : open ? 'actions' : 'none';
+  const currentView = confirmAction ? 'confirm-action' : cashTenderedView ? 'cash-tendered' : cardConfirmView ? 'card-confirm' : showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : paymentView ? 'payment' : mergeMode ? 'merge' : (transferMode || transferConfirm) ? 'transfer' : unmergeMode ? 'split' : courierPickerOpen ? 'courier-select' : open ? 'actions' : 'none';
   const groupName = table?.parent_table_number || table?.table_number;
 
   return (
@@ -474,7 +462,7 @@ export function ActionSheet({
                        <div>
                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('main_actions')}</p>
                          <div className="grid grid-cols-3 gap-3">
-                              {visibleActions.filter(a => ['customer', 'handover', 'close_bill', 'clear', 'release_table'].includes(a.id)).map((action) => {
+                              {visibleActions.filter(a => ['customer', 'close_bill', 'clear', 'release_table'].includes(a.id)).map((action) => {
                                if (action.id === 'customer') {
                                 return (
                                   <button key={action.id} onClick={() => setShowCustomerSearch(true)}
@@ -488,11 +476,8 @@ export function ActionSheet({
                                 <button key={action.id} onClick={() => {
                                    const fn = {
                                      close_bill: onOpenPayment,
-                                     handover: onHandover,
                                      cancel_table: () => setConfirmAction('cancel_table'),
                                      release_table: () => setConfirmAction('release_table'),
-                                     delivery_status: onDeliveryStatus,
-                                     takeaway_status: onTakeawayStatus,
                                      mark_served: onMarkServed,
                                      assign_courier: onOpenCourierPicker,
                                      bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
@@ -502,9 +487,7 @@ export function ActionSheet({
                                    if (fn) fn();
                                  }}
                                   className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
-                                    action.id === 'handover'
-                                      ? lightMode ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600' : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                                      : action.id === 'bill_request'
+                                      action.id === 'bill_request'
                                       ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                                       : action.id === 'cancel_table'
                                       ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
@@ -519,18 +502,16 @@ export function ActionSheet({
                        </div>
 
                        {/* Secondary actions section */}
-                        {visibleActions.some(a => ['bill_request', 'print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier', 'mark_served', 'discount'].includes(a.id)) && (
+                        {visibleActions.some(a => ['bill_request', 'print_bill', 'cancel_table', 'assign_courier', 'mark_served', 'discount'].includes(a.id)) && (
                           <div>
                             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
                             <div className="grid grid-cols-3 gap-3">
-                              {visibleActions.filter(a => ['bill_request', 'print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier', 'discount'].includes(a.id)).map((action) => (
+                              {visibleActions.filter(a => ['bill_request', 'print_bill', 'cancel_table', 'assign_courier', 'mark_served', 'discount'].includes(a.id)).map((action) => (
                                <button key={action.id} onClick={() => {
                                   const fn = {
                                     add_order: onAddOrder,
                                     close_bill: onOpenPayment,
                                     cancel_table: () => setConfirmAction('cancel_table'),
-                                    delivery_status: onDeliveryStatus,
-                                    takeaway_status: onTakeawayStatus,
                                     assign_courier: onOpenCourierPicker,
                                     bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
                                     print_bill: onPrintBill,
@@ -975,22 +956,19 @@ export function ActionSheet({
                    </motion.div>
                  )}
 
-                {currentView === 'customer' && (
-                  <motion.div key="ui-customer" {...morphView} className="flex flex-col gap-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-1">{t('customer')}</p>
-                    <div className="relative mb-2">
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
-                      <input
-                        value={customerSearch}
-                        onChange={e => { 
-                          setCustomerSearch(e.target.value); 
-                          if (customerSearchTimerRef.current) clearTimeout(customerSearchTimerRef.current);
-                          customerSearchTimerRef.current = setTimeout(() => loadCustomers(e.target.value), 300);
-                        }}
-                        placeholder={t('customer_placeholder')}
-                        className={`w-full rounded-xl pl-9 pr-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
-                      />
-                    </div>
+                 {/* 2026-09-23 (owner): PROF vs CONTACT separation. This view
+                     = CRM PROFILE linking (search per-letter + list, links
+                     customer_id + fills name/phone). Order contact info
+                     (phone/name/address) lives in the customer PHASE panel
+                     (cart-header chip) — the two must not blur together. */}
+                 {currentView === 'customer' && (
+                   <motion.div key="ui-customer" {...morphView} className="flex flex-col gap-3">
+                     <div className="mb-1">
+                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">{t('customer_profile_title')}</p>
+                       <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5">{t('customer_profile_hint')}</p>
+                     </div>
+                    {/* 2026-09-23 (owner): letter-by-letter search REMOVED — the list
+                        below loads automatically when this view opens */}
                     <div className="max-h-[250px] overflow-y-auto space-y-1">
                       {loadingCustomers ? (
                         <div className="flex justify-center py-6"><div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
@@ -1230,45 +1208,6 @@ export function ActionSheet({
                     </motion.div>
                   )}
 
-                  {currentView === 'status-select' && (
-                    <motion.div key="ui-status-select" {...morphView} className="flex flex-col gap-4">
-                      <div className="text-center">
-                        <p className={`text-2xl font-black tracking-tighter mb-1 ${lightMode ? 'text-black' : 'text-white'}`}>
-                          {t('next_step')}
-                        </p>
-                        <p className={`text-[10px] font-bold uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                           {posMode === 'delivery' ? t('delivery_status') : t('next_step')}
-                        </p>
-                      </div>
-                      {statusPickerLoading ? (
-                        <div className="flex justify-center py-6">
-                          <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                        </div>
-                      ) : statusPickerTransitions && statusPickerTransitions.length > 0 ? (
-                        <div className="space-y-2 max-h-[50vh] overflow-y-auto">
-                          {statusPickerTransitions.map((tr) => (
-                            <button
-                              key={tr.to_status}
-                              onClick={() => onSelectTransition?.(tr.to_status)}
-                              className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border font-black text-sm uppercase tracking-wider transition-all active:scale-[0.98] ${
-                                lightMode
-                                  ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-800'
-                                  : 'bg-white text-black border-white hover:bg-white/90'
-                              }`}
-                            >
-                              <span>{tr.description || tr.to_status}</span>
-                              <ChevronRight size={18} strokeWidth={3} />
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className={`text-center text-xs py-4 ${lightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                          {t('no_valid_transitions' as any) || 'No transitions available'}
-                        </p>
-                      )}
-                      <button onClick={onCloseStatusPicker} className="w-full mt-2 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('back')}</button>
-                    </motion.div>
-                  )}
 
                </AnimatePresence>
            </motion.div>

@@ -191,10 +191,6 @@ export default function POSPage() {
     }
     return payKeyRef.current[orderId];
   }, []);
-  const [statusPickerOpen, setStatusPickerOpen] = useState(false);
-  const [statusPickerTransitions, setStatusPickerTransitions] = useState<{ to_status: string; description: string | null; requires_role: string | null; requires_manager_pin: boolean }[]>([]);
-  const [statusPickerEntity, setStatusPickerEntity] = useState<'order' | 'delivery'>('order');
-  const [statusPickerLoading, setStatusPickerLoading] = useState(false);
   const [courierPickerOpen, setCourierPickerOpen] = useState(false);
   const [couriers, setCouriers] = useState<any[]>([]);
   const [couriersLoading, setCouriersLoading] = useState(false);
@@ -759,37 +755,6 @@ export default function POSPage() {
     setActionSheetOpen(true);
   };
 
-  const handleOpenStatusPicker = async (entity: 'order' | 'delivery') => {
-    if (!actionSheetTable) return;
-    setStatusPickerEntity(entity);
-    setStatusPickerLoading(true);
-    setStatusPickerOpen(true);
-    try {
-      const currentStatus = entity === 'delivery'
-        ? (actionSheetTable.delivery_status || actionSheetTable.status)
-        : actionSheetTable.status;
-      const transitions = await orderStateMachine.getValidTransitions(currentStatus, entity);
-      setStatusPickerTransitions(transitions);
-    } catch (e) {
-      toast.error(t('error_occurred'));
-      setStatusPickerOpen(false);
-    } finally {
-      setStatusPickerLoading(false);
-    }
-  };
-
-  const handleStatusTransitionSelect = async (toStatus: string) => {
-    if (!actionSheetTable) return;
-    setStatusPickerOpen(false);
-    if (statusPickerEntity === 'delivery') {
-      await orderStateMachine.transitionDelivery(actionSheetTable.id, toStatus as any, {
-        courierId: actionSheetTable.courier_id,
-        courierName: actionSheetTable.courier_name,
-      });
-    } else {
-      await orderStateMachine.transition(actionSheetTable.id, toStatus as any);
-    }
-  };
 
   const handleOpenCourierPicker = async () => {
     setCourierPickerOpen(true);
@@ -855,10 +820,6 @@ export default function POSPage() {
       toast.error(e.message || t('error_occurred'));
     }
   };
-
-  const handleDeliveryStatusPick = async () => {
-    await handleOpenStatusPicker('delivery');
-  };
   const handleMarkServed = async () => {
     if (!actionSheetTable) return;
     const orderId = actionSheetTable.current_order_id || actionSheetTable.order_ids?.[0] || (Array.isArray(actionSheetTable.orders) ? actionSheetTable.orders[0]?.id : undefined);
@@ -871,36 +832,6 @@ export default function POSPage() {
       toast.error(e.message || t('error_occurred'));
     }
   };
-
-  // 2026-09-22: TAKEAWAY HANDOVER (TƏHVİL ET) — fulfillment event, independent
-  // of payment. Transitions the order to `served` (works from BOTH `ready` and
-  // `paid`, thanks to the new paid→served state edge). Payment can happen
-  // before or after; this only records that the customer took the order.
-  const handleTakeawayHandover = async () => {
-    if (!actionSheetTable) return;
-    const orderId = actionSheetTable.id
-      || actionSheetTable.current_order_id
-      || actionSheetTable.order_ids?.[0]
-      || (Array.isArray(actionSheetTable.orders) ? actionSheetTable.orders[0]?.id : undefined);
-    if (!orderId) { toast.error(t('error_occurred')); return; }
-    toast.loading(t('processing_payment'), { id: 'action-toast' });
-    try {
-      const result = await orderStateMachine.transition(orderId, 'served', { reason: 'takeaway handover' });
-      if (result.success) {
-        toast.success(t('handover_done') || 'Təhvil edildi', { id: 'action-toast' });
-        setActionSheetOpen(false);
-        // Drop the just-handed order from the open cart if it was being edited.
-        if (pos.cart?.order_id === orderId) pos.setCart(null);
-        fetchTakeawayOrders();
-        pos.fetchData();
-      } else {
-        toast.error(result.error || t('error_occurred'), { id: 'action-toast' });
-      }
-    } catch (e: any) {
-      toast.error(e.message || t('error_occurred'), { id: 'action-toast' });
-    }
-  };
-
 
   const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge' | string, tenderedAmount?: number, tipAmount?: number) => {
     if (!actionSheetTable) return;
@@ -2700,9 +2631,6 @@ export default function POSPage() {
           onPaymentMethodSelect={handlePaymentMethodSelect}
           onSplitConfirm={handleSplitConfirm}
            onBackFromPayment={handleBackFromPayment}
-            onDeliveryStatus={handleDeliveryStatusPick}
-             onTakeawayStatus={() => handleOpenStatusPicker('order')}
-             onHandover={handleTakeawayHandover}
              onMarkServed={handleMarkServed}
              onDiscount={() => setDiscountOpen(true)}
            onCancelTable={async () => {
@@ -2792,11 +2720,6 @@ export default function POSPage() {
             transferTarget={transferTarget}
              onConfirmTransfer={() => { if (transferTarget) handleConfirmTransfer(transferTarget); setTransferConfirm(false); setActionSheetOpen(false); }}
              onCancelTransfer={() => { setTransferConfirm(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }}
-             statusPickerTransitions={statusPickerTransitions}
-             onSelectTransition={handleStatusTransitionSelect}
-             statusPickerLoading={statusPickerLoading}
-             onCloseStatusPicker={() => setStatusPickerOpen(false)}
-             statusPickerOpen={statusPickerOpen}
              courierPickerOpen={courierPickerOpen}
              couriers={couriers}
              couriersLoading={couriersLoading}

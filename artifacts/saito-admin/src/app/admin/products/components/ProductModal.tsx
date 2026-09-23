@@ -468,7 +468,9 @@ export function ProductModal({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    fetch('/api/stations', { cache: 'no-store' })
+    // kind=kitchen: a product routes to a KITCHEN station; delivery/pickup
+    // (BDS) stations are a separate family and must not be assignable here.
+    fetch('/api/stations?kind=kitchen', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : [])
       .then((data: any[]) => { if (!cancelled) setStations(Array.isArray(data) ? data : []); })
       .catch(() => { if (!cancelled) setStations([]); });

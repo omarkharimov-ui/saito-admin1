@@ -126,7 +126,9 @@ export function KDSView({ onBack }: { onBack: () => void }) {
   const [stations, setStations] = useState<KDSStation[]>([]);
   const [stationFilter, setStationFilter] = useState<string | null>(null);
   useEffect(() => {
-    fetch('/api/stations', { cache: 'no-store' })
+    // kind=kitchen: kitchen-family stations only — delivery/pickup (BDS)
+    // stations are a separate family and must never appear as kitchen boards.
+    fetch('/api/stations?kind=kitchen', { cache: 'no-store' })
       .then(r => (r.ok ? r.json() : []))
       .then((d: any) => setStations(Array.isArray(d) ? d : []))
       .catch(() => setStations([]));
@@ -450,8 +452,10 @@ export function KDSView({ onBack }: { onBack: () => void }) {
       {/* Orders Grid */}
       <div className="flex-1 overflow-y-auto py-3">
         {boardOrders.length === 0 ? (
-          <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/15'}`}>
-            <CheckCircle2 size={40} className="mb-3 opacity-30" />
+          /* 2026-09-23 sweep fix: dark-mode empty state was unreadable
+             (white/15 + 30% icon). Bumped to white/45 + 60% icon. */
+          <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>
+            <CheckCircle2 size={40} className="mb-3 opacity-60" />
             <p className="text-sm">{stationFilter ? t('kds_station_empty') : t('all_orders_ready')}</p>
           </div>
         ) : (

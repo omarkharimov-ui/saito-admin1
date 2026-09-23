@@ -17,6 +17,7 @@ import {
   Timer,
   Gift,
   ClipboardCheck,
+  Bike,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -46,6 +47,15 @@ export function getAdminNavItems(
       name: 'POS',
       href: '/admin/pos',
       icon: Monitor,
+      roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier'],
+    },
+    {
+      // 2026-09-23 (owner): separate route. BDS board = delivery/pickup
+      // fulfillment; its statuses are pressed HERE (kitchen = KDS).
+      id: 'bds',
+      name: 'BDS',
+      href: '/admin/bds',
+      icon: Bike,
       roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier'],
     },
     {

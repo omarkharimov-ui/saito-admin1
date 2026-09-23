@@ -17,7 +17,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bike, ShoppingBag, Phone, MapPin, Wallet, CheckCircle2, Clock, User, ChefHat, PackageCheck, Navigation, Flag } from 'lucide-react';
+import { Bike, ShoppingBag, Phone, MapPin, Wallet, CheckCircle2, Clock, User, ChefHat, PackageCheck, Navigation, Flag, LayoutGrid, Utensils } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -32,6 +32,7 @@ interface BdItem { id: string; name: string; quantity: number; kitchen_status: s
 interface BdOrder {
   id: string;
   order_source: string;
+  table_number?: number | null;
   bds_station_id?: string | null;
   order_number: string | null;
   status: string;
@@ -79,6 +80,38 @@ export default function BDSPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // 2026-09-23 (owner): couriers are real staff records (role 'courier',
+  // managed on the Staff page). The board assigns one to a delivery order —
+  // courier_id (staff FK) + courier_name, never free text.
+  const [couriers, setCouriers] = useState<{ id: string; name: string }[]>([]);
+  const [courierPickerFor, setCourierPickerFor] = useState<string | null>(null);
+  useEffect(() => {
+    apiFetch('/api/staff')
+      .then(r => (r.ok ? r.json() : []))
+      .then((d: any) => {
+        const arr = Array.isArray(d) ? d : (d?.staff || []);
+        setCouriers(arr.filter((s: any) => s.is_active && s.roles?.name === 'courier').map((s: any) => ({ id: s.id, name: s.name })));
+      })
+      .catch(() => {});
+  }, []);
+
+  const assignCourier = async (o: BdOrder, c: { id: string; name: string }) => {
+    try {
+      const res = await apiFetch('/api/orders/courier', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: o.id, courier_id: c.id }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d?.error || 'Courier assignment failed');
+      toast.success(`${t('bds_courier') || 'Kuryer'}: ${c.name} — #${o.order_number || o.id.slice(-4).toUpperCase()}`);
+      setCourierPickerFor(null);
+      fetchBds();
+    } catch (e: any) {
+      toast.error(e?.message || t('error_occurred'));
+    }
+  };
+
   useEffect(() => {
     apiFetch('/api/stations?kind=kitchen').then(r => r.ok ? r.json() : []).then((d: any) => setStations(Array.isArray(d) ? d : [])).catch(() => setStations([]));
     apiFetch('/api/stations?kind=bds').then(r => r.ok ? r.json() : []).then((d: any) => setBdsStations(Array.isArray(d) ? (d as BdsStation[]) : [])).catch(() => setBdsStations([]));
@@ -114,27 +147,35 @@ export default function BDSPage() {
       o.order_source === 'takeaway'
       && !ORDER_DEAD.includes(o.status)
       && o.status !== 'served',
+    // 2026-09-23 (owner): dine-in orders appear on the board too — "nie
+    // dine-in sifarisleri eks olunmur". A dine-in order stays active until
+    // it is PAID (served/dining are mid-flow states, not terminal).
+    dine_in: (o) =>
+      (o.order_source === 'dine_in' || (!o.order_source && o.table_number != null))
+      && !ORDER_DEAD.includes(o.status)
+      && o.status !== 'paid'
+      && (o.kitchen_status || 'pending') !== 'cancelled',
   };
-  // Tab list = BDS stations (data-driven); legacy hardcoded tabs as fallback.
-  const tabList: { id: string; label: string; station_type: string; icon: any }[] =
+  // 2026-09-23 (owner): the board DEFAULTS to the ALL tab — "tablar olmasina
+  // birbasaa sifarisler ekranda eks olunsun". Station tabs filter from there.
+  const ALL_TAB = { id: '__all', label: t('bds_tab_all') || 'Bütün', station_type: '__all', icon: LayoutGrid };
+  const stationTabs: { id: string; label: string; station_type: string; icon: any }[] =
     bdsStations.length > 0
       ? bdsStations.map(s => ({ id: s.id, label: s.name, station_type: s.station_type, icon: s.station_type === 'delivery' ? Bike : ShoppingBag }))
       : [
           { id: '__delivery', label: t('bds_tab_delivery'), station_type: 'delivery', icon: Bike },
           { id: '__takeaway', label: t('bds_tab_takeaway'), station_type: 'pickup', icon: ShoppingBag },
         ];
-  const activeTab = tabList.find(x => x.id === selectedTabId)
-    || tabList.find(x => x.station_type === 'delivery')
-    || tabList[0]
-    || null;
-  const isDeliveryTab = activeTab?.station_type === 'delivery';
-  const board = activeTab
-    ? orders.filter(o =>
+  const tabList = [ALL_TAB, ...stationTabs];
+  const activeTab = tabList.find(x => x.id === selectedTabId) || ALL_TAB;
+  const isAllTab = activeTab.id === '__all';
+  const isDeliveryTab = activeTab.station_type === 'delivery';
+  const board = isAllTab
+    ? orders.filter(o => isActiveByType.delivery(o) || isActiveByType.pickup(o) || isActiveByType.dine_in(o))
+    : orders.filter(o =>
         (isActiveByType[activeTab.station_type] || (() => false))(o)
         // '__' fallback tabs predate station ids: match by family only.
-        && (activeTab.id.startsWith('__') || o.bds_station_id == null || o.bds_station_id === activeTab.id))
-    : []
-  ;
+        && (activeTab.id.startsWith('__') || o.bds_station_id == null || o.bds_station_id === activeTab.id));
   board.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   const elapsed = (iso: string) => {
@@ -292,7 +333,13 @@ export default function BDSPage() {
                   if (['ready', 'completed'].includes(it.kitchen_status)) stGroups[nm].ready += it.quantity;
                 }
                 const stEntries = Object.entries(stGroups);
-                const taken = !isDeliveryTab && o.status === 'served';
+                // 2026-09-23 (owner): per-order kind — the ALL tab mixes
+                // dine-in + delivery + pickup on one board; station tabs are
+                // single-kind (the tab's family wins there).
+                const kind: 'delivery' | 'pickup' | 'dine_in' =
+                  o.order_source === 'delivery' ? 'delivery' : o.order_source === 'takeaway' ? 'pickup' : 'dine_in';
+                const isDeliveryKind = isAllTab ? kind === 'delivery' : isDeliveryTab;
+                const taken = kind === 'pickup' && o.status === 'served';
                 return (
                   <motion.div
                     key={o.id}
@@ -309,17 +356,21 @@ export default function BDSPage() {
                           : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-white/[0.02] border-white/[0.08]'))
                     }`}
                   >
-                    {/* Title row — rule: "Çatdırılma #XXXX" / "Gel-Al #XXXX" */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {isDeliveryTab
-                          ? <Bike size={15} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
-                          : <ShoppingBag size={15} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />}
-                        <span className={`text-sm font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                          {isDeliveryTab ? t('delivery_short') : t('takeaway_short')}
-                        </span>
-                        <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{orderNo}</span>
-                      </div>
+                      {/* Title row — per-order kind: "Masa N" / "Çatdırılma XXXX" / "Gel-Al XXXX" */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {kind === 'delivery'
+                            ? <Bike size={15} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
+                            : kind === 'dine_in'
+                              ? <Utensils size={15} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
+                              : <ShoppingBag size={15} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />}
+                          <span className={`text-sm font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                            {kind === 'delivery' ? t('delivery_short') : kind === 'dine_in' ? `${t('table_label')} ${o.table_number ?? '?'}` : t('takeaway_short')}
+                          </span>
+                          {kind !== 'dine_in' && (
+                            <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{orderNo}</span>
+                          )}
+                        </div>
                       <span className={`text-[11px] font-bold tabular-nums flex items-center gap-1 shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
                         <Clock size={11} />
                         {elapsed(o.created_at)}
@@ -339,7 +390,7 @@ export default function BDSPage() {
                     </div>
 
                     {/* Delivery: address + zone + fee */}
-                    {isDeliveryTab && (o.delivery_address || o.delivery_zone) && (
+                    {isDeliveryKind && (o.delivery_address || o.delivery_zone) && (
                       <div className="flex items-center gap-2 min-w-0 flex-wrap">
                         <span className="flex items-center gap-1 text-[11px] min-w-0 truncate">
                           <MapPin size={11} className={lightMode ? 'text-zinc-300' : 'text-white/25'} />
@@ -380,9 +431,55 @@ export default function BDSPage() {
                       {!kReady && !isDeliveryTab && <span className={`text-[10px] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('bds_waiting_kitchen')}</span>}
                     </div>
 
+                    {/* Courier assignment (delivery only) — real staff record */}
+                    {kind === 'delivery' && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => setCourierPickerFor(courierPickerFor === o.id ? null : o.id)}
+                          className={`flex items-center gap-1.5 h-8 px-3 rounded-full text-[11px] font-black border transition-all active:scale-[0.97] ${
+                            o.courier_name
+                              ? (lightMode ? 'bg-sky-50 border-sky-300 text-sky-600' : 'bg-sky-500/10 border-sky-400/30 text-sky-300')
+                              : (lightMode ? 'bg-white border-dashed border-zinc-300 text-zinc-400 hover:border-zinc-400' : 'bg-white/[0.02] border-dashed border-white/15 text-white/40 hover:border-white/30')
+                          }`}
+                        >
+                          <Bike size={12} />
+                          {o.courier_name || (t('bds_pick_courier') || 'Kuryer seç')}
+                        </button>
+                        {courierPickerFor === o.id && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {couriers.length === 0 && (
+                              <span className={`text-[10px] font-bold px-2 py-1 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                {t('bds_courier_empty') || 'Staff-də aktiv kuryer yoxdur'}
+                              </span>
+                            )}
+                            {couriers.map(c => (
+                              <button
+                                key={c.id}
+                                onClick={() => assignCourier(o, c)}
+                                className={`h-7 px-2.5 rounded-full text-[11px] font-black border transition-all active:scale-95 ${
+                                  c.name === o.courier_name
+                                    ? 'bg-emerald-500 text-white border-emerald-400'
+                                    : (lightMode ? 'bg-white border-zinc-300 text-zinc-600 hover:border-emerald-400' : 'bg-white/5 border-white/10 text-white/60 hover:border-emerald-400/50')
+                                }`}
+                              >
+                                {c.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* BDS-owned actions (courier side / handover) */}
                     <div className="flex items-center gap-2 mt-auto flex-wrap">
-                      {isDeliveryTab ? (
+                      {kind === 'dine_in' ? (
+                        // Dine-in: nothing for the courier side — kitchen
+                        // progress is owned by the KDS (read-only hint).
+                        <span className={`flex items-center gap-1.5 text-[10px] font-bold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                          <ChefHat size={11} />
+                          {t('bds_dinein_kds') || 'Mətbəx statusu KDS-də idarə olunur'}
+                        </span>
+                      ) : isDeliveryKind ? (
                         bdsButtons.length === 0 ? (
                           <span className={`text-[10px] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                             {!kReady ? t('bds_waiting_kitchen') : o.courier_name ? `${t('bds_courier')}: ${o.courier_name}` : t('bds_no_action')}

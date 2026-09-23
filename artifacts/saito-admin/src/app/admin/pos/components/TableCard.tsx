@@ -380,8 +380,23 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
               </span>
             )}
           </div>
-           <div className="flex items-center gap-1">
-             {isTransferSource ? (
+            <div className="flex items-center gap-1">
+              {/* 2026-09-23 (owner): guest + item counts live in the TOP row
+                  (the empty space above the status chip) — "heç bir zaman"
+                  bottom-right. Amount hero stays in the middle. */}
+              {displayGuests && (
+                <span className={`inline-flex items-center gap-1 text-[13px] font-black tabular-nums shrink-0 ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>
+                  <Users size={15} strokeWidth={2.5} />
+                  {displayGuests}
+                </span>
+              )}
+              {(table.item_count ?? 0) > 0 && (
+                <span className={`inline-flex items-center gap-1 text-[13px] font-black tabular-nums shrink-0 ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>
+                  <ShoppingBag size={15} strokeWidth={2.5} />
+                  {table.item_count}
+                </span>
+              )}
+              {isTransferSource ? (
                <div className="w-7 h-7 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center">
                  <span className="text-xs font-black text-rose-400">M</span>
                </div>
@@ -461,14 +476,21 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
           </div>
         )}
 
-         {/* Bottom row: guests + items + status badges + order count.
-             Guests/items moved here (2026-09-21): the old top-block position
-             overlapped this row when the amount hero was tall. */}
-          {/* 2026-09-22 (owner): LABEL LEFT, ICONS RIGHT. The status chip
-              (label) leads the row; guest/item/waiver icons sit at the right. */}
-          <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-2">
-            {/* LEFT: status label chips */}
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
+          {/* Bottom row — 2026-09-23 (owner): the STATUS/HESAB label chips sit
+              at the RIGHT (where the shopping+guest icons used to be); the
+              guest/item counts moved to the TOP row, filling the empty space.
+              LEFT now carries only the waiter name. */}
+           <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-2">
+             {/* LEFT: waiter name only */}
+             <div className="flex items-center gap-2 flex-wrap min-w-0">
+               {table.waiter_name && (
+                 <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider select-none ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                   {table.waiter_name}
+                 </span>
+               )}
+             </div>
+             {/* RIGHT: status label chips + HESAB */}
+             <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">
                 <AnimatePresence mode="wait">
                {!showOccupiedFlash && isOccupied && showKitchenStatus && kitchenStatus && kitchenStatus !== 'completed' && kitchenStatus !== 'cancelled' && kitchenStatus !== 'ready' && table.status !== 'served' && table.status !== 'dining' ? (
                  <motion.div
@@ -539,31 +561,8 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                   <X size={11} strokeWidth={3} />
                 </button>
               )}
-            </div>
-            {/* RIGHT: guest / item / waiter icons
-                (2026-09-22: redundant GÖZLƏNİR + order_count bag removed). */}
-            <div className="flex items-center gap-2 flex-wrap justify-end flex-shrink-0">
-               {table.waiter_name && (
-                 <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider select-none ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                   {table.waiter_name}
-                 </span>
-               )}
-                {/* 2026-09-23 (owner): guest + item icons clearly visible at status
-                    level (were 11px / 50% opacity) */}
-                {displayGuests && (
-                  <span className={`inline-flex items-center gap-1 text-[12px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>
-                    <Users size={14} strokeWidth={2.5} />
-                    {displayGuests}
-                  </span>
-                )}
-                {(table.item_count ?? 0) > 0 && (
-                  <span className={`inline-flex items-center gap-1 text-[12px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>
-                    <ShoppingBag size={14} strokeWidth={2.5} />
-                    {table.item_count}
-                  </span>
-                )}
-            </div>
-          </div>
+             </div>
+           </div>
        </div>
    );
 }

@@ -82,6 +82,8 @@ export const ROLE_COLORS: Record<string, { bg: string; text: string; border: str
   stock: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/20', dot: 'bg-cyan-400', glow: 'shadow-[0_0_16px_rgba(6,182,212,0.2)]' },
   accountant: { bg: 'bg-teal-500/10', text: 'text-teal-400', border: 'border-teal-500/20', dot: 'bg-teal-400', glow: 'shadow-[0_0_16px_rgba(20,184,166,0.2)]' },
   owner: { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/20', dot: 'bg-rose-400', glow: 'shadow-[0_0_16px_rgba(244,63,94,0.2)]' },
+  // 2026-09-23 (owner): couriers are real staff records (role 'courier').
+  courier: { bg: 'bg-sky-500/10', text: 'text-sky-400', border: 'border-sky-500/20', dot: 'bg-sky-400', glow: 'shadow-[0_0_16px_rgba(14,165,233,0.2)]' },
 };
 
 export function getRoleColor(roleName: string) {
@@ -101,6 +103,7 @@ export const ROLE_ICONS: Record<string, React.ElementType> = {
   stock: Package,
   accountant: ReceiptText,
   owner: Crown,
+  courier: Bike,
 };
 
 export function getRoleIcon(roleName: string): React.ElementType {

@@ -328,12 +328,14 @@ export default function CampaignsPage() {
                   </button>
                 )}
               </div>
+              {/* 2026-09-23 sweep fix: this opens CAMPAIGN create — a copy-paste
+                  from combos left it labeled "YENİ KOMBO". */}
               <button
                 onClick={openCreate}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all whitespace-nowrap ${lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-black hover:bg-zinc-200'}`}
               >
                 <Plus size={15} />
-                {t('combo_new')}
+                {t('new_campaign')}
               </button>
               <Link
                 href="/admin/campaigns/analytics"

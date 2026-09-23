@@ -621,8 +621,11 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
               onClick={(e) => e.stopPropagation()}
                className={`w-full max-w-[820px] max-h-[92vh] flex flex-col rounded-4xl border shadow-elevated overflow-hidden ${expandedBg}`}
              >
-               {/* Header: görsəl · ad · qiymət · allergenlər */}
-               <div className={`flex-shrink-0 items-start justify-between gap-4 p-5 pb-4 border-b ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
+                {/* Header: görsəl · ad · qiymət · allergenlər.
+                    2026-09-23 (owner): the container was MISSING `flex` —
+                    justify-between/items-start were no-ops and the X button
+                    rendered BELOW the title block instead of top-right. */}
+                <div className={`flex flex-shrink-0 items-start justify-between gap-4 p-5 pb-4 border-b ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
                 <div className="flex items-center gap-4 min-w-0">
                   <div className={`w-[72px] h-[72px] rounded-3xl overflow-hidden shrink-0 ${lightMode ? 'bg-zinc-100' : 'bg-white/10'}`}>
                     {expandedItem.image_url && !failedImages.has(expandedItem.image_url) ? (

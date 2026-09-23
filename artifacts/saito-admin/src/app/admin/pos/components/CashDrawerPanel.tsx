@@ -33,6 +33,9 @@ interface CashDrawerMovement {
   amount: number;
   description: string | null;
   created_at: string;
+  /** AUDIT 2026-09-23: enriched server-side — which order this row belongs to. */
+  order_ref?: string | null;
+  created_by_name?: string | null;
 }
 
 interface CashDrawerPanelProps {
@@ -299,16 +302,22 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                         <Unlock size={10} /> {t('open')}
                       </span>
                     </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
-                      <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('shift_started')}</p>
-                      <p className="text-xs font-black tabular-nums">{formatTime(session.opened_at)}</p>
-                    </div>
-                    <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
-                      <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('duration')}</p>
-                      <p className="text-xs font-black tabular-nums">{shiftDuration}</p>
-                    </div>
-                  </div>
+                   <div className="grid grid-cols-3 gap-3">
+                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
+                       <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('shift_started')}</p>
+                       <p className="text-xs font-black tabular-nums">{formatTime(session.opened_at)}</p>
+                     </div>
+                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
+                       <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('duration')}</p>
+                       <p className="text-xs font-black tabular-nums">{shiftDuration}</p>
+                     </div>
+                     {/* AUDIT 2026-09-23: opening balance was only visible in the
+                         today-sessions list, not on the active session card. */}
+                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
+                       <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('opening')}</p>
+                       <p className="text-xs font-black tabular-nums">{(session.opening_balance || 0).toFixed(2)}₼</p>
+                     </div>
+                   </div>
                 </div>
 
                 {/* Balance card */}
@@ -482,10 +491,17 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                         return (
                           <div key={m.id} className={`flex items-center gap-3 p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
                             <Icon size={14} className={cfg.color} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold truncate">{t(cfg.labelKey as any)}{m.description ? ` — ${m.description}` : ''}</p>
-                              <p className="text-xs text-[var(--theme-text-muted)]">{formatTime(m.created_at)}</p>
-                            </div>
+                             <div className="flex-1 min-w-0">
+                               <p className="text-xs font-bold truncate">
+                                 {t(cfg.labelKey as any)}
+                                 {m.order_ref ? <span className="text-[var(--theme-text-secondary)]"> · {m.order_ref}</span> : ''}
+                                 {m.description ? ` — ${m.description}` : ''}
+                               </p>
+                               <p className="text-xs text-[var(--theme-text-muted)]">
+                                 {formatTime(m.created_at)}
+                                 {m.created_by_name ? ` · ${m.created_by_name}` : ''}
+                               </p>
+                             </div>
                             <span className={`text-xs font-black tabular-nums ${
                               isDebit ? 'text-red-500' : 'text-green-500'
                             }`}>

@@ -482,15 +482,70 @@ export async function POST(request: Request) {
       // and delivery always create a fresh order)
       // G4: the active-order lookup is scoped to the session's active location,
       // so a colliding table_number in another location can never be appended to.
-      let existingOrder = null;
-      if (table_number) {
-        const existingRes = await fetch(
-          `${svc().url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}&status=${NOT_FINAL}&order=created_at.asc&limit=1&select=id,total_amount,version,apply_vat`,
-          { headers: svc().headers }
-        );
-        const existingOrders = existingRes.ok ? await existingRes.json() : [];
-        existingOrder = existingOrders?.[0];
-      }
+       let existingOrder = null;
+       if (table_number) {
+         const existingRes = await fetch(
+           `${svc().url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}&status=${NOT_FINAL}&order=created_at.asc&limit=1&select=id,total_amount,version,apply_vat,delivery_fee,campaign_id`,
+           { headers: svc().headers }
+         );
+         const existingOrders = existingRes.ok ? await existingRes.json() : [];
+         existingOrder = existingOrders?.[0];
+       }
+
+       // 2026-09-23 (owner): the delivery fee must actually be CHARGED.
+       // Before this, delivery_fee was stored as display-only metadata —
+       // DB proof: order #D040 (items ₼14, total ₼14, fee ₼2) — the customer
+       // never paid the fee. The fee is added to total_amount exactly ONCE,
+       // at creation; appends never re-add it (the stored fee stays
+       // authoritative — a later zone change does not retro-bill).
+       const isDeliveryOrder = order_source === 'delivery' || order_type === 'delivery';
+       const baseFee = isDeliveryOrder ? (Math.max(0, Number(delivery_fee)) || 0) : 0;
+       // FREE_DELIVERY campaigns (Wolt-like): an active campaign targeted at a
+       // specific product/category (or global) zeroes the fee SERVER-side —
+       // the client cannot claim free delivery, and "pulsuz çatdırılma" in
+       // the campaigns page now has a real effect on the billed total.
+       let finalFee = baseFee;
+       let freeDeliveryCampaignId: string | null = null;
+       if (isDeliveryOrder && baseFee > 0) {
+         try {
+           const productIds = Array.from(new Set(items.map((i: any) => i.product_id).filter(Boolean))) as string[];
+           const cRes = await fetch(
+             `${svc().url}/rest/v1/campaigns?select=id,title,applicable_products,applicable_categories,target_type,target_id,min_purchase_amount,start_date,end_date&type=eq.FREE_DELIVERY&status=eq.active`,
+             { headers: svc().headers }
+           );
+           if (cRes.ok) {
+             const camps = await cRes.json();
+             const now = new Date();
+             // Resolve the cart items' categories for category targeting.
+             let itemCategoryIds: string[] = [];
+             if (productIds.length > 0) {
+               const pRes = await fetch(
+                 `${svc().url}/rest/v1/products?select=category_id&id=in.(${productIds.map(encodeURIComponent).join(',')})`,
+                 { headers: svc().headers }
+               );
+               if (pRes.ok) {
+                 const prods = await pRes.json();
+                 itemCategoryIds = Array.from(new Set((prods as any[]).map(p => p.category_id).filter(Boolean))) as string[];
+               }
+             }
+             for (const c of camps as any[]) {
+               if (c.start_date && new Date(c.start_date) > now) continue;
+               if (c.end_date && new Date(c.end_date) < now) continue;
+               if (c.min_purchase_amount && Number(c.min_purchase_amount) > 0 && discountedTotal < Number(c.min_purchase_amount)) continue;
+               const productHit = (c.applicable_products || []).some((p: string) => productIds.includes(p))
+                 || (c.target_type === 'product' && !!c.target_id && productIds.includes(String(c.target_id)));
+               const categoryHit = (c.applicable_categories || []).some((cat: string) => itemCategoryIds.includes(cat))
+                 || (c.target_type === 'category' && !!c.target_id && itemCategoryIds.includes(String(c.target_id)));
+               const global = !(c.applicable_products || []).length && !(c.applicable_categories || []).length && !c.target_id;
+               if (productHit || categoryHit || global) {
+                 freeDeliveryCampaignId = c.id;
+                 break;
+               }
+             }
+           }
+         } catch { /* fee stays as-is — delivery must never block order creation */ }
+         if (freeDeliveryCampaignId) finalFee = 0;
+       }
 
        let activeOrderId: string;
        const ks = kitchen_status || 'pending';
@@ -536,8 +591,11 @@ export async function POST(request: Request) {
             delivery_district: delivery_district || null,
             delivery_street: delivery_street || null,
             delivery_building: delivery_building || null,
-            delivery_fee: delivery_fee || 0,
-            estimated_delivery_time: estimated_delivery_time || null,
+             // 2026-09-23: the stored fee is authoritative (billed once at
+             // creation). A stale client fee must not re-introduce a fee that
+             // the total no longer contains — or vice versa.
+             delivery_fee: existingOrder.delivery_fee != null ? existingOrder.delivery_fee : (delivery_fee || 0),
+             estimated_delivery_time: estimated_delivery_time || null,
             scheduled_date: scheduled_date || null,
             payment_method: null,
             is_rush: is_rush || false,
@@ -565,9 +623,15 @@ export async function POST(request: Request) {
             headers: svc().headers,
             body: JSON.stringify({ p_order_id: activeOrderId, p_apply_vat: true, p_apply_service: false }),
           });
-          if (vatRes.ok) {
+           if (vatRes.ok) {
             const vatData = await vatRes.json();
-            const vatTotal = Number(vatData?.total);
+            let vatTotal = Number(vatData?.total);
+            // 2026-09-23: the VAT RPC recomputes from ITEMS only (its payload
+            // has no delivery_fee field) — it silently drops the fee that was
+            // billed into total_amount at creation. Re-add the stored fee so
+            // the billed total stays consistent.
+            const storedFee = Number(existingOrder.delivery_fee) || 0;
+            if (storedFee > 0 && Number.isFinite(vatTotal)) vatTotal += storedFee;
             if (Number.isFinite(vatTotal)) newTotal = vatTotal;
           }
         }
@@ -623,11 +687,12 @@ export async function POST(request: Request) {
           orderLocationId = sessLoc;
         }
 
-        // Quick-fix 4: first send of a new order — the coupon discount is
-        // subtracted here exactly once (item unit_prices stay pure).
-        const createTotal = isCouponDiscount
-          ? Math.max(0, discountedTotal - rawDiscount)
-          : discountedTotal;
+         // Quick-fix 4: first send of a new order — the coupon discount is
+         // subtracted here exactly once (item unit_prices stay pure).
+         // 2026-09-23: + the delivery fee (billed once, at creation).
+         const createTotal = (isCouponDiscount
+           ? Math.max(0, discountedTotal - rawDiscount)
+           : discountedTotal) + finalFee;
 
         // Global EDV switch (Settings → Payment → auto_apply_vat): new orders
         // inherit it. Read server-side (SSOT) — the client never decides VAT.
@@ -657,9 +722,9 @@ export async function POST(request: Request) {
             order_type: order_type || 'dine_in',
             customer_id: customer_id || null,
             customer_name: customer_name || null,
-            discount_amount: rawDiscount,
-            discount_type: discount_type || null,
-            campaign_id: campaign_id || null,
+             discount_amount: rawDiscount,
+             discount_type: discount_type || (freeDeliveryCampaignId ? 'free_delivery' : null),
+             campaign_id: campaign_id || freeDeliveryCampaignId || null,
             created_by: auth.user?.id || null,
             kitchen_status: ks,
             reservation_id: reservation_id || null,
@@ -676,8 +741,10 @@ export async function POST(request: Request) {
             delivery_floor: delivery_floor || null,
             delivery_apartment: delivery_apartment || null,
             delivery_intercom: delivery_intercom || null,
-            delivery_zone: delivery_zone || null,
-            delivery_fee: delivery_fee || 0,
+             delivery_zone: delivery_zone || null,
+             // 2026-09-23: the SERVER-resolved fee (campaign free-delivery may
+             // have zeroed it) — never the raw client value.
+             delivery_fee: finalFee,
             estimated_delivery_time: estimated_delivery_time || null,
             // AUDIT FIX (2026-09-21): the generic create path left
             // delivery_status NULL for delivery orders. The UI reads

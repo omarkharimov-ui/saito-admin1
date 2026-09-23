@@ -212,15 +212,40 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
 
               {/* Fee + note */}
               <div className="flex gap-3">
-                <div className="w-[150px] flex-shrink-0">
-                  <p className={labelCls}>{t('delivery_fee')}</p>
-                  <div className={`h-12 rounded-2xl border flex items-center justify-between px-4 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.02] border-white/[0.08]'}`}>
-                    <Wallet size={14} className={lightMode ? 'text-zinc-400' : 'text-white/35'} />
-                    <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-zinc-700' : 'text-white/75'}`}>
-                      ₼{feeNum.toFixed(0)}
-                    </span>
-                  </div>
-                </div>
+                 <div className="w-[150px] flex-shrink-0">
+                   <p className={labelCls}>{t('delivery_fee')}</p>
+                   {/* 2026-09-23 (owner): free-delivery is now VISIBLE — the
+                       zone's threshold (₼50+) and campaign free delivery
+                       zero the fee, and the panel says so explicitly. */}
+                   {(() => {
+                     const z = zones.find(x => x.name === zoneName);
+                     const itemsTotal = (cart?.items || []).reduce((s: number, i: any) => s + (Number(i.unit_price) || 0) * (Number(i.quantity) || 0), 0);
+                     const threshold = Number(z?.free_delivery_threshold) || 0;
+                     const toFree = threshold > 0 ? Math.max(0, threshold - itemsTotal) : 0;
+                     const isFree = feeNum === 0 && !!z;
+                     return (
+                       <>
+                         <div className={`h-12 rounded-2xl border flex items-center justify-between px-4 ${isFree ? (lightMode ? 'bg-emerald-50 border-emerald-300' : 'bg-emerald-500/10 border-emerald-500/30') : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.02] border-white/[0.08]'}`}>
+                           <Wallet size={14} className={isFree ? 'text-emerald-500' : lightMode ? 'text-zinc-400' : 'text-white/35'} />
+                           {isFree ? (
+                             <span className="text-sm font-black tabular-nums text-emerald-500">
+                               {t('free') || 'Pulsuz'}{threshold > 0 ? <span className="text-[10px] font-bold opacity-70"> (₼{threshold.toFixed(0)}+)</span> : null}
+                             </span>
+                           ) : (
+                             <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-zinc-700' : 'text-white/75'}`}>
+                               ₼{feeNum.toFixed(0)}
+                             </span>
+                           )}
+                         </div>
+                         {!isFree && toFree > 0 && (
+                           <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                             ₼{toFree.toFixed(0)} daha əlavə et — çatdırılma pulsuz olar
+                           </p>
+                         )}
+                       </>
+                     );
+                   })()}
+                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={labelCls}>{t('notes')}</p>
                   <input

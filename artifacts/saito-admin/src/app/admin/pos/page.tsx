@@ -1528,29 +1528,62 @@ export default function POSPage() {
 
   // 2026-09-22 (OrderInfoStrip): zone select + auto-fee — moved out of the
   // old inline <select> (same RPC + same semantics as before).
+  // 2026-09-23 (owner): the RPC's is_free flag is now RESPECTED — before, a
+  // cart above the zone's free-delivery threshold still paid the full fee
+  // (DB: calculate_delivery_fee returns {fee:2, is_free:true} at ₼100).
+  const recalcDeliveryFee = useCallback(async (cart: any, zoneName: string | null | undefined) => {
+    if (!cart || !zoneName) return;
+    const zone = deliveryZones.find(z => z.name === zoneName);
+    if (!zone) return;
+    const itemsTotal = (cart.items || []).reduce((s: number, i: any) => s + (i.unit_price || 0) * (i.quantity || 0), 0);
+    let fee = Number(zone.fee) || 0;
+    try {
+      const res = await apiFetch('/api/rpc/calculate_delivery_fee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_zone_name: zone.name, p_order_amount: itemsTotal, p_customer_address: cart.delivery_address || null }),
+      });
+      if (res.ok) {
+        const data: any = await res.json();
+        const rpcFee = Number(typeof data === 'number' ? data : data?.fee ?? fee) || 0;
+        fee = data?.is_free ? 0 : rpcFee;
+      }
+    } catch { /* keep the zone's base fee */ }
+    if ((Number(cart.delivery_fee) || 0) !== fee) {
+      pos.setCart({ ...cart, delivery_fee: fee });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deliveryZones]);
+
   const handleZoneSelect = async (zoneName: string) => {
     if (!pos.cart) return;
     const nextCart = { ...pos.cart, delivery_zone: zoneName || null };
-    const zone = deliveryZones.find(z => z.name === zoneName);
-    if (zone) {
-      const itemsTotal = (pos.cart.items || []).reduce((s: number, i: any) => s + (i.unit_price || 0) * (i.quantity || 0), 0);
-      let fee = Number(zone.fee) || 0;
-      try {
-        const res = await apiFetch('/api/rpc/calculate_delivery_fee', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ p_zone_name: zone.name, p_order_amount: itemsTotal, p_customer_address: pos.cart.delivery_address || null }),
-        });
-        if (res.ok) {
-          const data: any = await res.json();
-          fee = Number(typeof data === 'number' ? data : data?.fee ?? fee) || 0;
-        }
-      } catch { /* keep the zone's base fee */ }
-      pos.setCart({ ...nextCart, delivery_fee: fee });
-    } else {
+    if (!zoneName) {
       pos.setCart({ ...nextCart, delivery_fee: 0 });
+      return;
     }
+    const zone = deliveryZones.find(z => z.name === zoneName);
+    if (!zone) {
+      pos.setCart({ ...nextCart, delivery_fee: 0 });
+      return;
+    }
+    await recalcDeliveryFee(nextCart, zoneName);
   };
+
+  // 2026-09-23 (owner): the fee now reacts to the CART — crossing the zone's
+  // free-delivery threshold (or a campaign-driven change) updates the fee
+  // live. Watch only the items-total, so typing in address fields doesn't
+  // thrash.
+  const deliveryItemsTotal = posMode === 'delivery'
+    ? (pos.cart?.items || []).reduce((s: number, i: any) => s + (i.unit_price || 0) * (i.quantity || 0), 0)
+    : 0;
+  const deliveryZoneName = posMode === 'delivery' ? pos.cart?.delivery_zone : null;
+  useEffect(() => {
+    if (!pos.cart || !deliveryZoneName || (pos.cart.items || []).length === 0) return;
+    const t = setTimeout(() => { recalcDeliveryFee(pos.cart, deliveryZoneName); }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deliveryItemsTotal, deliveryZoneName, !!pos.cart]);
 
   // Shared cart-send path (U-4): used by the CartPanel "Send" button AND by
   // the unsent-cart guard modal, so both execute identical logic.
@@ -2481,25 +2514,10 @@ export default function POSPage() {
                        <div
                           className="w-[440px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
                          >
-                              {/* QA bug 3 (2026-09-22): when the cart is bound to an
-                                  EXISTING takeaway/delivery order, make the binding
-                                  EXPLICIT — the old flow let product taps silently
-                                  append to whatever order happened to be loaded. */}
-                               {/* 2026-09-22 (owner): banner was 2 lines + tall — it
-                                   crowded the customer inputs. Now a single slim
-                                   line: identity left, compact back button right. */}
-                               {posMode !== 'dine_in' && pos.cart?.order_id && (
-                               <div className="flex-shrink-0 px-4 pt-2.5">
-                                 <div className={`flex items-center justify-between gap-2 pl-3 pr-2 py-1.5 rounded-lg border ${lightMode ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/30'}`}>
-                                   <div className="min-w-0 flex items-center gap-1.5">
-                                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${lightMode ? 'bg-blue-500' : 'bg-blue-400'}`} />
-                                     <p className={`text-xs font-black truncate ${lightMode ? 'text-blue-700' : 'text-blue-300'}`}>
-                                       {(posMode === 'takeaway' ? t('takeaway_short') : t('delivery_short'))} {(String(editingOrder?.order_number || '').replace(/[^0-9]/g, '')) || (String(editingOrder?.id || pos.cart?.order_id || '').slice(-4).toUpperCase())}
-                                     </p>
-                                   </div>
-                                 </div>
-                               </div>
-                               )}
+                                {/* 2026-09-23 (owner): the wide blue binding banner is
+                                    REJECTED — it ate the whole cart column top. The
+                                    binding identity now lives as a compact chip inside
+                                    the CartPanel header (boundOrderLabel prop). */}
                          <CartPanel
                            cart={pos.cart}
                            cartHydrating={pos.cartHydrating}
@@ -2572,10 +2590,13 @@ export default function POSPage() {
                              if (!pos.cart) return;
                              pos.setCart({ ...pos.cart, coupon: c });
                            }}
-                           onCouponRemoved={() => {
-                             if (!pos.cart) return;
-                             pos.setCart({ ...pos.cart, coupon: null });
-                           }}
+                            onCouponRemoved={() => {
+                              if (!pos.cart) return;
+                              pos.setCart({ ...pos.cart, coupon: null });
+                            }}
+                            boundOrderLabel={posMode !== 'dine_in' && pos.cart?.order_id ? (
+                              `${posMode === 'takeaway' ? t('takeaway_short') : t('delivery_short')} ${(String(editingOrder?.order_number || '').replace(/[^0-9]/g, '')) || (String(editingOrder?.id || pos.cart?.order_id || '').slice(-4).toUpperCase())}`
+                            ) : null}
                            onOpenModifiers={(productId) => {
                              const product = pos.products.find((p: any) => p.id === productId);
                              if (product) gridRef.current?.openEditor(productId);

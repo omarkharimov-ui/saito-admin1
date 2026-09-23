@@ -20,7 +20,11 @@ export const DeleteCampaignModal = ({ campaign, onConfirm, onCancel }: DeleteCam
           <Trash2 size={28} className="text-red-500" />
         </div>
         <h3 className="text-lg font-serif font-bold text-white mb-1.5">{t('delete_campaign')}</h3>
-        <p className="text-[var(--theme-text-secondary)] text-sm mb-5">&ldquo;{campaign?.title}&rdquo; {t('confirm_delete_campaign')}</p>
+        {/* 2026-09-23 sweep fix: guard the title — an empty/undefined title used
+            to render as "Delet ''" (empty-name interpolation). */}
+        <p className="text-[var(--theme-text-secondary)] text-sm mb-5">
+          {campaign?.title ? <>{"\u201C"}{campaign.title}{"\u201D"} {t('confirm_delete_campaign')}</> : t('confirm_delete_campaign_plain')}
+        </p>
         <div className="flex gap-2.5 w-full">
           <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-[var(--theme-border)] text-[var(--theme-text-secondary)] text-sm font-medium hover:text-[var(--theme-text)] transition-colors">{t('cancel')}</button>
           <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold flex items-center justify-center gap-1.5">

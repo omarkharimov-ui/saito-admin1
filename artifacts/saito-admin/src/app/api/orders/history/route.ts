@@ -19,6 +19,12 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(url.searchParams.get('offset') || '0');
     const dateFrom = url.searchParams.get('date_from');
     const dateTo = url.searchParams.get('date_to');
+    // AUDIT 2026-09-23: the old bounds were hardcoded UTC — a Baku user
+    // (UTC+4) filtering "23 sentyabr" lost the first 4 local hours and
+    // leaked 4 hours of the next day. The client now sends its offset.
+    const tzOffsetMin = Number(url.searchParams.get('tz_offset_min') || 0);
+    const localDayStart = (d: string) => new Date(new Date(`${d}T00:00:00`).getTime() + tzOffsetMin * 60000).toISOString();
+    const localDayEnd = (d: string) => new Date(new Date(`${d}T00:00:00`).getTime() + tzOffsetMin * 60000 + 86400000 - 1).toISOString();
 
     const s = svc();
     let query = `${s.url}/rest/v1/orders?status=eq.${status}&order=created_at.desc&limit=${limit}&offset=${offset}&select=*,order_items(id,order_id,product_id,product_name,quantity,unit_price,total_price,variant_id,variant_name,modifiers,special_notes,combo_group_id,kitchen_status,served_quantity,prepared_quantity,products(name_az,name_en))`;
@@ -27,11 +33,10 @@ export async function GET(request: NextRequest) {
       query += `&order_source=eq.${orderSource}`;
     }
     if (dateFrom) {
-      query += `&created_at=gte.${dateFrom}T00:00:00.000Z`;
+      query += `&created_at=gte.${localDayStart(dateFrom)}`;
     }
     if (dateTo) {
-      const endDate = new Date(dateTo + 'T23:59:59.999Z').toISOString();
-      query += `&created_at=lte.${endDate}`;
+      query += `&created_at=lte.${localDayEnd(dateTo)}`;
     }
 
     const res = await fetch(query, { headers: s.headers });
@@ -47,16 +52,19 @@ export async function GET(request: NextRequest) {
       countQuery += `&order_source=eq.${orderSource}`;
     }
     if (dateFrom) {
-      countQuery += `&created_at=gte.${dateFrom}T00:00:00.000Z`;
+      countQuery += `&created_at=gte.${localDayStart(dateFrom)}`;
     }
     if (dateTo) {
-      const endDate = new Date(dateTo + 'T23:59:59.999Z').toISOString();
-      countQuery += `&created_at=lte.${endDate}`;
+      countQuery += `&created_at=lte.${localDayEnd(dateTo)}`;
     }
     
-    const countRes = await fetch(countQuery, { headers: s.headers });
-    const countData = countRes.ok ? await countRes.json() : [];
-    const totalCount = Array.isArray(countData) ? countData.length : 0;
+    // AUDIT 2026-09-23: the old count used `select=count` (returns an empty
+    // array — totalCount was ALWAYS 0). PostgREST counts need head + Prefer.
+    const countRes = await fetch(countQuery, {
+      headers: { ...s.headers, Prefer: 'count=exact', Range: '0-0' },
+    });
+    const totalHeader = countRes.headers.get('content-range') || '';
+    const totalCount = Number(totalHeader.split('/')[1]) || 0;
     
     return NextResponse.json({ orders: orders || [], totalCount, limit, offset });
   } catch (e: any) {

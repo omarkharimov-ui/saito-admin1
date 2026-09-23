@@ -126,6 +126,9 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
     setLoading(true);
     try {
       const params = new URLSearchParams({ status: 'paid', limit: '100' });
+      // AUDIT 2026-09-23: the date filter must span LOCAL days (Baku UTC+4),
+      // not UTC days — send the browser offset so the route can bound correctly.
+      params.set('tz_offset_min', String(-new Date().getTimezoneOffset()));
       if (filter !== 'all') params.set('order_source', filter);
       if (dateFrom) params.set('date_from', dateFrom);
       if (dateTo) params.set('date_to', dateTo);
@@ -506,11 +509,30 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     )}
                   </div>
 
-                  {/* Items */}
-                  <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'}`}>
-                    <p className={`text-[9px] font-black uppercase tracking-widest mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                      {t('items')} ({(detailOrder.order_items || []).length})
-                    </p>
+                   {/* AUDIT 2026-09-23: customer + delivery identity — was in
+                       the DB on every order but invisible in the detail view. */}
+                   {(detailOrder.customer_name || detailOrder.customer_phone || (detailOrder as any).delivery_address) && (
+                     <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'}`}>
+                       <p className={`text-[9px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('customer') || 'Müşəri'}</p>
+                       <div className="space-y-1">
+                         {detailOrder.customer_name && (
+                           <p className="flex items-center gap-2 text-xs font-bold"><User size={11} className={lightMode ? 'text-zinc-400' : 'text-white/30'} />{detailOrder.customer_name}</p>
+                         )}
+                         {detailOrder.customer_phone && (
+                           <p className="flex items-center gap-2 text-xs font-bold tabular-nums"><Clock size={11} className={lightMode ? 'text-zinc-400' : 'text-white/30'} />{detailOrder.customer_phone}</p>
+                         )}
+                         {(detailOrder as any).delivery_address && (
+                           <p className="flex items-center gap-2 text-xs font-bold"><Package size={11} className={lightMode ? 'text-zinc-400' : 'text-white/30'} />{[ (detailOrder as any).delivery_street, (detailOrder as any).delivery_building, (detailOrder as any).delivery_address ].filter(Boolean).join(', ')}{(detailOrder as any).delivery_zone ? ` · ${(detailOrder as any).delivery_zone}` : ''}</p>
+                         )}
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Items */}
+                   <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'}`}>
+                     <p className={`text-[9px] font-black uppercase tracking-widest mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                       {t('items')} ({(detailOrder.order_items || []).length})
+                     </p>
                     <div className="space-y-2">
                       {(detailOrder.order_items || []).map((item) => {
                         const mods = (() => {
@@ -568,13 +590,31 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                         <span className={`text-xs ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{t('subtotal_label') || 'Ara cəm'}</span>
                         <span className="text-xs font-bold tabular-nums">₼{(Number(detailOrder.subtotal || detailOrder.total_amount) || 0).toFixed(2)}</span>
                       </div>
-                      {(Number(detailOrder.discount_amount) || 0) > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-xs text-emerald-500">{t('discount_label')}</span>
-                          <span className="text-xs font-bold tabular-nums text-emerald-500">−₼{Number(detailOrder.discount_amount).toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className={`flex justify-between pt-1.5 border-t ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
+                       {(Number(detailOrder.discount_amount) || 0) > 0 && (
+                         <div className="flex justify-between">
+                           <span className="text-xs text-emerald-500">
+                             {t('discount_label')}
+                             {(detailOrder as any).campaigns?.name ? <span className="opacity-60"> · {(detailOrder as any).campaigns.name}</span> : ''}
+                           </span>
+                           <span className="text-xs font-bold tabular-nums text-emerald-500">−₼{Number(detailOrder.discount_amount).toFixed(2)}</span>
+                         </div>
+                       )}
+                       {/* AUDIT 2026-09-23: delivery fee + service charge + VAT
+                           were in the DB on every order but hidden here — the
+                           cashier couldn't reconcile the printed total. */}
+                       {(Number((detailOrder as any).delivery_fee) || 0) > 0 && (
+                         <div className="flex justify-between">
+                           <span className={`text-xs ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{t('delivery_fee') || 'Çatdırılma'}</span>
+                           <span className="text-xs font-bold tabular-nums">₼{Number((detailOrder as any).delivery_fee).toFixed(2)}</span>
+                         </div>
+                       )}
+                       {(Number((detailOrder as any).service_charge_amount) || 0) > 0 && (
+                         <div className="flex justify-between">
+                           <span className={`text-xs ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{(t as any)('service_charge') || 'Servis'}</span>
+                           <span className="text-xs font-bold tabular-nums">₼{Number((detailOrder as any).service_charge_amount).toFixed(2)}</span>
+                         </div>
+                       )}
+                       <div className={`flex justify-between pt-1.5 border-t ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
                         <span className="text-xs font-black">{t('total_label') || 'Cəm'}</span>
                         <span className="text-sm font-black tabular-nums">₼{(Number(detailOrder.total_amount) || 0).toFixed(2)}</span>
                       </div>

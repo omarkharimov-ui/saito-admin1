@@ -79,9 +79,12 @@ interface CartPanelProps {
   /** Quick-fix 4 — coupon row. Server-validated coupon (amount comes from
    *  /api/campaigns/coupon, never from the client); exclusive with auto
    *  item-campaigns. Persisted onto cart.coupon by the parent. */
-  onCouponApplied?: (c: { code: string; campaign_id: string; name: string; discount_amount: number }) => void;
-  onCouponRemoved?: () => void;
- }
+   onCouponApplied?: (c: { code: string; campaign_id: string; name: string; discount_amount: number }) => void;
+   onCouponRemoved?: () => void;
+  /** 2026-09-23 (owner): compact cart→order binding chip label ("Gel-Al 044").
+      Replaces the wide blue banner that occupied the cart column top. */
+  boundOrderLabel?: string | null;
+  }
 
 const STATIONS = [
   { value: 'kitchen', labelKey: 'station_kitchen', icon: '🍳' },
@@ -145,8 +148,9 @@ export function CartPanel({
   onSeatTable,
   onOpenActions,
   onVoidSuccess,
-  onCouponApplied,
-  onCouponRemoved,
+    onCouponApplied,
+    onCouponRemoved,
+    boundOrderLabel,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -665,7 +669,11 @@ export function CartPanel({
 
   const cartDiscountAmount = Math.max(0, originalTotal - total);
   const vatAmount = total / (1 + vatRate) * vatRate;
-  const grandTotal = total;
+  // 2026-09-23 (owner): the delivery fee is now BILLED (server adds it to
+  // total_amount at creation) — the cart total must show it too, or the
+  // displayed total and the receipt total disagree.
+  const deliveryFeeTotal = (posMode === 'delivery' && cart.delivery_zone) ? Math.max(0, Number(cart.delivery_fee) || 0) : 0;
+  const grandTotal = total + deliveryFeeTotal;
 
   const cycleCourse = (idx: number) => {
     const item: any = cart?.items[idx];
@@ -721,6 +729,14 @@ export function CartPanel({
               {mergedChildNumbers && mergedChildNumbers.length > 0 && (
                 <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold tracking-wider border ${lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-600' : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-300'}`}>
                   <GitMerge size={10} /> {[cart.table_number, ...mergedChildNumbers].join('+')}
+                </span>
+              )}
+              {/* 2026-09-23 (owner): compact cart→order binding chip. Replaces the
+                  rejected wide blue banner that occupied the whole cart-column top. */}
+              {boundOrderLabel && (
+                <span className={`ml-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-black tracking-wider border ${lightMode ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-blue-500/10 border-blue-400/25 text-blue-300'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${lightMode ? 'bg-blue-500' : 'bg-blue-400'}`} />
+                  {boundOrderLabel}
                 </span>
               )}
             </p>
@@ -1251,11 +1267,23 @@ export function CartPanel({
                     <NumberRoll value={cartDiscountAmount} prefix="−" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-emerald-400" />
                   </div>
                 )}
-                {/* VAT */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('vat')}</span>
-                  <NumberRoll value={vatAmount} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
-                </div>
+                 {/* VAT */}
+                 <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('vat')}</span>
+                    <NumberRoll value={vatAmount} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
+                 </div>
+                 {/* Delivery fee (2026-09-23: now charged — shows the amount
+                     or the free state from zone threshold / campaign) */}
+                 {posMode === 'delivery' && cart.delivery_zone && (
+                   <div className="flex items-center justify-between">
+                     <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('delivery_fee') || 'Çatdırılma'}</span>
+                     {deliveryFeeTotal > 0 ? (
+                       <NumberRoll value={deliveryFeeTotal} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
+                     ) : (
+                       <span className="text-xs font-black text-emerald-500">{t('free') || 'Pulsuz'}</span>
+                     )}
+                   </div>
+                 )}
                  {/* TOTAL — biggest, most prominent */}
                   <div className="flex items-center justify-between pt-1 border-t border-[var(--theme-border)]">
                     <span className="text-xs uppercase tracking-widest font-bold text-[var(--theme-text-secondary)]">{t('total_label')}</span>

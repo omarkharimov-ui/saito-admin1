@@ -42,6 +42,33 @@ export async function GET() {
         .eq('session_id', session.id)
         .order('created_at', { ascending: true });
       movements = data || [];
+
+      // AUDIT 2026-09-23: the log rows carry order_id + created_by but the UI
+      // showed neither — the cashier couldn't tell which order a payment row
+      // belonged to. Resolve both server-side in two batch queries.
+      const orderIds = Array.from(new Set(movements.map(m => m.order_id).filter(Boolean))) as string[];
+      const orderRef: Record<string, string> = {};
+      if (orderIds.length > 0) {
+        const { data: orderRows } = await s
+          .from('orders')
+          .select('id, order_number, table_number, order_source')
+          .in('id', orderIds);
+        for (const o of orderRows || []) {
+          if (o.table_number != null && o.order_source === 'dine_in') orderRef[o.id] = `Masa ${o.table_number}`;
+          else orderRef[o.id] = o.order_number || String(o.id).slice(-4).toUpperCase();
+        }
+      }
+      const staffIds = Array.from(new Set(movements.map(m => m.created_by).filter(Boolean))) as string[];
+      const staffName: Record<string, string> = {};
+      if (staffIds.length > 0) {
+        const { data: staffRows } = await s.from('staff').select('id, name').in('id', staffIds);
+        for (const st of staffRows || []) staffName[st.id] = st.name;
+      }
+      movements = movements.map(m => ({
+        ...m,
+        order_ref: m.order_id ? (orderRef[m.order_id] || null) : null,
+        created_by_name: m.created_by ? (staffName[m.created_by] || null) : null,
+      }));
     }
 
     const todayStart = new Date();

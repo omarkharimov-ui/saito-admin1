@@ -17,6 +17,35 @@ function svc() {
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
+// 2026-09-24 (owner: "bir terminaldan basiram, bezi masalarda 409 düşür,
+// valla"): when a version conflict fires, re-read the order NOW and log the
+// exact delta + who/what wrote it last. Read-only, error-path only. This turns
+// the mysterious "başqa terminaldan dəyişdirildi" into a diagnosable line —
+// the next occurrence tells us the table, expected vs actual version, and the
+// last writer's terminal_id (the second writer we cannot otherwise see).
+async function diagnoseConflict(ctx: string, orderId: string | null, expectedVersion: number | null) {
+  if (!orderId) { console.error(`[orders:conflict:${ctx}] no order id to inspect`); return; }
+  try {
+    const s = svc();
+    const r = await fetch(
+      `${s.url}/rest/v1/orders?id=eq.${encodeURIComponent(orderId)}&select=id,table_number,status,kitchen_status,version,updated_at,updated_by_terminal_id,created_at`,
+      { headers: s.headers }
+    );
+    const rows = r.ok ? await r.json() : [];
+    const cur = Array.isArray(rows) ? rows[0] : null;
+    console.error(
+      `[orders:conflict:${ctx}] order=${orderId} table=${cur?.table_number ?? '?'} ` +
+      `expected_version=${expectedVersion} actual_version=${cur?.version ?? '?'} ` +
+      `status=${cur?.status ?? '?'} kitchen=${cur?.kitchen_status ?? '?'} ` +
+      `last_writer_terminal=${cur?.updated_by_terminal_id ?? '(null)'} updated_at=${cur?.updated_at ?? '?'} ` +
+      `→ a DIFFERENT request bumped this order between read and write. ` +
+      `Check: KDS/kitchen, QR self-order, or a 2nd POS tab on this table.`
+    );
+  } catch (e: any) {
+    console.error(`[orders:conflict:${ctx}] diagnose failed: ${e?.message}`);
+  }
+}
+
 export async function GET(request: Request) {
   try {
     if (!svc().url || !svc().headers['apikey']) {
@@ -384,13 +413,17 @@ export async function POST(request: Request) {
             }))
           ),
         });
-        if (!insertRes.ok) {
-          const errText = await insertRes.text();
-          if (insertRes.status === 409 || errText.includes('unique') || errText.includes('duplicate')) {
-            throw new Error('CONCURRENCY_CONFLICT');
+          if (!insertRes.ok) {
+            const errText = await insertRes.text();
+            if (insertRes.status === 409 || errText.includes('unique') || errText.includes('duplicate')) {
+              // 2026-09-24: capture the REAL reason — this can be a genuine
+              // order_items uniqueness hit OR a trigger REJECT whose text
+              // merely contains "unique/duplicate". The raw text tells us which.
+              console.error(`[orders:conflict:addItems-insert] order=${id} table=${table_number ?? '?'} http=${insertRes.status} body=${errText}`);
+              throw new Error('CONCURRENCY_CONFLICT');
+            }
+            throw new Error(`Add items failed: ${errText}`);
           }
-          throw new Error(`Add items failed: ${errText}`);
-        }
 
         // Mark the order active (in case it was still a draft) and recompute total.
         // Quick-fix 4: the recompute must RE-APPLY the order-level discount —
@@ -612,9 +645,15 @@ export async function POST(request: Request) {
             campaign_id: campaign_id || existingOrder.campaign_id || null,
           }),
         });
-        if (!patchRes.ok) throw new Error('CONCURRENCY_CONFLICT');
+        if (!patchRes.ok) {
+          await diagnoseConflict('append-http', existingOrder.id, existingOrder.version || 0);
+          throw new Error('CONCURRENCY_CONFLICT');
+        }
         const patched = await patchRes.json();
-        if (!patched || (Array.isArray(patched) && patched.length === 0)) throw new Error('CONCURRENCY_CONFLICT');
+        if (!patched || (Array.isArray(patched) && patched.length === 0)) {
+          await diagnoseConflict('append-version', existingOrder.id, existingOrder.version || 0);
+          throw new Error('CONCURRENCY_CONFLICT');
+        }
 
         // SSOT VAT: if this order carries VAT (set from the global Settings →
         // Payment switch at creation), the item-sum patch above dropped the tax

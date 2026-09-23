@@ -136,7 +136,10 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
         await fetchData();
       } else {
         const err = await res.json();
-        toast.error(err.error || t('error'));
+        // 2026-09-24 (owner: "open_shift_required deye error var, anlamadım"):
+        // frozen open_cash_register RPC requires the operator's OPEN shift
+        // (drawer binds 1:1 to it). Raw code was confusing → friendly hint.
+        toast.error(err.error === 'OPEN_SHIFT_REQUIRED' ? t('open_shift_required') : (err.error || t('error')));
       }
     } catch (e: any) { toast.error(e.message); }
     setSubmitting(false);

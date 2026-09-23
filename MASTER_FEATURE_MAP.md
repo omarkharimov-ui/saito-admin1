@@ -765,6 +765,7 @@ menecerin ☐ siyahısından əvvəlcədən gedir — bunlar yeni iş deyil, qor
 
 ### Wave C — "Platform genişlənməsi" (Addım 3)
 1. **Payment terminal provider (Q7)** → offline payment, pay-at-table, signature, chargeback, pre-auth
+   - **Card auto-capture** (Toast parity) — ⏸ **YADDADA (owner, 09-24: "lazım olsa edəcəyik")**: terminal gateway-ə bağlıdır (manually-captured card modeli ilə işləyir); Q7 provider seçilib bu paketə daxil edilir
 2. **Offline-first POS (Q8)** → sync_operations işə salınması
 3. **Marketing stack** (SMS/email/push provider + consent + campaigns delivery)
 4. **Aggregator delivery** (Uber/DoorDash inteqrasiyası)

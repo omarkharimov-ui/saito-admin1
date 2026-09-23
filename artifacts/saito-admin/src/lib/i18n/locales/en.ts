@@ -1902,6 +1902,7 @@ export const en: TranslationMap = {
   cash_drop: 'Cash Drop to House',
   deposit: 'Deposit',
   adjust_close: 'Closing Adjustment',
+  open_shift_required: 'Clock in (open a shift) first — the drawer is bound to an open shift',
   exceptions: 'Exceptions',
   status_refunded: 'Refunded',
   all_orders: 'All',

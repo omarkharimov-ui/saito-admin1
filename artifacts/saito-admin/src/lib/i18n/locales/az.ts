@@ -1902,6 +1902,7 @@ export const az = {
   cash_drop: 'Cash Drop → House',
   deposit: 'Depozit',
   adjust_close: 'Sayım düzəlişi',
+  open_shift_required: 'Əvvəl vardiya açılmalıdır (clock-in) — kassa açıq vardiya ilə bağlanır',
   exceptions: 'İstisnalar',
   status_refunded: 'Qaytarılmış',
   all_orders: 'Hamısı',

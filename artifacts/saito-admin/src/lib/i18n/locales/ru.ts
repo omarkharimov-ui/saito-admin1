@@ -1903,6 +1903,7 @@ export const ru: TranslationMap = {
   cash_drop: 'Сброс наличных в кассу',
   deposit: 'Депозит',
   adjust_close: 'Корректировка закрытия',
+  open_shift_required: 'Сначала отметьтесь (clock-in) — касса привязана к открытой смене',
   exceptions: 'Исключения',
   status_refunded: 'Возвращено',
   all_orders: 'Все',

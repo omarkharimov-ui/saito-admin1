@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText, CreditCard } from 'lucide-react';
+import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText, CreditCard, Banknote, Landmark, Hourglass } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
@@ -25,6 +25,8 @@ interface CashDrawerSession {
   card_total?: number;
   opened_by?: { name?: string };
   closed_by?: { name?: string };
+  /** 2026-09-23 (owner, Toast benchmark): manager-locked drawer. */
+  locked?: boolean;
 }
 
 interface CashDrawerMovement {
@@ -55,10 +57,20 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
   const [cashAmount, setCashAmount] = useState('');
   const [cashDesc, setCashDesc] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [view, setView] = useState<'main' | 'cash-in' | 'cash-out' | 'close'>('main');
+  const [view, setView] = useState<'main' | 'cash-in' | 'cash-out' | 'close' | 'no-sale' | 'cash-drop' | 'deposit' | 'lock'>('main');
   const [managerPin, setManagerPin] = useState('');
   const [managerError, setManagerError] = useState('');
   const [needsApproval, setNeedsApproval] = useState(false);
+  // 2026-09-23 (owner, Toast benchmark): paused drawer ("sayımı sonra")
+  const [pausedSession, setPausedSession] = useState<CashDrawerSession | null>(null);
+  const [closingTarget, setClosingTarget] = useState<string | null>(null); // null = active session
+  // Bill-by-bill counting (Toast "Count bills" + Quick Cash)
+  const [showBillCount, setShowBillCount] = useState(false);
+  const [billCounts, setBillCounts] = useState<Record<string, string>>({});
+  // No Sale / Cash Drop / Deposit / Lock
+  const [noSaleReason, setNoSaleReason] = useState('');
+  const [depositExpected, setDepositExpected] = useState('');
+  const [depositActual, setDepositActual] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -68,6 +80,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
         setSession(data.session);
         setMovements(data.movements || []);
         setTodaySessions(data.todaySessions || []);
+        setPausedSession(data.pausedSession || null);
       }
     } catch { /* silent */ }
     setLoading(false);
@@ -143,8 +156,19 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
     setSubmitting(false);
   };
 
+  // 2026-09-23 (owner, Toast benchmark): bill-by-bill counting.
+  const DENOMS = [50, 20, 10, 5, 2, 1, 0.5, 0.1];
+  const billSum = DENOMS.reduce((sum, d) => sum + d * (Math.max(0, Math.floor(Number(billCounts[String(d)]) || 0))), 0);
+
   const handleCloseDrawer = async (managerPin?: string) => {
-    if (!session) return;
+    const target = closingTarget ? pausedSession : session;
+    if (!target) return;
+    const isPausedTarget = !!closingTarget;
+    // Bill-count validation (client-side mirror of the server check)
+    if (showBillCount && billSum > 0 && Math.abs(billSum - (Number(cashAmount) || 0)) > 0.01) {
+      toast.error(`Sayım cəmi (${billSum.toFixed(2)}₼) təsdiqlənən məbləğlə (${(Number(cashAmount) || 0).toFixed(2)}₼) üst-üstə düşmür`);
+      return;
+    }
     setSubmitting(true);
     setManagerError('');
     try {
@@ -152,14 +176,17 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'close',
-          session_id: session.id,
+          // 'close' → frozen RPC path (active session); 'finalize' → manual
+          // path for paused drawers (Toast "count this drawer later").
+          action: isPausedTarget ? 'finalize' : 'close',
+          session_id: target.id,
           amount: Number(cashAmount) || 0,
           description: cashDesc || null,
           // P-8 (D-5): server verifies the manager PIN (verifyPin + cash.close.approve
           // + same-org in DB). body.manager_id is no longer accepted.
           manager_pin: managerPin || null,
           idempotency_key: crypto.randomUUID(),
+          denominations: showBillCount ? DENOMS.map(d => ({ denomination: d, count: Math.floor(Number(billCounts[String(d)]) || 0) })).filter(r => r.count > 0) : [],
         }),
       });
       const data = await res.json();
@@ -200,6 +227,73 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
     await handleCloseDrawer(managerPin);
   };
 
+  // ── 2026-09-23 (owner, Toast benchmark) ────────────────────────────────
+  const postAction = async (body: Record<string, unknown>, okMsg: string) => {
+    setSubmitting(true);
+    try {
+      const res = await apiFetch('/api/cash-drawer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, idempotency_key: crypto.randomUUID() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success(okMsg);
+        setView('main');
+        setCashAmount(''); setCashDesc(''); setManagerPin(''); setManagerError('');
+        await fetchData();
+        return true;
+      }
+      toast.error(data.error === 'NO_SALE_REASON_REQUIRED' ? 'No Sale üçün səbəb məcburidir' : (data.error || t('error')));
+      return false;
+    } catch (e: any) { toast.error(e.message); return false; }
+    finally { setSubmitting(false); }
+  };
+
+  const handlePause = () => postAction({ action: 'pause', session_id: session?.id }, 'Sayım gözləyəndə qoyuldu — yeni kassa aça bilərsən');
+
+  const openFinalize = (s: CashDrawerSession) => {
+    setClosingTarget(s.id);
+    setCashAmount(String(Number(s.expected_balance) || 0));
+    setCashDesc(''); setManagerPin(''); setManagerError(''); setNeedsApproval(false);
+    setBillCounts({}); setShowBillCount(false);
+    setView('close');
+  };
+
+  const handleNoSale = () => {
+    if (!noSaleReason.trim()) { toast.error('No Sale üçün səbəb məcburidir'); return; }
+    postAction({ action: 'no_sale', amount: 0, description: noSaleReason.trim() }, 'No Sale qeydə alındı').then(ok => { if (ok) setNoSaleReason(''); });
+  };
+
+  const handleCashDrop = () => {
+    if (!(Number(cashAmount) > 0)) { toast.error('Məbləğ daxil et'); return; }
+    postAction({ action: 'cash_drop', amount: Number(cashAmount), description: cashDesc || null }, 'Cash Drop qeydə alındı');
+  };
+
+  const handleLockToggle = () => {
+    if (!managerPin || managerPin.length < 4) { setManagerError(t('pin_required')); return; }
+    postAction(
+      { action: session?.locked ? 'unlock' : 'lock', manager_pin: managerPin },
+      session?.locked ? 'Kassa açıldı' : 'Kassa qıfılalandı',
+    ).then(ok => { if (ok) { setManagerPin(''); setManagerError(''); } });
+  };
+
+  const openDeposit = () => {
+    // Expected = last CLOSED session's closing balance (prefill)
+    const lastClosed = (todaySessions || []).find(sx => sx.status === 'closed' && sx.closing_balance != null);
+    setDepositExpected(lastClosed ? String(lastClosed.closing_balance || 0) : '');
+    setDepositActual(''); setManagerPin(''); setManagerError('');
+    setView('deposit');
+  };
+
+  const handleDeposit = () => {
+    if (!managerPin || managerPin.length < 4) { setManagerError(t('pin_required')); return; }
+    postAction(
+      { action: 'deposit', expected_amount: Number(depositExpected) || 0, amount: Number(depositActual) || 0, description: cashDesc || null, manager_pin: managerPin },
+      'Depozit qeydə alındı',
+    ).then(ok => { if (ok) { setDepositExpected(''); setDepositActual(''); setManagerPin(''); } });
+  };
+
   if (!open) return null;
 
   const formatTime = (iso: string) => {
@@ -218,6 +312,9 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
 
   const shiftDuration = session?.opened_at ? formatDuration(session.opened_at, session.closed_at) : '0s 0dq';
 
+  // Close view expected balance: active session = live walk; paused target = its stored expected.
+  const closeExpected = closingTarget ? (Number(pausedSession?.expected_balance) || 0) : currentBalance;
+
   const typeLabels: Record<string, { labelKey: string; icon: typeof Wallet; color: string }> = {
     open: { labelKey: 'cash_drawer_open', icon: Unlock, color: 'text-green-500' },
     close: { labelKey: 'cash_drawer_closed', icon: Lock, color: 'text-zinc-500' },
@@ -229,6 +326,10 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
     refund: { labelKey: 'cash_refund', icon: ArrowUpCircle, color: 'text-amber-500' },
     void: { labelKey: 'cash_void', icon: ArrowUpCircle, color: 'text-zinc-500' },
     reopen: { labelKey: 'cash_reopen', icon: Unlock, color: 'text-amber-500' },
+    // 2026-09-23 (owner, Toast benchmark)
+    no_sale: { labelKey: 'no_sale', icon: FileText, color: 'text-amber-500' },
+    cash_drop: { labelKey: 'cash_drop', icon: Landmark, color: 'text-sky-500' },
+    deposit: { labelKey: 'deposit', icon: Banknote, color: 'text-green-500' },
   };
 
   return (
@@ -291,6 +392,36 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
             ) : (
               /* Active session */
               <div className="space-y-4">
+                {/* 2026-09-23 (owner, Toast benchmark): drawer lock */}
+                {session.locked && view === 'main' && (
+                  <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-amber-50 border-amber-300' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                    <p className="flex items-center gap-2 text-xs font-black text-amber-500">
+                      <Lock size={13} /> Kassa qıfıllandırılıb — manager PIN ilə açılır
+                    </p>
+                  </div>
+                )}
+                {/* 2026-09-23 (owner, Toast "count this drawer later"): paused drawer
+                    waiting for its final count while the new drawer is active. */}
+                {pausedSession && view === 'main' && (
+                  <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/25'}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-1.5 text-xs font-black text-blue-500">
+                          <Hourglass size={13} /> Gözləyən sayım — {pausedSession.opened_by?.name || 'Kassir'}
+                        </p>
+                        <p className="text-[11px] text-[var(--theme-text-muted)] mt-0.5">
+                          Gözlənilən: <span className="font-black tabular-nums">{(Number(pausedSession.expected_balance) || 0).toFixed(2)}₼</span>
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => openFinalize(pausedSession!)}
+                        className="flex-shrink-0 px-4 py-2 rounded-xl bg-blue-500 text-white text-[11px] font-black uppercase tracking-widest active:scale-[0.97] transition-all"
+                      >
+                        Say
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {/* Shift info card */}
                 <div className={`p-5 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
                      <div className="flex items-center justify-between mb-3">
@@ -364,15 +495,49 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                        <ArrowUpCircle size={20} strokeWidth={2.5} />
                        <span className="text-xs font-black uppercase tracking-widest">{t('expense')}</span>
                      </button>
-                     <button
-                       onClick={() => { setView('close'); setCashAmount(String(currentBalance.toFixed(2))); setCashDesc(''); }}
-                       className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-zinc-300'}`}
-                     >
-                       <Lock size={20} strokeWidth={2.5} />
-                       <span className="text-xs font-black uppercase tracking-widest">{t('end_shift')}</span>
-                     </button>
-                   </div>
-                 )}
+                      <button
+                        onClick={() => { setClosingTarget(null); setView('close'); setCashAmount(String(currentBalance.toFixed(2))); setCashDesc(''); setBillCounts({}); setShowBillCount(false); }}
+                        className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-zinc-300'}`}
+                      >
+                        <Lock size={20} strokeWidth={2.5} />
+                        <span className="text-xs font-black uppercase tracking-widest">{t('end_shift')}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 2026-09-23 (owner, Toast benchmark): secondary drawer actions */}
+                  {view === 'main' && (
+                    <div className="grid grid-cols-4 gap-2">
+                      <button
+                        onClick={() => { setView('no-sale'); setNoSaleReason(''); }}
+                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}
+                      >
+                        <FileText size={15} strokeWidth={2.5} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">No Sale</span>
+                      </button>
+                      <button
+                        onClick={() => { setView('cash-drop'); setCashAmount(''); setCashDesc(''); }}
+                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-sky-50 border-sky-200 text-sky-600' : 'bg-sky-500/10 border-sky-500/20 text-sky-400'}`}
+                      >
+                        <Landmark size={15} strokeWidth={2.5} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Drop</span>
+                      </button>
+                      <button
+                        onClick={openDeposit}
+                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-green-50 border-green-200 text-green-600' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}
+                      >
+                        <Banknote size={15} strokeWidth={2.5} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Depozit</span>
+                      </button>
+                      <button
+                        onClick={() => { setView('lock'); setManagerPin(''); setManagerError(''); }}
+                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-zinc-300'}`}
+                      >
+                        {session.locked ? <Unlock size={15} strokeWidth={2.5} /> : <Lock size={15} strokeWidth={2.5} />}
+                        <span className="text-[9px] font-black uppercase tracking-widest">{session.locked ? 'Aç' : 'Qıfıl'}</span>
+                      </button>
+                    </div>
+                  )}
 
                  {/* Cash-in / Cash-out form */}
                 {(view === 'cash-in' || view === 'cash-out') && (
@@ -409,14 +574,119 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                   </div>
                 )}
 
-                {/* Close drawer */}
-                {view === 'close' && (
-                  <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
-                    <p className="text-sm font-bold text-zinc-500">{t('cash_drawer_closing')}</p>
-                    <div className={`p-3 rounded-xl ${lightMode ? 'bg-white border border-zinc-200' : 'bg-white/5 border border-white/10'}`}>
-                      <p className="text-xs font-bold text-[var(--theme-text-muted)]">{t('expected_balance')}</p>
-                      <p className="text-lg font-black tabular-nums">{currentBalance.toFixed(2)}₼</p>
-                    </div>
+                 {/* 2026-09-23 (owner, Toast benchmark): No Sale — mandatory reason,
+                     logged to the drawer ledger + exception reports. */}
+                 {view === 'no-sale' && (
+                   <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                     <p className="text-sm font-bold text-amber-500">No Sale</p>
+                     <p className="text-xs text-[var(--theme-text-muted)]">Səbəb məcburidir — istisna reportlarına düşür.</p>
+                     <input
+                       value={noSaleReason}
+                       onChange={e => setNoSaleReason(e.target.value)}
+                       placeholder="Səbəb: xəta, label çapı, düymə... (məcburi)"
+                       className={`w-full rounded-xl px-4 py-3 text-sm outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
+                     />
+                     <div className="flex gap-2">
+                       <button onClick={() => setView('main')} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>{t('back')}</button>
+                       <button onClick={handleNoSale} disabled={submitting || !noSaleReason.trim()} className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-amber-500 text-white disabled:opacity-50">
+                         {submitting ? <Loader2 size={14} className="animate-spin mx-auto" /> : t('confirm')}
+                       </button>
+                     </div>
+                   </div>
+                 )}
+
+                 {/* 2026-09-23 (owner, Toast benchmark): Cash Drop → House/safe */}
+                 {view === 'cash-drop' && (
+                   <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                     <p className="text-sm font-bold text-sky-500">Cash Drop → House</p>
+                     <input
+                       type="number" step="0.01" value={cashAmount}
+                       onChange={e => setCashAmount(e.target.value)}
+                       placeholder={t('amount')}
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
+                     />
+                     <input
+                       value={cashDesc} onChange={e => setCashDesc(e.target.value)}
+                       placeholder="Açıqlama (ixtiyari)"
+                       className={`w-full rounded-xl px-4 py-3 text-sm outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
+                     />
+                     <div className="flex gap-2">
+                       <button onClick={() => setView('main')} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>{t('back')}</button>
+                       <button onClick={handleCashDrop} disabled={submitting || !(Number(cashAmount) > 0)} className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-sky-500 text-white disabled:opacity-50">
+                         {submitting ? <Loader2 size={14} className="animate-spin mx-auto" /> : t('confirm')}
+                       </button>
+                     </div>
+                   </div>
+                 )}
+
+                 {/* 2026-09-23 (owner, Toast benchmark): deposit with expected vs
+                     actual (overage/shortage stored in the deposits table). */}
+                 {view === 'deposit' && (
+                   <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                     <p className="text-sm font-bold text-green-500">Depozit (banka)</p>
+                     <input
+                       type="number" step="0.01" value={depositExpected}
+                       onChange={e => setDepositExpected(e.target.value)}
+                       placeholder="Gözlənilən məbləğ (₼)"
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
+                     />
+                     <input
+                       type="number" step="0.01" value={depositActual}
+                       onChange={e => setDepositActual(e.target.value)}
+                       placeholder="Faktiki depozit (₼)"
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
+                     />
+                     {depositExpected && depositActual && (
+                       <p className={`text-xs font-black tabular-nums ${Number(depositActual) < Number(depositExpected) ? 'text-red-500' : 'text-green-500'}`}>
+                         Fərq: {(Number(depositActual) - Number(depositExpected)).toFixed(2)}₼
+                       </p>
+                     )}
+                     <input
+                       type="password" inputMode="numeric" maxLength={6} value={managerPin}
+                       onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
+                       placeholder="Manager PIN"
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-amber-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-amber-400/50'}`}
+                     />
+                     {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
+                     <div className="flex gap-2">
+                       <button onClick={() => setView('main')} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>{t('back')}</button>
+                       <button onClick={handleDeposit} disabled={submitting} className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-green-500 text-white disabled:opacity-50">
+                         {submitting ? <Loader2 size={14} className="animate-spin mx-auto" /> : t('confirm')}
+                       </button>
+                     </div>
+                   </div>
+                 )}
+
+                 {/* 2026-09-23 (owner, Toast benchmark): drawer lock (manager PIN) */}
+                 {view === 'lock' && (
+                   <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                     <p className="text-sm font-bold">{session.locked ? 'Kassanı aç' : 'Kassanı qıfıla'}</p>
+                     <input
+                       type="password" inputMode="numeric" maxLength={6} value={managerPin}
+                       onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
+                       placeholder="Manager PIN"
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-amber-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-amber-400/50'}`}
+                     />
+                     {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
+                     <div className="flex gap-2">
+                       <button onClick={() => setView('main')} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>{t('back')}</button>
+                       <button onClick={handleLockToggle} disabled={submitting} className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-zinc-800 text-white dark:bg-zinc-200 dark:text-black disabled:opacity-50">
+                         {submitting ? <Loader2 size={14} className="animate-spin mx-auto" /> : <>{session.locked ? <Unlock size={14} className="inline mr-1" /> : <Lock size={14} className="inline mr-1" />}{session.locked ? 'Aç' : 'Qıfıla'}</>}
+                       </button>
+                     </div>
+                   </div>
+                 )}
+
+                 {/* Close drawer */}
+                 {view === 'close' && (
+                   <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                     <p className="text-sm font-bold text-zinc-500">
+                       {closingTarget ? 'Gözləyən sayımın təsdiqi' : t('cash_drawer_closing')}
+                     </p>
+                     <div className={`p-3 rounded-xl ${lightMode ? 'bg-white border border-zinc-200' : 'bg-white/5 border border-white/10'}`}>
+                       <p className="text-xs font-bold text-[var(--theme-text-muted)]">{t('expected_balance')}</p>
+                       <p className="text-lg font-black tabular-nums">{closeExpected.toFixed(2)}₼</p>
+                     </div>
                     <input
                       type="number"
                       step="0.01"
@@ -425,22 +695,66 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       placeholder={t('actual_balance')}
                        className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                     />
-                    {cashAmount && Number(cashAmount) !== currentBalance && (
-                      <div className={`p-3 rounded-xl ${Number(cashAmount) > currentBalance ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
-                        <p className={`text-xs font-bold ${Number(cashAmount) > currentBalance ? 'text-green-500' : 'text-red-500'}`}>
-                          {t('difference')}: {Number(cashAmount) > currentBalance ? '+' : ''}{(Number(cashAmount) - currentBalance).toFixed(2)}₼
-                        </p>
-                      </div>
-                    )}
-                    <input
-                      value={cashDesc}
-                      onChange={e => setCashDesc(e.target.value)}
-                      placeholder="Qeyd (ixtiyari)"
+                     {cashAmount && Math.abs(Number(cashAmount) - closeExpected) > 0.005 && (
+                       <div className={`p-3 rounded-xl ${Number(cashAmount) > closeExpected ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
+                         <p className={`text-xs font-bold ${Number(cashAmount) > closeExpected ? 'text-green-500' : 'text-red-500'}`}>
+                           {t('difference')}: {Number(cashAmount) > closeExpected ? '+' : ''}{(Number(cashAmount) - closeExpected).toFixed(2)}₼
+                         </p>
+                       </div>
+                     )}
+                     {/* 2026-09-23 (owner, Toast "Count bills" + Quick Cash):
+                         bill-by-bill counting; the sum must match the counted
+                         amount (server validates too). */}
+                     <button
+                       onClick={() => setShowBillCount(v => !v)}
+                       className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${
+                         showBillCount
+                           ? (lightMode ? 'bg-indigo-50 border-indigo-300 text-indigo-600' : 'bg-indigo-500/10 border-indigo-400/30 text-indigo-300')
+                           : (lightMode ? 'bg-white border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50')
+                       }`}
+                     >
+                       <span>Bill sayımı (denominasiya)</span>
+                       <span>{showBillCount ? (billSum > 0 ? `Cəm: ${billSum.toFixed(2)}₼` : 'Açıq') : 'Bağlı'}</span>
+                     </button>
+                     {showBillCount && (
+                       <div className={`p-3 rounded-xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                         <div className="grid grid-cols-4 gap-2">
+                           {DENOMS.map(d => (
+                             <div key={d} className="space-y-1">
+                               <p className="text-center text-[10px] font-black text-[var(--theme-text-muted)] tabular-nums">{d}₼</p>
+                               <input
+                                 type="number" min="0"
+                                 value={billCounts[String(d)] || ''}
+                                 onChange={e => setBillCounts(prev => ({ ...prev, [String(d)]: e.target.value }))}
+                                 placeholder="0"
+                                 className={`w-full rounded-lg px-1 py-1.5 text-xs font-bold text-center outline-none border tabular-nums ${lightMode ? 'bg-zinc-50 border-zinc-200 focus:border-indigo-400' : 'bg-white/5 border-white/10 focus:border-indigo-400/50'}`}
+                               />
+                             </div>
+                           ))}
+                         </div>
+                         <div className="flex items-center justify-between mt-2">
+                           <button
+                             onClick={() => setCashAmount(billSum > 0 ? String(billSum.toFixed(2)) : '')}
+                             disabled={billSum === 0}
+                             className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-40 active:scale-[0.97] transition-all"
+                           >
+                             Quick Cash = {billSum.toFixed(2)}₼
+                           </button>
+                           {billSum > 0 && cashAmount && Math.abs(billSum - Number(cashAmount)) > 0.01 && (
+                             <span className="text-[10px] font-bold text-red-500">Cəm təsdiqlənən məbləğdən fərqlənir!</span>
+                           )}
+                         </div>
+                       </div>
+                     )}
+                     <input
+                       value={cashDesc}
+                       onChange={e => setCashDesc(e.target.value)}
+                       placeholder="Qeyd (ixtiyari)"
                        className={`w-full rounded-xl px-4 py-3 text-sm outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                     />
 
                     {/* Manager approval PIN — shown when variance != 0 or DB demanded approval */}
-                    {(cashAmount && Number(cashAmount) !== currentBalance) || needsApproval ? (
+                    {(cashAmount && Math.abs(Number(cashAmount) - closeExpected) > 0.005) || needsApproval ? (
                       <div className="space-y-2">
                         <p className="text-xs font-bold text-amber-500">{t('manager_approval_required')}</p>
                         <input
@@ -457,12 +771,23 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                     ) : null}
 
                     <div className="flex gap-2">
-                      <button onClick={() => { setView('main'); setManagerPin(''); setManagerError(''); setNeedsApproval(false); }} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>
+                      <button onClick={() => { setView('main'); setClosingTarget(null); setManagerPin(''); setManagerError(''); setNeedsApproval(false); }} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>
                         {t('back')}
                       </button>
+                      {/* 2026-09-23 (owner, Toast "Count this drawer later"): pause
+                          the count — a new drawer can be opened meanwhile. */}
+                      {!closingTarget && (
+                        <button
+                          onClick={handlePause}
+                          disabled={submitting}
+                          className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest border ${lightMode ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-blue-500/10 border-blue-400/30 text-blue-300'} disabled:opacity-50`}
+                        >
+                          Sonra say
+                        </button>
+                      )}
                       <button
                         onClick={() => {
-                          const hasVariance = cashAmount && Number(cashAmount) !== currentBalance;
+                          const hasVariance = cashAmount && Math.abs(Number(cashAmount) - closeExpected) > 0.005;
                           if (hasVariance || needsApproval) {
                             handleManagerVerifyAndClose();
                           } else if (window.confirm(t('confirm_end_shift'))) {
@@ -520,20 +845,32 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                <div>
                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('shift_entry')}</p>
                  <div className="space-y-1.5">
-                   {todaySessions.map(s => {
-                     const isOpen = s.status === 'open';
-                     const staffName = s.opened_by?.name || s.staff_name || 'Kassir';
-                     return (
-                       <div key={s.id} className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
-                         <div className="flex items-center justify-between">
-                           <div className="flex items-center gap-2">
-                             {isOpen ? <Unlock size={14} className="text-green-500" /> : <Lock size={14} className="text-zinc-500" />}
-                             <span className="text-xs font-bold">{formatTime(s.opened_at)}</span>
-                           </div>
-                           <span className={`text-xs font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : 'text-zinc-500'}`}>
-                             {isOpen ? t('open') : t('closed')}
-                           </span>
-                         </div>
+                    {todaySessions.map(s => {
+                      const isOpen = s.status === 'open';
+                      const isPaused = s.status === 'paused';
+                      const staffName = s.opened_by?.name || s.staff_name || 'Kassir';
+                      return (
+                        <div key={s.id} className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {isOpen ? <Unlock size={14} className="text-green-500" /> : isPaused ? <Hourglass size={14} className="text-amber-500" /> : <Lock size={14} className="text-zinc-500" />}
+                              <span className="text-xs font-bold">{formatTime(s.opened_at)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : isPaused ? 'text-amber-500' : 'text-zinc-500'}`}>
+                                {isOpen ? t('open') : isPaused ? 'Gözləyir' : t('closed')}
+                              </span>
+                              {/* 2026-09-23 (owner, Toast): finalize the paused count */}
+                              {isPaused && (
+                                <button
+                                  onClick={() => openFinalize(s)}
+                                  className="px-3 py-1 rounded-lg bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest active:scale-[0.97] transition-all"
+                                >
+                                  Say
+                                </button>
+                              )}
+                            </div>
+                          </div>
                          <p className="text-xs text-[var(--theme-text-muted)] mt-1">{staffName}</p>
                          <div className="grid grid-cols-3 gap-2 mt-2">
                            <div>

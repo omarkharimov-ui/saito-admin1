@@ -18,6 +18,7 @@ import {
   Gift,
   ClipboardCheck,
   Bike,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -74,6 +75,15 @@ export function getAdminNavItems(
     { id: 'gift-cards', name: 'HƏDİYYƏ KARTLARI', href: '/admin/gift-cards', icon: Gift, roles: ['admin', 'manager', 'superadmin', 'owner'] },
     { id: 'roles', name: 'Rollar', href: '/admin/staff/roles', icon: Shield, roles: ['superadmin', 'owner'] },
     { id: 'shifts', name: 'Növbələr', href: '/admin/shifts', icon: Timer, roles: ['admin', 'manager', 'superadmin', 'owner'] },
+    {
+      // 2026-09-23 (owner, Toast benchmark): drawer history + cash activity +
+      // close-out-day checklist.
+      id: 'cash-reports',
+      name: 'Kassa',
+      href: '/admin/cash-reports',
+      icon: Wallet,
+      roles: ['admin', 'manager', 'superadmin', 'owner'],
+    },
     { id: 'checklists', name: 'CHECKLIST', href: '/admin/checklists', icon: ClipboardCheck, roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier', 'host'] },
 
     { id: 'stock', name: 'Stok', href: '/admin/stock', icon: Warehouse, roles: ['superadmin', 'owner', 'admin'] },

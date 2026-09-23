@@ -112,6 +112,15 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  // 2026-09-23 (owner, Toast/Square benchmark): before this, ONLY paid orders
+  // were visible — voided/refunded orders could not be audited from the POS.
+  const [statusFilter, setStatusFilter] = useState<'paid' | 'refunded' | 'cancelled' | 'all'>('paid');
+  const [sheetTab, setSheetTab] = useState<'orders' | 'exceptions'>('orders');
+  const [loadedCount, setLoadedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [exceptions, setExceptions] = useState<{ id: string; action: string; order_ref: string | null; reason: string | null; staff_name: string | null; created_at: string }[]>([]);
+  const [exceptionsLoading, setExceptionsLoading] = useState(false);
   const [pinGuardOpen, setPinGuardOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ fn: () => void; action: string } | null>(null);
 
@@ -122,28 +131,69 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const [refundModalOpen, setRefundModalOpen] = useState(false);
   const [refundOrder, setRefundOrder] = useState<PaidOrder | null>(null);
 
+  const buildParams = useCallback((offset: number) => {
+    const params = new URLSearchParams({ status: statusFilter, limit: '100', offset: String(offset) });
+    // AUDIT 2026-09-23: the date filter must span LOCAL days (Baku UTC+4),
+    // not UTC days — send the browser offset so the route can bound correctly.
+    params.set('tz_offset_min', String(-new Date().getTimezoneOffset()));
+    if (filter !== 'all') params.set('order_source', filter);
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo) params.set('date_to', dateTo);
+    return params;
+  }, [statusFilter, filter, dateFrom, dateTo]);
+
   const fetchOrders = useCallback(async () => {
     setLoading(true);
+    setLoadedCount(0);
     try {
-      const params = new URLSearchParams({ status: 'paid', limit: '100' });
-      // AUDIT 2026-09-23: the date filter must span LOCAL days (Baku UTC+4),
-      // not UTC days — send the browser offset so the route can bound correctly.
-      params.set('tz_offset_min', String(-new Date().getTimezoneOffset()));
-      if (filter !== 'all') params.set('order_source', filter);
-      if (dateFrom) params.set('date_from', dateFrom);
-      if (dateTo) params.set('date_to', dateTo);
-      const res = await apiFetch(`/api/orders/history?${params}`);
+      const res = await apiFetch(`/api/orders/history?${buildParams(0)}`);
       if (res.ok) {
         const data = await res.json();
         setOrders(data.orders || []);
+        setLoadedCount(data.orders?.length || 0);
+        setTotalCount(data.totalCount || 0);
       }
     } catch { /* silent */ }
     setLoading(false);
-  }, [filter, dateFrom, dateTo]);
+  }, [buildParams]);
+
+  // 2026-09-23: "load more" — the old list was hard-capped at 100 orders.
+  const loadMore = useCallback(async () => {
+    setLoadingMore(true);
+    try {
+      const res = await apiFetch(`/api/orders/history?${buildParams(loadedCount)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(prev => [...prev, ...(data.orders || [])]);
+        setLoadedCount(prev => prev + (data.orders?.length || 0));
+        setTotalCount(data.totalCount || 0);
+      }
+    } catch { /* silent */ }
+    setLoadingMore(false);
+  }, [buildParams, loadedCount]);
+
+  const fetchExceptions = useCallback(async () => {
+    setExceptionsLoading(true);
+    try {
+      const params = new URLSearchParams({});
+      params.set('tz_offset_min', String(-new Date().getTimezoneOffset()));
+      if (dateFrom) params.set('date_from', dateFrom);
+      if (dateTo) params.set('date_to', dateTo);
+      const res = await apiFetch(`/api/orders/history/exceptions?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setExceptions(data.exceptions || []);
+      }
+    } catch { /* silent */ }
+    setExceptionsLoading(false);
+  }, [dateFrom, dateTo]);
 
   useEffect(() => {
-    if (open) fetchOrders();
-  }, [open, fetchOrders]);
+    if (open) {
+      fetchOrders();
+      fetchExceptions();
+    }
+  }, [open, fetchOrders, fetchExceptions]);
 
   const fetchOrderDetail = useCallback(async (order: PaidOrder) => {
     setDetailLoading(true);
@@ -356,7 +406,25 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
           {/* ═══════ LIST VIEW ═══════ */}
           {!selectedOrder && (
             <>
+              {/* 2026-09-23 (owner, Toast "Sales Exception Report"): Sifarişlər / İstisnalar */}
+              <div className={`flex gap-2 px-5 pt-4 pb-2`}>
+                {([['orders', t('orders') || 'Sifarişlər'], ['exceptions', t('exceptions') || 'İstisnalar']] as const).map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setSheetTab(id)}
+                    className={`flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                      sheetTab === id
+                        ? 'bg-emerald-500 text-white'
+                        : lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'
+                    }`}
+                  >
+                    {label}{id === 'exceptions' && exceptions.length > 0 ? ` (${exceptions.length})` : ''}
+                  </button>
+                ))}
+              </div>
+
               {/* Filters */}
+              {sheetTab === 'orders' && (
               <div className="flex gap-2 px-5 py-3 border-b border-white/5 overflow-x-auto">
                 {filters.map(f => (
                   <button
@@ -372,6 +440,26 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                   </button>
                 ))}
               </div>
+              )}
+
+              {/* 2026-09-23 (owner): status filter — refunded/voided were invisible before */}
+              {sheetTab === 'orders' && (
+              <div className="flex gap-2 px-5 py-2 border-b border-white/5 overflow-x-auto">
+                {([['paid', t('status_paid') || 'Ödənilmiş'], ['refunded', t('status_refunded') || 'Qaytarılmış'], ['cancelled', t('status_cancelled') || 'Ləğv'], ['all', t('all_orders') || 'Hamısı']] as const).map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => { setStatusFilter(id); setSheetTab('orders'); }}
+                    className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider whitespace-nowrap border transition-all ${
+                      statusFilter === id
+                        ? (id === 'refunded' ? 'bg-amber-500 border-amber-400 text-white' : id === 'cancelled' ? 'bg-red-500 border-red-400 text-white' : 'bg-zinc-700 border-zinc-600 text-white')
+                        : lightMode ? 'bg-white border-zinc-200 text-zinc-400' : 'bg-white/5 border-white/10 text-white/40'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              )}
 
               {/* Search + Date Filter */}
               <div className={`px-5 py-3 border-b space-y-2 ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
@@ -407,6 +495,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
               </div>
 
               {/* Order list */}
+              {sheetTab === 'orders' && (
               <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
@@ -467,13 +556,61 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                         <ChevronRight size={16} className={lightMode ? 'text-zinc-300' : 'text-white/20'} />
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </>
-          )}
+                    ))
+                 )}
+                 {/* 2026-09-23 (owner): "load more" — the list was hard-capped
+                     at 100 orders; busy days lost their older orders. */}
+                 {!loading && filteredOrders.length > 0 && loadedCount < totalCount && (
+                   <button
+                     onClick={loadMore}
+                     disabled={loadingMore}
+                     className={`w-full py-3 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
+                   >
+                     {loadingMore
+                       ? <div className="w-4 h-4 mx-auto border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                       : (t('load_more') || 'Daha çox yüklə')}
+                   </button>
+                 )}
+               </div>
+              )}
 
-          {/* ═══════ DETAIL VIEW ═══════ */}
+              {/* 2026-09-23 (owner, Toast "Sales Exception Report"): who voided /
+                  cancelled / refunded, with reason + staff + order reference. */}
+              {sheetTab === 'exceptions' && (
+               <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+                 {exceptionsLoading ? (
+                   <div className="flex items-center justify-center py-12">
+                     <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                   </div>
+                 ) : exceptions.length === 0 ? (
+                   <p className="text-center text-xs opacity-40 py-12">{t('no_exceptions') || 'İstisna yoxdur'}</p>
+                 ) : (
+                   exceptions.map(x => (
+                     <div key={x.id} className={`flex items-center gap-3 p-3 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'}`}>
+                       <span className={`flex-shrink-0 text-[10px] font-black uppercase px-2 py-1 rounded-lg ${
+                         x.action === 'void' ? 'bg-red-500/10 text-red-400' : x.action === 'refund' ? 'bg-amber-500/10 text-amber-400' : 'bg-zinc-500/10 text-zinc-400'
+                       }`}>
+                         {x.action}
+                       </span>
+                       <div className="flex-1 min-w-0">
+                         <p className="text-xs font-black truncate">
+                           {x.order_ref || '—'}
+                           {x.reason ? <span className="font-bold opacity-60"> · {x.reason}</span> : null}
+                         </p>
+                         <p className="text-[11px] opacity-40">
+                           {new Date(x.created_at).toLocaleDateString('az')} {new Date(x.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}
+                           {x.staff_name ? ` · ${x.staff_name}` : ''}
+                         </p>
+                       </div>
+                     </div>
+                   ))
+                 )}
+               </div>
+              )}
+             </>
+           )}
+
+           {/* ═══════ DETAIL VIEW ═══════ */}
           {selectedOrder && (
             <div className="flex-1 overflow-y-auto">
               {detailLoading ? (

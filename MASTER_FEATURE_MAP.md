@@ -804,5 +804,18 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-23 (owner pass, Kassa/History BENCHMARK, Toast/Square parity)
+- **Kassa** (migration `20260924000001_kassa_benchmark.sql`, additive): bill-by-bill sayım (`denomination_counts` — cədvəl DB-də YOX idi, yaradıldı) + Quick Cash; **No Sale** (məcburi səbəb, `no_sale` log type); **Cash Drop → House** (`cash_drop`); **drawer lock** (`locked`+`locked_by`, manager PIN); **Depozit** (yeni `deposits` cədvəli — expected/actual/fərq); **Paused drawer** ("Sonra say" → status `paused` + yeni drawer, "SAY" ilə finalize); **4AM auto-close** (gecən günün open sessiyası növbəti gün avtomatik bağlanır, GET-də).
+- **History**: status filtrləri (paid/refunded/cancelled/hamısı — əvvəl yalnız paid görünürdü), **load more** pagination (100 cap), **İstisnalar tab** = Sales Exception report (`/api/orders/history/exceptions`: void/cancel/refund + order ref + səbəb + staff; legacy int record_id-lər filter olunur).
+- **/admin/cash-reports** (yeni səhifə + nav "Kassa"): Close-Out-Day checklist (açıq sessiyalar, açıq sifarişlər, depozitlər + `/api/finance/close-day` aksiyası), Drawer History cədvəli (60 gün), Nağd Aktivliyi (300 hərəkət, order ref + staff), No Sale istisnaları.
+- Frozen sərhəd toxunulmayıb: `close_cash_register_v2` RPC dəyişməyib (paused finalize ayrı manual yol; denominations close-dan SONRA yazılır).
+
+### Jurnal sətiri — 2026-09-23 (owner pass, `6a9897aa`)
+- **TableCard**: guest+item ikonları TOP row (boşluq dolduruldu), status/HESAB chip bottom-RIGHT (owner screenshot).
+- **BDS**: default **Bütün (ALL)** tab — dine-in + delivery + pickup həmişə ekranda; per-order kind badge; **courier = real staff record** (DB `roles.courier` yaradıldı; /api/orders/courier; BDS kartında picker).
+- **POS**: wide blue cart-binding banner **REJECTED** → compact chip cart header-də; product modal X = top-right (missing `flex` bugu).
+- **Kassa/History audit** (`AUDIT-KASSA-HISTORY-2026-09-23.md`): timeline həmişə boş idi — audit rows `record_id`-də saxlanılır, route `order_id` soruşurdu → `or(order_id,record_id)` + staff resolver; kassa movements order-ref + staff adı (DB-də var idi, UI-da yox); date-filter TZ + count bugları; detail: customer/delivery/service/campaign.
+- **Delivery (Wolt-like)**: Settings → **Çatdırılma** tab (ünvan/telefon + zones CRUD, /api/settings/delivery). **Fee indi REAL olaraq charge olunur** (creation-da total-a daxil; əvvəl display-only metadata idi — DB sübutu #D040). RPC `is_free` sayılır (₼50+ = ₼0); cart dəyişəndə fee recalc; **FREE_DELIVERY kampaniyası** (məhsul/kateqoriya/global) fee-yi server-də 0 edir + campaign stamp.
+
 ---
 *Yaradılıb: 2026-09-11 — REAL DB inventar (156 cədvəl / 419 RPC / 263 route) əsasında. Sonrakı status dəyişikliyi §6.3 jurnalında izlənilir.*

@@ -27,7 +27,16 @@ export async function GET(request: NextRequest) {
     const localDayEnd = (d: string) => new Date(new Date(`${d}T00:00:00`).getTime() + tzOffsetMin * 60000 + 86400000 - 1).toISOString();
 
     const s = svc();
-    let query = `${s.url}/rest/v1/orders?status=eq.${status}&order=created_at.desc&limit=${limit}&offset=${offset}&select=*,order_items(id,order_id,product_id,product_name,quantity,unit_price,total_price,variant_id,variant_name,modifiers,special_notes,combo_group_id,kitchen_status,served_quantity,prepared_quantity,products(name_az,name_en))`;
+    // 2026-09-23 (owner, Toast/Square benchmark): status filters — refunded /
+    // cancelled / all (before: paid only; voided & refunded orders were
+    // invisible from the POS history).
+    const statusFilter = (st: string) => {
+      if (st === 'refunded') return 'status=in.(refunded,partially_refunded)';
+      if (st === 'cancelled') return 'status=in.(cancelled,voided)';
+      if (st === 'all') return 'status=in.(paid,refunded,partially_refunded,cancelled,voided,closed)';
+      return `status=eq.${st}`;
+    };
+    let query = `${s.url}/rest/v1/orders?${statusFilter(status)}&order=created_at.desc&limit=${limit}&offset=${offset}&select=*,order_items(id,order_id,product_id,product_name,quantity,unit_price,total_price,variant_id,variant_name,modifiers,special_notes,combo_group_id,kitchen_status,served_quantity,prepared_quantity,products(name_az,name_en))`;
 
     if (orderSource) {
       query += `&order_source=eq.${orderSource}`;
@@ -47,7 +56,7 @@ export async function GET(request: NextRequest) {
     const orders = await res.json();
     
     // Get total count for pagination
-    let countQuery = `${s.url}/rest/v1/orders?status=eq.${status}&select=count`;
+    let countQuery = `${s.url}/rest/v1/orders?${statusFilter(status)}`;
     if (orderSource) {
       countQuery += `&order_source=eq.${orderSource}`;
     }

@@ -1317,6 +1317,7 @@ export const en: TranslationMap = {
   pending_status: 'PENDING',
   pre_order: 'PRE-ORDER',
   bill_requested: 'BILL',
+  bill_requested_cancel: 'Close bill',
 
   // Kitchen Performance
   kitchen_performance: 'Kitchen Performance',
@@ -1686,6 +1687,7 @@ export const en: TranslationMap = {
   delivery_zone: 'Delivery zone',
   delivery_zone_none: 'Select zone',
   assign_courier: 'Assign courier',
+  courier_status: 'Courier status',
   walk_in_name_phone_required: 'Customer name and phone are required',
   clear_table_pin_title: 'Clear table',
   clear_table_pin_hint: 'Enter manager PIN to clear table {table}',
@@ -1822,6 +1824,7 @@ export const en: TranslationMap = {
   status_updated: 'Status updated: {status}',
   processing_payment: 'Processing payment...',
   payment_failed: 'Payment failed',
+  order_already_paid: 'Order is already paid',
   payment_error: 'Payment error',
   normal_mode: 'Normal',
   active_order_not_found: 'No active order found',

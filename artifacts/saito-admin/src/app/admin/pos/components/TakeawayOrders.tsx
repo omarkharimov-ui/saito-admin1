@@ -67,7 +67,11 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                  ready: 'ready', paid: 'paid', closed: 'closed', cancelled: 'cancelled',
                };
                const status = TAKEAWAY_STATUS_CONFIG[TAKEAWAY_STAGE_MAP[stage]] || TAKEAWAY_STATUS_CONFIG.confirmed;
-               const orderNo = order.order_number || `#${String(order.id).slice(-4).toUpperCase()}`;
+               // 2026-09-23 (owner rule): the card title ALWAYS reads
+               // 2026-09-23 (owner): title = "Gel-Al 44" — PREFIX-LESS number (same font
+              // as the label), no customer name on the top line
+               // (legacy orders with numeric order_number rendered "Gel-Al 1").
+               const orderNo = (String(order.order_number || '').replace(/[^0-9]/g, '')) || String(order.id).slice(-4).toUpperCase();
                const elapsed = order.created_at
                 ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)
                 : 0;
@@ -99,7 +103,7 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                    <span className={`absolute top-5 left-5 text-[26px] font-black tracking-tighter ${
                      lightMode ? 'text-gray-900' : 'text-white'
                    }`}>
-                     {t('takeaway_short')} <span className={`text-[18px] ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{orderNo}</span>
+                     {t('takeaway_short')} {orderNo}
                    </span>
 
                       {elapsed > 0 && (

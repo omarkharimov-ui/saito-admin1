@@ -1319,6 +1319,7 @@ export const ru: TranslationMap = {
   pending_status: 'В ОЖИДАНИИ',
   pre_order: 'ПРЕДЗАКАЗ',
   bill_requested: 'СЧЁТ',
+  bill_requested_cancel: 'Закрыть счёт',
 
   // Kitchen Performance
   kitchen_performance: 'Производительность Кухни',
@@ -1688,6 +1689,7 @@ export const ru: TranslationMap = {
   delivery_zone: 'Зона доставки',
   delivery_zone_none: 'Выберите зону',
   assign_courier: 'Назначить курьера',
+  courier_status: 'Статус курьера',
   walk_in_name_phone_required: 'Имя и телефон клиента обязательны',
   clear_table_pin_title: 'Освободить стол',
   clear_table_pin_hint: 'Введите PIN менеджера для освобождения стола {table}',
@@ -1823,6 +1825,7 @@ export const ru: TranslationMap = {
   status_updated: 'Статус обновлен: {status}',
   processing_payment: 'Обработка платежа...',
   payment_failed: 'Оплата не удалась',
+  order_already_paid: 'Заказ уже оплачен',
   payment_error: 'Ошибка оплаты',
   normal_mode: 'Обычный',
   active_order_not_found: 'Активный заказ не найден',

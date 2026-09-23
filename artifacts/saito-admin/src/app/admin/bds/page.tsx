@@ -277,7 +277,7 @@ export default function BDSPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-w-[1500px] mx-auto">
             <AnimatePresence>
               {board.map(o => {
-                const orderNo = `#${o.order_number || String(o.id).slice(-4).toUpperCase()}`;
+                const orderNo = (String(o.order_number || '').replace(/[^0-9]/g, '')) || String(o.id).slice(-4).toUpperCase();
                 const kLabel = KITCHEN_LABEL[o.kitchen_status || 'pending'] || KITCHEN_LABEL.pending;
                 const kReady = kitchenReady(o);
                 const valid = transitions[o.delivery_status || 'confirmed'] || [];
@@ -318,7 +318,7 @@ export default function BDSPage() {
                         <span className={`text-sm font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
                           {isDeliveryTab ? t('delivery_short') : t('takeaway_short')}
                         </span>
-                        <span className={`text-sm font-bold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{orderNo}</span>
+                        <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{orderNo}</span>
                       </div>
                       <span className={`text-[11px] font-bold tabular-nums flex items-center gap-1 shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
                         <Clock size={11} />

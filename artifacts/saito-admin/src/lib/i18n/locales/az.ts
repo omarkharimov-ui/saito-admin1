@@ -1316,6 +1316,7 @@ export const az = {
   pending_status: 'GÖZLƏNİR',
   pre_order: 'ÖN SİFARİŞ',
   bill_requested: 'HESAB',
+  bill_requested_cancel: 'Hesabı bağla',
 
   // Kitchen Performance
   kitchen_performance: 'Mətbəx Performansı',
@@ -1685,6 +1686,7 @@ export const az = {
   delivery_zone: 'Çatdırılma zonası',
   delivery_zone_none: 'Zona seçin',
   assign_courier: 'Kuryer təyin et',
+  courier_status: 'Kuryer statusu',
   walk_in_name_phone_required: 'Müştəri adı və telefon tələb olunur',
   clear_table_pin_title: 'Masa boşalt',
   clear_table_pin_hint: '{table} masasını boşaltmaq üçün idarəçi PIN daxil edin',
@@ -1820,6 +1822,7 @@ export const az = {
   status_updated: 'Status yeniləndi: {status}',
   processing_payment: 'Ödəniş işlənir...',
   payment_failed: 'Ödəniş uğursuz oldu',
+  order_already_paid: 'Sifariş artıq ödənilib',
   payment_error: 'Ödəniş xətası',
   normal_mode: 'Normal',
   active_order_not_found: 'Aktiv sifariş tapılmadı',

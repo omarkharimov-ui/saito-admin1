@@ -194,6 +194,9 @@ export default function POSPage() {
   const [courierPickerOpen, setCourierPickerOpen] = useState(false);
   const [couriers, setCouriers] = useState<any[]>([]);
   const [couriersLoading, setCouriersLoading] = useState(false);
+  const [courierStatusOpen, setCourierStatusOpen] = useState(false);
+  const [courierStatusTransitions, setCourierStatusTransitions] = useState<{ to_status: string; description: string | null }[]>([]);
+  const [courierStatusLoading, setCourierStatusLoading] = useState(false);
   const pickedUpTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const posMode = pos.posMode;
   const setPosMode = pos.setPosMode;
@@ -772,6 +775,25 @@ export default function POSPage() {
     }
   };
 
+  const handleOpenCourierStatus = async () => {
+    if (!actionSheetTable) return;
+    setCourierStatusOpen(true); setCourierStatusLoading(true);
+    try {
+      const current = actionSheetTable.delivery_status || 'confirmed';
+      const trs = await orderStateMachine.getValidTransitions(current, 'delivery');
+      setCourierStatusTransitions(trs.filter((x:any)=>['picked_up','in_transit','delivered'].includes(x.to_status)).map((x:any)=>({to_status:x.to_status,description:x.description||null})));
+    } catch { setCourierStatusTransitions([]); } finally { setCourierStatusLoading(false); }
+  };
+  const handleSelectCourierTransition = async (to: string) => {
+    if (!actionSheetTable) return;
+    setCourierStatusOpen(false);
+    try {
+      await orderStateMachine.transitionDelivery(actionSheetTable.id, to as any, { courierId: actionSheetTable.courier_id, courierName: actionSheetTable.courier_name });
+      setActionSheetTable((prev:any)=> prev ? { ...prev, delivery_status: to } : prev);
+      const key = to==='picked_up'?'bds_picked_up':to==='in_transit'?'bds_in_transit':'bds_delivered';
+      toast.success((t as any)(key)||to, { id:'action-toast' }); pos.fetchData();
+    } catch (e:any) { toast.error(e.message||t('error_occurred'), { id:'action-toast' }); }
+  };
   const handleAssignCourier = async (courierId: string, courierName: string) => {
     if (!actionSheetTable) return;
     setCourierPickerOpen(false);
@@ -801,17 +823,17 @@ export default function POSPage() {
     }
   };
 
-  const handleBillRequest = async (tableNumber: number) => {
+  // 2026-09-23 (owner): HESAB was open-only — now a toggle (open AND close).
+  const handleBillRequest = async (tableNumber: number, requested: boolean = true) => {
     try {
       const res = await apiFetch('/api/orders/bill-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_number: tableNumber, bill_requested: true }),
+        body: JSON.stringify({ table_number: tableNumber, bill_requested: requested }),
       });
       if (res.ok) {
-        toast.success(t('bill_called'));
+        if (requested) { toast.success(t('bill_called')); setActionSheetOpen(false); }
         pos.fetchData();
-        setActionSheetOpen(false);
       } else {
         const err = await res.json();
         toast.error(err.error || t('error_occurred'));
@@ -875,6 +897,12 @@ export default function POSPage() {
 
         if (!payRes.ok) {
           const err = await payRes.json();
+          // 2026-09-23: already-paid (overpay guard) -> friendly message, not raw DB text.
+          if (err.error === 'ORDER_ALREADY_PAID' || err.already_paid) {
+            toast.error(t('order_already_paid'), { id: 'action-toast' });
+            pos.fetchData();
+            return;
+          }
           toast.error(err.error || t('payment_failed'), { id: 'action-toast' });
           return;
         }
@@ -1635,7 +1663,7 @@ export default function POSPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: t('payment_failed') }));
-        stillFailed.push({ ...order, error: err.error });
+        stillFailed.push({ ...order, error: (err.error === 'ORDER_ALREADY_PAID' || err.already_paid) ? t('order_already_paid') : err.error });
       } else {
         retried++;
       }
@@ -2284,10 +2312,11 @@ export default function POSPage() {
                          key={`tbl-${table.table_number ?? table.id ?? _tableIdx}`}
                          className="col-span-1"
                        >
-                       <TableCard 
-                         table={table}
-                         onTap={() => handleTableTap(table)}
-                         onAction={() => handleOpenAction(table)}
+                        <TableCard 
+                          table={table}
+                          onTap={() => handleTableTap(table)}
+                          onAction={() => handleOpenAction(table)}
+                          onToggleBill={() => table.bill_requested && handleBillRequest(table.table_number, false)}
                          isSelected={selectedForMerge.includes(table.table_number)}
                          selectionMode={mergeMode}
                          isTransferSource={transferSource === table.table_number}
@@ -2465,17 +2494,9 @@ export default function POSPage() {
                                    <div className="min-w-0 flex items-center gap-1.5">
                                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${lightMode ? 'bg-blue-500' : 'bg-blue-400'}`} />
                                      <p className={`text-xs font-black truncate ${lightMode ? 'text-blue-700' : 'text-blue-300'}`}>
-                                       {(posMode === 'takeaway' ? t('takeaway_short') : t('delivery_short'))} #{editingOrder?.order_number || (String(editingOrder?.id || pos.cart?.order_id || '').slice(-4).toUpperCase())}
-                                       {(editingOrder?.customer_name || pos.cart?.customer_name) ? ` · ${editingOrder?.customer_name || pos.cart?.customer_name}` : ''}
+                                       {(posMode === 'takeaway' ? t('takeaway_short') : t('delivery_short'))} {(String(editingOrder?.order_number || '').replace(/[^0-9]/g, '')) || (String(editingOrder?.id || pos.cart?.order_id || '').slice(-4).toUpperCase())}
                                      </p>
                                    </div>
-                                   <button
-                                     onClick={() => { pos.setCart(null); setEditingOrder(null); pos.setActiveView('floor'); }}
-                                     className={`flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${lightMode ? 'bg-white border border-blue-300 text-blue-600 hover:bg-blue-100' : 'bg-white/10 border border-blue-500/30 text-blue-300 hover:bg-white/15'}`}
-                                   >
-                                     <ArrowLeft size={11} />
-                                     {t('back_to_list') || 'Siyahətə'}
-                                   </button>
                                  </div>
                                </div>
                                )}
@@ -2726,6 +2747,13 @@ export default function POSPage() {
              onOpenCourierPicker={handleOpenCourierPicker}
              onAssignCourier={handleAssignCourier}
              onCloseCourierPicker={() => setCourierPickerOpen(false)}
+             hasCourier={!!actionSheetTable?.courier_id}
+             courierStatusOpen={courierStatusOpen}
+             courierStatusTransitions={courierStatusTransitions}
+             courierStatusLoading={courierStatusLoading}
+             onOpenCourierStatus={handleOpenCourierStatus}
+             onSelectCourierTransition={handleSelectCourierTransition}
+             onCloseCourierStatus={() => setCourierStatusOpen(false)}
            />
 
       <CashDrawerPanel

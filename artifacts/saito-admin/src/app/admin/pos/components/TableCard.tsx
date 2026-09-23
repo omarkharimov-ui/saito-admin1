@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2, Utensils } from 'lucide-react';
+import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2, Utensils, X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -12,6 +12,8 @@ interface TableCardProps {
   table: PosTable;
   onTap: () => void;
   onAction: () => void;
+  /** 2026-09-23 (owner): HESAB chip was open-only; now tappable to close. */
+  onToggleBill?: () => void;
   isSelected?: boolean;
   selectionMode?: boolean;
   isTransferSource?: boolean;
@@ -28,7 +30,7 @@ interface TableCardProps {
   tapPulseNonce?: number;
 }
 
-export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, kitchenStatus, flashNonce, tapPulseNonce }: TableCardProps) {
+export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, kitchenStatus, flashNonce, tapPulseNonce }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
@@ -524,12 +526,19 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                  </motion.div>
                )}
              </AnimatePresence>
-               {table.bill_requested && (
-                 <span className="shrink-0 relative px-2.5 py-1 rounded-lg text-xs font-black border-2 border-rose-500 bg-rose-500/20 text-rose-400 shadow-lg shadow-rose-500/30 flex items-center gap-1">
-                   <Receipt size={10} strokeWidth={2.5} />
-                   {t('bill_requested' as any)}
-                 </span>
-               )}
+              {/* HESAB chip: 2026-09-23 (owner) — was open-only. Now tappable to
+                  CLOSE (bill_requested=false). Sits right of the status chip,
+                  whitespace-nowrap so it never overlaps the status. */}
+              {table.bill_requested && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onToggleBill?.(); }}
+                  title={t('bill_requested_cancel') || 'Hesabı bağla'}
+                  className="shrink-0 h-[22px] flex items-center gap-1 px-2.5 rounded-full bg-rose-500/15 text-rose-500 border border-rose-500/30 text-[10px] font-black uppercase tracking-wide whitespace-nowrap transition-all active:scale-95"
+                >
+                  {t('bill_requested')}
+                  <X size={11} strokeWidth={3} />
+                </button>
+              )}
             </div>
             {/* RIGHT: guest / item / waiter icons
                 (2026-09-22: redundant GÖZLƏNİR + order_count bag removed). */}
@@ -539,18 +548,20 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                    {table.waiter_name}
                  </span>
                )}
-               {displayGuests && (
-                 <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
-                   <Users size={11} />
-                   {displayGuests}
-                 </span>
-               )}
-               {(table.item_count ?? 0) > 0 && (
-                 <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
-                   <ShoppingBag size={11} />
-                   {table.item_count}
-                 </span>
-               )}
+                {/* 2026-09-23 (owner): guest + item icons clearly visible at status
+                    level (were 11px / 50% opacity) */}
+                {displayGuests && (
+                  <span className={`inline-flex items-center gap-1 text-[12px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>
+                    <Users size={14} strokeWidth={2.5} />
+                    {displayGuests}
+                  </span>
+                )}
+                {(table.item_count ?? 0) > 0 && (
+                  <span className={`inline-flex items-center gap-1 text-[12px] font-black uppercase tracking-tight shrink-0 ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>
+                    <ShoppingBag size={14} strokeWidth={2.5} />
+                    {table.item_count}
+                  </span>
+                )}
             </div>
           </div>
        </div>

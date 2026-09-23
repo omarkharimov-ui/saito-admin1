@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
   User, Phone, Smartphone, Building2, Gift, ArrowLeftRight,
-  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag, Star, Shield,
+  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag, Star, Shield, Navigation,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -69,7 +69,7 @@ interface ActionSheetProps {
   onConfirmUnmerge?: () => void;
   onCancelMode?: () => void;
   onConfirmMerge?: () => void;
-  onBillRequest?: (tableNumber: number) => void;
+  onBillRequest?: (tableNumber: number, requested?: boolean) => void;
   onPrintBill?: () => void;
   onClearTable?: () => void;
   onSeatGuests?: () => void;
@@ -90,6 +90,13 @@ interface ActionSheetProps {
   onOpenCourierPicker?: () => void;
   onAssignCourier?: (courierId: string, courierName: string) => void;
   onCloseCourierPicker?: () => void;
+  hasCourier?: boolean;
+  courierStatusOpen?: boolean;
+  courierStatusTransitions?: { to_status: string; description: string | null }[];
+  courierStatusLoading?: boolean;
+  onOpenCourierStatus?: () => void;
+  onSelectCourierTransition?: (to: string) => void;
+  onCloseCourierStatus?: () => void;
   onRefresh?: () => void;
 }
 
@@ -103,6 +110,7 @@ export function ActionSheet({
   paymentView, transferConfirm, transferSource, transferTarget,   onConfirmTransfer, onCancelTransfer, onCheckout,
   posMode = 'dine_in',
   courierPickerOpen, couriers, couriersLoading, onOpenCourierPicker, onAssignCourier, onCloseCourierPicker,
+  hasCourier, courierStatusOpen, courierStatusTransitions, courierStatusLoading, onOpenCourierStatus, onSelectCourierTransition, onCloseCourierStatus,
   onRefresh
 }: ActionSheetProps) {
   const { t } = useLanguage();
@@ -261,7 +269,8 @@ export function ActionSheet({
     { id: 'customer', icon: User, label: customerName ? `${customerName}` : t('select_customer') || t('customer'), visible: true },
     { id: 'discount', icon: Tag, label: t('discount'), visible: isCashierOrAbove && !!activeOrderId && (table?.total_amount ?? 0) > 0 },
     { id: 'print_bill', icon: Printer, label: t('print_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
-    { id: 'bill_request', icon: Receipt, label: t('call_bill'), visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 && !table?.bill_requested },
+    // 2026-09-23 (owner): HESAB is a TOGGLE — open AND close (was open-only).
+    { id: 'bill_request', icon: Receipt, label: table?.bill_requested ? (t('bill_requested_cancel') || 'Hesab bağla') : t('call_bill'), visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isCashierOrAbove && (isOccupied && (table?.total_amount ?? 0) > 0 || isTakeawayOrDelivery) },
     { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? t('cancel') : t('dismiss_table'), visible: isCashierOrAbove && !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) && !(table?.status === 'paid' || table?.status === 'cleaning' || activeOrder?.status === 'paid') },
     // U-2: settled (paid/cleaning) tables cannot be dismissed (they would
@@ -275,6 +284,7 @@ export function ActionSheet({
     // POS keeps dispatch (courier assignment).
     ...(posMode === 'delivery' ? [
       { id: 'assign_courier', icon: UserCheck, label: t('assign_courier' as any) || 'Assign Courier', visible: true },
+      { id: 'courier_status', icon: Navigation, label: t('courier_status' as any) || 'Kuryer statusu', visible: hasCourier === true },
     ] : []),
     ...(posMode === 'dine_in' && table?.status === 'ready' ? [
       { id: 'mark_served', icon: CheckCircle, label: t('mark_served'), visible: true },
@@ -288,7 +298,7 @@ export function ActionSheet({
   const mergedChildren = unmergeMode && table ? (mergedGroupChildren ?? []) : [];
   const showSplitForm = !!localSplit;
   const showCustomerForm = showCustomerSearch;
-  const currentView = confirmAction ? 'confirm-action' : cashTenderedView ? 'cash-tendered' : cardConfirmView ? 'card-confirm' : showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : paymentView ? 'payment' : mergeMode ? 'merge' : (transferMode || transferConfirm) ? 'transfer' : unmergeMode ? 'split' : courierPickerOpen ? 'courier-select' : open ? 'actions' : 'none';
+  const currentView = confirmAction ? 'confirm-action' : cashTenderedView ? 'cash-tendered' : cardConfirmView ? 'card-confirm' : showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : paymentView ? 'payment' : mergeMode ? 'merge' : (transferMode || transferConfirm) ? 'transfer' : unmergeMode ? 'split' : courierStatusOpen ? 'courier-status' : courierPickerOpen ? 'courier-select' : open ? 'actions' : 'none';
   const groupName = table?.parent_table_number || table?.table_number;
 
   return (
@@ -337,7 +347,7 @@ export function ActionSheet({
                   <motion.div key="ui-actions" {...morphView} transition={fastExit}>
                     <div className="text-center mb-6">
                          <p className="text-2xl font-black tracking-tighter mb-1 leading-none">
-                          {isMerged ? `${t('group')}${groupNumber || groupName}` : isTakeawayOrDelivery ? ((table as any)?.order_number ? `${posMode === 'delivery' ? t('delivery_short') : t('takeaway_short')} ${(table as any).order_number}` : t('order')) : `${t('table_label')} ${table?.table_number}`}
+                          {isMerged ? `${t('group')}${groupNumber || groupName}` : isTakeawayOrDelivery ? ((table as any)?.order_number ? `${posMode === 'delivery' ? t('delivery_short') : t('takeaway_short')} ${String((table as any).order_number).replace(/[^0-9]/g, '') || (table as any).order_number}` : t('order')) : `${t('table_label')} ${table?.table_number}`}
                         </p>
                         {/* 2026-09-22: the old chip had a broken `||` chain that
                             ALWAYS rendered "TƏSDİQLƏNDİ". Per owner: show the
@@ -480,7 +490,8 @@ export function ActionSheet({
                                      release_table: () => setConfirmAction('release_table'),
                                      mark_served: onMarkServed,
                                      assign_courier: onOpenCourierPicker,
-                                     bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
+                                     courier_status: onOpenCourierStatus,
+                                     bill_request: () => table?.table_number && onBillRequest?.(table.table_number, !table?.bill_requested),
                                      print_bill: onPrintBill,
                                      clear: onClearTable,
                                    }[action.id as string];
@@ -502,18 +513,19 @@ export function ActionSheet({
                        </div>
 
                        {/* Secondary actions section */}
-                        {visibleActions.some(a => ['bill_request', 'print_bill', 'cancel_table', 'assign_courier', 'mark_served', 'discount'].includes(a.id)) && (
+                        {visibleActions.some(a => ['bill_request', 'print_bill', 'cancel_table', 'assign_courier', 'courier_status', 'mark_served', 'discount'].includes(a.id)) && (
                           <div>
                             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
                             <div className="grid grid-cols-3 gap-3">
-                              {visibleActions.filter(a => ['bill_request', 'print_bill', 'cancel_table', 'assign_courier', 'mark_served', 'discount'].includes(a.id)).map((action) => (
+                              {visibleActions.filter(a => ['bill_request', 'print_bill', 'cancel_table', 'assign_courier', 'courier_status', 'mark_served', 'discount'].includes(a.id)).map((action) => (
                                <button key={action.id} onClick={() => {
                                   const fn = {
                                     add_order: onAddOrder,
                                     close_bill: onOpenPayment,
                                     cancel_table: () => setConfirmAction('cancel_table'),
                                     assign_courier: onOpenCourierPicker,
-                                    bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
+                                    courier_status: onOpenCourierStatus,
+                                    bill_request: () => table?.table_number && onBillRequest?.(table.table_number, !table?.bill_requested),
                                     print_bill: onPrintBill,
                                     clear: onClearTable,
                                     mark_served: onMarkServed,
@@ -1168,6 +1180,34 @@ export function ActionSheet({
                    </motion.div>
                    )}
 
+                  {currentView === 'courier-status' && (
+                    <motion.div key="ui-courier-status" {...morphView} className="flex flex-col gap-4">
+                      <div className="text-center">
+                        <p className={`text-2xl font-black tracking-tighter mb-1 ${lightMode ? 'text-black' : 'text-white'}`}>
+                          {t('courier_status' as any) || 'Kuryer statusu'}
+                        </p>
+                        <p className={`text-[10px] font-bold uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                          ((table as any)?.courier_name || 'Kuryer')
+                        </p>
+                      </div>
+                      {courierStatusLoading ? (
+                        <div className="flex justify-center py-6"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
+                      ) : (courierStatusTransitions || []).length > 0 ? (
+                        <div className="space-y-2">
+                          {(courierStatusTransitions || []).map((tr) => (
+                            <button key={tr.to_status} onClick={() => onSelectCourierTransition?.(tr.to_status)}
+                              className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border font-black text-sm uppercase tracking-wider transition-all active:scale-[0.98] ${lightMode ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-800' : 'bg-white text-black border-white hover:bg-white/90'}`}>
+                              <span>{tr.to_status === 'picked_up' ? (t('bds_picked_up' as any)||'Picked up') : tr.to_status === 'in_transit' ? (t('bds_in_transit' as any)||'In transit') : tr.to_status === 'delivered' ? (t('bds_delivered' as any)||'Delivered') : tr.to_status}</span>
+                              <ChevronRight size={18} strokeWidth={3} />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className={`text-center text-xs py-4 ${lightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{t('bds_no_action' as any) || '—'}</p>
+                      )}
+                      <BackButton onClick={onCloseCourierStatus} className="mt-2">{t('back')}</BackButton>
+                    </motion.div>
+                  )}
                   {currentView === 'courier-select' && (
                     <motion.div key="ui-courier-select" {...morphView} className="flex flex-col gap-4">
                       <div className="text-center">

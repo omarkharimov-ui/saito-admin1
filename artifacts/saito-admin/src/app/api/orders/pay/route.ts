@@ -60,6 +60,22 @@ export async function POST(request: NextRequest) {
     }
 
     const requestedTotal = Number(paid_amount) || 0;
+
+    // 2026-09-23 (owner, production-readiness): a fully-paid order (paid_amount
+    // already >= total) must never be re-paid. The DB overpay guard used to leak
+    // a raw "PAYMENT_EXCEEDS_REMAINING: payment 13 > remaining 0.00" toast. We
+    // catch it here with a clean, mappable code BEFORE the RPC.
+    try {
+      const { data: payCheck } = await supabase
+        .from('orders')
+        .select('paid_amount,total_amount,status')
+        .eq('id', order_id)
+        .maybeSingle();
+      if (payCheck && requestedTotal > 0 && Number(payCheck.paid_amount || 0) >= Number(payCheck.total_amount || 0) && Number(payCheck.total_amount || 0) > 0) {
+        return NextResponse.json({ error: 'ORDER_ALREADY_PAID', already_paid: true }, { status: 409 });
+      }
+    } catch (_e) { /* non-fatal: fall through to RPC guards */ }
+
     let cashPortion = Number(cash_amount) || 0;
     let cardPortion = Number(card_amount) || 0;
 
@@ -156,8 +172,12 @@ export async function POST(request: NextRequest) {
       if (error.message === 'ORDER_NOT_FOUND') {
         return NextResponse.json({ error: 'Order not found' }, { status: 404 });
       }
-      if (error.message === 'ORDER_ALREADY_PAID') {
-        return NextResponse.json({ error: 'Order is already paid' }, { status: 409 });
+      // 2026-09-23: overpay guards map to the SAME clean code (race fallback) so
+      // the UI never shows a raw DB message.
+      if (error.message === 'ORDER_ALREADY_PAID'
+        || error.message.startsWith('PAYMENT_EXCEEDS_REMAINING')
+        || error.message.startsWith('PARTIAL_PAID_CANNOT_ADD')) {
+        return NextResponse.json({ error: 'ORDER_ALREADY_PAID', already_paid: true }, { status: 409 });
       }
       // P-4 C-3 (ratified D-3): same key bound to a different order/amount → 409.
       if (error.message.startsWith('IDEMPOTENCY_CONFLICT')) {

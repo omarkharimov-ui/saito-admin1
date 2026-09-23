@@ -86,9 +86,9 @@ Bu fayl live DB (Supabase, service-role) + kod qarşılaştırması əsasında y
 1. ✅ History status filtrləri (refunded/cancelled/hamısı) + "load more" pagination
 2. ✅ TZ düzgün date filter (local day bounds, `tz_offset_min`)
 3. ✅ History detail: customer + delivery info + campaign adı + delivery fee + servis
-4. ⬜ DB: payment axını `cash_drawer_log` sətirlərinə `created_by` yazsın (trigger) — hələ
-5. ⬜ DB: card ödənişlərini `cash_drawer_log` (type=card_payment) yazan trigger — hələ
-6. ⬜ Timeline cap 20 → 100 — hələ
+4. ✅ DB: payment sətirlərinə `created_by` backfill trigger (`trg_cash_log_backfill_staff`, sessiyanın açanından) — dry-run PASS
+5. ✅ DB: card ödənişləri `cash_drawer_log`-a düşür (`trg_payment_card_to_drawer`, type=card_payment, staff=performed_by) — dry-run PASS (test session + fake card payment, rollback)
+6. ✅ Timeline cap 20 → 100
 7. ✅ (bonus, Toast/Square parity): bill-counting, No Sale, Cash Drop, drawer lock,
    deposits, paused drawer ("Sonra say"), 4AM auto-close, /admin/cash-reports
    (Drawer History + Cash Activity + Close-Out-Day checklist) — migration

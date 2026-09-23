@@ -89,6 +89,10 @@ export function usePos() {
   // ("another terminal"). This synchronous ref closes that window.
   const placingRef = useRef(false);
   const operationLocks = useRef<Set<string>>(new Set());
+  // 2026-09-24 (owner: "tam məlumat ver — hansı terminaldı, self-ordermı,
+  // KDS/BDS-mi"): the full second-writer diagnostics returned by the 409,
+  // shown in a dialog (not just a toast).
+  const [conflictInfo, setConflictInfo] = useState<any>(null);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
@@ -1375,7 +1379,13 @@ export function usePos() {
       } else {
         const err = await res.json().catch(() => ({}));
         if (res.status === 409) {
-          toast.error(t('order_changed_by_other_terminal'), { id: 'action-toast' });
+          if (err?.conflict) {
+            // Full second-writer diagnostics available → show the dialog
+            // (which channel wrote: KDS/BDSD, QR self-order, 2nd tab, other POS).
+            setConflictInfo(err.conflict);
+          } else {
+            toast.error(t('order_changed_by_other_terminal'), { id: 'action-toast' });
+          }
           recoverFromConflict();
         } else if (res.status === 401) {
           // Staff session died mid-action (was previously masked by the
@@ -1858,6 +1868,7 @@ export function usePos() {
       updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
       reservationMode, reservationId, reservationPreOrderItems, reservationInfo,
       enterReservationMode, exitReservationMode, guestArrived, savePreOrder, terminalId,
-      expandedProductId, setExpandedProductId
+      expandedProductId, setExpandedProductId,
+      conflictInfo, setConflictInfo
     };
 }

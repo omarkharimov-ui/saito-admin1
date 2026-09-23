@@ -2815,11 +2815,84 @@ export default function POSPage() {
              onCloseCourierStatus={() => setCourierStatusOpen(false)}
            />
 
-       <CashDrawerPanel
-         open={cashDrawerOpen}
-         onClose={() => setCashDrawerOpen(false)}
-         onClockIn={handleClockIn}
-       />
+      <CashDrawerPanel
+        open={cashDrawerOpen}
+        onClose={() => setCashDrawerOpen(false)}
+        onClockIn={handleClockIn}
+      />
+
+      {/* 2026-09-24 (owner: "tam məlumat ver — hansı terminaldı, self-ordermı,
+          KDS/BDS-mi"): full second-writer conflict dialog. Shows WHICH channel
+          modified the order, the terminal id, when, and the last operation. */}
+      {pos.conflictInfo && (() => {
+        const ci: any = pos.conflictInfo;
+        const channelMeta = (() => {
+          switch (ci.channel) {
+            case 'kds': return { label: t('conflict_channel_kds'), cls: 'bg-amber-500/15 text-amber-500 border-amber-500/30' };
+            case 'system_or_qr': return { label: t('conflict_channel_qr'), cls: 'bg-blue-500/15 text-blue-500 border-blue-500/30' };
+            case 'pos_other_terminal': return { label: t('conflict_channel_other_pos'), cls: 'bg-red-500/15 text-red-500 border-red-500/30' };
+            case 'pos_same_terminal': return { label: t('conflict_channel_own_tab'), cls: 'bg-violet-500/15 text-violet-500 border-violet-500/30' };
+            case 'other_location': return { label: t('conflict_channel_other_location'), cls: 'bg-orange-500/15 text-orange-400 border-orange-500/30' };
+            default: return { label: t('conflict_no_channel'), cls: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30' };
+          }
+        })();
+        const bodyTxt = ci.channel === 'other_location' ? t('conflict_other_location_body') : t('conflict_body');
+        const whenTxt = ci.last_writer_at ? new Date(ci.last_writer_at).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '—';
+        const lastOpTxt = ci.last_op ? `${ci.last_op.action}${ci.last_op.employee ? ' · ' + ci.last_op.employee : ''}` : '—';
+        const Row = ({ k, v, mono }: { k: string; v: any; mono?: boolean }) => (
+          <div className="flex items-start justify-between gap-3 py-1.5">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--theme-text-muted)] shrink-0">{k}</span>
+            <span className={`text-xs font-bold text-right break-all ${mono ? 'tabular-nums' : ''}`}>{v}</span>
+          </div>
+        );
+        return (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[140] flex items-center justify-center p-4"
+          >
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => pos.setConflictInfo(null)} />
+            <motion.div
+              initial={{ scale: 0.94, y: 12 }} animate={{ scale: 1, y: 0 }}
+              className="relative w-full max-w-md rounded-3xl border border-white/10 bg-zinc-900 p-6 shadow-2xl"
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-11 h-11 rounded-2xl bg-red-500/10 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={22} className="text-red-400" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base font-black uppercase tracking-tight">{t('conflict_title')}</h3>
+                  <div className={`inline-flex mt-1.5 items-center px-2.5 py-1 rounded-lg border text-[11px] font-black uppercase tracking-wide ${channelMeta.cls}`}>
+                    {channelMeta.label}
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-white/55 mb-4">{bodyTxt}</p>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 divide-y divide-white/5 mb-5">
+                <Row k={t('table')} v={ci.table_number ?? '—'} />
+                <Row k={t('conflict_wrote')} v={ci.last_writer_terminal || t('conflict_no_channel')} mono />
+                <Row k={t('conflict_when')} v={whenTxt} mono />
+                <Row k={t('conflict_last_op')} v={lastOpTxt} />
+                <Row k={t('conflict_terminal')} v={ci.own_terminal || '—'} mono />
+                <Row k={t('conflict_version')} v={ci.current_version ?? '—'} mono />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => pos.setConflictInfo(null)}
+                  className="flex-1 py-3 rounded-2xl border border-white/10 text-white/50 text-xs font-black uppercase tracking-wider hover:bg-white/5"
+                >
+                  {t('close')}
+                </button>
+                <button
+                  onClick={() => { pos.setConflictInfo(null); pos.fetchData?.().catch?.(() => {}); }}
+                  className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-wider hover:bg-emerald-600 transition-all active:scale-95 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                >
+                  <RefreshCw size={14} /> {t('conflict_refresh')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        );
+      })()}
 
       <OrderHistory
         open={orderHistoryOpen}

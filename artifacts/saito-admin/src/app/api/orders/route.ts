@@ -18,32 +18,81 @@ function svc() {
 }
 
 // 2026-09-24 (owner: "bir terminaldan basiram, bezi masalarda 409 düşür,
-// valla"): when a version conflict fires, re-read the order NOW and log the
-// exact delta + who/what wrote it last. Read-only, error-path only. This turns
-// the mysterious "başqa terminaldan dəyişdirildi" into a diagnosable line —
-// the next occurrence tells us the table, expected vs actual version, and the
-// last writer's terminal_id (the second writer we cannot otherwise see).
-async function diagnoseConflict(ctx: string, orderId: string | null, expectedVersion: number | null) {
-  if (!orderId) { console.error(`[orders:conflict:${ctx}] no order id to inspect`); return; }
+// valla" + "orada tam məlumat versin — hansı terminaldı, self-ordermı, KDS/BDS-mi"):
+// when a version conflict fires, re-read the order + its recent operation_logs,
+// CLASSIFY the second writer (KDS/BDSD vs QR self-order vs another POS
+// terminal vs own 2nd tab), and return a structured object so the client can
+// show it in a dialog. Read-only, error-path only.
+const KDS_ACTIONS = new Set([
+  'accept_kitchen_ticket', 'mark_ready', 'start_preparing', 'mark_served',
+  'send_to_kitchen', 'void_order_item', 'comp_order_item', 'waste_order_item',
+]);
+
+async function buildConflictInfo(
+  ctx: string,
+  hints: { orderId?: string | null; tableNumber?: number | string | null; ownTerminal?: string | null },
+): Promise<Record<string, unknown> | null> {
+  const s = svc();
+  let order = null as any;
   try {
-    const s = svc();
-    const r = await fetch(
-      `${s.url}/rest/v1/orders?id=eq.${encodeURIComponent(orderId)}&select=id,table_number,status,kitchen_status,version,updated_at,updated_by_terminal_id,created_at`,
-      { headers: s.headers }
-    );
+    let q = '';
+    if (hints.orderId) q = `id=eq.${encodeURIComponent(hints.orderId)}`;
+    else if (hints.tableNumber != null) {
+      const locRows = await (await fetch(
+        `${s.url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(hints.tableNumber))}&status=in.("confirmed","served","partially_ready","on_hold","preparing","ready")&order=created_at.desc&limit=1&select=id`,
+        { headers: s.headers },
+      )).json();
+      const oid = Array.isArray(locRows) ? locRows[0]?.id : null;
+      if (!oid) { console.error(`[orders:conflict:${ctx}] no active order for table=${hints.tableNumber}`); return null; }
+      q = `id=eq.${encodeURIComponent(oid)}`;
+    } else { console.error(`[orders:conflict:${ctx}] no order/table hint`); return null; }
+
+    const r = await fetch(`${s.url}/rest/v1/orders?${q}&select=id,table_number,status,kitchen_status,version,updated_at,updated_by_terminal_id,created_at`, { headers: s.headers });
     const rows = r.ok ? await r.json() : [];
-    const cur = Array.isArray(rows) ? rows[0] : null;
-    console.error(
-      `[orders:conflict:${ctx}] order=${orderId} table=${cur?.table_number ?? '?'} ` +
-      `expected_version=${expectedVersion} actual_version=${cur?.version ?? '?'} ` +
-      `status=${cur?.status ?? '?'} kitchen=${cur?.kitchen_status ?? '?'} ` +
-      `last_writer_terminal=${cur?.updated_by_terminal_id ?? '(null)'} updated_at=${cur?.updated_at ?? '?'} ` +
-      `→ a DIFFERENT request bumped this order between read and write. ` +
-      `Check: KDS/kitchen, QR self-order, or a 2nd POS tab on this table.`
-    );
+    order = Array.isArray(rows) ? rows[0] : null;
+    if (!order) { console.error(`[orders:conflict:${ctx}] order not found for ${q}`); return null; }
+
+    // recent operations on this order → classify the channel.
+    // NOTE: operation_logs column is `device_id` (not terminal_id).
+    let ops: any[] = [];
+    try {
+      const or = await fetch(`${s.url}/rest/v1/operation_logs?order_id=eq.${encodeURIComponent(order.id)}&order=created_at.desc&limit=5&select=action,employee_name,device_id,created_at`, { headers: s.headers });
+      if (or.ok) ops = await or.json();
+    } catch {}
+    const lastOp = ops[0] || null;
+
+    const lastWriter: string | null = order.updated_by_terminal_id || null;
+    const own = hints.ownTerminal || null;
+    let channel: 'kds' | 'pos_same_terminal' | 'pos_other_terminal' | 'system_or_qr';
+    if (lastOp && KDS_ACTIONS.has(lastOp.action)) channel = 'kds';
+    else if (own && (lastWriter === own || lastOp?.device_id === own)) channel = 'pos_same_terminal';
+    else if (lastWriter && String(lastWriter).startsWith('term_')) channel = 'pos_other_terminal';
+    else channel = 'system_or_qr';
+
+    const info = {
+      order_id: order.id,
+      table_number: order.table_number,
+      current_version: order.version,
+      order_status: order.status,
+      kitchen_status: order.kitchen_status,
+      last_writer_terminal: lastWriter,
+      last_writer_at: order.updated_at,
+      own_terminal: own,
+      channel,
+      last_op: lastOp ? { action: lastOp.action, employee: lastOp.employee_name, terminal: lastOp.device_id, at: lastOp.created_at } : null,
+      recent_ops: ops.map((o: any) => ({ action: o.action, terminal: o.device_id, at: o.created_at })),
+    };
+    console.error(`[orders:conflict:${ctx}]`, JSON.stringify(info));
+    return info;
   } catch (e: any) {
     console.error(`[orders:conflict:${ctx}] diagnose failed: ${e?.message}`);
+    return null;
   }
+}
+
+// thin wrapper kept for the inline throw-sites (still logs)
+async function diagnoseConflict(ctx: string, orderId: string | null, ownTerminal?: string | null) {
+  await buildConflictInfo(ctx, { orderId, ownTerminal });
 }
 
 export async function GET(request: Request) {
@@ -201,6 +250,38 @@ export async function POST(request: Request) {
     }
     const sessLoc = lctx.locationId;
     const sessOrg = lctx.organizationId;
+
+    // 2026-09-24 (owner: "bezi masalarda 409, valla"): CROSS-LOCATION GUARD.
+    // The DB enforces ONE active order per table_number GLOBALLY
+    // (idx_orders_active_table has no location), while table numbers are
+    // per-location (table_floors unique (location_id, table_number)). If this
+    // table_number already has an active order in ANOTHER location, a CREATE
+    // here 409s on the global index and was misreported as "başqa terminal".
+    // Detect it up front (before the transaction) and return a precise,
+    // actionable error with the conflict dialog metadata.
+    const isDineInCreate =
+      (!action || action === 'create') &&
+      body.table_number != null && !body.customer_id &&
+      (!body.order_type || body.order_type === 'dine_in') &&
+      (!body.order_source || body.order_source === 'dine_in');
+    if (isDineInCreate) {
+      const probe = await fetch(
+        `${svc().url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(body.table_number))}&status=${NOT_FINAL}&select=id,location_id,status,version&limit=3`,
+        { headers: svc().headers },
+      );
+      const probeRows: any[] = probe.ok ? await probe.json() : [];
+      const other = Array.isArray(probeRows) ? probeRows.find((o) => o.location_id && o.location_id !== sessLoc) : null;
+      if (other) {
+        const conflict = (await buildConflictInfo('cross-location', { orderId: other.id, ownTerminal: body.terminal_id || null })) || ({} as Record<string, unknown>);
+        conflict.channel = 'other_location';
+        conflict.existing_location_id = other.location_id;
+        conflict.session_location_id = sessLoc;
+        return NextResponse.json(
+          { error: 'TABLE_ACTIVE_ORDER_OTHER_LOCATION', message: 'Table has an active order in another location', conflict },
+          { status: 409 },
+        );
+      }
+    }
 
     const result = await runOrderAction(`Order${action || 'Create'}`, async () => {
       if (action === 'update') {
@@ -515,15 +596,23 @@ export async function POST(request: Request) {
       // and delivery always create a fresh order)
       // G4: the active-order lookup is scoped to the session's active location,
       // so a colliding table_number in another location can never be appended to.
-       let existingOrder = null;
-       if (table_number) {
-         const existingRes = await fetch(
-           `${svc().url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(table_number))}&location_id=eq.${encodeURIComponent(sessLoc)}&status=${NOT_FINAL}&order=created_at.asc&limit=1&select=id,total_amount,version,apply_vat,delivery_fee,campaign_id`,
-           { headers: svc().headers }
-         );
-         const existingOrders = existingRes.ok ? await existingRes.json() : [];
-         existingOrder = existingOrders?.[0];
-       }
+        let existingOrder = null;
+        if (table_number) {
+          // 2026-09-24 (owner: "bezi masalarda 409, valla"): the lookup is now
+          // GLOBAL (no location filter) on purpose. The DB enforces ONE active
+          // order per table_number GLOBALLY (idx_orders_active_table has no
+          // location), while table_floors is per-location. A location-scoped
+          // lookup used to MISS a stale active order that lives in another
+          // location → CREATE → 409 on the global index → misleading "başqa
+          // terminal" toast. Looking globally lets us detect it and give a
+          // precise, actionable error instead (see the cross-location guard).
+          const existingRes = await fetch(
+            `${svc().url}/rest/v1/orders?table_number=eq.${encodeURIComponent(String(table_number))}&status=${NOT_FINAL}&order=created_at.asc&limit=1&select=id,total_amount,version,apply_vat,delivery_fee,campaign_id,location_id`,
+            { headers: svc().headers }
+          );
+          const existingOrders = existingRes.ok ? await existingRes.json() : [];
+          existingOrder = existingOrders?.[0];
+        }
 
        // 2026-09-23 (owner): the delivery fee must actually be CHARGED.
        // Before this, delivery_fee was stored as display-only metadata —
@@ -591,6 +680,19 @@ export async function POST(request: Request) {
        let autoApplyVat = false;
 
       if (existingOrder) {
+        // Defense-in-depth (2026-09-24): the lookup above is now GLOBAL. The
+        // cross-location pre-check (before runOrderAction) rejects the common
+        // case; this inner guard covers the rare race where a cross-location
+        // active order appeared between the two checks. NEVER append to a
+        // different location's order (G4) — surface it as a conflict instead.
+        const exLoc: string | null = (existingOrder as any).location_id || null;
+        if (exLoc && sessLoc && exLoc !== sessLoc) {
+          const err = new Error('TABLE_ACTIVE_ORDER_OTHER_LOCATION') as any;
+          err.status = 409;
+          err.conflict = { order_id: existingOrder.id, table_number, channel: 'other_location', existing_location_id: exLoc, session_location_id: sessLoc, own_terminal: terminal_id || null };
+          throw err;
+        }
+
         // Append to existing order.
         // The previously stored total_amount already reflects all earlier
         // discounts (it is the sum of final item unit_prices). We add only the
@@ -646,12 +748,12 @@ export async function POST(request: Request) {
           }),
         });
         if (!patchRes.ok) {
-          await diagnoseConflict('append-http', existingOrder.id, existingOrder.version || 0);
+          await diagnoseConflict('append-http', existingOrder.id, terminal_id || null);
           throw new Error('CONCURRENCY_CONFLICT');
         }
         const patched = await patchRes.json();
         if (!patched || (Array.isArray(patched) && patched.length === 0)) {
-          await diagnoseConflict('append-version', existingOrder.id, existingOrder.version || 0);
+          await diagnoseConflict('append-version', existingOrder.id, terminal_id || null);
           throw new Error('CONCURRENCY_CONFLICT');
         }
 
@@ -958,7 +1060,18 @@ export async function POST(request: Request) {
     });
 
     if (!result.success && result.error === 'CONCURRENCY_CONFLICT') {
-      return NextResponse.json({ error: 'Order modified by another user' }, { status: 409 });
+      // 2026-09-24 (owner: "tam məlumat ver — hansı terminaldı, self-ordermı,
+      // KDS/BDS-mi"): attach the full second-writer diagnostics so the client
+      // can show them in a dialog instead of a bare "başqa terminal" toast.
+      const conflict = await buildConflictInfo('final', {
+        orderId: id ?? null,
+        tableNumber: (body as any).table_number ?? null,
+        ownTerminal: (body as any).terminal_id ?? null,
+      });
+      return NextResponse.json(
+        { error: 'CONCURRENCY_CONFLICT', message: 'Order modified by another user', conflict: conflict || null },
+        { status: 409 },
+      );
     }
 
     // G5/G4: runOrderAction swallows thrown business errors into {success:false}.
@@ -972,6 +1085,7 @@ export async function POST(request: Request) {
       else if (/Order not found in your active location/i.test(msg)) status = 404;
       else if (/ORDER_NOT_FOUND/.test(msg)) status = 404;
       else if (/INVALID_TRANSITION/.test(msg)) status = 422;
+      else if (/TABLE_ACTIVE_ORDER_OTHER_LOCATION/.test(msg)) status = 409;
       return NextResponse.json({ success: false, error: msg }, { status });
     }
 

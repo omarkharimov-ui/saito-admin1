@@ -1787,7 +1787,7 @@ export const az = {
   // Missing keys
   no_table_selected: 'Masa seçilməyib',
   add_items_hint: 'Məhsul əlavə edin',
-  hint_return_item: 'Servis edilib — qaytarmaq üçün sətirə toxun',
+  hint_return_item: 'Servis edilib — qaytarmaq üçün details panelini açın',
   hint_void_item: 'Mətbəxə göndərilib — "Ləğv et" istifadə edin',
   hint_minus_blocked: 'Bu məhsulu azaltmaq olmaz — "Ləğv et" istifadə edin',
   hint_void_not_ready: 'Servis olunub — ləğv etmək olmaz, "Geri qaytar" istifadə edin',

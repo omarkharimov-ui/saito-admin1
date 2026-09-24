@@ -2743,12 +2743,28 @@ export default function POSPage() {
                                   // Exact line reference (stable target for the
                                   // replace — survives config changes in the modal).
                                   lineIndex: typeof lineIndex === 'number' && byIndex ? lineIndex : items.indexOf(match),
-                                  // Course + hold must survive a modal re-open:
-                                  course: match.course ?? null,
-                                  is_hold: !!(match.is_hold || match.hold_until),
-                                  // Allergen flags must survive a modal re-open too.
-                                  allergens: Array.isArray(match.allergens) ? match.allergens : [],
-                                };
+                                   // Course + hold must survive a modal re-open:
+                                   course: match.course ?? null,
+                                   is_hold: !!(match.is_hold || match.hold_until),
+                                   // Allergen flags must survive a modal re-open too.
+                                   allergens: Array.isArray(match.allergens) ? match.allergens : [],
+                                   // 2026-09-24 (owner, FINAL): return lives in
+                                   // the details panel — a right-side "Geri
+                                   // qaytar" button that MORPHS the panel into
+                                   // the return view. Only served lines carry
+                                   // the context.
+                                    returnCtx: (match?.sentQuantity ?? 0) > 0 && ['ready', 'completed', 'served'].includes(match?.kitchen_status || 'pending')
+                                      ? {
+                                          order_item_id: match.id,
+                                          product_name: match.product_name,
+                                          // Only the SERVED portion is returnable —
+                                          // cap at sentQuantity (a line can carry
+                                          // extra unsent draft quantity on top).
+                                          quantity: Math.min(match.quantity || 1, match.sentQuantity || 1),
+                                          unit_price: Number(match.unit_price) || 0,
+                                        }
+                                      : undefined,
+                                 };
                               gridRef.current?.toggleEditor(productId, preset);
                             }}
                          />

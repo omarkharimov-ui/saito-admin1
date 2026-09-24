@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -13,7 +13,6 @@ import { PinGuard } from './PinGuard';
 import type { SendOrderButtonStatus } from './SendOrderButton';
 import { NumberRoll } from './NumberRoll';
 import { RollingNumber } from './RollingNumber';
-import { ReturnItemModal } from './ReturnItemModal';
 import { Numpad } from './Numpad';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useVirtualKeyboard } from './VirtualKeyboard';
@@ -171,8 +170,8 @@ export function CartPanel({
   const [voidMode, setVoidMode] = useState(false);
   const [voidSelection, setVoidSelection] = useState<Record<string, number>>({});
   const [voidLoading, setVoidLoading] = useState(false);
-  const [returnModalOpen, setReturnModalOpen] = useState(false);
-  const [returnModalItem, setReturnModalItem] = useState<any>(null);
+  // 2026-09-24 (owner, FINAL): the standalone ReturnItemModal state is GONE —
+  // return now lives inside the details panel (ProductGrid morph).
   const [guestEditing, setGuestEditing] = useState(false);
   const [localGuestCount, setLocalGuestCount] = useState(cart?.guest_count ?? 1);
   const guestEditRef = useRef<HTMLDivElement>(null);
@@ -418,12 +417,12 @@ export function CartPanel({
   }, [vkOpen, isNoteOpen]);
 
   useEffect(() => {
-    if (returnModalOpen || numpadOpen) {
+    if (numpadOpen) {
       closeVk();
       noteInputRef.current?.blur();
     }
-    if (returnModalOpen || numpadOpen) setVoidMode(false);
-  }, [returnModalOpen, numpadOpen, closeVk]);
+    if (numpadOpen) setVoidMode(false);
+  }, [numpadOpen, closeVk]);
 
   const voidableItems = useMemo(() => {
     if (!cart) return [];
@@ -1012,22 +1011,12 @@ export function CartPanel({
             const lineKey = item.id ?? `${item.product_id}|${item.variant_id ?? ''}|${(item.modifiers ?? []).map(m => `${m.id}:${m.name}`).join(',')}|${item.special_notes ?? ''}`;
             const ks = (item as any).kitchen_status || 'pending';
             const isVoidableItem = voidMode && (item.sentQuantity ?? 0) > 0 && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
-            // 2026-09-24 (owner, FINAL): return is not a button — a TAP ON A
-            // SERVED ROW opens the return modal (PIN + stock/waste choice),
-            // in any mode. The row's ✓ badge is the affordance. Void pill,
-            // Təmizlə and void mode are untouched (08-26 placement).
+            // 2026-09-24 (owner, FINAL): the ✓ badge marks the served state;
+            // the RETURN action itself lives in the details panel (right-side
+            // "Geri qaytar" button → panel morphs into the return view).
+            // Void pill / Təmizlə / void mode: untouched (08-26 placement).
             const isReturnableRow = (item.sentQuantity ?? 0) > 0 && ['ready', 'completed', 'served'].includes(ks);
             const maxVoidQty = item.sentQuantity || item.quantity;
-            const openReturnFor = () => {
-              setReturnModalItem({
-                order_item_id: item.id,
-                product_name: item.product_name,
-                quantity: item.quantity,
-                unit_price: item.unit_price,
-                kitchen_status: ks,
-              });
-              setReturnModalOpen(true);
-            };
 
             return (
               <motion.div
@@ -1039,14 +1028,15 @@ export function CartPanel({
                 transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                 data-cart-item
                 onClick={() => {
-                  // 2026-09-24 (owner, FINAL): served row tap = return, in
-                  // any mode (the row itself is the trigger — no button).
-                  if (isReturnableRow) {
-                    openReturnFor();
-                    return;
-                  }
-                  if (voidMode && !isVoidableItem && (item.sentQuantity ?? 0) > 0) {
-                    toast(t('hint_void_not_sent') || 'Mətbəxə göndərilməyib — "Ləğv et" ilə ləğv edin', { id: 'pos-hint', duration: 3500 });
+                  // 2026-09-24 (owner, FINAL): the row is PASSIVE again —
+                  // return lives in the details panel (right-side "Geri
+                  // qaytar" button → the panel morphs into the return view).
+                  if (voidMode && !isVoidableItem) {
+                    if (isReturnableRow) {
+                      toast(t('hint_void_not_ready') || 'Servis olunub — ləğv etmək olmaz; details panelində "Geri qaytar" var', { id: 'pos-hint', duration: 3500 });
+                    } else if ((item.sentQuantity ?? 0) > 0) {
+                      toast(t('hint_void_not_sent') || 'Mətbəxə göndərilməyib — "Ləğv et" ilə ləğv edin', { id: 'pos-hint', duration: 3500 });
+                    }
                   }
                 }}
                   className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 transition-[border-color,box-shadow] duration-300 ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0
@@ -1161,7 +1151,7 @@ export function CartPanel({
                              const draftQty = (item.quantity ?? 0) - (item.sentQuantity ?? 0);
                               if (ks && draftQty <= 0) {
                                 if (['ready', 'completed', 'served'].includes(ks)) {
-                                  toast(t('hint_return_item') || 'Servis edilib — qaytarmaq üçün sətirə toxun', { id: 'pos-hint', duration: 3500 });
+                                  toast(t('hint_return_item') || 'Servis edilib — qaytarmaq üçün details panelini açın', { id: 'pos-hint', duration: 3500 });
                                 } else if (['sent', 'preparing', 'pending', 'accepted', 'cooking'].includes(ks)) {
                                   toast(t('hint_void_item') || 'Mətbəxə göndərilib — "Ləğv et" istifadə edin', { id: 'pos-hint', duration: 3500 });
                                 } else {
@@ -1199,9 +1189,9 @@ export function CartPanel({
                        <SlidersHorizontal size={16} />
                      </button>
                       {/* 2026-09-24 (owner, FINAL): no per-row button at all —
-                          a served row shows a green ✓ SƏRV badge and TAP ON
-                          THE ROW opens the return modal. Void (Ləğv pill +
-                          mode) and Təmizlə keep their 08-26 placement. */}
+                          return lives in the details panel (served lines).
+                          Void (Ləğv pill + mode) and Təmizlə keep their
+                          08-26 placement, untouched. */}
                      </div>
                     )}
                 </div>
@@ -1476,14 +1466,8 @@ export function CartPanel({
 
     </motion.div>
 
-    {/* Return Item Modal */}
-    <ReturnItemModal
-      open={returnModalOpen}
-      onClose={() => { setReturnModalOpen(false); setReturnModalItem(null); }}
-      orderId={(cart as any).order_id || ''}
-      item={returnModalItem}
-      onSuccess={() => { setReturnModalOpen(false); setReturnModalItem(null); }}
-    />
+    {/* 2026-09-24 (owner, FINAL): ReturnItemModal removed from here — the
+        return flow now lives inside the details panel (ProductGrid morph). */}
 
     {/* Void over-threshold: manager PIN fallback (server re-verifies approver) */}
     <PinGuard

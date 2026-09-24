@@ -1787,7 +1787,7 @@ export const en: TranslationMap = {
   // Missing keys
   no_table_selected: 'No table selected',
   add_items_hint: 'Add products',
-  hint_return_item: 'Already served — tap the row to return it',
+  hint_return_item: 'Already served — open the details panel to return it',
   hint_void_item: 'Sent to kitchen — use "Void"',
   hint_minus_blocked: 'Cannot reduce — use "Void"',
   hint_void_not_ready: 'Already served — cannot void, use "Return"',

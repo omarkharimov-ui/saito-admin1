@@ -2,9 +2,12 @@
 
 import { useState, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check } from 'lucide-react';
+import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check, RotateCcw, Package, Trash2, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { apiFetch } from '@/lib/api-fetch';
+import { toast } from '@/lib/toast';
+import { PinGuard } from './PinGuard';
 import { LiquidCategoryNavbar } from './LiquidCategoryNavbar';
 import type { PosProduct } from '../types/shared';
 import { playHapticSound } from '@/lib/haptic';
@@ -36,6 +39,15 @@ export interface EditorPreset {
   // Exact cart line being edited (stable replace target — owner fix 2026-09-21:
   // config edits must update THAT line even when it's already sent).
   lineIndex?: number;
+  // 2026-09-24 (owner, FINAL): when the line being edited is SERVED, the
+  // details panel shows a right-side "Geri qaytar" button that MORPHS the
+  // panel into the return view (PIN → qty → Anbara qaytar / İtkiyə yaz).
+  returnCtx?: {
+    order_item_id: string;
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+  };
 }
 
 export interface ProductGridRef {
@@ -118,6 +130,17 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const [pulseMap, setPulseMap] = useState<Record<string, number>>({});
   const [bounceMap, setBounceMap] = useState<Record<string, number>>({});
 
+  // 2026-09-24 (owner, FINAL): the details panel MORPHS into the return view
+  // when the edited line is served. Flow: right-side "Geri qaytar" → PinGuard
+  // → morph (edit content slides out, return content slides in, same card) →
+  // qty + Anbara qaytar / İtkiyə yaz. The standalone ReturnItemModal and the
+  // row-tap return are gone.
+  const [returnCtx, setReturnCtx] = useState<NonNullable<EditorPreset['returnCtx']> | null>(null);
+  const [returnView, setReturnView] = useState(false);
+  const [returnPinOpen, setReturnPinOpen] = useState(false);
+  const [returnQty, setReturnQty] = useState(1);
+  const [returnLoading, setReturnLoading] = useState(false);
+
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const expandedIdRef = useRef<string | null>(null);
   const presetRef = useRef<EditorPreset | null>(null);
@@ -137,6 +160,8 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       presetRef.current = null;
       editIdentityRef.current = null;
       editLineIndexRef.current = null;
+      setReturnCtx(null);
+      setReturnView(false);
       return;
     }
     // One-shot: preset yalnız bir dəfə tətbiq olunur, sonra təmizlənir ki,
@@ -145,6 +170,8 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     presetRef.current = null;
     editIdentityRef.current = preset?.identity ?? null;
     editLineIndexRef.current = preset?.lineIndex ?? null;
+    setReturnCtx(preset?.returnCtx ?? null);
+    setReturnView(false);
     setSelectedVariant(preset?.variantId ?? undefined);
     setNoteForProduct(preset?.note ?? '');
     setEditCourse(preset?.course ?? null);
@@ -294,6 +321,46 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     setExpandedId(null);
   };
 
+  // 2026-09-24 (owner, FINAL): return flow inside the details panel.
+  const startReturn = () => {
+    if (!returnCtx || returnLoading) return;
+    setReturnQty(returnCtx.quantity || 1);
+    setReturnPinOpen(true);
+  };
+
+  const handleReturnFate = async (fate: 'stock' | 'waste') => {
+    if (!returnCtx || returnLoading) return;
+    setReturnLoading(true);
+    try {
+      const res = fate === 'stock'
+        ? await apiFetch('/api/orders/return-to-stock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_item_id: returnCtx.order_item_id, quantity: returnQty }),
+          })
+        : await apiFetch('/api/orders/waste', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_item_id: returnCtx.order_item_id, quantity: returnQty, reason: 'customer_return' }),
+          });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(`${returnQty}x ${returnCtx.product_name} — ${fate === 'stock'
+          ? (t('returned_to_stock') || 'Anbara qaytarıldı')
+          : (t('waste_recorded') || 'İtki qeyd edildi')}`);
+        handleClose();
+      } else {
+        toast.error(data.error || (fate === 'stock'
+          ? (t('return_failed') || 'Qaytarılma uğursuz oldu')
+          : (t('waste_failed') || 'İtki qeyd edilmədi')));
+      }
+    } catch {
+      toast.error(t('network_error') || 'Şəbəkə xətası');
+    } finally {
+      setReturnLoading(false);
+    }
+  };
+
   const expandedItem = filtered.find(item => item.id === expandedId);
 
   // Variantlı məhsulda heç nə seçilməyibsə default variantı seç.
@@ -303,13 +370,15 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     if (def) setSelectedVariant(prev => prev ?? def.id);
   }, [expandedItem]);
 
-  // Escape closes the product modal
+  // Escape closes the product modal — but NOT while the return-PIN overlay is
+  // up: PinGuard has its own Escape handler and only IT should close, so the
+  // details panel stays open underneath when the PIN is cancelled.
   useEffect(() => {
     if (!expandedId) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !returnPinOpen) handleClose(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [expandedId]);
+  }, [expandedId, returnPinOpen]);
 
   // Modal header price — variant + seçilmiş modifikatorlar daxil
   const selectedVariantObj = useMemo(
@@ -686,11 +755,95 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 </motion.button>
               </div>
 
-               {/* Body: miqdar · variantlar · modifikatorlar · qeyd —
-                   flex-1 + min-h-0: scroll region is bounded by the card's
-                   92vh cap (footer can never overlap it). */}
-               <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto">
-                {/* Miqdar */}
+                {/* Body + Footer morph (2026-09-24, owner, FINAL):
+                    edit view ⇄ return view — same card, same header, the
+                    content below slides (x ±36, 200ms). */}
+                <AnimatePresence mode="wait" initial={false}>
+                {returnCtx && returnView ? (
+                  <motion.div
+                    key="return-view"
+                    initial={{ opacity: 0, x: 36 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -36 }}
+                    transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+                    className="flex-1 min-h-0 flex flex-col"
+                  >
+                    <div className="p-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
+                      <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'}`}>
+                        <p className={`text-sm font-bold ${lightMode ? 'text-black' : 'text-white'}`}>{returnCtx.product_name}</p>
+                        <div className="flex items-center justify-between mt-3">
+                          <p className={`text-[11px] font-bold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                            ₼{returnCtx.unit_price.toFixed(2)} / ədəd
+                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => setReturnQty(q => Math.max(1, q - 1))}
+                              className={`w-8 h-8 rounded-lg border flex items-center justify-center text-sm font-black transition-all ${lightMode ? 'bg-white border-zinc-200 hover:bg-zinc-50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                              −
+                            </button>
+                            <span className={`w-10 text-center text-sm font-black tabular-nums ${lightMode ? 'text-black' : 'text-white'}`}>{returnQty}</span>
+                            <button onClick={() => setReturnQty(q => Math.min(returnCtx.quantity, q + 1))}
+                              className={`w-8 h-8 rounded-lg border flex items-center justify-center text-sm font-black transition-all ${lightMode ? 'bg-white border-zinc-200 hover:bg-zinc-50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <p className={`text-[9px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                        {t('item_fate') || 'Məhsulun taleyi'}
+                      </p>
+                      <button
+                        onClick={() => handleReturnFate('stock')}
+                        disabled={returnLoading}
+                        className={`w-full flex items-center gap-3 p-4 rounded-2xl border text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
+                          lightMode ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' : 'bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20'
+                        }`}
+                      >
+                        <Package size={20} strokeWidth={2.5} />
+                        <div>
+                          <p className="text-sm font-black">{t('return_to_stock') || 'Anbara qaytar'}</p>
+                          <p className={`text-[10px] font-bold ${lightMode ? 'text-blue-500' : 'text-blue-300/60'}`}>
+                            {t('stock_increases') || 'Stock geri artırılır'}
+                          </p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => handleReturnFate('waste')}
+                        disabled={returnLoading}
+                        className={`w-full flex items-center gap-3 p-4 rounded-2xl border text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
+                          lightMode ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' : 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20'
+                        }`}
+                      >
+                        <Trash2 size={20} strokeWidth={2.5} />
+                        <div>
+                          <p className="text-sm font-black">{t('write_off') || 'İtkiyə yaz'}</p>
+                          <p className={`text-[10px] font-bold ${lightMode ? 'text-red-500' : 'text-red-300/60'}`}>
+                            {t('stock_unchanged') || 'Stock dəyişmir'}
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                    <div className="p-5 pt-0 flex-shrink-0">
+                      <button
+                        onClick={() => setReturnView(false)}
+                        className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}
+                      >
+                        <ArrowLeft size={14} /> {t('back') || 'Əvvəlki'}
+                      </button>
+                    </div>
+                  </motion.div>
+                ) : (
+                <motion.div
+                  key="edit-view"
+                  initial={false}
+                  exit={{ opacity: 0, x: -36 }}
+                  transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+                  className="flex-1 min-h-0 flex flex-col"
+                >
+                {/* Body: miqdar · variantlar · modifikatorlar · qeyd —
+                    flex-1 + min-h-0: scroll region is bounded by the card's
+                    92vh cap (footer can never overlap it). */}
+                <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto">
+                 {/* Miqdar */}
                 <div>
                   <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Miqdar:</span>
                   <div className="flex items-center gap-3 mt-2">
@@ -875,20 +1028,47 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 </div>
               </div>
 
-               {/* Footer: ƏLAVƏ ET — sticky (flex-shrink-0) */}
-               <div className="p-5 pt-0 flex-shrink-0">
-                <motion.button onClick={handleModalAdd}
-                  whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} transition={SPRING}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider shadow-lg hover:brightness-105"
-                style={{ backgroundColor: '#10b981' }}
-                >
-                   <Plus size={18} /> {t('add')}{qty > 1 ? ` · ${qty}` : ''}
-                 </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-});
+                {/* Footer: ƏLAVƏ ET (+ Geri qaytar on the right for served
+                    lines) — sticky (flex-shrink-0) */}
+                <div className="p-5 pt-0 flex-shrink-0">
+                 <div className="flex items-center gap-3">
+                   <motion.button onClick={handleModalAdd}
+                     whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} transition={SPRING}
+                     className="flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider shadow-lg hover:brightness-105"
+                   style={{ backgroundColor: '#10b981' }}
+                   >
+                      <Plus size={18} /> {t('add')}{qty > 1 ? ` · ${qty}` : ''}
+                    </motion.button>
+                    {returnCtx && (
+                      <motion.button onClick={startReturn}
+                        whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} transition={SPRING}
+                        className="flex items-center justify-center gap-2 px-5 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider shadow-lg hover:brightness-105"
+                        style={{ backgroundColor: '#3b82f6' }}
+                      >
+                        <RotateCcw size={18} /> {t('return_item') || 'Geri qaytar'}
+                      </motion.button>
+                    )}
+                  </div>
+               </div>
+                </motion.div>
+                )}
+                </AnimatePresence>
+             </motion.div>
+           </motion.div>
+         )}
+       </AnimatePresence>
+
+       {/* 2026-09-24 (owner, FINAL): PIN gate for the in-panel return flow —
+           verified → the panel morphs into the return view. */}
+       <PinGuard
+         open={returnPinOpen}
+         onClose={() => setReturnPinOpen(false)}
+         onVerified={(v: any) => {
+           setReturnPinOpen(false);
+           if (v?.valid) setReturnView(true);
+         }}
+         action="void_item"
+       />
+     </div>
+   );
+ });

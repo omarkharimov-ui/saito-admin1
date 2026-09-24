@@ -29,10 +29,16 @@ export async function GET(request: NextRequest) {
     const KITCHEN = ['kitchen', 'bar', 'grill', 'prep', 'service', 'other'];
     const BDS = ['delivery', 'pickup'];
     const kind = new URL(request.url).searchParams.get('kind');
+    // 2026-09-24 (Bar Display E2E root cause): PostgREST text `in.` filters
+    // take UNQUOTED values — in.('kitchen','bar') matches literally with the
+    // quote characters and silently returns []. This filter shipped quoted
+    // on 2026-09-23 (BDS #28), so /api/stations?kind=* returned [] for the
+    // whole time: KDS station tabs never rendered and the bar display had
+    // no station set. (Verified: quoted → [], unquoted → 5 stations.)
     const typeFilter = kind === 'kitchen'
-      ? `station_type=in.(${KITCHEN.map(k => `'${k}'`).join(',')})`
+      ? `station_type=in.(${KITCHEN.join(',')})`
       : kind === 'bds'
-        ? `station_type=in.(${BDS.map(k => `'${k}'`).join(',')})`
+        ? `station_type=in.(${BDS.join(',')})`
         : '';
     const where = typeFilter ? `&${typeFilter}` : '';
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock, ChefHat, CheckCircle2, AlertTriangle, Volume2, VolumeX,
-  Package, Truck, Utensils, Flame, Timer, Bell, Printer
+  Package, Truck, Utensils, Flame, Timer, Bell, Printer, Coffee
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -35,7 +35,7 @@ interface KDSItem {
   station_id?: string | null;
 }
 
-interface KDSStation { id: string; name: string; }
+interface KDSStation { id: string; name: string; station_type?: string; }
 
 interface KDSOrder {
   id: string;
@@ -110,7 +110,14 @@ function getOrderBadge(order: KDSOrder, lightMode: boolean) {
   );
 }
 
-export function KDSView({ onBack }: { onBack: () => void }) {
+/**
+ * stationType (2026-09-24, owner): restrict this terminal to ONE station
+ * family — the /admin/bds Bar Display passes 'bar': only tickets with items
+ * routed to bar stations are shown (KDS stays the full kitchen terminal).
+ * Items without a station snapshot never fall back to Main Kitchen here —
+ * they belong to the kitchen boards, not the bar screen.
+ */
+export function KDSView({ onBack, stationType }: { onBack: () => void; stationType?: string }) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [orders, setOrders] = useState<KDSOrder[]>([]);
@@ -133,10 +140,21 @@ export function KDSView({ onBack }: { onBack: () => void }) {
       .then((d: any) => setStations(Array.isArray(d) ? d : []))
       .catch(() => setStations([]));
   }, []);
+  // 2026-09-24 (BDS bar display): when restricted to a station family, the
+  // board shows only that family's stations; the kitchen fallback is
+  // disabled so snapshot-less (kitchen) items never leak onto the bar screen.
+  const boardStations = stationType ? stations.filter(s => s.station_type === stationType) : stations;
+  const boardStationIds = new Set(boardStations.map(s => s.id));
   // Items with no station snapshot (legacy locked lines / manual lines)
   // display at the Main Kitchen default board (matches the backfill rule).
-  const fallbackStationId = stations.find(s => s.name === 'Main Kitchen')?.id || stations[0]?.id || null;
-  const itemStation = (i: KDSItem) => i.station_id || fallbackStationId;
+  const fallbackStationId = !stationType
+    ? (stations.find(s => s.name === 'Main Kitchen')?.id || stations[0]?.id || null)
+    : null;
+  const itemStation = (i: KDSItem) => i.station_id || (stationType ? null : fallbackStationId);
+  const itemInBoard = (i: KDSItem) => {
+    const st = itemStation(i);
+    return st ? boardStationIds.has(st) : !stationType;
+  };
   const isItemReady = (i: KDSItem) => i.kitchen_status === 'ready' || i.kitchen_status === 'completed';
   const stationPendingCount = (stId: string) =>
     orders.reduce((sum, o) => sum + o.items.filter(i => itemStation(i) === stId && !isItemReady(i)).length, 0);
@@ -313,11 +331,16 @@ export function KDSView({ onBack }: { onBack: () => void }) {
             kitchen_status: o.kitchen_status || 'pending',
           }));
 
-        if (kdsOrders.length > prevOrderCountRef.current && prevOrderCountRef.current > 0) {
+        // 2026-09-24 (bar display): the new-order sound counts only tickets
+        // this terminal actually shows (station-family filtered).
+        const shownOrders = stationType
+          ? kdsOrders.filter(o => o.items.some(i => i.station_id && boardStationIds.has(i.station_id)))
+          : kdsOrders;
+        if (shownOrders.length > prevOrderCountRef.current && prevOrderCountRef.current > 0) {
           playSound();
-          toast(`${kdsOrders.length - prevOrderCountRef.current} ${t('new_order')}!`, { id: 'kds-toast' });
+          toast(`${shownOrders.length - prevOrderCountRef.current} ${t('new_order')}!`, { id: 'kds-toast' });
         }
-        prevOrderCountRef.current = kdsOrders.length;
+        prevOrderCountRef.current = shownOrders.length;
         setOrders(kdsOrders);
       } catch {
         toast.error(t('orders_load_error'), { id: 'kds-toast' });
@@ -384,9 +407,9 @@ export function KDSView({ onBack }: { onBack: () => void }) {
   // that station. The complete-order button stays on the whole-order
   // invariant (all stations done) so a station can never pull the order
   // into TƏHVİLƏ HAZIR while another station is still cooking.
-  const boardOrders = stationFilter
-    ? orders.filter(o => o.items.some(i => itemStation(i) === stationFilter))
-    : orders;
+  const boardOrders = orders.filter(o =>
+    o.items.some(i => itemInBoard(i) && (!stationFilter || itemStation(i) === stationFilter))
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -394,11 +417,11 @@ export function KDSView({ onBack }: { onBack: () => void }) {
       <div className={`flex items-center justify-between flex-shrink-0 pb-4 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${lightMode ? 'bg-white border-gray-200 text-gray-500' : 'bg-white/[0.04] border-white/[0.08] text-white/45'}`}>
-            <ChefHat size={18} />
+            {stationType ? <Coffee size={18} /> : <ChefHat size={18} />}
           </div>
           <div>
-            <p className={`text-lg font-bold tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('kds_screen')}</p>
-            <p className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{orders.length} {t('active_orders_short')}</p>
+            <p className={`text-lg font-bold tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{stationType ? t('bds_bar_screen') : t('kds_screen')}</p>
+            <p className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{boardOrders.length} {t('active_orders_short')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -416,8 +439,10 @@ export function KDSView({ onBack }: { onBack: () => void }) {
 
       {/* BDS #28 — station board tabs (SSOT: stations). One board per
           station; a ticket appears on a station board while it has ≥1 item
-          routed there. Items without a snapshot land at Main Kitchen. */}
-      {stations.length > 0 && (
+          routed there. Items without a snapshot land at Main Kitchen.
+          2026-09-24: the bar display (stationType='bar') hides the tab row
+          when there is a single bar station — the whole screen is that board. */}
+      {boardStations.length > 0 && (!stationType || boardStations.length > 1) && (
         <div className="flex items-center gap-2 flex-shrink-0 px-0.5 pb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           <button
             type="button"
@@ -426,9 +451,9 @@ export function KDSView({ onBack }: { onBack: () => void }) {
           >
             {t('kds_all_stations')} · {orders.length}
           </button>
-          {stations.map(st => {
-            const pending = stationPendingCount(st.id);
-            const active = stationFilter === st.id;
+            {boardStations.map(st => {
+              const pending = stationPendingCount(st.id);
+              const active = stationFilter === st.id;
             return (
               <button
                 key={st.id}
@@ -467,14 +492,16 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                 const allItemsReady = order.items.every(isItemReady);
                 // BDS #28: on a station board the ticket lists only that
                 // station's items; progress + the "other stations" hint are
-                // computed on the visible subset.
-                const visibleItems = stationFilter
-                  ? order.items.filter(i => itemStation(i) === stationFilter)
-                  : order.items;
+                // computed on the visible subset. 2026-09-24: itemInBoard
+                // additionally scopes everything to the terminal's station
+                // family (bar display).
+                const visibleItems = order.items.filter(i =>
+                  itemInBoard(i) && (!stationFilter || itemStation(i) === stationFilter)
+                );
                 const visibleReady = visibleItems.filter(isItemReady).length;
                 const visibleAllReady = visibleItems.length > 0 && visibleReady === visibleItems.length;
                 const otherPending = stationFilter
-                  ? order.items.filter(i => itemStation(i) !== stationFilter && !isItemReady(i)).length
+                  ? order.items.filter(i => itemInBoard(i) && itemStation(i) !== stationFilter && !isItemReady(i)).length
                   : 0;
                 return (
                   <div

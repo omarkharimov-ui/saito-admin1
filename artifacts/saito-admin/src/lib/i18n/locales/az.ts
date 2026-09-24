@@ -2022,6 +2022,7 @@ export const az = {
   bds_delivery_paused: 'Qəbul dayandırılıb',
   bds_pause_confirm: 'Çatdırılma sifarişlərinin qəbulunu dayandırsın?',
   bds_resume_delivery: 'Qəbulu davam etdir',
+  bds_bar_screen: 'BDS — BAR',
   bds_handover: 'TƏHVİL ET',
   bds_kitchen_not_ready: 'Mətbəx hələ hazırlayır',
 

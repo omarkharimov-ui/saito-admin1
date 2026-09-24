@@ -2024,6 +2024,7 @@ export const en: TranslationMap = {
   bds_delivery_paused: 'Accepting paused',
   bds_pause_confirm: 'Pause delivery order acceptance?',
   bds_resume_delivery: 'Resume accepting orders',
+  bds_bar_screen: 'BDS — BAR',
   bds_handover: 'HAND OVER',
   bds_kitchen_not_ready: 'Kitchen is still preparing',
 

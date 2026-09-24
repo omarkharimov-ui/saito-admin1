@@ -279,8 +279,9 @@ export function ActionSheet({
     { id: 'release_table', icon: CheckCircle, label: t('release_table'), visible: isCashierOrAbove && !isTakeawayOrDelivery && (table?.status === 'paid' || table?.status === 'cleaning' || activeOrder?.status === 'paid') },
     { id: 'clear', icon: BrushCleaning, label: t('clear'), visible: table?.status === 'empty' || table?.status === 'dirty' },
     // 2026-09-23 (owner, STATUS OWNERSHIP): delivery/takeaway status
-    // transitions and TƏHVİL ET are pressed ONLY on the BDS board
-    // (/admin/bds) — like kitchen statuses are pressed only on KDS.
+    // transitions and TƏHVİL ET are pressed ONLY on the delivery board
+    // (/admin/delivery — moved from /admin/bds on 2026-09-24, which is now
+    // the Bar Display) — like kitchen statuses are pressed only on KDS.
     // POS keeps dispatch (courier assignment).
     ...(posMode === 'delivery' ? [
       { id: 'assign_courier', icon: UserCheck, label: t('assign_courier' as any) || 'Assign Courier', visible: true },

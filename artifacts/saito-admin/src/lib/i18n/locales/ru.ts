@@ -2025,6 +2025,7 @@ export const ru: TranslationMap = {
   bds_delivery_paused: 'Приём на паузе',
   bds_pause_confirm: 'Приостановить приём заказов на доставку?',
   bds_resume_delivery: 'Продолжить приём заказов',
+  bds_bar_screen: 'BDS — БАР',
   bds_handover: 'ПЕРЕДАТЬ',
   bds_kitchen_not_ready: 'Кухня ещё готовит',
 

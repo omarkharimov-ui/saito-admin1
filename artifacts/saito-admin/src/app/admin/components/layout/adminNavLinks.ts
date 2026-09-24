@@ -18,6 +18,7 @@ import {
   Gift,
   ClipboardCheck,
   Bike,
+  Coffee,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
@@ -51,11 +52,22 @@ export function getAdminNavItems(
       roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier'],
     },
     {
-      // 2026-09-23 (owner): separate route. BDS board = delivery/pickup
-      // fulfillment; its statuses are pressed HERE (kitchen = KDS).
+      // 2026-09-24 (owner clarification): BDS = BAR Display System — the
+      // station board for the bar (coffee/shakes/drinks), same machinery as
+      // KDS. The delivery/pickup operations board moved to /admin/delivery.
       id: 'bds',
       name: 'BDS',
       href: '/admin/bds',
+      icon: Coffee,
+      roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier'],
+    },
+    {
+      // 2026-09-23 (owner) delivery/pickup fulfillment board — route moved
+      // /admin/bds → /admin/delivery on 2026-09-24 when BDS became the bar
+      // display. Its statuses are pressed HERE (kitchen = KDS, bar = BDS).
+      id: 'delivery',
+      name: 'Çatdırılma',
+      href: '/admin/delivery',
       icon: Bike,
       roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier'],
     },

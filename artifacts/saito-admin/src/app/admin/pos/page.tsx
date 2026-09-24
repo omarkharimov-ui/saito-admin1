@@ -218,18 +218,33 @@ export default function POSPage() {
   // mode 'clear'   = empty/dirty table (clear_table_atomic);
   // mode 'group'   = merged group (unmerge children, then dismiss each).
   const [clearPinTable, setClearPinTable] = useState<{ num: number; mode: 'clear' | 'dismiss' | 'group'; children?: number[] } | null>(null);
-  // QF5: delivery zones (public data, RLS off) — zone picker + auto fee.
-  const [deliveryZones, setDeliveryZones] = useState<{ id: string; name: string; fee: number; free_delivery_threshold: number; estimated_minutes: number }[]>([]);
+  // QF5 + Delivery Phase 1 (2026-09-24): delivery zones (public data, RLS
+  // off) — zone picker + auto fee. New: km range / min order / priority /
+  // ETA range columns, sorted by priority ASC; the whole list is hidden when
+  // settings.delivery_enabled = false (master switch; fail-open if the
+  // client's role can't read settings — the feature is on by default).
+  const [deliveryZones, setDeliveryZones] = useState<{
+    id: string; name: string; fee: number; free_delivery_threshold: number;
+    estimated_minutes: number; min_km: number | null; max_km: number | null;
+    min_order: number | null; priority: number;
+    est_minutes_min: number | null; est_minutes_max: number | null;
+  }[]>([]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase
-          .from('delivery_zones')
-          .select('id, name, fee, free_delivery_threshold, estimated_minutes')
-          .eq('is_active', true)
-          .order('name');
-        if (!cancelled) setDeliveryZones((data || []) as any);
+        const [zonesRes, settingsRes] = await Promise.all([
+          supabase
+            .from('delivery_zones')
+            .select('id, name, fee, free_delivery_threshold, estimated_minutes, min_km, max_km, min_order, priority, est_minutes_min, est_minutes_max')
+            .eq('is_active', true)
+            .order('priority', { ascending: true })
+            .order('name', { ascending: true }),
+          supabase.from('settings').select('delivery_enabled').limit(1),
+        ]);
+        if (cancelled) return;
+        const enabled = (settingsRes.data as any)?.[0]?.delivery_enabled !== false;
+        setDeliveryZones(enabled ? ((zonesRes.data || []) as any) : []);
       } catch { /* non-blocking: manual fee stays available */ }
     })();
     return () => { cancelled = true; };

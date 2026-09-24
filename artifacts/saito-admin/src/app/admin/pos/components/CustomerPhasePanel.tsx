@@ -36,6 +36,28 @@ interface Zone {
   fee: number | string;
   estimated_minutes?: number;
   free_delivery_threshold?: number | string;
+  // Delivery Phase 1 (2026-09-24): km range + ETA range
+  min_km?: number | null;
+  max_km?: number | null;
+  est_minutes_min?: number | null;
+  est_minutes_max?: number | null;
+}
+
+/** "2–5 km" / "5 km+" — empty string when the range is the default 0–∞. */
+function zoneKmLabel(z: Zone): string {
+  const min = Number(z.min_km) || 0;
+  const max = z.max_km === null || z.max_km === undefined ? null : Number(z.max_km);
+  if (max === null) return min > 0 ? `${min} km+` : '';
+  return `${min}–${max} km`;
+}
+
+/** "20–35" range or single value; falls back to legacy estimated_minutes. */
+function zoneEtaLabel(z: Zone): string {
+  const legacy = z.estimated_minutes ? Number(z.estimated_minutes) : null;
+  const lo = z.est_minutes_min != null ? Number(z.est_minutes_min) : legacy;
+  const hi = z.est_minutes_max != null ? Number(z.est_minutes_max) : legacy;
+  if (lo == null) return '';
+  return hi != null && hi !== lo ? `${lo}–${hi}` : String(lo);
 }
 
 interface CustomerPhasePanelProps {
@@ -189,8 +211,11 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                         >
                           <Route size={13} className={on ? (lightMode ? 'text-white' : 'text-zinc-900') : (lightMode ? 'text-zinc-400' : 'text-white/35')} />
                           {z.name}
+                          {zoneKmLabel(z) && (
+                            <span className={`text-[10px] font-black ${on ? 'opacity-70' : 'opacity-45'}`}>{zoneKmLabel(z)}</span>
+                          )}
                           <span className={`font-black ${on ? (lightMode ? 'text-white' : 'text-zinc-900') : (lightMode ? 'text-zinc-500' : 'text-white/60')}`}>₼{Number(z.fee).toFixed(0)}</span>
-                          {z.estimated_minutes ? <span className={on ? 'opacity-70' : 'opacity-50'}>· {z.estimated_minutes} {t('min_short') || 'dəq'}</span> : null}
+                          {zoneEtaLabel(z) ? <span className={on ? 'opacity-70' : 'opacity-50'}>· {zoneEtaLabel(z)} {t('min_short') || 'dəq'}</span> : null}
                         </motion.button>
                       );
                     })}

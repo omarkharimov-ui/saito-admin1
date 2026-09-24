@@ -21,6 +21,21 @@ import { useVirtualKeyboard } from './VirtualKeyboard';
 export { SPRING, TAP } from '../lib/pos-motion';
 import { SPRING, TAP } from '../lib/pos-motion';
 
+// 2026-09-25 (owner): canonical return reasons. The codes match the DB-side
+// enum used by record_item_waste (customer_return, kitchen_error, burned,
+// spilled, wrong_item, expired, spoilage, other) and are stored verbatim in
+// log_audit/inventory_logs for the statistics page.
+const RETURN_REASONS: { code: string; az: string; en: string; ru: string }[] = [
+  { code: 'customer_return', az: 'Müştəri qaytarır', en: 'Customer return', ru: 'Возврат клиентом' },
+  { code: 'kitchen_error', az: 'Mətbəx xətası', en: 'Kitchen error', ru: 'Ошибка кухни' },
+  { code: 'wrong_item', az: 'Yanlış məhsul', en: 'Wrong item', ru: 'Неверное блюдо' },
+  { code: 'burned', az: 'Yanmış', en: 'Burned', ru: 'Сгорело' },
+  { code: 'spilled', az: 'Dökülüb', en: 'Spilled', ru: 'Разлито' },
+  { code: 'expired', az: 'Sürəti keçib', en: 'Expired', ru: 'Срок вышел' },
+  { code: 'spoilage', az: 'Bozulub', en: 'Spoiled', ru: 'Испортилось' },
+  { code: 'other', az: 'Digər', en: 'Other', ru: 'Другое' },
+];
+
 export type Product = PosProduct;
 
 export interface EditorPreset {
@@ -140,6 +155,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const [returnPinOpen, setReturnPinOpen] = useState(false);
   const [returnQty, setReturnQty] = useState(1);
   const [returnLoading, setReturnLoading] = useState(false);
+  // 2026-09-25 (owner): MANDATORY return reason — persisted to the DB
+  // (log_audit / inventory_logs) and later used by the statistics page.
+  const [returnReason, setReturnReason] = useState('');
+  const [returnReasonText, setReturnReasonText] = useState('');
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const expandedIdRef = useRef<string | null>(null);
@@ -324,24 +343,32 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   // 2026-09-24 (owner, FINAL): return flow inside the details panel.
   const startReturn = () => {
     if (!returnCtx || returnLoading) return;
-    setReturnQty(returnCtx.quantity || 1);
+    setReturnQty(Math.min(returnCtx.quantity, returnCtx.quantity) || 1);
+    setReturnReason('');
+    setReturnReasonText('');
     setReturnPinOpen(true);
   };
 
   const handleReturnFate = async (fate: 'stock' | 'waste') => {
     if (!returnCtx || returnLoading) return;
+    // 2026-09-25 (owner): reason is MANDATORY before a return can be logged —
+    // the DB row (log_audit.reason / inventory_logs) feeds the statistics page.
+    if (!returnReason) {
+      toast(t('pick_return_reason') || 'Əvvəlcə səbəb seçin', { id: 'pos-hint', duration: 2500 });
+      return;
+    }
     setReturnLoading(true);
     try {
       const res = fate === 'stock'
         ? await apiFetch('/api/orders/return-to-stock', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order_item_id: returnCtx.order_item_id, quantity: returnQty }),
+            body: JSON.stringify({ order_item_id: returnCtx.order_item_id, quantity: returnQty, reason: returnReason, reason_text: returnReasonText || null }),
           })
         : await apiFetch('/api/orders/waste', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order_item_id: returnCtx.order_item_id, quantity: returnQty, reason: 'customer_return' }),
+            body: JSON.stringify({ order_item_id: returnCtx.order_item_id, quantity: returnQty, reason: returnReason, reason_text: returnReasonText || null }),
           });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -788,12 +815,45 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           </div>
                         </div>
                       </div>
-                      <p className={`text-[9px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                        {t('item_fate') || 'Məhsulun taleyi'}
-                      </p>
-                      <button
-                        onClick={() => handleReturnFate('stock')}
-                        disabled={returnLoading}
+                       {/* 2026-09-25 (owner): MƏCBURİ reason — the fate buttons
+                           stay disabled until a code is picked; the code + note
+                           are persisted to the DB (log_audit) for statistics. */}
+                       <div>
+                         <p className={`text-[9px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                           {t('return_reason') || 'Səbəb'} <span className="text-red-400">*</span>
+                         </p>
+                         <div className="flex flex-wrap gap-1.5">
+                           {RETURN_REASONS.map(r => {
+                             const on = returnReason === r.code;
+                             const lbl = language === 'en' ? r.en : language === 'ru' ? r.ru : r.az;
+                             return (
+                               <button key={r.code} onClick={() => setReturnReason(r.code)}
+                                 className={`px-3 py-2 rounded-xl text-[11px] font-bold border transition-all active:scale-[0.97] ${
+                                   on
+                                     ? 'bg-[#3b82f6] text-white border-[#3b82f6] shadow'
+                                     : lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                                 }`}>
+                                 {lbl}
+                               </button>
+                             );
+                           })}
+                         </div>
+                         <input
+                           value={returnReasonText}
+                           onChange={e => setReturnReasonText(e.target.value)}
+                           maxLength={120}
+                           placeholder={t('return_reason_note') || 'Qeyd (istifadə oluna bilər)'}
+                           className={`mt-2 w-full h-10 px-3 rounded-xl border text-xs focus:outline-none focus:border-[#3b82f6] ${
+                             lightMode ? 'bg-white border-zinc-200 text-zinc-800 placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-white/30'
+                           }`}
+                         />
+                       </div>
+                       <p className={`text-[9px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                         {t('item_fate') || 'Məhsulun taleyi'}
+                       </p>
+                       <button
+                         onClick={() => handleReturnFate('stock')}
+                         disabled={!returnReason || returnLoading}
                         className={`w-full flex items-center gap-3 p-4 rounded-2xl border text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
                           lightMode ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' : 'bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20'
                         }`}
@@ -806,9 +866,9 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           </p>
                         </div>
                       </button>
-                      <button
-                        onClick={() => handleReturnFate('waste')}
-                        disabled={returnLoading}
+                       <button
+                         onClick={() => handleReturnFate('waste')}
+                         disabled={!returnReason || returnLoading}
                         className={`w-full flex items-center gap-3 p-4 rounded-2xl border text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
                           lightMode ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' : 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20'
                         }`}
@@ -843,9 +903,23 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     flex-1 + min-h-0: scroll region is bounded by the card's
                     92vh cap (footer can never overlap it). */}
                 <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto">
-                 {/* Miqdar */}
+                  {/* Miqdar — 2026-09-25 (owner): GERİ QAYTAR on the RIGHT of
+                      the "Miqdar:" label row for served lines (was header
+                      top-right, then footer — both rejected). */}
                 <div>
-                  <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Miqdar:</span>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Miqdar:</span>
+                    {returnCtx && (
+                      <motion.button onClick={(e) => { e.stopPropagation(); startReturn(); }}
+                        whileTap={{ scale: 0.96 }} transition={TAP}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-white shadow hover:brightness-105"
+                        style={{ backgroundColor: '#3b82f6' }}
+                        title={t('return_item') || 'Geri qaytar'}
+                      >
+                        <RotateCcw size={12} strokeWidth={2.5} /> {t('return_item') || 'Geri qaytar'}
+                      </motion.button>
+                    )}
+                  </div>
                   <div className="flex items-center gap-3 mt-2">
                     <div className={`flex items-center rounded-2xl border overflow-hidden ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
                       <motion.button onClick={() => setQty(Math.max(1, qty - 1))} whileTap={{ scale: 0.88 }} transition={TAP}
@@ -1028,28 +1102,18 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 </div>
               </div>
 
-                {/* Footer: ƏLAVƏ ET (+ Geri qaytar on the right for served
-                    lines) — sticky (flex-shrink-0) */}
+                {/* Footer: ƏLAVƏ ET full-width — sticky (flex-shrink-0).
+                    2026-09-25 (owner): GERİ QAYTAR moved to the modal
+                    TOP-RIGHT (header) for served lines. */}
                 <div className="p-5 pt-0 flex-shrink-0">
-                 <div className="flex items-center gap-3">
-                   <motion.button onClick={handleModalAdd}
-                     whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} transition={SPRING}
-                     className="flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider shadow-lg hover:brightness-105"
-                   style={{ backgroundColor: '#10b981' }}
-                   >
-                      <Plus size={18} /> {t('add')}{qty > 1 ? ` · ${qty}` : ''}
-                    </motion.button>
-                    {returnCtx && (
-                      <motion.button onClick={startReturn}
-                        whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} transition={SPRING}
-                        className="flex items-center justify-center gap-2 px-5 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider shadow-lg hover:brightness-105"
-                        style={{ backgroundColor: '#3b82f6' }}
-                      >
-                        <RotateCcw size={18} /> {t('return_item') || 'Geri qaytar'}
-                      </motion.button>
-                    )}
-                  </div>
-               </div>
+                    <motion.button onClick={handleModalAdd}
+                      whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} transition={SPRING}
+                      className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider shadow-lg hover:brightness-105"
+                    style={{ backgroundColor: '#10b981' }}
+                    >
+                       <Plus size={18} /> {t('add')}{qty > 1 ? ` · ${qty}` : ''}
+                     </motion.button>
+                </div>
                 </motion.div>
                 )}
                 </AnimatePresence>

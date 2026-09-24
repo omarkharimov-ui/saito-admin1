@@ -2686,11 +2686,8 @@ export default function POSPage() {
                             setActionSheetTable(pos.selectedTable);
                             setActionSheetOpen(true);
                           }}
-                         isDirty={(pos.cart?.items ?? []).some(i => (i.sentQuantity ?? 0) === 0 && i.quantity > 0)}
-                         onVoidSuccess={() => {
-                           if (pos.selectedTable) pos.selectTable(pos.selectedTable, { force: true });
-                         }}
-                         onUpdateDeliveryFields={(fields) => {
+                          isDirty={(pos.cart?.items ?? []).some(i => (i.sentQuantity ?? 0) === 0 && i.quantity > 0)}
+                          onUpdateDeliveryFields={(fields) => {
                            if (!pos.cart) return;
                            pos.setCart({ ...pos.cart, ...fields });
                          }}

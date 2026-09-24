@@ -267,7 +267,11 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
   };
 
   const keyboard = activeEl && (
-    <div ref={keyboardRef} data-vk-panel className="fixed bottom-0 left-0 right-0 z-[9999] bg-[#1E1E24] border-t border-white/10 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-elevated backdrop-blur-lg">
+    // 2026-09-25 (owner): z raised 9999 → 10002 so the keyboard is visible
+    // ABOVE the z-[10001] PIN/security modal backdrops (PinGuard, Refund,
+    // Void, GiftCard…) — previously it opened hidden behind them. It is a
+    // bottom bar, not a full-screen backdrop, so no click swallowing.
+    <div ref={keyboardRef} data-vk-panel className="fixed bottom-0 left-0 right-0 z-[10002] bg-[#1E1E24] border-t border-white/10 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-elevated backdrop-blur-lg">
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-white/30">
           <Keyboard size={12} />

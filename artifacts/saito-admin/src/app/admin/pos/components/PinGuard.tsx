@@ -6,6 +6,7 @@ import { Shield, X } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import { useVirtualKeyboard } from './VirtualKeyboard';
 import { apiFetch } from '@/lib/api-fetch';
 import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';
 
@@ -42,6 +43,11 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
   const { lightMode } = useTheme()
   const { t } = useLanguage();
   const keyboardHeight = useKeyboardHeight();
+  // 2026-09-25 (owner): the in-app virtual keyboard must be visible INSIDE the
+  // PIN popup — it renders at the top z-layer, and this lifts the card above
+  // it (same pattern as ClearTablePinModal).
+  const { height: vkHeight } = useVirtualKeyboard();
+  const lift = Math.max(keyboardHeight, vkHeight);
   const [pin, setPin] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
@@ -100,7 +106,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
             exit={{ opacity: 0 }}
             transition={fastExit}
             className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/25 backdrop-blur-sm"
-            style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight : undefined }}
+            style={{ paddingBottom: lift > 0 ? lift + 12 : undefined }}
             onClick={onClose}
           >
           <motion.div
@@ -127,6 +133,11 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
                 ref={inputRef}
                 type="password"
                 inputMode="numeric"
+                pattern="[0-9]*"
+                // 2026-09-25 (owner): force the in-app NUMERIC pad for the PIN
+                // (was falling through to the full QWERTY layout, and the pad
+                // rendered behind the z-[10001] backdrop).
+                data-vk="numeric"
                 maxLength={6}
                 value={pin}
                 onChange={e => { setPin(e.target.value.replace(/\D/g, '')); setError(''); }}

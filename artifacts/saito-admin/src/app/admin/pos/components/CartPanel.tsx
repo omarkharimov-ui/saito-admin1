@@ -434,6 +434,21 @@ export function CartPanel({
   }, [cart]);
   const hasVoidableItems = voidableItems.length > 0;
 
+  // 2026-09-24 (owner): "geri qaytar buttonu niyə məhsulun üstündədir — void
+  // buttonu əvəz etsin əgər məhsullar servis edilibsə". The separate per-row
+  // return button is GONE. One entry (the Ləğv pill): unserved sent items →
+  // void (± select); SERVED sent items → return (row tap in void mode opens
+  // the return modal with PIN + stock/waste choice). When the cart only has
+  // served items the pill itself becomes "Geri qaytar".
+  const returnableItems = useMemo(() => {
+    if (!cart) return [];
+    return cart.items.filter(item => {
+      const ks = (item as any).kitchen_status || 'pending';
+      return (item.sentQuantity ?? 0) > 0 && ['ready', 'completed', 'served'].includes(ks);
+    });
+  }, [cart]);
+  const hasReturnableItems = returnableItems.length > 0;
+
   if (!cart) {
     const msg = posMode !== 'dine_in' ? t('no_orders') || (posMode === 'takeaway' ? 'No orders' : 'No orders') : t('no_table_selected');
     return (
@@ -927,9 +942,9 @@ export function CartPanel({
             <motion.div
               initial={false}
               animate={{
-                flex: hasVoidableItems ? '1 1 0%' : '0 0 0%',
-                opacity: hasVoidableItems ? 1 : 0,
-                scale: hasVoidableItems ? 1 : 0.9,
+                flex: (hasVoidableItems || hasReturnableItems) ? '1 1 0%' : '0 0 0%',
+                opacity: (hasVoidableItems || hasReturnableItems) ? 1 : 0,
+                scale: (hasVoidableItems || hasReturnableItems) ? 1 : 0.9,
               }}
               transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
               style={{ overflow: 'hidden', minWidth: 0 }}
@@ -943,9 +958,9 @@ export function CartPanel({
                     setVoidMode(true);
                   }
                 }}
-                title={t('void_items') || 'Ləğv et'}
-                tabIndex={hasVoidableItems ? 0 : -1}
-                style={{ pointerEvents: hasVoidableItems ? 'auto' : 'none', width: '100%' }}
+                title={voidMode ? (t('cancel') || 'Ləğv et') : (hasVoidableItems ? (t('void_items') || 'Ləğv et') : (t('return_item') || 'Geri qaytar'))}
+                tabIndex={(hasVoidableItems || hasReturnableItems) ? 0 : -1}
+                style={{ pointerEvents: (hasVoidableItems || hasReturnableItems) ? 'auto' : 'none', width: '100%' }}
                 className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border transition-all ${
                   voidMode
                     ? lightMode
@@ -956,8 +971,12 @@ export function CartPanel({
                       : 'bg-white/5 border-[var(--theme-border)] text-white/40 hover:text-white/70 hover:bg-white/10'
                 }`}
               >
-                {voidMode ? <X size={12} className="mr-1.5" /> : <Ban size={12} className="mr-1.5" />}
-                {voidMode ? (t('cancel') || 'Ləğv et') : (t('void_items') || 'Ləğv et')}
+                {voidMode
+                  ? <X size={12} className="mr-1.5" />
+                  : hasVoidableItems ? <Ban size={12} className="mr-1.5" /> : <RotateCcw size={12} className="mr-1.5" />}
+                {voidMode
+                  ? (t('cancel') || 'Ləğv et')
+                  : hasVoidableItems ? (t('void_items') || 'Ləğv et') : (t('return_item') || 'Geri qaytar')}
               </button>
             </motion.div>
           </div>
@@ -1008,7 +1027,20 @@ export function CartPanel({
             const lineKey = item.id ?? `${item.product_id}|${item.variant_id ?? ''}|${(item.modifiers ?? []).map(m => `${m.id}:${m.name}`).join(',')}|${item.special_notes ?? ''}`;
             const ks = (item as any).kitchen_status || 'pending';
             const isVoidableItem = voidMode && (item.sentQuantity ?? 0) > 0 && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
+            // 2026-09-24 (owner): served items are RETURNed from the same
+            // Ləğv entry — row tap opens the return modal (PIN + fate choice).
+            const isReturnableItem = voidMode && (item.sentQuantity ?? 0) > 0 && ['ready', 'completed', 'served'].includes(ks);
             const maxVoidQty = item.sentQuantity || item.quantity;
+            const openReturnFor = () => {
+              setReturnModalItem({
+                order_item_id: item.id,
+                product_name: item.product_name,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                kitchen_status: ks,
+              });
+              setReturnModalOpen(true);
+            };
 
             return (
               <motion.div
@@ -1020,16 +1052,23 @@ export function CartPanel({
                 transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                 data-cart-item
                 onClick={() => {
-                  if (voidMode && !isVoidableItem) {
-                    const readyStates = ['ready', 'completed', 'served'];
-                    if (readyStates.includes(ks)) {
-                      toast(t('hint_void_not_ready') || 'Servis olunub — ləğv etmək olmaz, "Geri qaytar" istifadə edin', { id: 'pos-hint', duration: 3500 });
-                    } else if ((item.sentQuantity ?? 0) > 0) {
-                      toast(t('hint_void_not_sent') || 'Mətbəxə göndərilməyib — "Ləğv et" ilə ləğv edin', { id: 'pos-hint', duration: 3500 });
-                    }
+                  // 2026-09-24 (owner): in Ləğv mode a served row tap IS the
+                  // return action (no separate per-row button anymore).
+                  if (voidMode && isReturnableItem) {
+                    openReturnFor();
+                    return;
+                  }
+                  if (voidMode && !isVoidableItem && (item.sentQuantity ?? 0) > 0) {
+                    toast(t('hint_void_not_sent') || 'Mətbəxə göndərilməyib — "Ləğv et" ilə ləğv edin', { id: 'pos-hint', duration: 3500 });
                   }
                 }}
-                 className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 transition-[border-color,box-shadow] duration-300 ${voidMode && !isVoidableItem ? 'opacity-50 border-[var(--theme-border)]' : 'border-[var(--theme-border)]'} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? (lightMode ? 'bg-rose-50/70 border-rose-300' : 'bg-rose-500/10 border-rose-400/50') : ''}`}
+                  className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 transition-[border-color,box-shadow] duration-300 ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0
+                    ? (lightMode ? 'bg-rose-50/70 border-rose-300' : 'bg-rose-500/10 border-rose-400/50')
+                    : voidMode && isReturnableItem
+                      ? (lightMode ? 'bg-blue-50/60 border-blue-300' : 'bg-blue-500/10 border-blue-400/40')
+                      : voidMode && !isVoidableItem && !isReturnableItem
+                        ? 'opacity-50 border-[var(--theme-border)]'
+                        : 'border-[var(--theme-border)]'}`}
               >
                  {/* Void selection lines — rose (void color), and they now
                      FADE OUT on "−" (AnimatePresence exit) instead of
@@ -1115,26 +1154,41 @@ export function CartPanel({
                              onClick={() => selectVoidItem(item.id || `idx-${originalIdx}`, maxVoidQty)}
                              whileTap={{ scale: 0.88 }} transition={TAP}
                              className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)]"
-                           >+</motion.button>
-                         </div>
-                       </div>
-                     ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
+                            >+</motion.button>
+                          </div>
+                        </div>
+                      ) : voidMode && isReturnableItem ? (
+                        // 2026-09-24 (owner): served row in Ləğv mode — the
+                        // return affordance lives INSIDE the mode (row tap
+                        // works too); no persistent button outside the mode.
+                        <div className="flex items-center">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openReturnFor(); }}
+                            className={`flex items-center gap-1 px-3 h-11 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
+                              lightMode ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' : 'bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20'
+                            }`}
+                          >
+                            <RotateCcw size={14} />
+                            {t('return_item') || 'Geri qaytar'}
+                          </button>
+                        </div>
+                      ) : (
+                     <div className="flex items-center gap-2">
+                       <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
                         <button
                           onClick={() => {
                             const ks = (item as any).kitchen_status;
                             const draftQty = (item.quantity ?? 0) - (item.sentQuantity ?? 0);
-                            if (ks && draftQty <= 0) {
-                              if (['ready', 'completed', 'served'].includes(ks)) {
-                                toast(t('hint_return_item') || 'Servis edilib — "Geri qaytar" istifadə edin', { id: 'pos-hint', duration: 3500 });
-                              } else if (['sent', 'preparing', 'pending', 'accepted', 'cooking'].includes(ks)) {
-                                toast(t('hint_void_item') || 'Mətbəxə göndərilib — "Ləğv et" istifadə edin', { id: 'pos-hint', duration: 3500 });
-                              } else {
-                                toast(t('hint_minus_blocked') || 'Bu məhsulu azaltmaq olmaz — "Ləğv et" və ya "Geri qaytar" istifadə edin', { id: 'pos-hint', duration: 3500 });
-                              }
-                              return;
-                            }
+                             if (ks && draftQty <= 0) {
+                               if (['ready', 'completed', 'served'].includes(ks)) {
+                                 toast(t('hint_return_item') || 'Servis edilib — "Ləğv" rejimində sətirə toxunaraq geri qaytarın', { id: 'pos-hint', duration: 3500 });
+                               } else if (['sent', 'preparing', 'pending', 'accepted', 'cooking'].includes(ks)) {
+                                 toast(t('hint_void_item') || 'Mətbəxə göndərilib — "Ləğv et" istifadə edin', { id: 'pos-hint', duration: 3500 });
+                               } else {
+                                 toast(t('hint_minus_blocked') || 'Bu məhsulu azaltmaq olmaz — "Ləğv" rejimini istifadə edin', { id: 'pos-hint', duration: 3500 });
+                               }
+                               return;
+                             }
                             onUpdateQty?.(originalIdx, -1);
                           }}
                           aria-disabled={!!(item as any).kitchen_status && ((item.quantity ?? 0) - (item.sentQuantity ?? 0)) <= 0}
@@ -1164,34 +1218,12 @@ export function CartPanel({
                     <button onClick={() => onRequestEditor?.(item.product_id, originalIdx)} className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
                       <SlidersHorizontal size={16} />
                     </button>
-                    {(() => {
-                      const ks = (item as any).kitchen_status || 'pending';
-                      const isReturnable = ['ready', 'completed', 'served'].includes(ks);
-                      if (!isReturnable) return null;
-                      return (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setReturnModalItem({
-                              order_item_id: item.id,
-                              product_name: item.product_name,
-                              quantity: item.quantity,
-                              unit_price: item.unit_price,
-                              kitchen_status: ks,
-                            });
-                            setReturnModalOpen(true);
-                          }}
-                          title={t('return_item') || 'Geri qaytar'}
-                          className={`flex items-center gap-1 px-2.5 h-11 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
-                            lightMode ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' : 'bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20'
-                          }`}
-                        >
-                          <RotateCcw size={14} />
-                          <span className="hidden min-[360px]:inline">{t('return_item') || 'Geri qaytar'}</span>
-                        </button>
-                      );
-                    })()}
-                    </div>
+                     {/* 2026-09-24 (owner): the persistent per-row "Geri
+                         qaytar" button was REMOVED — served items are
+                         returned via the Ləğv entry (row tap in the mode).
+                         Void (unserved) + return (served) now share one
+                         button instead of two. */}
+                     </div>
                     )}
                 </div>
               </motion.div>
@@ -1225,7 +1257,9 @@ export function CartPanel({
                     {t('void_mode_title') || 'Ləğv rejimi'}
                   </p>
                   <p className={`text-xs font-medium leading-tight truncate ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
-                    {t('void_mode_explanation') || 'Ləğv etmək istədiyiniz məhsulu "+" ilə seçin'}
+                    {hasReturnableItems
+                      ? (t('void_mode_explanation_both') || 'Ləğv üçün \"+\" ilə seçin · Servis edilmiş məhsulu qaytarmaq üçün sətirə toxunun')
+                      : (t('void_mode_explanation') || 'Ləğv etmək istədiyiniz məhsulu \"+\" ilə seçin')}
                   </p>
                 </div>
                 {voidSelectedCount > 0 && (
@@ -1329,7 +1363,9 @@ export function CartPanel({
         const btnLabel = voidMode
           ? voidSelectedCount > 0
             ? (t('confirm_void') || 'Ləğv et')
-            : (t('void_select_prompt') || 'Ləğv edəcəyiniz məhsulları seçin')
+            : hasReturnableItems
+              ? (t('void_return_prompt') || 'Qaytarmaq üçün məhsulun sətirinə toxunun')
+              : (t('void_select_prompt') || 'Ləğv edəcəyiniz məhsulları seçin')
           : orderButtonStatus === 'loading'
             ? t('loading')
             : hasCartItems

@@ -162,7 +162,7 @@ export async function GET(request: Request) {
     const fetchTrio = () => Promise.all([
       fetch(ordersQuery, { headers: svc().headers }),
       fetch(`${svc().url}/rest/v1/table_floors?select=table_number,status,reservation_name,reservation_time&location_id=eq.${encodeURIComponent(sessLoc)}`, { headers: svc().headers }),
-      fetch(`${svc().url}/rest/v1/settings?select=qr_table_count,opening_hours&limit=1`, { headers: svc().headers }),
+      fetch(`${svc().url}/rest/v1/settings?select=qr_table_count,opening_hours,delivery_enabled,delivery_accepting_orders&limit=1`, { headers: svc().headers }),
     ]);
 
     let [ordersRes, tablesRes, settingsRes] = await fetchTrio();
@@ -217,6 +217,13 @@ export async function GET(request: Request) {
       delayThreshold: settings?.[0]?.order_delay_minutes ?? null,
       openingHours: settings?.[0]?.opening_hours || null,
       tableStatuses: tableFloors || [],
+      // Delivery Phase 2 (2026-09-24): live switch state for the BDS header
+      // (BDS already polls this endpoint — no extra request). Fail-open:
+      // missing column/row means "enabled + accepting".
+      delivery: {
+        enabled: settings?.[0]?.delivery_enabled !== false,
+        accepting: settings?.[0]?.delivery_accepting_orders !== false,
+      },
     });
   } catch (error: any) {
     console.error('[API /orders] Catch error:', error);
@@ -586,6 +593,51 @@ export async function POST(request: Request) {
       if (rawDiscount > 0 && discount_type === 'percentage') {
         discountedTotal = totalFromItems * (1 - rawDiscount / 100);
       }
+
+      // Delivery Phase 2 (2026-09-24): server-side enforcement of the
+      // Settings → Çatdırılma switches (defense-in-depth — the POS blocks
+      // client-side too, but QR/self-order or stale tabs are covered here).
+      // Also resolves the promised ETA (now + zone ETA range high) when the
+      // client did not send one, so the BDS board can show/track it.
+      let deliveryEtaStamp: string | null = null;
+      if (effectiveOrderType === 'delivery') {
+        let dlvCfg: any = null;
+        let dlvZone: any = null;
+        try {
+          const cfgRes = await fetch(
+            `${svc().url}/rest/v1/settings?select=delivery_enabled,delivery_accepting_orders,min_order_amount&limit=1`,
+            { headers: svc().headers }
+          );
+          if (cfgRes.ok) dlvCfg = (await cfgRes.json())?.[0] || null;
+          if (delivery_zone) {
+            const zRes = await fetch(
+              `${svc().url}/rest/v1/delivery_zones?select=min_order,estimated_minutes,est_minutes_max&name=eq.${encodeURIComponent(delivery_zone)}&limit=1`,
+              { headers: svc().headers }
+            );
+            if (zRes.ok) dlvZone = (await zRes.json())?.[0] || null;
+          }
+        } catch { /* config read failed → switches fail-open, min order unenforced */ }
+        if (dlvCfg && dlvCfg.delivery_enabled === false) {
+          const err = new Error('DELIVERY_DISABLED') as any;
+          err.status = 403;
+          throw err;
+        }
+        if (dlvCfg && dlvCfg.delivery_accepting_orders === false) {
+          const err = new Error('DELIVERY_PAUSED') as any;
+          err.status = 403;
+          throw err;
+        }
+        const minOrder = Number(dlvZone?.min_order ?? dlvCfg?.min_order_amount) || 0;
+        if (minOrder > 0 && discountedTotal < minOrder) {
+          const err = new Error(`DELIVERY_MIN_ORDER: required=${minOrder}, actual=${discountedTotal.toFixed(2)}`) as any;
+          err.status = 422;
+          throw err;
+        }
+        if (!estimated_delivery_time) {
+          const etaMin = Number(dlvZone?.est_minutes_max ?? dlvZone?.estimated_minutes) || 30;
+          deliveryEtaStamp = new Date(Date.now() + etaMin * 60000).toISOString();
+        }
+      }
       // Quick-fix 4: order-level COUPON discount. Unlike manual fixed
       // discounts (which the client bakes into unit_price), a coupon discount
       // is NEVER baked into item prices — it is applied here exactly once,
@@ -733,8 +785,10 @@ export async function POST(request: Request) {
              // 2026-09-23: the stored fee is authoritative (billed once at
              // creation). A stale client fee must not re-introduce a fee that
              // the total no longer contains — or vice versa.
-             delivery_fee: existingOrder.delivery_fee != null ? existingOrder.delivery_fee : (delivery_fee || 0),
-             estimated_delivery_time: estimated_delivery_time || null,
+              delivery_fee: existingOrder.delivery_fee != null ? existingOrder.delivery_fee : (delivery_fee || 0),
+              // Delivery Phase 2: an append must not WIPE the promised ETA the
+              // first send stored (client usually re-sends it empty).
+              estimated_delivery_time: estimated_delivery_time || existingOrder.estimated_delivery_time || null,
             scheduled_date: scheduled_date || null,
             payment_method: null,
             is_rush: is_rush || false,
@@ -908,8 +962,10 @@ export async function POST(request: Request) {
              delivery_zone: delivery_zone || null,
              // 2026-09-23: the SERVER-resolved fee (campaign free-delivery may
              // have zeroed it) — never the raw client value.
-             delivery_fee: finalFee,
-            estimated_delivery_time: estimated_delivery_time || null,
+              delivery_fee: finalFee,
+             // Delivery Phase 2: server-resolved promised ETA (now + zone ETA
+             // range high) when the client didn't compute one.
+             estimated_delivery_time: estimated_delivery_time || deliveryEtaStamp || null,
             // AUDIT FIX (2026-09-21): the generic create path left
             // delivery_status NULL for delivery orders. The UI reads
             // `delivery_status || status` (so the order LOOKED confirmed)
@@ -1086,6 +1142,9 @@ export async function POST(request: Request) {
       else if (/ORDER_NOT_FOUND/.test(msg)) status = 404;
       else if (/INVALID_TRANSITION/.test(msg)) status = 422;
       else if (/TABLE_ACTIVE_ORDER_OTHER_LOCATION/.test(msg)) status = 409;
+      // Delivery Phase 2 gates (2026-09-24)
+      else if (/DELIVERY_DISABLED|DELIVERY_PAUSED/.test(msg)) status = 403;
+      else if (/DELIVERY_MIN_ORDER/.test(msg)) status = 422;
       return NextResponse.json({ success: false, error: msg }, { status });
     }
 

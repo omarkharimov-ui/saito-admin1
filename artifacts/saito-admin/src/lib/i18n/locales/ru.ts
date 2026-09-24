@@ -2021,6 +2021,10 @@ export const ru: TranslationMap = {
   bds_courier_empty: 'Нет активных курьеров — добавьте сотрудника с ролью: courier',
   bds_no_action: 'Нет действий BDS',
   bds_handed_over: 'ПЕРЕДАНО',
+  bds_delivery_active: 'Доставка активна',
+  bds_delivery_paused: 'Приём на паузе',
+  bds_pause_confirm: 'Приостановить приём заказов на доставку?',
+  bds_resume_delivery: 'Продолжить приём заказов',
   bds_handover: 'ПЕРЕДАТЬ',
   bds_kitchen_not_ready: 'Кухня ещё готовит',
 

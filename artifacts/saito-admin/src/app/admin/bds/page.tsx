@@ -17,7 +17,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bike, ShoppingBag, Phone, MapPin, Wallet, CheckCircle2, Clock, User, ChefHat, PackageCheck, Navigation, Flag, LayoutGrid, Utensils } from 'lucide-react';
+import { Bike, ShoppingBag, Phone, MapPin, Wallet, CheckCircle2, Clock, User, ChefHat, PackageCheck, Navigation, Flag, LayoutGrid, Utensils, PauseCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -44,6 +44,7 @@ interface BdOrder {
   delivery_zone?: string | null;
   delivery_fee?: number | string;
   courier_name?: string | null;
+  estimated_delivery_time?: string | null;
   total_amount: number | string;
   created_at: string;
   order_items?: BdItem[];
@@ -85,6 +86,33 @@ export default function BDSPage() {
   // courier_id (staff FK) + courier_name, never free text.
   const [couriers, setCouriers] = useState<{ id: string; name: string }[]>([]);
   const [courierPickerFor, setCourierPickerFor] = useState<string | null>(null);
+
+  // Delivery Phase 2 (2026-09-24): live accepting-pause — state comes from
+  // the /api/orders poll (delivery.accepting), so it tracks Settings changes
+  // made anywhere without an extra endpoint.
+  const [deliveryAccepting, setDeliveryAccepting] = useState(true);
+  const [togglingDelivery, setTogglingDelivery] = useState(false);
+  const toggleDeliveryAccepting = async () => {
+    if (togglingDelivery) return;
+    if (deliveryAccepting && !window.confirm(t('bds_pause_confirm') || 'Çatdırılma sifarişlərinin qəbulunu dayandırsın?')) return;
+    setTogglingDelivery(true);
+    try {
+      const res = await apiFetch('/api/settings/delivery', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ general: { delivery_accepting_orders: !deliveryAccepting } }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d?.error || 'Update failed');
+      const now = !deliveryAccepting;
+      setDeliveryAccepting(now);
+      toast.success(now ? (t('bds_delivery_active') || 'Çatdırılma aktiv') : (t('bds_delivery_paused') || 'Qəbul dayandırılıb'));
+    } catch (e: any) {
+      toast.error(e?.message || t('error_occurred'));
+    } finally {
+      setTogglingDelivery(false);
+    }
+  };
   useEffect(() => {
     apiFetch('/api/staff')
       .then(r => (r.ok ? r.json() : []))
@@ -123,6 +151,7 @@ export default function BDSPage() {
       if (!res.ok) return;
       const data = await res.json();
       setOrders(data.orders || []);
+      setDeliveryAccepting(data.delivery?.accepting !== false);
     } catch { /* poll: ignore transient */ }
     setLoading(false);
   }, []);
@@ -281,8 +310,23 @@ export default function BDSPage() {
           <h1 className={`text-lg font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{t('bds_title')}</h1>
           <p className={`text-[11px] ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{t('bds_subtitle')}</p>
         </div>
-        <div className={`flex p-1 rounded-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-white/[0.03] border-white/[0.08]'}`}>
-          {tabList.map(tb => {
+        <div className="flex items-center gap-3">
+          {/* Delivery Phase 2: live accepting pause (mirrors Settings → Çatdırılma) */}
+          <button
+            onClick={toggleDeliveryAccepting}
+            disabled={togglingDelivery}
+            title={deliveryAccepting ? (t('bds_pause_confirm') || 'Çatdırılma sifarişlərinin qəbulunu dayandırsın?') : (t('bds_resume_delivery') || 'Qəbulu davam etdir')}
+            className={`h-9 px-3.5 rounded-xl flex items-center gap-2 text-[11px] font-black tracking-wide border transition-all active:scale-[0.97] disabled:opacity-50 ${
+              deliveryAccepting
+                ? (lightMode ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300')
+                : (lightMode ? 'bg-red-50 border-red-300 text-red-600' : 'bg-red-500/10 border-red-500/30 text-red-300')
+            }`}
+          >
+            {deliveryAccepting ? <CheckCircle2 size={13} /> : <PauseCircle size={13} />}
+            {deliveryAccepting ? (t('bds_delivery_active') || 'Çatdırılma aktiv') : (t('bds_delivery_paused') || 'Qəbul dayandırılıb')}
+          </button>
+          <div className={`flex p-1 rounded-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-white/[0.03] border-white/[0.08]'}`}>
+            {tabList.map(tb => {
             const Icon = tb.icon;
             const on = tb.id === activeTab?.id;
             return (
@@ -299,7 +343,8 @@ export default function BDSPage() {
                 {tb.label}
               </button>
             );
-          })}
+            })}
+          </div>
         </div>
       </div>
 
@@ -398,6 +443,18 @@ export default function BDSPage() {
                         </span>
                         {o.delivery_zone && <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${lightMode ? 'bg-purple-50 text-purple-500 border-purple-200' : 'bg-purple-500/10 text-purple-300 border-purple-400/20'}`}>{o.delivery_zone}</span>}
                         {Number(o.delivery_fee) > 0 && <span className={`flex items-center gap-1 text-[10px] font-black ${lightMode ? 'text-amber-500' : 'text-amber-300'}`}><Wallet size={10} />₼{Number(o.delivery_fee).toFixed(0)}</span>}
+                        {/* Delivery Phase 2: promised ETA (server-resolved from
+                            the zone's ETA range at send) — red once overdue. */}
+                        {o.estimated_delivery_time && (() => {
+                          const eta = new Date(o.estimated_delivery_time);
+                          const overdue = !Number.isNaN(eta.getTime()) && eta.getTime() < Date.now();
+                          return (
+                            <span className={`flex items-center gap-1 text-[10px] font-black ${overdue ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-zinc-400' : 'text-white/40')}`}>
+                              <Clock size={10} />
+                              ETA {eta.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          );
+                        })()}
                       </div>
                     )}
 

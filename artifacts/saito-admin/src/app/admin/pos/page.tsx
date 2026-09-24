@@ -229,26 +229,60 @@ export default function POSPage() {
     min_order: number | null; priority: number;
     est_minutes_min: number | null; est_minutes_max: number | null;
   }[]>([]);
+  // Delivery Phase 2 (2026-09-24): live settings gates (master switch,
+  // accepting pause, global min order). Fail-open: a read failure (e.g. the
+  // browser role lacks settings RLS) means "enabled + accepting + no min".
+  const [deliveryGates, setDeliveryGates] = useState<{ enabled: boolean; accepting: boolean; minOrder: number | null }>({
+    enabled: true, accepting: true, minOrder: null,
+  });
+  // Delivery Phase 2 (E2E fix): the browser session is anon, and `settings`
+  // has RLS — a direct Supabase read 401s (caught in the Phase 2 E2E: the
+  // pause banner never rendered). The gates come from the authenticated
+  // staff endpoint instead. Fail-open: read failure = enabled + accepting.
+  const applyDeliveryGates = (g: any) => {
+    setDeliveryGates({
+      enabled: g ? g.enabled !== false : true,
+      accepting: g ? g.accepting !== false : true,
+      minOrder: g?.minOrder != null ? Number(g.minOrder) : null,
+    });
+    return g ? g.enabled !== false : true;
+  };
+  const refreshDeliveryGates = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/pos/delivery-status');
+      applyDeliveryGates(res.ok ? await res.json() : null);
+    } catch { /* fail-open */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [zonesRes, settingsRes] = await Promise.all([
+        const [zonesRes, gatesRes] = await Promise.all([
           supabase
             .from('delivery_zones')
             .select('id, name, fee, free_delivery_threshold, estimated_minutes, min_km, max_km, min_order, priority, est_minutes_min, est_minutes_max')
             .eq('is_active', true)
             .order('priority', { ascending: true })
             .order('name', { ascending: true }),
-          supabase.from('settings').select('delivery_enabled').limit(1),
+          (async () => {
+            const r = await apiFetch('/api/pos/delivery-status');
+            return r.ok ? r.json() : null;
+          })(),
         ]);
         if (cancelled) return;
-        const enabled = (settingsRes.data as any)?.[0]?.delivery_enabled !== false;
+        const enabled = applyDeliveryGates(gatesRes);
         setDeliveryZones(enabled ? ((zonesRes.data || []) as any) : []);
       } catch { /* non-blocking: manual fee stays available */ }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Re-check the gates when the cashier opens the customer phase — the pause
+  // may have been flipped in BDS/Settings while the cart was being built.
+  useEffect(() => {
+    if (posPhase === 'customer' && posMode === 'delivery') void refreshDeliveryGates();
+  }, [posPhase, posMode, refreshDeliveryGates]);
   // Son / Məşur tab data (was hardcoded UI only — tabs never filtered).
   const [filterData, setFilterData] = useState<{ recent: { id: string; name: string }[]; popular: { id: string; name: string; qty: number }[] } | null>(null);
   useEffect(() => {
@@ -1659,6 +1693,24 @@ export default function POSPage() {
         toast.error(t('enter_address'));
         return;
       }
+      // Delivery Phase 2 (2026-09-24): live gates — accepting pause + min
+      // order. The server enforces the SAME rules in /api/orders
+      // (DELIVERY_PAUSED / DELIVERY_MIN_ORDER); these are the fast client UX.
+      if (posMode === 'delivery' && deliveryGates.accepting === false) {
+        setPosPhase('customer');
+        toast.error('Çatdırılma sifarişləri hazırda qəbul edilmir');
+        return;
+      }
+      if (posMode === 'delivery') {
+        const selZone = deliveryZones.find(z => z.name === pos.cart?.delivery_zone);
+        const zMin = selZone?.min_order != null ? Number(selZone.min_order) : 0;
+        const minOrder = zMin > 0 ? zMin : (deliveryGates.minOrder != null ? Number(deliveryGates.minOrder) : 0);
+        if (minOrder > 0 && deliveryItemsTotal < minOrder) {
+          setPosPhase('customer');
+          toast.error(`Min sifariş ₼${minOrder.toFixed(0)} — ₼${(minOrder - deliveryItemsTotal).toFixed(0)} daha əlavə edin`);
+          return;
+        }
+      }
       if (posMode === 'takeaway' && !pos.cart?.customer_name?.trim()) {
         // Takeaway name = the "call-out" name: soft gate — enter the
         // customer phase focused on the name field (no hard error toast).
@@ -1923,6 +1975,12 @@ export default function POSPage() {
               ]}
               value={posMode}
               onChange={(mode) => {
+                // Delivery Phase 2: master switch off → the delivery mode is
+                // not reachable from the chip (settings.delivery_enabled).
+                if (mode === 'delivery' && !deliveryGates.enabled) {
+                  toast.error('Çatdırılma hazırda fəaliyyətə deyil — Ayarlar → Çatdırılma');
+                  return;
+                }
                 pos.switchMode(mode as 'dine_in' | 'takeaway' | 'delivery');
                 pos.setActiveView('floor');
               }}
@@ -2531,6 +2589,8 @@ export default function POSPage() {
                                 onZoneSelect={handleZoneSelect}
                                 onBack={() => { setPosPhase('products'); setCustomerFocus(null); }}
                                 focusField={customerFocus}
+                                deliveryPaused={deliveryGates.accepting === false}
+                                deliveryMinOrder={deliveryGates.minOrder}
                               />
                             </motion.div>
                           ) : (

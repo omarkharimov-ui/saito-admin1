@@ -24,7 +24,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, User, Route, Wallet, MessageCircle } from 'lucide-react';
+import { ArrowLeft, User, Route, Wallet, MessageCircle, PauseCircle } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -41,6 +41,8 @@ interface Zone {
   max_km?: number | null;
   est_minutes_min?: number | null;
   est_minutes_max?: number | null;
+  // Delivery Phase 2 (2026-09-24): per-zone min order (null/absent = global)
+  min_order?: number | null;
 }
 
 /** "2–5 km" / "5 km+" — empty string when the range is the default 0–∞. */
@@ -69,9 +71,13 @@ interface CustomerPhasePanelProps {
   onBack: () => void;
   /** Send-validation hook: { field, n } — focus that field + amber flash. */
   focusField: { field: string; n: number } | null;
+  /** Delivery Phase 2 (2026-09-24): settings.delivery_accepting_orders=false. */
+  deliveryPaused?: boolean;
+  /** Delivery Phase 2: global min order (settings) — fallback for zone.min_order. */
+  deliveryMinOrder?: number | null;
 }
 
-export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZoneSelect, onBack, focusField }: CustomerPhasePanelProps) {
+export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZoneSelect, onBack, focusField, deliveryPaused, deliveryMinOrder }: CustomerPhasePanelProps) {
   const { lightMode } = useTheme();
   const { t } = useLanguage();
 
@@ -136,6 +142,16 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         <div className={`max-w-[560px] rounded-3xl border p-6 space-y-5 ${lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-white/[0.02] border-white/[0.08]'}`}>
+
+          {/* Delivery Phase 2: live pause banner (settings.delivery_accepting_orders=false) */}
+          {mode === 'delivery' && deliveryPaused && (
+            <div className={`flex items-center gap-2.5 rounded-2xl border px-4 py-3 ${
+              lightMode ? 'bg-red-50 border-red-200 text-red-600' : 'bg-red-500/10 border-red-500/30 text-red-300'
+            }`}>
+              <PauseCircle size={15} />
+              <span className="text-xs font-black">Çatdırılma sifarişləri hazırda qəbul edilmir</span>
+            </div>
+          )}
 
           {/* Identity: avatar + name + phone */}
           <div>
@@ -243,11 +259,17 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                        zone's threshold (₼50+) and campaign free delivery
                        zero the fee, and the panel says so explicitly. */}
                    {(() => {
-                     const z = zones.find(x => x.name === zoneName);
-                     const itemsTotal = (cart?.items || []).reduce((s: number, i: any) => s + (Number(i.unit_price) || 0) * (Number(i.quantity) || 0), 0);
-                     const threshold = Number(z?.free_delivery_threshold) || 0;
-                     const toFree = threshold > 0 ? Math.max(0, threshold - itemsTotal) : 0;
-                     const isFree = feeNum === 0 && !!z;
+                      const z = zones.find(x => x.name === zoneName);
+                      const itemsTotal = (cart?.items || []).reduce((s: number, i: any) => s + (Number(i.unit_price) || 0) * (Number(i.quantity) || 0), 0);
+                      const threshold = Number(z?.free_delivery_threshold) || 0;
+                      const toFree = threshold > 0 ? Math.max(0, threshold - itemsTotal) : 0;
+                      // Delivery Phase 2: min order (zone value first, global
+                      // settings fallback) — mirrors the server gate in
+                      // /api/orders (DELIVERY_MIN_ORDER).
+                      const zMinRaw = z?.min_order != null ? Number(z.min_order) : 0;
+                      const minOrder = zMinRaw > 0 ? zMinRaw : (deliveryMinOrder != null ? Number(deliveryMinOrder) : 0);
+                      const toMin = minOrder > 0 ? Math.max(0, minOrder - itemsTotal) : 0;
+                      const isFree = feeNum === 0 && !!z;
                      return (
                        <>
                          <div className={`h-12 rounded-2xl border flex items-center justify-between px-4 ${isFree ? (lightMode ? 'bg-emerald-50 border-emerald-300' : 'bg-emerald-500/10 border-emerald-500/30') : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.02] border-white/[0.08]'}`}>
@@ -265,12 +287,17 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                              </span>
                            )}
                          </div>
-                         {!isFree && toFree > 0 && (
-                           <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
-                             ₼{toFree.toFixed(0)} daha əlavə et — çatdırılma pulsuz olar
-                           </p>
-                         )}
-                       </>
+                          {!isFree && toFree > 0 && (
+                            <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                              ₼{toFree.toFixed(0)} daha əlavə et — çatdırılma pulsuz olar
+                            </p>
+                          )}
+                          {toMin > 0 && (
+                            <p className={`mt-1 text-[10px] font-black ${lightMode ? 'text-red-500' : 'text-red-400'}`}>
+                              Min sifariş ₼{minOrder.toFixed(0)} — ₼{toMin.toFixed(0)} daha əlavə edin
+                            </p>
+                          )}
+                        </>
                      );
                    })()}
                  </div>

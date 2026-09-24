@@ -2020,6 +2020,10 @@ export const en: TranslationMap = {
   bds_courier_empty: 'No active couriers in Staff — add a staff member with role: courier',
   bds_no_action: 'No BDS action',
   bds_handed_over: 'HANDED OVER',
+  bds_delivery_active: 'Delivery active',
+  bds_delivery_paused: 'Accepting paused',
+  bds_pause_confirm: 'Pause delivery order acceptance?',
+  bds_resume_delivery: 'Resume accepting orders',
   bds_handover: 'HAND OVER',
   bds_kitchen_not_ready: 'Kitchen is still preparing',
 

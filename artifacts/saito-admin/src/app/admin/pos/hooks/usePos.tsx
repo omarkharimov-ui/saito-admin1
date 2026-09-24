@@ -65,6 +65,22 @@ function debugSync(...args: unknown[]) {
   }
 }
 
+// Delivery Phase 2 (2026-09-24): map the server-side delivery gate codes
+// (thrown by /api/orders POST) to friendly POS text. The client gate in
+// page.tsx usually blocks first; this covers a stale client that raced the
+// switch. Returns null for non-delivery codes (caller falls through).
+function deliveryGateMsg(code: unknown): string | null {
+  const c = String(code || '');
+  if (c.startsWith('DELIVERY_PAUSED')) return 'Çatdırılma sifarişləri hazırda qəbul edilmir';
+  if (c.startsWith('DELIVERY_DISABLED')) return 'Çatdırılma hazırda fəaliyyətə deyil — Ayarlar → Çatdırılma';
+  if (c.startsWith('DELIVERY_MIN_ORDER')) {
+    const m = c.match(/required=([\d.]+),\s*actual=([\d.]+)/);
+    if (m) return `Min sifariş ₼${Number(m[1]).toFixed(0)} — sifariş cəmi ₼${Number(m[2]).toFixed(0)}`;
+    return 'Sifariş minimum çatdırılma məbləğindən aşağıdır';
+  }
+  return null;
+}
+
 export function usePos() {
   const { t } = useLanguage();
   const [floors, setFloors] = useState<any[]>([]);
@@ -1305,13 +1321,15 @@ export function usePos() {
         // ({success:false, error}). Without this check the UI toasted
         // "order sent" for an order that was never created — the exact
         // "seated but no order" state dismiss/merge then hit.
-        if (data?.success === false) {
-          if (data?.error === 'CONCURRENCY_CONFLICT') {
-            toast.error(t('order_changed_by_other_terminal'), { id: 'action-toast' });
-            recoverFromConflict();
-          } else {
-            toast.error(data?.error || t('order_not_sent'), { id: 'action-toast' });
-          }
+          if (data?.success === false) {
+            if (data?.error === 'CONCURRENCY_CONFLICT') {
+              toast.error(t('order_changed_by_other_terminal'), { id: 'action-toast' });
+              recoverFromConflict();
+            } else {
+              // Delivery Phase 2: friendly text for the server-side delivery
+              // gates (the client gate in page.tsx usually blocks first).
+              toast.error(deliveryGateMsg(data?.error) || data?.error || t('order_not_sent'), { id: 'action-toast' });
+            }
           fetchFloor().catch(() => {});
           return;
         }
@@ -1394,7 +1412,9 @@ export function usePos() {
           toast.error(t('session_expired') || 'Session expired — log in again', { id: 'action-toast', duration: 6000 });
           window.dispatchEvent(new CustomEvent('pos:unauthorized'));
         } else {
-          toast.error(err.error || t('order_not_sent'), { id: 'action-toast' });
+          // Delivery Phase 2: friendly delivery-gate text (403 DELIVERY_PAUSED /
+          // DELIVERY_DISABLED, 422 DELIVERY_MIN_ORDER) instead of the raw code.
+          toast.error(deliveryGateMsg(err.error) || err.error || t('order_not_sent'), { id: 'action-toast' });
         }
         // Refresh to clear any stale state so the user sees current server data
         fetchFloor().catch(() => {});

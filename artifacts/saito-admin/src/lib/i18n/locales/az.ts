@@ -2018,6 +2018,10 @@ export const az = {
   bds_courier_empty: 'Staff-də aktiv kuryer yoxdur — Staff səhifəsində rol: courier əlavə et',
   bds_no_action: 'BDS fəaliyyəti yoxdur',
   bds_handed_over: 'TƏHVİL EDİLDİ',
+  bds_delivery_active: 'Çatdırılma aktiv',
+  bds_delivery_paused: 'Qəbul dayandırılıb',
+  bds_pause_confirm: 'Çatdırılma sifarişlərinin qəbulunu dayandırsın?',
+  bds_resume_delivery: 'Qəbulu davam etdir',
   bds_handover: 'TƏHVİL ET',
   bds_kitchen_not_ready: 'Mətbəx hələ hazırlayır',
 

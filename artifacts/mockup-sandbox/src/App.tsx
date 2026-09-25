@@ -1,10 +1,10 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 
 import { modules as discoveredModules } from "./.generated/mockup-components";
 
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 
-function _resolveComponent(
+function resolveComponent(
   mod: Record<string, unknown>,
   name: string,
 ): ComponentType | undefined {
@@ -49,7 +49,7 @@ function PreviewRenderer({
           return;
         }
         const name = componentPath.split("/").pop()!;
-        const comp = _resolveComponent(mod, name);
+        const comp = resolveComponent(mod, name);
         if (!comp) {
           setError(
             `No exported React component found in ${componentPath}.tsx\n\nMake sure the file has at least one exported function component.`,
@@ -117,19 +117,23 @@ function Gallery() {
   );
 }
 
-function getPreviewPath(): string | null {
+function getPreviewPath(pathname: string): string | null {
   const basePath = getBasePath();
-  const { pathname } = window.location;
-  const local =
+  const localPath =
     basePath && pathname.startsWith(basePath)
       ? pathname.slice(basePath.length) || "/"
       : pathname;
-  const match = local.match(/^\/preview\/(.+)$/);
-  return match ? match[1] : null;
+
+  if (!localPath.startsWith("/preview/")) {
+    return null;
+  }
+
+  const componentPath = localPath.slice("/preview/".length).replace(/^\/+|\/+$/g, "");
+  return componentPath || null;
 }
 
 function App() {
-  const previewPath = getPreviewPath();
+  const previewPath = useMemo(() => getPreviewPath(window.location.pathname), []);
 
   if (previewPath) {
     return (

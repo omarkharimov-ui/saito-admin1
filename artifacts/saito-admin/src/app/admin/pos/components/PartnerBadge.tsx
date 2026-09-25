@@ -11,12 +11,16 @@
 import { partnerMeta } from '../lib/partners';
 
 /** Native partner logo (no chip). `variant` picks the asset that works on
- *  the card background (dark card → logo, white card → logoLight). */
-export function PartnerLogo({ source, height = 18, variant = 'auto', lightMode = false }: {
+ *  the card background (dark card → logo, white card → logoLight).
+ *  `shrinkable` = the logo may compress (min-width:0) in tight flex rows —
+ *  used by BoardOrderCard top bars so the ORDER NUMBER keeps its space and
+ *  only the logo gives way (owner: number must never be truncated away). */
+export function PartnerLogo({ source, height = 18, variant = 'auto', lightMode = false, shrinkable = false }: {
   source?: string | null;
   height?: number;
   variant?: 'auto' | 'dark' | 'light';
   lightMode?: boolean;
+  shrinkable?: boolean;
 }) {
   const p = partnerMeta(source);
   if (!p) return null;
@@ -27,7 +31,7 @@ export function PartnerLogo({ source, height = 18, variant = 'auto', lightMode =
       alt={p.name}
       title={`Sifariş mənbəyi: ${p.name}`}
       draggable={false}
-      className="flex-shrink-0 select-none"
+      className={`${shrinkable ? 'min-w-0' : 'flex-shrink-0'} select-none`}
       style={{ height, width: 'auto', maxWidth: 72, objectFit: 'contain', opacity: 0.95 }}
     />
   );

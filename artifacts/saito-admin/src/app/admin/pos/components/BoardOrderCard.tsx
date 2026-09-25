@@ -92,28 +92,34 @@ export default function BoardOrderCard({ order, kind, stage, status, lightMode, 
         />
       )}
 
-      {/* ── Top bar ── */}
-      <div className="relative flex items-center justify-between">
-        <span className={`text-[24px] leading-none font-black tracking-tighter ${lightMode ? 'text-gray-900' : 'text-white'}`}>
+      {/* ── Top bar ──
+          2026-09-25 (owner, live POS bug): the elapsed/ETA chip WRAPPED to two
+          lines ("9 / min") when the wide partner logo squeezed the flex row —
+          "əgəzlər kimi". Fix: chips + logo are shrink-0/nowrap, the title is
+          the only flexible (truncatable) item. */}
+      <div className="relative flex items-center justify-between gap-2">
+        {/* The order number is the #1 datum — NEVER truncated (owner). In tight
+            rows the LOGO shrinks instead (shrinkable), chip/menu stay fixed. */}
+        <span className={`text-[24px] leading-none font-black tracking-tighter whitespace-nowrap flex-shrink-0 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
           {isPartner ? `#${orderNo}` : `${t(kind === 'delivery' ? 'delivery_short' : 'takeaway_short')} ${orderNo}`}
         </span>
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           {isPartner && kind === 'delivery' && order.courier_eta ? (
             <span
-              className="flex items-center gap-1 px-2 py-[3px] rounded-full text-[10px] font-bold tabular-nums"
+              className="flex items-center gap-1 px-2 py-[3px] rounded-full text-[10px] font-bold tabular-nums whitespace-nowrap shrink-0"
               style={{ backgroundColor: accent + (lightMode ? '26' : '1f'), color: accentText }}
               title="Kurye gəliş vaxtı (partner app-dan)"
             >
-              <Clock size={9} strokeWidth={2.75} />
+              <Clock size={9} strokeWidth={2.75} className="shrink-0" />
               {order.courier_eta}
             </span>
           ) : elapsed > 0 ? (
-            <span className={`flex items-center gap-1 px-2 py-[3px] rounded-full text-[10px] font-bold tabular-nums ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-white/45'}`}>
-              <Clock size={9} strokeWidth={2.75} />
+            <span className={`flex items-center gap-1 px-2 py-[3px] rounded-full text-[10px] font-bold tabular-nums whitespace-nowrap shrink-0 ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-white/45'}`}>
+              <Clock size={9} strokeWidth={2.75} className="shrink-0" />
               {elapsedText}
             </span>
           ) : null}
-          {isPartner && <PartnerLogo source={order.partner_source} height={16} lightMode={lightMode} />}
+          {isPartner && <PartnerLogo source={order.partner_source} height={16} lightMode={lightMode} shrinkable />}
           <button
             onClick={() => onAction(order)}
             className={`w-7 h-7 -mr-1 rounded-lg flex items-center justify-center transition-all ${lightMode ? 'text-zinc-300 hover:bg-zinc-100 hover:text-zinc-500' : 'text-white/30 hover:bg-white/10 hover:text-white/60'}`}

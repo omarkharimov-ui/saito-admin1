@@ -2653,7 +2653,15 @@ export default function POSPage() {
                             }}
                           onUpdateCustomer={(name) => pos.updateCartCustomer(pos.cart?.customer_id || null, name)}
                           onSelectCustomer={handleSelectCustomer}
-                          onOpenCustomerPhase={() => { setPosPhase('customer'); setCustomerFocus(null); }}
+                           onOpenCustomerPhase={() => {
+                             // 2026-09-25 (owner, partner Part 1): partner order
+                             // customer info is API-sourced (partner app) — the
+                             // customer phase (name/phone/zone/address inputs)
+                             // is BLOCKED for partner orders. In-house only.
+                             if ((editingOrder as any)?.partner_source) return;
+                             setPosPhase('customer'); setCustomerFocus(null);
+                           }}
+                           partnerSource={(editingOrder as any)?.partner_source || null}
                           onRecordLoss={handleRecordLoss}
                          onClearDraft={() => pos.clearCart()}
                          mergedChildNumbers={posMode === 'dine_in' ? activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number) : undefined}

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight, Lock } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -15,6 +15,7 @@ import { NumberRoll } from './NumberRoll';
 import { RollingNumber } from './RollingNumber';
 import { Numpad } from './Numpad';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import { PartnerLogo } from './PartnerBadge';
 import { useVirtualKeyboard } from './VirtualKeyboard';
 import { TAP } from '../lib/pos-motion';
 
@@ -83,6 +84,10 @@ interface CartPanelProps {
   /** 2026-09-23 (owner): compact cart→order binding chip label ("Gel-Al 044").
       Replaces the wide blue banner that occupied the cart column top. */
   boundOrderLabel?: string | null;
+  /** 2026-09-25 (owner, partner Part 1): when the bound order is a PARTNER
+      (aggregator) order, customer info comes from the partner app via API —
+      the cart renders it READ-ONLY (no customer phase, no re-entry). */
+  partnerSource?: string | null;
   }
 
 const STATIONS = [
@@ -150,6 +155,7 @@ export function CartPanel({
     onCouponApplied,
     onCouponRemoved,
     boundOrderLabel,
+    partnerSource,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -771,26 +777,45 @@ export function CartPanel({
                  the cart column never shrinks). Always rendered for
                  takeaway/delivery: empty = dashed "+ Müşəri", filled =
                  avatar + name + phone. */}
-             {(posMode === 'takeaway' || posMode === 'delivery') ? (
-               <button
-                 type="button"
-                 onClick={() => onOpenCustomerPhase?.()}
-                 className={`mt-1.5 flex items-center gap-2 px-2.5 h-8 rounded-full border text-left transition-all active:scale-[0.98] ${
-                   cart.customer_name
-                     ? (lightMode ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' : 'bg-blue-500/10 border-blue-400/25 hover:bg-blue-500/20')
-                     : (lightMode ? 'bg-transparent border-dashed border-zinc-300 hover:border-zinc-400' : 'bg-transparent border-dashed border-white/20 hover:border-white/40')
-                 }`}
-               >
-                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${lightMode ? 'bg-blue-100 text-blue-600' : 'bg-blue-500/25 text-blue-300'}`}>
-                   {cart.customer_name ? cart.customer_name.slice(0, 1).toUpperCase() : <User size={10} />}
-                 </div>
-                 <span className={`text-xs font-bold truncate max-w-[150px] ${cart.customer_name ? (lightMode ? 'text-blue-600' : 'text-blue-300') : (lightMode ? 'text-zinc-400' : 'text-white/40')}`}>
-                   {cart.customer_name || t('add_customer_phase')}
-                 </span>
-                 {cart.customer_phone ? <span className={`text-[10px] tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{cart.customer_phone}</span> : null}
-                 <ChevronRight size={11} className={lightMode ? 'text-zinc-300' : 'text-white/25'} />
-               </button>
-             ) : posMode === 'dine_in' ? (
+              {(posMode === 'takeaway' || posMode === 'delivery') ? (
+                partnerSource ? (
+                  /* 2026-09-25 (owner, partner Part 1): partner (aggregator)
+                     order — customer name/phone come from the partner app via
+                     API. READ-ONLY: no click, no customer phase, lock hint. */
+                  <div
+                    className={`mt-1.5 flex items-center gap-2 px-2.5 h-8 rounded-full border select-none ${
+                      lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'
+                    }`}
+                    title="Müştəri məlumatı partner tətbiqindən (API) gəlir — əllə dəyişdirilmir"
+                  >
+                    <PartnerLogo source={partnerSource} height={13} lightMode={lightMode} />
+                    <span className={`text-xs font-bold truncate max-w-[140px] ${lightMode ? 'text-zinc-700' : 'text-white/80'}`}>
+                      {cart.customer_name || '—'}
+                    </span>
+                    {cart.customer_phone ? <span className={`text-[10px] tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{cart.customer_phone}</span> : null}
+                    <Lock size={11} className={`shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`} />
+                  </div>
+                ) : (
+                <button
+                  type="button"
+                  onClick={() => onOpenCustomerPhase?.()}
+                  className={`mt-1.5 flex items-center gap-2 px-2.5 h-8 rounded-full border text-left transition-all active:scale-[0.98] ${
+                    cart.customer_name
+                      ? (lightMode ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' : 'bg-blue-500/10 border-blue-400/25 hover:bg-blue-500/20')
+                      : (lightMode ? 'bg-transparent border-dashed border-zinc-300 hover:border-zinc-400' : 'bg-transparent border-dashed border-white/20 hover:border-white/40')
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${lightMode ? 'bg-blue-100 text-blue-600' : 'bg-blue-500/25 text-blue-300'}`}>
+                    {cart.customer_name ? cart.customer_name.slice(0, 1).toUpperCase() : <User size={10} />}
+                  </div>
+                  <span className={`text-xs font-bold truncate max-w-[150px] ${cart.customer_name ? (lightMode ? 'text-blue-600' : 'text-blue-300') : (lightMode ? 'text-zinc-400' : 'text-white/40')}`}>
+                    {cart.customer_name || t('add_customer_phase')}
+                  </span>
+                  {cart.customer_phone ? <span className={`text-[10px] tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{cart.customer_phone}</span> : null}
+                  <ChevronRight size={11} className={lightMode ? 'text-zinc-300' : 'text-white/25'} />
+                </button>
+                )
+              ) : posMode === 'dine_in' ? (
               customerEditing ? (
                 <div className="flex flex-col gap-1 mt-1 w-full max-w-[240px]">
                   <div className="flex items-center gap-1.5">

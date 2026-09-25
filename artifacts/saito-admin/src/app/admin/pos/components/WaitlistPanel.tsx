@@ -3,8 +3,9 @@
 // 2026-09-25 (owner: "waitlist duzelt", Q4 decision — sadə UI versiya):
 // Dine-in "Növbə" panel. Existing API (finally works — waitlist table was
 // missing): POST /api/waitlist (add), PATCH (status), DELETE, POST
-// /api/waitlist/seat {waitlist_id, table_number} → table occupied + guest
-// info + waitlist 'seated'. SMS notify = future (Bildirişlər phase).
+// /api/waitlist/seat {waitlist_id, table_number} → table occupied + ORDER
+// auto-opened (walk-in parity: guest name/phone → orders.customer_*) +
+// waitlist 'seated'. SMS notify = future (Bildirişlər phase).
 // Queue position = index in waiting list ordered by created_at.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -151,7 +152,7 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'Oturduulmadı');
-      toast.success(`${entry.name} → Masa ${tableNumber}`);
+      toast.success(`${entry.name} → Masa ${tableNumber} · order açıldı`);
       setSeatingId(null);
       load();
       onSeated();

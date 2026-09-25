@@ -234,7 +234,6 @@ export default function POSPage() {
   // Table tap → order: 150ms selection pulse before navigation.
   const [tableTapPulse, setTableTapPulse] = useState<{ tableNumber: number; nonce: number } | null>(null);
   const tableTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [walkInOpen, setWalkInOpen] = useState(false);
   // QF3: MASANI BOŞALT is gated by a verified manager PIN (destructive op).
   // mode 'dismiss' = occupied table (cancels the order via dismiss_table_atomic);
   // mode 'clear'   = empty/dirty table (clear_table_atomic);
@@ -315,14 +314,6 @@ export default function POSPage() {
       .catch(() => { /* non-blocking */ });
     return () => { cancelled = true; };
   }, []);
-  const [walkInTable, setWalkInTable] = useState('');
-  const [walkInGuests, setWalkInGuests] = useState('1');
-  const [walkInName, setWalkInName] = useState('');
-  const [walkInPhone, setWalkInPhone] = useState('');
-  const [walkInNotes, setWalkInNotes] = useState('');
-  const [walkInPreOrder, setWalkInPreOrder] = useState(false);
-  const [walkInScheduledDate, setWalkInScheduledDate] = useState('');
-  const [walkInScheduledTime, setWalkInScheduledTime] = useState('');
 
   const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
   const [deliveryOrders, setDeliveryOrders] = useState<any[]>([]);
@@ -2151,14 +2142,7 @@ export default function POSPage() {
                        <Calendar size={16} />
                        <span className="hidden sm:inline">{t('reservations')}</span>
                      </button>
-                     <button
-                       onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
-                       className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' : 'bg-amber-500/20 border-amber-500/30 text-amber-300 hover:bg-amber-500/30'}`}
-                     >
-                       <span>+</span>
-                        <span className="hidden sm:inline">{t('walk_in')}</span>
-                      </button>
-                      <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
+                       <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
                        {[
                            { active: !mergeMode && !transferMode, label: t('normal_mode') },
                            { active: mergeMode, label: t('merge') },
@@ -2209,14 +2193,7 @@ export default function POSPage() {
                        <Calendar size={16} />
                        <span className="hidden sm:inline">{t('reservations')}</span>
                      </button>
-                      <button
-                        onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' : 'bg-amber-500/20 border-amber-500/30 text-amber-300 hover:bg-amber-500/30'}`}
-                      >
-                        <span>+</span>
-                         <span className="hidden sm:inline">{t('walk_in')}</span>
-                       </button>
-                      <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-zinc-800'}`}>
+                       <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-zinc-800'}`}>
                         {[
                           { active: !mergeMode && !transferMode, label: t('normal_mode') },
                           { active: mergeMode, label: t('merge') },
@@ -3211,7 +3188,6 @@ export default function POSPage() {
         )}
       </AnimatePresence>
 
-      {/* Walk-In Modal */}
       <AnimatePresence>
         <ClearTablePinModal
           open={clearPinTable != null}
@@ -3233,118 +3209,6 @@ export default function POSPage() {
           }}
         />
 
-        {walkInOpen && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={appleBackdrop}
-            className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/25 backdrop-blur-sm p-4"
-            style={{ paddingBottom: 'var(--vk-height, 0px)' }}
-            onClick={() => setWalkInOpen(false)}
-          >
-             <motion.div
-               {...slideUp}
-               onClick={e => e.stopPropagation()}
-                className={`w-full max-w-sm rounded-3xl p-7 shadow-elevated border backdrop-blur-lg ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
-             >
-              <p className={`text-xl font-black tracking-tight mb-1 ${lightMode ? 'text-black' : 'text-white'}`}>{t('walk_in')}</p>
-              <p className={`text-xs font-black uppercase tracking-widest mb-5 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('new_guest')}</p>
-              <div className="space-y-3 mb-5">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Masa №</label>
-                    <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('table_number')}</label>
-                   <input type="number" min="1" value={walkInTable} onChange={e => setWalkInTable(e.target.value)} autoFocus
-                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
-                    />
-                  </div>
-                  <div>
-                    <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('guests')}</label>
-                    <input type="number" min="1" value={walkInGuests} onChange={e => setWalkInGuests(e.target.value)}
-                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
-                    />
-                  </div>
-                </div>
-                <div>
-                   <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('customer_name')} *</label>
-                   <input type="text" value={walkInName} onChange={e => setWalkInName(e.target.value)} placeholder={t('customer_name_placeholder')}
-                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
-                   />
-                </div>
-                <div>
-                   <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('customer_phone')} *</label>
-                   <input type="tel" value={walkInPhone} onChange={e => setWalkInPhone(e.target.value)} placeholder={t('phone_placeholder')}
-                      className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
-                   />
-                 </div>
-                 {/* QF6: client validation — name/phone are NOT NULL in the DB;
-                     fail friendly here, never with a raw PG constraint error. */}
-                 {(walkInName.trim().length < 2 || !/^\+?\d[\d\s-]{6,}$/.test(walkInPhone.trim())) && (
-                   <p className="text-[11px] font-bold text-rose-500 -mt-1">{t('walk_in_name_phone_required')}</p>
-                 )}
-                <div>
-                  <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('notes')}</label>
-                  <textarea value={walkInNotes} onChange={e => setWalkInNotes(e.target.value)} placeholder={t('note_placeholder')}
-                     rows={2}
-                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border resize-none transition-all ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="walkInPreOrder" checked={walkInPreOrder} onChange={e => { setWalkInPreOrder(e.target.checked); if (!e.target.checked) { setWalkInScheduledDate(''); setWalkInScheduledTime(''); } }}
-                    className="w-4 h-4 rounded border-zinc-300 text-zinc-500 focus:ring-zinc-400"
-                  />
-                      <label htmlFor="walkInPreOrder" className={`text-xs font-black uppercase tracking-wider ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
-                        {t('pre_order')}
-                      </label>
-                </div>
-                {walkInPreOrder && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('date')}</label>
-                      <input type="date" data-vk="none" value={walkInScheduledDate} onChange={e => setWalkInScheduledDate(e.target.value)}
-                        min={new Date().toISOString().slice(0, 10)}
-                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
-                      />
-                    </div>
-                    <div>
-                      <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('time')}</label>
-                      <input type="time" data-vk="none" value={walkInScheduledTime} onChange={e => setWalkInScheduledTime(e.target.value)}
-                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => { setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes(''); setWalkInPreOrder(false); setWalkInScheduledDate(''); setWalkInScheduledTime(''); }} className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-wider border ${lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
-                  {t('cancel')}
-                </button>
-                 <button
-                   onClick={async () => {
-                     const tableNum = Number(walkInTable);
-                     const guests = Number(walkInGuests) || 1;
-                     const nameOk = walkInName.trim().length >= 2;
-                     const phoneOk = /^\+?\d[\d\s-]{6,}$/.test(walkInPhone.trim());
-                     if (!tableNum || !nameOk || !phoneOk) return;
-                     try {
-                       const res = await apiFetch('/api/reservations/walk-in', {
-                         method: 'POST',
-                         headers: { 'Content-Type': 'application/json' },
-                         body: JSON.stringify({ table_number: tableNum, guests, name: walkInName.trim(), phone: walkInPhone.trim(), order_type: 'dine_in', notes: walkInNotes || null, pre_order: walkInPreOrder, scheduled_date: walkInPreOrder ? walkInScheduledDate : null, scheduled_time: walkInPreOrder ? walkInScheduledTime : null }),
-                       });
-                       if (res.ok) { toast.success(t('walk_in_created')); pos.fetchData(); }
-                       else { const err = await res.json(); toast.error(err.error || t('walk_in_failed')); }
-                     } catch { toast.error(t('error')); }
-                     setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes(''); setWalkInPreOrder(false); setWalkInScheduledDate(''); setWalkInScheduledTime('');
-                   }}
-                   disabled={!walkInTable || Number(walkInTable) < 1 || walkInName.trim().length < 2 || !/^\+?\d[\d\s-]{6,}$/.test(walkInPhone.trim())}
-                  className="flex-1 py-4 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-wider hover:bg-amber-600 transition-all active:scale-95 disabled:opacity-30 shadow-lg shadow-amber-500/20"
-                >
-                  {t('confirm')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
        </AnimatePresence>
 
        {/* SHIFT REVIEW MODAL */}

@@ -1790,8 +1790,8 @@ export const ru: TranslationMap = {
   add_items_hint: 'Добавьте товары',
   hint_return_item: 'Подано — откройте панель деталей, чтобы вернуть',
   hint_void_item: 'Отправлено на кухню — используйте "Отменить"',
-  hint_minus_blocked: 'Нельзя уменьшить этот товар',
-  // 2026-09-25 (owner): void pill removed → status hint + mandatory return reason
+  hint_minus_blocked: 'Нельзя уменьшить — используйте "Отменить"',
+  // 2026-09-25 (owner): status hint + mandatory return reason (void pill RESTORED)
   kitchen_status: 'Статус кухни',
   st_ready: 'готово',
   st_preparing: 'готовится',

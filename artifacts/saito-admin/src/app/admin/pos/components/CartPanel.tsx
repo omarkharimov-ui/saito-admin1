@@ -3,13 +3,14 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
- import type { PosCart, PosCartItem, LossItem } from '../types/shared';
- import type { SendOrderButtonStatus } from './SendOrderButton';
+import type { PosCart, PosCartItem, LossItem } from '../types/shared';
+import { PinGuard } from './PinGuard';
+import type { SendOrderButtonStatus } from './SendOrderButton';
 import { NumberRoll } from './NumberRoll';
 import { RollingNumber } from './RollingNumber';
 import { Numpad } from './Numpad';
@@ -73,7 +74,7 @@ interface CartPanelProps {
   tableGuests?: number | null;
   onSeatTable?: () => void | Promise<void>;
   onOpenActions?: () => void;
-
+  onVoidSuccess?: () => void | Promise<void>;
   /** Quick-fix 4 — coupon row. Server-validated coupon (amount comes from
    *  /api/campaigns/coupon, never from the client); exclusive with auto
    *  item-campaigns. Persisted onto cart.coupon by the parent. */
@@ -145,6 +146,7 @@ export function CartPanel({
   tableGuests,
   onSeatTable,
   onOpenActions,
+  onVoidSuccess,
     onCouponApplied,
     onCouponRemoved,
     boundOrderLabel,
@@ -165,10 +167,10 @@ export function CartPanel({
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
   const [seatBusy, setSeatBusy] = useState(false);
   const [isNoteOpen, setIsNoteOpen] = useState(false);
-  // 2026-09-25 (owner): the void (Ləğv et) pill + void mode are REMOVED —
-  // "əslində o lazımsızdır". The cart now shows a status hint (hazır /
-  // hazırlanır / draft counts) instead. The backend /api/orders/void stays
-  // frozen in place. The standalone ReturnItemModal state was already GONE —
+  const [voidMode, setVoidMode] = useState(false);
+  const [voidSelection, setVoidSelection] = useState<Record<string, number>>({});
+  const [voidLoading, setVoidLoading] = useState(false);
+  // 2026-09-24 (owner, FINAL): the standalone ReturnItemModal state is GONE —
   // return now lives inside the details panel (ProductGrid morph).
   const [guestEditing, setGuestEditing] = useState(false);
   const [localGuestCount, setLocalGuestCount] = useState(cart?.guest_count ?? 1);
@@ -419,11 +421,21 @@ export function CartPanel({
       closeVk();
       noteInputRef.current?.blur();
     }
+    if (numpadOpen) setVoidMode(false);
   }, [numpadOpen, closeVk]);
+
+  const voidableItems = useMemo(() => {
+    if (!cart) return [];
+    return cart.items.filter(item => {
+      const ks = (item as any).kitchen_status || 'pending';
+      return (item.sentQuantity ?? 0) > 0 && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
+    });
+  }, [cart]);
+  const hasVoidableItems = voidableItems.length > 0;
 
   // 2026-09-25 (owner): status hint counts — how many portions are
   // hazır (served/ready), hazırlanır (sent to kitchen, still in progress)
-  // and draft (not yet sent). Replaces the removed Ləğv et pill.
+  // and draft (not yet sent). Shown ALONGSIDE the restored Ləğv et pill.
   const statusCounts = useMemo(() => {
     let ready = 0, prep = 0, draft = 0;
     if (!cart) return { ready, prep, draft };
@@ -438,6 +450,10 @@ export function CartPanel({
   }, [cart]);
   const hasKitchenItems = statusCounts.ready + statusCounts.prep > 0;
 
+  // 2026-09-24 (owner, final decision): the Ləğv pill is VOID-ONLY again
+  // (08-26 placement/behavior — untouched). Return is NOT a button anywhere:
+  // a TAP ON A SERVED ROW opens the return modal (row-level trigger, see the
+  // per-item onClick below). No header space, no row button, no mode.
   if (!cart) {
     const msg = posMode !== 'dine_in' ? t('no_orders') || (posMode === 'takeaway' ? 'No orders' : 'No orders') : t('no_table_selected');
     return (
@@ -452,6 +468,83 @@ export function CartPanel({
   const originalTotal = cart.items.reduce((s, i) => s + (i.original_unit_price ?? i.unit_price) * i.quantity, 0);
   const isEmpty = cart.items.length === 0;
   const hasDraft = cart.items.some(i => (i.sentQuantity ?? 0) < i.quantity);
+
+  const voidSelectedCount = Object.keys(voidSelection).length;
+  const voidSelectedTotal = Object.entries(voidSelection).reduce((sum, [id, qty]) => {
+    const item = cart.items.find(i => (i.id || `idx-${cart.items.indexOf(i)}`) === id);
+    return sum + (item ? item.unit_price * qty : 0);
+  }, 0);
+
+  // Owner UX (reverted to the previous stepper, 2026-09-22): void selection is
+  // a −/count/+ control per line, DIRECT PRESS style — one tap on + selects
+  // the whole voidable line, tapping another line moves the selection there
+  // (single active line), − clears.
+  const selectVoidItem = (id: string, maxQty: number) => {
+    setVoidSelection(prev => (prev[id] ? {} : { [id]: maxQty }));
+  };
+  const deselectVoidItem = (id: string) => {
+    setVoidSelection(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  // Void with manager-PIN fallback (Sprint-1 pattern, same as VoidItemsModal):
+  // when the server says the void amount needs void.approve, open the PIN
+  // guard and retry with the PIN-verified approver's staffId.
+  const [pinGuardOpen, setPinGuardOpen] = useState(false);
+  const doVoid = async (approverStaffId?: string | null) => {
+    const activeOrder = (cart as any).order_id;
+    if (!activeOrder) return;
+    setVoidLoading(true);
+    try {
+      const selections = Object.entries(voidSelection).filter(([id]) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+      if (selections.length === 0) {
+        toast.error(t('void_error') || 'Ləğv edilmədi');
+        setVoidLoading(false);
+        return;
+      }
+      const payload = selections.map(([id, qty]) => ({
+        order_item_id: id,
+        quantity: qty,
+      }));
+      const res = await apiFetch('/api/orders/void', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: activeOrder, items: payload, approver_staff_id: approverStaffId || null }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const itemNames = selections.map(([id, qty]) => {
+          const item = cart.items.find(i => i.id === id);
+          return item ? `${qty}x ${item.product_name}` : '';
+        }).filter(Boolean).join(', ');
+        toast.success(`${itemNames || t('void_success') || 'Ləğv edildi'} — ${voidSelectedTotal.toFixed(2)} ₼ ${t('voided') || 'ləğv edildi'}`);
+        setVoidMode(false);
+        setVoidSelection({});
+        await onVoidSuccess?.();
+      } else {
+        if (data?.requires_approval || data?.approval_required) {
+          // Over-threshold void: manager PIN fallback (server re-verifies
+          // the approver's void.approve — PIN is only the client gate).
+          setPinGuardOpen(true);
+        } else {
+          toast.error(data.error || t('void_error') || 'Ləğv edilmədi', { id: 'pos-hint', duration: 4000 });
+          await onVoidSuccess?.();
+          setVoidSelection({});
+        }
+      }
+    } catch {
+      toast.error(t('network_error') || 'Şəbəkə xətası');
+    } finally {
+      setVoidLoading(false);
+    }
+  };
+  const handleVoidConfirm = () => {
+    if (voidSelectedCount === 0) return;
+    void doVoid(null);
+  };
 
   // Contextual primary-action states (dine-in only)
   const isDineInContext = posMode === 'dine_in' && !isReservationMode;
@@ -823,10 +916,7 @@ export function CartPanel({
         </div>
       )}
 
-      {/* Cart Quick Actions Row — Təmizlə (clear) + status hint
-          (2026-09-25, owner: the Ləğv et pill is gone — "əslində o
-          lazımsızdır"; instead a hint shows how many portions are
-          hazır / hazırlanır / draft). */}
+      {/* Cart Quick Actions Row — Təmizlə (clear) + Ləğv et (void) morphing */}
       {!isEmpty && (
         <div className={`pt-3 pb-4 mb-2 border-t ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
           <div className="flex gap-2">
@@ -857,6 +947,45 @@ export function CartPanel({
             <motion.div
               initial={false}
               animate={{
+                flex: hasVoidableItems ? '1 1 0%' : '0 0 0%',
+                opacity: hasVoidableItems ? 1 : 0,
+                scale: hasVoidableItems ? 1 : 0.9,
+              }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+              style={{ overflow: 'hidden', minWidth: 0 }}
+            >
+              <button
+                onClick={() => {
+                  if (voidMode) {
+                    setVoidMode(false);
+                    setVoidSelection({});
+                  } else {
+                    setVoidMode(true);
+                  }
+                }}
+                title={t('void_items') || 'Ləğv et'}
+                tabIndex={hasVoidableItems ? 0 : -1}
+                style={{ pointerEvents: hasVoidableItems ? 'auto' : 'none', width: '100%' }}
+                className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border transition-all ${
+                  voidMode
+                    ? lightMode
+                      ? 'bg-zinc-900 text-white border-zinc-900 shadow-lg shadow-black/10'
+                      : 'bg-white text-black border-white shadow-lg shadow-white/10'
+                    : lightMode
+                      ? 'bg-[var(--theme-surface)] border-zinc-200 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100'
+                      : 'bg-white/5 border-[var(--theme-border)] text-white/40 hover:text-white/70 hover:bg-white/10'
+                }`}
+              >
+                {voidMode ? <X size={12} className="mr-1.5" /> : <Ban size={12} className="mr-1.5" />}
+                {voidMode ? (t('cancel') || 'Ləğv et') : (t('void_items') || 'Ləğv et')}
+              </button>
+            </motion.div>
+            {/* 2026-09-25 (owner): status hint — how many portions are
+                hazır / hazırlanır / draft. Shown alongside the Ləğv et
+                pill (restored 2026-09-25, owner: "geri getir"). */}
+            <motion.div
+              initial={false}
+              animate={{
                 flex: hasKitchenItems ? '1 1 0%' : '0 0 0%',
                 opacity: hasKitchenItems ? 1 : 0,
                 scale: hasKitchenItems ? 1 : 0.9,
@@ -866,7 +995,7 @@ export function CartPanel({
             >
               <div
                 title={t('kitchen_status') || 'Mətbəx statusu'}
-                className={`flex items-center justify-center gap-3 h-full px-2 py-2.5 rounded-xl border text-[11px] font-black uppercase tracking-wider whitespace-nowrap overflow-hidden ${
+                className={`flex items-center justify-center gap-2.5 h-full px-2 py-2.5 rounded-xl border text-[11px] font-black uppercase tracking-wider whitespace-nowrap overflow-hidden ${
                   lightMode ? 'bg-[var(--theme-surface)] border-zinc-200' : 'bg-white/5 border-[var(--theme-border)]'
                 }`}
               >
@@ -919,6 +1048,7 @@ export function CartPanel({
             .cart-scroll-thin::-webkit-scrollbar-thumb { background: rgba(120,120,140,0.45) !important; border-radius: 999px; }
             .cart-scroll-thin::-webkit-scrollbar-thumb:hover { background: rgba(120,120,140,0.7) !important; }
           `}</style>
+          <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-rose-500/80 via-rose-400 to-rose-500/80 transition-opacity duration-200 ${voidMode ? 'opacity-100' : 'opacity-0'}`} />
         <div
           className="absolute inset-0 transition-opacity duration-150 ease-in-out"
           style={{ opacity: isEmpty ? 1 : 0, pointerEvents: isEmpty ? 'auto' : 'none' }}
@@ -936,23 +1066,70 @@ export function CartPanel({
             const originalIdx = cart.items.indexOf(item);
             const lineKey = item.id ?? `${item.product_id}|${item.variant_id ?? ''}|${(item.modifiers ?? []).map(m => `${m.id}:${m.name}`).join(',')}|${item.special_notes ?? ''}`;
             const ks = (item as any).kitchen_status || 'pending';
-            // 2026-09-25 (owner): the ✓ SƏRV badge marks the served state;
-            // the RETURN action lives in the details panel ("Geri qaytar"
-            // on the Miqdar row → the panel morphs into the return view).
-            // Void mode is REMOVED — the row is fully passive.
+            const isVoidableItem = voidMode && (item.sentQuantity ?? 0) > 0 && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
+            // 2026-09-24 (owner, FINAL): the ✓ badge marks the served state;
+            // the RETURN action itself lives in the details panel (right-side
+            // "Geri qaytar" button → panel morphs into the return view).
+            // Void pill / Təmizlə / void mode: untouched (08-26 placement).
             const isReturnableRow = (item.sentQuantity ?? 0) > 0 && ['ready', 'completed', 'served'].includes(ks);
+            const maxVoidQty = item.sentQuantity || item.quantity;
 
             return (
               <motion.div
                 key={lineKey}
-                layout
+                layout={!voidMode}
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
                 transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                 data-cart-item
-                className="relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 border-[var(--theme-border)]"
+                onClick={() => {
+                  // 2026-09-24 (owner, FINAL): the row is PASSIVE again —
+                  // return lives in the details panel (right-side "Geri
+                  // qaytar" button → the panel morphs into the return view).
+                  if (voidMode && !isVoidableItem) {
+                    if (isReturnableRow) {
+                      toast(t('hint_void_not_ready') || 'Servis olunub — ləğv etmək olmaz; details panelində "Geri qaytar" var', { id: 'pos-hint', duration: 3500 });
+                    } else if ((item.sentQuantity ?? 0) > 0) {
+                      toast(t('hint_void_not_sent') || 'Mətbəxə göndərilməyib — "Ləğv et" ilə ləğv edin', { id: 'pos-hint', duration: 3500 });
+                    }
+                  }
+                }}
+                  className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 transition-[border-color,box-shadow] duration-300 ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0
+                    ? (lightMode ? 'bg-rose-50/70 border-rose-300' : 'bg-rose-500/10 border-rose-400/50')
+                    : voidMode && !isVoidableItem && !isReturnableRow
+                      ? 'opacity-50 border-[var(--theme-border)]'
+                      : 'border-[var(--theme-border)]'}`}
               >
+                 {/* Void selection lines — rose (void color), and they now
+                     FADE OUT on "−" (AnimatePresence exit) instead of
+                     vanishing instantly. */}
+                 <AnimatePresence initial={false}>
+                   {voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 && (
+                     <motion.div
+                       key="void-lines"
+                       initial={{ opacity: 0 }}
+                       animate={{ opacity: 1 }}
+                       exit={{ opacity: 0, transition: { duration: 0.35, ease: 'easeOut' } }}
+                       className="pointer-events-none absolute inset-0"
+                     >
+                       <motion.span
+                         initial={{ scaleX: 0 }}
+                         animate={{ scaleX: 1 }}
+                         transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+                         style={{ transformOrigin: 'left' }}
+                         className={`absolute top-0 left-0 right-0 h-[2px] ${lightMode ? 'bg-gradient-to-r from-rose-500/90 via-rose-400 to-rose-500/90' : 'bg-gradient-to-r from-rose-400/90 via-rose-300 to-rose-400/90'}`}
+                       />
+                       <motion.span
+                         initial={{ scaleX: 0 }}
+                         animate={{ scaleX: 1 }}
+                         transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1], delay: 0.06 }}
+                         style={{ transformOrigin: 'right' }}
+                         className={`absolute bottom-0 left-0 right-0 h-[2px] ${lightMode ? 'bg-gradient-to-r from-rose-500/90 via-rose-400 to-rose-500/90' : 'bg-gradient-to-r from-rose-400/90 via-rose-300 to-rose-400/90'}`}
+                       />
+                     </motion.div>
+                   )}
+                 </AnimatePresence>
                 <div className="flex items-center gap-2.5">
                    <div className="flex-1 min-w-0">
                      <p className="text-sm font-semibold truncate text-[var(--theme-text)] flex items-center gap-1.5">
@@ -1003,7 +1180,25 @@ export function CartPanel({
                    <span className={`text-sm font-black tabular-nums min-w-[4rem] text-right ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                      {(item.unit_price * item.quantity).toFixed(2)} ₼
                    </span>
-                      <div className="flex items-center gap-2">
+                     {voidMode && isVoidableItem ? (
+                       <div className="flex items-center gap-2">
+                         <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
+                            <motion.button
+                              onClick={(e) => { e.stopPropagation(); deselectVoidItem(item.id || `idx-${originalIdx}`); }}
+                              whileTap={{ scale: 0.88 }} transition={TAP}
+                              className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)] disabled:opacity-30"
+                              disabled={!(voidSelection[item.id || `idx-${originalIdx}`] ?? 0)}
+                            >−</motion.button>
+                            <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-[var(--theme-text)]">{voidSelection[item.id || `idx-${originalIdx}`] || '—'}</span>
+                            <motion.button
+                             onClick={(e) => { e.stopPropagation(); selectVoidItem(item.id || `idx-${originalIdx}`, maxVoidQty); }}
+                             whileTap={{ scale: 0.88 }} transition={TAP}
+                             className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)]"
+                              >+</motion.button>
+                          </div>
+                        </div>
+                      ) : (
+                     <div className="flex items-center gap-2">
                        <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
                          <button
                            onClick={(e) => {
@@ -1013,11 +1208,11 @@ export function CartPanel({
                               if (ks && draftQty <= 0) {
                                 if (['ready', 'completed', 'served'].includes(ks)) {
                                   toast(t('hint_return_item') || 'Servis edilib — qaytarmaq üçün details panelini açın', { id: 'pos-hint', duration: 3500 });
-                                 } else if (['sent', 'preparing', 'pending', 'accepted', 'cooking'].includes(ks)) {
-                                   toast(t('hint_sent_locked') || 'Mətbəxə göndərilib — azaltmaq olmaz', { id: 'pos-hint', duration: 3500 });
-                                 } else {
-                                   toast(t('hint_minus_blocked') || 'Bu məhsulu azaltmaq olmaz', { id: 'pos-hint', duration: 3500 });
-                                 }
+                                } else if (['sent', 'preparing', 'pending', 'accepted', 'cooking'].includes(ks)) {
+                                  toast(t('hint_void_item') || 'Mətbəxə göndərilib — "Ləğv et" istifadə edin', { id: 'pos-hint', duration: 3500 });
+                                } else {
+                                  toast(t('hint_minus_blocked') || 'Bu məhsulu azaltmaq olmaz — "Ləğv et" istifadə edin', { id: 'pos-hint', duration: 3500 });
+                                }
                                 return;
                               }
                              onUpdateQty?.(originalIdx, -1);
@@ -1049,12 +1244,13 @@ export function CartPanel({
                      <button onClick={(e) => { e.stopPropagation(); onRequestEditor?.(item.product_id, originalIdx); }} className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
                        <SlidersHorizontal size={16} />
                      </button>
-                       {/* 2026-09-25 (owner): no per-row return button —
-                           return lives in the details panel (served lines,
-                           Miqdar row). Void pill + mode REMOVED; Təmizlə
-                           keeps its 08-26 placement. */}
-                      </div>
-                 </div>
+                      {/* 2026-09-24 (owner, FINAL): no per-row button at all —
+                          return lives in the details panel (served lines).
+                          Void (Ləğv pill + mode) and Təmizlə keep their
+                          08-26 placement, untouched. */}
+                     </div>
+                    )}
+                </div>
               </motion.div>
             );
           })}
@@ -1065,18 +1261,48 @@ export function CartPanel({
             plumbing (fetch/accept/dismiss) is kept dormant below. */}
       </div>
 
-      {/* Footer — 2026-09-25 (owner): the void footer branch is gone with the
-          void mode; only the standard footer remains. */}
+      {/* Footer */}
       <AnimatePresence initial={false} mode="wait">
-        <motion.div
-          key="std-footer"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
-          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-           className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]"
+        {voidMode ? (
+          <motion.div
+            key="void-footer"
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+            className="flex-shrink-0 pt-4 pb-6 border-t border-[var(--theme-border)] px-1"
           >
-             {/* Coupon code row — REMOVED by owner request (2026-09-21):
+            <div className={`rounded-2xl border px-4 py-3.5 ${lightMode ? 'bg-[var(--theme-surface)] border-zinc-200 shadow-sm' : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)]'}`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>
+                  <Ban size={14} className="flex-shrink-0" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-black tracking-wide leading-none mb-1 ${lightMode ? 'text-zinc-800' : 'text-white/90'}`}>
+                    {t('void_mode_title') || 'Ləğv rejimi'}
+                  </p>
+                  <p className={`text-xs font-medium leading-tight truncate ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
+                    {t('void_mode_explanation') || 'Ləğv etmək istədiyiniz məhsulu \"+\" ilə seçin'}
+                  </p>
+                </div>
+                {voidSelectedCount > 0 && (
+                  <span className={`flex-shrink-0 rounded-full px-3 py-1.5 text-sm font-black tabular-nums ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>
+                    {voidSelectedCount}
+                  </span>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="std-footer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+             className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]"
+           >
+          {/* Coupon code row — REMOVED by owner request (2026-09-21):
               "modal içi kupon kodu rədd et". (Server coupon validation is
               untouched; the cart.coupon field still applies if set.) */}
          {/* Total */}
@@ -1145,8 +1371,9 @@ export function CartPanel({
               </button>
             </div>
           )}
-          {/* Footer actions removed from here */}
-       </motion.div>
+         {/* Footer actions removed from here */}
+      </motion.div>
+        )}
       </AnimatePresence>
       </>)}
 
@@ -1155,19 +1382,24 @@ export function CartPanel({
         if (!isDineInContext && isEmpty) return null;
         const showActions = isDineInContext && hasExistingOrder && !hasDraft && orderButtonStatus === 'idle';
         const hasCartItems = cart.items.length > 0;
-        // 2026-09-25 (owner): the 'void' CTA state is gone with void mode.
-        const btnAction = hasCartItems ? 'send' : canSeat ? 'seat' : showActions ? 'actions' : 'send';
-        const btnLabel = orderButtonStatus === 'loading'
-          ? t('loading')
+        const btnAction = voidMode ? 'void' : (hasCartItems ? 'send' : canSeat ? 'seat' : showActions ? 'actions' : 'send');
+        const btnLabel = voidMode
+          ? voidSelectedCount > 0
+            ? (t('confirm_void') || 'Ləğv et')
+            : (t('void_select_prompt') || 'Ləğv edəcəyiniz məhsulları seçin')
+          : orderButtonStatus === 'loading'
+            ? t('loading')
+            : hasCartItems
+              ? (hasExistingOrder ? t('resend') : t('send_to_kitchen'))
+              : canSeat
+                ? t('seat_table')
+                : showActions
+                  ? t('actions')
+                  : (hasExistingOrder ? t('resend') : t('send_to_kitchen'));
+        const btnDisabled = voidMode ? (voidSelectedCount === 0 || voidLoading) : (seatBusy || orderButtonStatus === 'loading');
+        const btnBg = voidMode
+          ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/5')
           : hasCartItems
-            ? (hasExistingOrder ? t('resend') : t('send_to_kitchen'))
-            : canSeat
-              ? t('seat_table')
-              : showActions
-                ? t('actions')
-                : (hasExistingOrder ? t('resend') : t('send_to_kitchen'));
-        const btnDisabled = seatBusy || orderButtonStatus === 'loading';
-        const btnBg = hasCartItems
             ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
             : canSeat
               ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110'
@@ -1185,13 +1417,19 @@ export function CartPanel({
               whileTap={{ scale: btnDisabled ? 1 : 0.99 }}
               transition={{ layout: { duration: 0.35, ease: [0.32, 0.72, 0, 1] } }}
               disabled={btnDisabled}
-               onClick={(hasCartItems && canSeat) ? handleSeatAndSend : canSeat ? handleSeatTable : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
-               className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-all duration-300 ease-out ${btnDisabled ? 'cursor-wait opacity-80' : 'cursor-pointer'} ${btnBg}`}
-             >
-               {(() => {
-                 const icon = seatBusy || orderButtonStatus === 'loading' ? <Loader2 size={20} className="animate-spin" /> : hasCartItems && canSeat ? <Send size={16} /> : canSeat ? <Armchair size={18} /> : showActions ? <MoreHorizontal size={18} /> : <Send size={16} />;
-                 const counter = null;
-                 return (
+              onClick={voidMode
+                ? handleVoidConfirm
+                : (hasCartItems && canSeat) ? handleSeatAndSend : canSeat ? handleSeatTable : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
+              className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-all duration-300 ease-out ${btnDisabled ? (voidMode ? 'cursor-not-allowed opacity-70' : 'cursor-wait opacity-80') : 'cursor-pointer'} ${btnBg}`}
+            >
+              {(() => {
+                const icon = voidMode
+                  ? (voidLoading ? <Loader2 size={20} className="animate-spin" /> : voidSelectedCount > 0 ? <Check size={18} /> : <Ban size={16} />)
+                  : (seatBusy || orderButtonStatus === 'loading' ? <Loader2 size={20} className="animate-spin" /> : hasCartItems && canSeat ? <Send size={16} /> : canSeat ? <Armchair size={18} /> : showActions ? <MoreHorizontal size={18} /> : <Send size={16} />);
+                const counter = voidMode && voidSelectedCount > 0
+                  ? <span key="void-count" className="inline-flex items-center justify-center min-w-[30px] h-[30px] rounded-full px-2 text-xs font-black tabular-nums bg-black/15 text-current">{voidSelectedCount}</span>
+                  : null;
+                return (
                   <AnimatePresence mode="popLayout" initial={false}>
                     <motion.span
                       key={`cta-${btnAction}`}
@@ -1284,9 +1522,22 @@ export function CartPanel({
 
     </motion.div>
 
-    {/* 2026-09-25 (owner): the void manager-PIN guard + ReturnItemModal are
-        both gone — the return flow lives in the details panel (ProductGrid
-        morph), and the void pill/mode were removed as unnecessary. */}
+    {/* 2026-09-24 (owner, FINAL): ReturnItemModal removed from here — the
+        return flow now lives inside the details panel (ProductGrid morph). */}
+
+    {/* Void over-threshold: manager PIN fallback (server re-verifies approver) */}
+    <PinGuard
+      open={pinGuardOpen}
+      onClose={() => setPinGuardOpen(false)}
+      onVerified={(verified) => {
+        setPinGuardOpen(false);
+        if (verified?.valid && verified.staffId) {
+          void doVoid(verified.staffId);
+        }
+      }}
+      action="void"
+      title={t('void_pin_required') || 'Manager PIN'}
+    />
 
     </>
   );

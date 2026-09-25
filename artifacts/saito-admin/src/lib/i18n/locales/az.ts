@@ -1789,8 +1789,8 @@ export const az = {
   add_items_hint: 'Məhsul əlavə edin',
   hint_return_item: 'Servis edilib — qaytarmaq üçün details panelini açın',
   hint_void_item: 'Mətbəxə göndərilib — "Ləğv et" istifadə edin',
-  hint_minus_blocked: 'Bu məhsulu azaltmaq olmaz',
-  // 2026-09-25 (owner): void pill removed → status hint + mandatory return reason
+  hint_minus_blocked: 'Bu məhsulu azaltmaq olmaz — "Ləğv et" istifadə edin',
+  // 2026-09-25 (owner): status hint + mandatory return reason (void pill RESTORED)
   kitchen_status: 'Mətbəx statusu',
   st_ready: 'hazır',
   st_preparing: 'hazırlanır',

@@ -71,13 +71,10 @@ export default function BoardOrderCard({ order, kind, stage, status, lightMode, 
   const dimmer = lightMode ? 'text-zinc-400' : 'text-white/40';
 
   return (
-    <div
-      onClick={() => onSelect(order)}
-      className={`relative h-[180px] rounded-4xl p-5 flex flex-col overflow-hidden border cursor-pointer transition-all duration-200 group ${
-        lightMode ? 'bg-white shadow-sm hover:shadow' : 'bg-[#141419] shadow-lg shadow-black/30 hover:shadow-black/50'
-      }`}
-      style={{ borderColor: lightMode ? accent + '59' : 'rgba(255,255,255,0.10)' }}
-    >
+        <div
+          className="relative flex items-center gap-1.5 min-w-0 flex-shrink"
+          onClick={(e) => e.stopPropagation()}
+        >
       {/* Smoky brand glow — PARTNER CARDS ONLY (owner round 4: "tüstü"
           effekti 3-cü tərəf üçün; restoran içi kartlarda yoxdur).
           Stronger in light mode — round-3 "sonuk" fix. */}
@@ -103,35 +100,51 @@ export default function BoardOrderCard({ order, kind, stage, status, lightMode, 
         <span className={`text-[24px] leading-none font-black tracking-tighter whitespace-nowrap flex-shrink-0 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
           {isPartner ? `#${orderNo}` : `${t(kind === 'delivery' ? 'delivery_short' : 'takeaway_short')} ${orderNo}`}
         </span>
-        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          {isPartner && kind === 'delivery' && order.courier_eta ? (
-            <span
-              className="flex items-center gap-1 px-2 py-[3px] rounded-full text-[10px] font-bold tabular-nums whitespace-nowrap shrink-0"
-              style={{ backgroundColor: accent + (lightMode ? '26' : '1f'), color: accentText }}
-              title="Kurye gəliş vaxtı (partner app-dan)"
-            >
-              <Clock size={9} strokeWidth={2.75} className="shrink-0" />
-              {order.courier_eta}
-            </span>
-          ) : elapsed > 0 ? (
-            <span className={`flex items-center gap-1 px-2 py-[3px] rounded-full text-[10px] font-bold tabular-nums whitespace-nowrap shrink-0 ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-white/45'}`}>
-              <Clock size={9} strokeWidth={2.75} className="shrink-0" />
-              {elapsedText}
-            </span>
-          ) : null}
-          {isPartner && <PartnerLogo source={order.partner_source} height={16} lightMode={lightMode} shrinkable />}
+        {/* 2026-09-25 (owner round 6): top-right = LOGO + ⋮ ONLY. The time
+            chip used to sit here and on narrow live cards it pushed the ⋮
+            past the card edge (unclickable, "çıxır çölə"). The time chip now
+            lives on its own absolute row below (see under this block). */}
+        <div
+          className="relative flex items-center gap-1.5 min-w-0 flex-shrink"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {isPartner && <PartnerLogo source={order.partner_source} height={16} lightMode={lightMode} shrinkable maxWidth={64} />}
           <button
-            onClick={() => onAction(order)}
-            className={`w-7 h-7 -mr-1 rounded-lg flex items-center justify-center transition-all ${lightMode ? 'text-zinc-300 hover:bg-zinc-100 hover:text-zinc-500' : 'text-white/30 hover:bg-white/10 hover:text-white/60'}`}
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onAction(order); }}
+            className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+              lightMode ? 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600' : 'text-white/55 hover:bg-white/10 hover:text-white/90'
+            }`}
+            title="Əməliyyatlar"
           >
-            <MoreVertical size={13} />
+            <MoreVertical size={14} strokeWidth={2.5} />
           </button>
         </div>
       </div>
 
+      {/* Time chip — own absolute row under the top bar (classic card
+          position). Partner delivery: ACCENT ETA (partner API value);
+          otherwise neutral elapsed. Never squeezes the top bar. */}
+      {((isPartner && kind === 'delivery' && order.courier_eta) || elapsed > 0) && (
+        <span
+          className={`absolute top-[46px] right-5 z-10 flex items-center gap-1 px-2 py-[3px] rounded-full text-[10px] font-bold tabular-nums whitespace-nowrap ${
+            (isPartner && kind === 'delivery' && order.courier_eta) ? '' : lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-white/45'
+          }`}
+          style={(isPartner && kind === 'delivery' && order.courier_eta)
+            ? { backgroundColor: accent + (lightMode ? '26' : '1f'), color: accentText }
+            : undefined}
+          title={isPartner && kind === 'delivery' && order.courier_eta ? 'Kurye gəliş vaxtı (partner app-dan)' : 'Sifarişin yaşadı'}
+        >
+          <Clock size={9} strokeWidth={2.75} className="shrink-0" />
+          {isPartner && kind === 'delivery' && order.courier_eta ? order.courier_eta : elapsedText}
+        </span>
+      )}
+
       {/* ── Middle: muted rows (in-house keeps ALL data) ── */}
       <div className="relative mt-3 flex flex-col gap-[3px] min-h-0 overflow-hidden">
-        <div className="flex items-center gap-1.5 min-w-0 leading-[15px]">
+        {/* pr-16: the time chip (absolute, top-right row) sits above this row —
+            keep its right side clear so text truncates before the chip. */}
+        <div className="flex items-center gap-1.5 min-w-0 pr-16 leading-[15px]">
           <User size={11} className="shrink-0 opacity-70" style={{ color: accentText }} />
           <span className={`text-[11px] font-bold truncate ${muted}`}>{order.customer_name || '—'}</span>
           {/* delivery: phone inline (classic layout); takeaway: phone gets its

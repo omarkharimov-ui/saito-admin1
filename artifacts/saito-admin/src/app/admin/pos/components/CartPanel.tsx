@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight, Lock } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight, Lock, Bike } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -88,6 +88,9 @@ interface CartPanelProps {
       (aggregator) order, customer info comes from the partner app via API —
       the cart renders it READ-ONLY (no customer phase, no re-entry). */
   partnerSource?: string | null;
+  /** The full partner order row (courier/ETA/address fields live on the order,
+      not in the cart) — rendered as the read-only "API payload" block. */
+  partnerOrder?: any;
   }
 
 const STATIONS = [
@@ -156,6 +159,7 @@ export function CartPanel({
     onCouponRemoved,
     boundOrderLabel,
     partnerSource,
+    partnerOrder,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -779,22 +783,56 @@ export function CartPanel({
                  avatar + name + phone. */}
               {(posMode === 'takeaway' || posMode === 'delivery') ? (
                 partnerSource ? (
-                  /* 2026-09-25 (owner, partner Part 1): partner (aggregator)
-                     order — customer name/phone come from the partner app via
-                     API. READ-ONLY: no click, no customer phase, lock hint. */
-                  <div
-                    className={`mt-1.5 flex items-center gap-2 px-2.5 h-8 rounded-full border select-none ${
-                      lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'
-                    }`}
-                    title="Müştəri məlumatı partner tətbiqindən (API) gəlir — əllə dəyişdirilmir"
-                  >
-                    <PartnerLogo source={partnerSource} height={13} lightMode={lightMode} />
-                    <span className={`text-xs font-bold truncate max-w-[140px] ${lightMode ? 'text-zinc-700' : 'text-white/80'}`}>
-                      {cart.customer_name || '—'}
-                    </span>
-                    {cart.customer_phone ? <span className={`text-[10px] tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{cart.customer_phone}</span> : null}
-                    <Lock size={11} className={`shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`} />
-                  </div>
+                  /* 2026-09-25 (owner round 6): NOT a bare lock chip — show the
+                     FULL partner API payload (name, phone, address, zone,
+                     courier, ETA) as a read-only "Partner tətbiqindən (API)"
+                     block. Data comes from the order row (API-created);
+                     nothing here is an input. */
+                  (() => {
+                    const po: any = partnerOrder || {};
+                    const pName = cart.customer_name || po.customer_name || '—';
+                    const pPhone = cart.customer_phone || po.customer_phone || '';
+                    const pStreet = po.delivery_street || cart.delivery_street || '';
+                    const pBuilding = po.delivery_building || cart.delivery_building || '';
+                    const pDistrict = po.delivery_district || cart.delivery_district || '';
+                    const pZone = po.delivery_zone || cart.delivery_zone || '';
+                    const pAddress = [pStreet, pBuilding, pDistrict].filter(Boolean).join(', ');
+                    const pCourier = po.courier_name || '';
+                    const pCourierPhone = po.courier_phone || '';
+                    const pEta = po.courier_eta || '';
+                    return (
+                      <div className={`mt-1.5 rounded-2xl border p-3 select-none ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.04] border-white/10'}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <PartnerLogo source={partnerSource} height={15} lightMode={lightMode} />
+                          <span className={`text-[10px] font-black uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                            Partner tətbiqindən (API)
+                          </span>
+                          <Lock size={10} className={`ml-auto shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`} />
+                        </div>
+                        <div className={`flex flex-col gap-1 ${lightMode ? 'text-zinc-700' : 'text-white/75'}`}>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <User size={11} className="shrink-0 opacity-60" />
+                            <span className="text-[11px] font-bold truncate">{pName}</span>
+                            {pPhone && <span className={`text-[10.5px] font-semibold tabular-nums truncate ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{pPhone}</span>}
+                          </div>
+                          {pAddress && (
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <MapPin size={11} className="shrink-0 opacity-60" />
+                              <span className="text-[11px] font-semibold truncate">{pAddress}{pZone ? ` · ${pZone}` : ''}</span>
+                            </div>
+                          )}
+                          {pCourier && (
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Bike size={11} className="shrink-0 opacity-60" />
+                              <span className="text-[11px] font-bold truncate">{pCourier}</span>
+                              {pCourierPhone && <span className={`text-[10.5px] font-semibold tabular-nums truncate ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{pCourierPhone}</span>}
+                              {pEta && <span className={`text-[10.5px] font-semibold tabular-nums shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>· {pEta}</span>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()
                 ) : (
                 <button
                   type="button"

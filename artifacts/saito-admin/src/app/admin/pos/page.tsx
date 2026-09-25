@@ -2662,6 +2662,7 @@ export default function POSPage() {
                              setPosPhase('customer'); setCustomerFocus(null);
                            }}
                            partnerSource={(editingOrder as any)?.partner_source || null}
+                           partnerOrder={(editingOrder as any)?.partner_source ? (editingOrder as any) : null}
                           onRecordLoss={handleRecordLoss}
                          onClearDraft={() => pos.clearCart()}
                          mergedChildNumbers={posMode === 'dine_in' ? activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number) : undefined}

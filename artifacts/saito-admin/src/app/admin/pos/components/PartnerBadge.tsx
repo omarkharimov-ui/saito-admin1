@@ -15,12 +15,13 @@ import { partnerMeta } from '../lib/partners';
  *  `shrinkable` = the logo may compress (min-width:0) in tight flex rows —
  *  used by BoardOrderCard top bars so the ORDER NUMBER keeps its space and
  *  only the logo gives way (owner: number must never be truncated away). */
-export function PartnerLogo({ source, height = 18, variant = 'auto', lightMode = false, shrinkable = false }: {
+export function PartnerLogo({ source, height = 18, variant = 'auto', lightMode = false, shrinkable = false, maxWidth = 72 }: {
   source?: string | null;
   height?: number;
   variant?: 'auto' | 'dark' | 'light';
   lightMode?: boolean;
   shrinkable?: boolean;
+  maxWidth?: number;
 }) {
   const p = partnerMeta(source);
   if (!p) return null;
@@ -32,7 +33,7 @@ export function PartnerLogo({ source, height = 18, variant = 'auto', lightMode =
       title={`Sifariş mənbəyi: ${p.name}`}
       draggable={false}
       className={`${shrinkable ? 'min-w-0' : 'flex-shrink-0'} select-none`}
-      style={{ height, width: 'auto', maxWidth: 72, objectFit: 'contain', opacity: 0.95 }}
+      style={{ height, width: 'auto', maxWidth, objectFit: 'contain', opacity: 0.95 }}
     />
   );
 }

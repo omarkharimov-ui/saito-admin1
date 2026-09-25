@@ -1871,6 +1871,7 @@ export const ru: TranslationMap = {
   tables_split: 'Столы разделены',
   split_error_msg: 'Ошибка разделения',
   no_show_failed: 'Не удалось отметить как no-show',
+  no_show: 'Не явился',
   ticket_printed: 'Билет напечатан',
   order_history: 'История заказов',
   history: 'История',

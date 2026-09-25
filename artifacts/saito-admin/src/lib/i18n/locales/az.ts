@@ -1876,6 +1876,7 @@ export const az = {
   tables_split: 'Masalar ayrıldı',
   split_error_msg: 'Ayırma xətası',
   no_show_failed: 'No Show edilə bilmədi',
+  no_show: 'No Show',
   ticket_printed: 'Bilet çap edildi',
   order_history: 'Sifariş Tarixçəsi',
   history: 'Tarixçə',

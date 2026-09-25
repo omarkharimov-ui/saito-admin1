@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Trash2, AlertCircle, Loader2, Users, Calendar, Clock, Phone, User, MessageSquare } from 'lucide-react';
+import { Trash2, AlertCircle, Loader2, Users, Calendar, Clock, Phone, User, MessageSquare, Star, Wallet } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import MobileModal from '@/components/ui/MobileModal';
 
@@ -82,7 +82,10 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
     date: new Date().toISOString().split('T')[0],
     time: '19:00',
     guests: 2,
-    notes: ''
+    notes: '',
+    // 2026-09-26 (owner, Task 49): VIP + table-hold deposit engine fields.
+    is_vip: false,
+    deposit_amount: ''
   });
 
   useEffect(() => {
@@ -93,7 +96,9 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
         date: initialData.date || new Date().toISOString().split('T')[0],
         time: initialData.time || '19:00',
         guests: initialData.guests || 2,
-        notes: initialData.notes || initialData.note || ''
+        notes: initialData.notes || initialData.note || '',
+        is_vip: !!initialData.is_vip,
+        deposit_amount: initialData.deposit_amount != null && initialData.deposit_amount !== '' ? String(initialData.deposit_amount) : ''
       });
     } else {
       setFormData({
@@ -102,7 +107,9 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
         date: new Date().toISOString().split('T')[0],
         time: '19:00',
         guests: 2,
-        notes: ''
+        notes: '',
+        is_vip: false,
+        deposit_amount: ''
       });
     }
   }, [initialData, open]);
@@ -182,6 +189,38 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
               value={formData.guests}
               onChange={e => setFormData({ ...formData, guests: parseInt(e.target.value) })}
             />
+          </div>
+
+          {/* 2026-09-26 (owner, Task 49): VIP + table-hold deposit engine.
+              VIP = priority badge on POS sheet + reservations page; deposit
+              = ₼ hold taken at booking, credited to the bill at payment. */}
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, is_vip: !formData.is_vip })}
+              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-sm font-black uppercase tracking-widest transition-all ${
+                formData.is_vip
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-lg shadow-amber-500/10'
+                  : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+              }`}
+            >
+              <Star size={16} className={formData.is_vip ? 'fill-amber-400 text-amber-400' : ''} />
+              VIP
+            </button>
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold flex items-center gap-2">
+                <Wallet size={12} /> {t('deposit' as any) || 'Depozit (₼)'}
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="5"
+                placeholder="0"
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-gold/50 text-white text-sm"
+                value={formData.deposit_amount}
+                onChange={e => setFormData({ ...formData, deposit_amount: e.target.value })}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

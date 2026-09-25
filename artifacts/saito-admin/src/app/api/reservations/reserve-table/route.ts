@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No valid table IDs provided' }, { status: 400 });
     }
     const tablesRes = await fetch(
-      `${svc().url}/rest/v1/table_floors?select=id,table_number,status&id=in.(${validTableIds.map((id: string) => id).join(',')})`,
+      `${svc().url}/rest/v1/table_floors?select=id,table_number,status,location_id,organization_id&id=in.(${validTableIds.map((id: string) => id).join(',')})`,
       { headers: svc().headers }
     );
     const targetTables: any[] = await tablesRes.json();
@@ -144,9 +144,15 @@ export async function POST(request: NextRequest) {
     let createdOrder: any = existingDrafts?.[0];
 
     if (!createdOrder) {
+      // 2026-09-26 (owner, Task 49): orders NOT NULL constraints — the payload
+      // was missing location/organization, so EVERY table-confirm 500'd
+      // ("Failed to create reservation order") and the selection never persisted.
+      const loc = targetTables[0] || {};
       const orderPayload = {
         table_number,
         reservation_id,
+        location_id: loc.location_id || null,
+        organization_id: loc.organization_id || null,
         status: 'confirmed',
         kitchen_status: 'reserved',
         is_draft: true,
@@ -228,6 +234,9 @@ export async function POST(request: NextRequest) {
           reservation_name: reservation.name || reservation.customer_name || null,
           reservation_phone: reservation.phone || null,
           reservation_time: reservation.time || null,
+          // 2026-09-26 (owner, Task 49): carry the table-hold deposit onto the
+          // floor so the POS sheet shows the "Depozit ₼X" chip.
+          deposit_amount: reservation.deposit_amount ?? null,
         }),
       });
       if (!updateRes.ok) {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
+import { resolveWriteLocationContext } from '@/lib/location-context';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -28,13 +29,22 @@ export async function GET() {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
-    const [reservationsRes, ordersRes] = await Promise.all([
+    // 2026-09-26 (owner, Task 49): the table picker used a CLIENT-side anon
+    // query (supabase.from('table_floors')) which RLS returns [] for → the
+    // "Zal & Masa Seçimi" modal rendered zero tables. Serve the tables here
+    // (service key, org-scoped) instead.
+    const opLoc = await resolveWriteLocationContext(auth.user.id);
+    const orgFilter = opLoc?.organizationId ? `&organization_id=eq.${opLoc.organizationId}` : '';
+
+    const [reservationsRes, ordersRes, tablesRes] = await Promise.all([
       fetch(`${svc().url}/rest/v1/reservations?select=*&order=date.desc,time.desc`, { headers: svc().headers }),
       fetch(`${svc().url}/rest/v1/orders?select=table_number,status&or=(status.eq.new,status.eq.confirmed,status.eq.paid)`, { headers: svc().headers }),
+      fetch(`${svc().url}/rest/v1/table_floors?select=id,table_number,status,floor_name,floor_id,location_id,organization_id,reservation_id,reserved_at,reserved_until,guest_count,deposit_amount&order=floor_name.asc,table_number.asc${orgFilter}`, { headers: svc().headers }),
     ]);
 
     const reservations = await reservationsRes.json();
     const orders = await ordersRes.json();
+    const tables = await tablesRes.json();
 
     const phoneVisits: Record<string, number> = {};
     (reservations || []).forEach((r: any) => {
@@ -51,6 +61,7 @@ export async function GET() {
     return NextResponse.json({
       reservations: enhancedReservations,
       orders: orders || [],
+      tables: tables || [],
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -106,7 +117,18 @@ export async function POST(request: Request) {
     let url = `${svc().url}/rest/v1/reservations`;
     let method = 'POST';
     let payload = data || body;
-    
+
+    // 2026-09-26 (owner, Task 49): the service-key insert bypasses RLS, so the
+    // operator's org/location are NOT auto-filled — stamp them explicitly or
+    // the NOT NULL constraint on organization_id rejects every create (23502).
+    if (action === 'create' && payload && typeof payload === 'object') {
+      const opLoc = await resolveWriteLocationContext(auth.user!.id);
+      if (!opLoc?.locationId) {
+        return NextResponse.json({ error: 'NO_LOCATION_CONTEXT' }, { status: 400 });
+      }
+      payload = { ...payload, location_id: opLoc.locationId, organization_id: opLoc.organizationId };
+    }
+
     if (action === 'update') {
       url += `?id=eq.${id}`;
       method = 'PATCH';
@@ -159,7 +181,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err }, { status: res.status });
     }
 
-    const result = method === 'DELETE' ? { success: true } : await res.json();
+    // PostgREST inserts return 201 with an EMPTY body (no Prefer:
+    // return=representation) — res.json() on empty throws "Unexpected end of
+    // JSON input". Parse defensively.
+    let result: any = { success: true };
+    if (method !== 'DELETE') {
+      const text = await res.text();
+      if (text) {
+        try { result = JSON.parse(text); } catch { result = { success: true }; }
+      }
+    }
 
     // Audit log (non-blocking)
     const performedBy = auth.user?.id || null;

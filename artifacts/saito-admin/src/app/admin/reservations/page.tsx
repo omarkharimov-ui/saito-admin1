@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { Reservation } from '@/types';
-import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, ArrowRight, Clock, ChevronLeft, Plus, Trash2, ChefHat, Tag, Merge } from 'lucide-react';
+import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, ArrowRight, Clock, ChevronLeft, Plus, Trash2, ChefHat, Tag, Merge, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { useNotifications } from '../context/NotificationContext';
@@ -82,11 +82,13 @@ export default function ReservationsPage() {
         setReservations(data.reservations);
       }
       
-      const { data: tData } = await supabase.from('table_floors').select('*');
-      const allTables = tData || [];
+      // 2026-09-26 (owner, Task 49): tables now come from /api/reservations
+      // (service key, org-scoped) — the old client-side anon query was blocked
+      // by RLS and rendered the "Zal & Masa Seçimi" picker empty.
+      const allTables: any[] = data.tables || [];
       setTables(allTables);
 
-      const uniqueFloorNames = Array.from(new Set(allTables.map(t => t.floor_name || 'Zal 1')));
+      const uniqueFloorNames: string[] = Array.from(new Set(allTables.map((t: any) => t.floor_name || 'Zal 1')));
       setFloors(uniqueFloorNames.map(name => ({ id: name, name })));
       
       if (!selectedFloorName && uniqueFloorNames.length > 0) {
@@ -405,12 +407,26 @@ export default function ReservationsPage() {
   const handleUpsert = async (formData: any) => {
     setActionLoading(true);
     try {
+      // 2026-09-26 (owner, Task 49): VIP + deposit engine — deposit_amount
+      // comes from a text input ('' = none) → coerce to number|null.
+      // 2026-09-26 (owner, Task 49): EXPLICIT column mapping — the old
+      // `...formData` spread sent UI field names (customer_name/notes) straight
+      // to PostgREST, which rejects unknown columns (PGRST204) and failed the
+      // ENTIRE insert. Every field below is a real `reservations` column.
       const body = {
         action: editingReservation ? 'update' : 'create',
         id: editingReservation?.id,
         data: {
-          ...formData,
           name: formData.customer_name,
+          phone: formData.phone,
+          date: formData.date,
+          time: formData.time,
+          guests: Number(formData.guests) || 1,
+          notes: formData.notes || null,
+          is_vip: !!formData.is_vip,
+          deposit_amount: formData.deposit_amount === '' || formData.deposit_amount == null
+            ? null
+            : Number(formData.deposit_amount),
           status: editingReservation?.status || 'pending'
         }
       };
@@ -724,10 +740,21 @@ export default function ReservationsPage() {
                              <span className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 ${lightMode ? 'bg-zinc-100 text-zinc-700' : 'bg-white/10 text-white/80'}`}>
                                <Clock size={14} /> {selectedRes.time}
                              </span>
-                              <span className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 ${lightMode ? 'bg-zinc-100 text-zinc-700' : 'bg-white/10 text-white/80'}`}>
-                                <Users size={14} /> {selectedRes.guests} Nəfər
-                              </span>
-                            </div>
+                               <span className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 ${lightMode ? 'bg-zinc-100 text-zinc-700' : 'bg-white/10 text-white/80'}`}>
+                                 <Users size={14} /> {selectedRes.guests} Nəfər
+                               </span>
+                               {/* 2026-09-26 (owner, Task 49): VIP + table-hold deposit. */}
+                               {selectedRes.is_vip && (
+                                 <span className="px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 bg-amber-500/15 border border-amber-500/30 text-amber-500">
+                                   <Star size={14} className="fill-amber-500" /> VIP
+                                 </span>
+                               )}
+                               {Number(selectedRes.deposit_amount) > 0 && (
+                                 <span className="px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-500">
+                                   <Wallet size={14} /> {t('deposit' as any) || 'Depozit'} ₼{Number(selectedRes.deposit_amount).toFixed(0)}
+                                 </span>
+                               )}
+                             </div>
 
                            {/* Note — pill stays in place; tap morphs it (shared element)
                                into a floating editor above the keyboard, close reverses it */}

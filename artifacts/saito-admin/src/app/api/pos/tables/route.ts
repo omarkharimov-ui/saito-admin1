@@ -181,6 +181,11 @@ export async function GET() {
         reservation_name: reservation?.name || f.reservation_name,
         reservation_phone: reservation?.phone || f.reservation_phone,
         reservation_time: reservation?.time || f.reservation_time,
+        // 2026-09-26 (owner, Task 49): surface the reservation's VIP flag +
+        // table-hold deposit on the table so the POS reservation action sheet
+        // shows the VIP badge + "Depozit ₼X" chip.
+        is_vip: reservation ? !!reservation.is_vip : !!(f as any).is_vip,
+        deposit_amount: reservation ? reservation.deposit_amount ?? null : (f as any).deposit_amount ?? null,
         pre_order: hasPreOrder,
       };
 

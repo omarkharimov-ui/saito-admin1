@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PhoneCall, Clock, Users, Star, CheckCircle, Pencil, Printer, UserX, Ban } from 'lucide-react';
+import { PhoneCall, Clock, Users, Star, CheckCircle, Pencil, Printer, UserX, Ban, Info, Wallet } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { TableActionSheet, ActionCard, ActionGrid } from './TableActionSheet';
@@ -17,6 +17,8 @@ interface Reservation {
   guest_count: number | null;
   status: string;
   is_vip?: boolean | null;
+  /** 2026-09-26 (owner, Task 49): table-hold deposit (₼) — credited to bill. */
+  deposit_amount?: number | string | null;
 }
 
 interface ReservationActionSheetProps {
@@ -66,7 +68,7 @@ export default function ReservationActionSheet({
         onClick={onEditReservation}
       />
       <ActionCard
-        icon={<span className="text-xs font-black tracking-widest uppercase">+</span>}
+        icon={<Info size={22} strokeWidth={2.5} />}
         label={t('details')}
         variant="default"
         onClick={() => setShowActions(!showActions)}
@@ -104,13 +106,13 @@ export default function ReservationActionSheet({
       )}
       <ActionCard
         icon={<Printer size={22} strokeWidth={2.5} />}
-        label="Çap Et"
+        label={t('print')}
         variant="default"
         onClick={() => { setShowActions(false); onPrintReservation?.(); }}
       />
       <ActionCard
         icon={<UserX size={22} strokeWidth={2.5} />}
-        label="No Show"
+        label={t('no_show' as any) || 'No Show'}
         variant="destructive"
         onClick={() => { setShowActions(false); onMarkNoShow?.(); }}
       />
@@ -142,8 +144,13 @@ export default function ReservationActionSheet({
                 {table.reservation_name && <span>{table.reservation_name}</span>}
                 <span className="inline-flex items-center gap-3 text-xs font-bold uppercase tracking-widest opacity-60">
                   {table.reservation_time && <span className="flex items-center gap-1"><Clock size={10} /> {table.reservation_time}</span>}
-                  {table.guest_count && <span className="flex items-center gap-1"><Users size={10} /> {table.guest_count} t('person')</span>}
+                  {table.guest_count && <span className="flex items-center gap-1"><Users size={10} /> {table.guest_count} {t('person' as any) || 'Nəfər'}</span>}
                   {table.reservation_phone && <span className="flex items-center gap-1"><PhoneCall size={10} /> {maskPhone(table.reservation_phone)}</span>}
+                  {Number(table.deposit_amount) > 0 && (
+                    <span className="flex items-center gap-1 text-emerald-400 opacity-100">
+                      <Wallet size={10} /> {t('deposit' as any) || 'Depozit'} ₼{Number(table.deposit_amount).toFixed(0)}
+                    </span>
+                  )}
                 </span>
               </span>
             }

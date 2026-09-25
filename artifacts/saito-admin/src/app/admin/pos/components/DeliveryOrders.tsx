@@ -5,6 +5,8 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
 import { PartnerBadge, PartnerStripe, PartnerTint } from './PartnerBadge';
+import PartnerOrderCard from './PartnerOrderCard';
+import { partnerMeta } from '../lib/partners';
 
 interface DeliveryOrdersProps {
   orders: any[];
@@ -79,16 +81,34 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
               // QA bug 4 (2026-09-22): cap hours — beyond 24h show days (same as TakeawayOrders).
               const elapsedText = elapsed < 1 ? '< 1 min' : elapsed < 60 ? `${elapsed} min` : elapsed < 1440 ? `${Math.floor(elapsed / 60)}h ${elapsed % 60}m` : `${Math.floor(elapsed / 1440)}d`;
 
-              return (
-                 <div
-                   key={order.id}
-                   onClick={() => onSelectOrder(order)}
-                   className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer ${
-                     lightMode
-                       ? 'bg-white border-emerald-500 shadow-sm'
-                       : 'bg-zinc-900 border-emerald-500/60 shadow-sm'
-                   }`}
-                 >
+               // 2026-09-25 (owner redesign): partner orders (Bolt/Uber/Glovo/Wolt)
+               // get the "Slick Dark" card — #code + ETA + native logo + muted
+               // rows + glow. Internal orders keep the classic card below.
+               if (partnerMeta(order.partner_source)) {
+                 return (
+                   <PartnerOrderCard
+                     key={order.id}
+                     order={order}
+                     kind="delivery"
+                     stage={stage}
+                     status={status}
+                     lightMode={lightMode}
+                     t={t}
+                     onSelect={onSelectOrder}
+                     onAction={onOpenActionSheet}
+                   />
+                 );
+               }
+               return (
+                  <div
+                    key={order.id}
+                    onClick={() => onSelectOrder(order)}
+                    className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer ${
+                      lightMode
+                        ? 'bg-white border-emerald-500 shadow-sm'
+                        : 'bg-zinc-900 border-emerald-500/60 shadow-sm'
+                    }`}
+                  >
                    {/* 2026-09-25 (owner): partner branding — brand-color
                        left stripe + soft tint + logo chip, so a Bolt/Uber/
                        Glovo/Wolt order is recognizable at a glance. */}

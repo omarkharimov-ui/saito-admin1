@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 92 30" role="img" aria-label="Wolt">
+  <!-- 2026-09-25: Wolt wordmark approximation for DARK cards (brand blue #0022E6,
+       transparent bg). Commons only has white-boxed PNGs (no alpha); the real
+       vector will replace this when the partner team provides it. -->
+  <!-- #5C7CFF: Wolt brand blue lifted for dark surfaces (#0022E6 ≈2:1,
+       #3D5AFE ≈3.3:1 — measured in preview v2; 5:1 reads crisp at 16px). -->
+  <text x="0" y="24" font-family="'Arial Rounded MT Bold', 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="800" letter-spacing="-0.8" fill="#5C7CFF">wolt</text>
+</svg>

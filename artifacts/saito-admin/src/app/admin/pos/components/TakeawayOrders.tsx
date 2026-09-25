@@ -5,6 +5,8 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
 import { PartnerBadge, PartnerStripe, PartnerTint } from './PartnerBadge';
+import PartnerOrderCard from './PartnerOrderCard';
+import { partnerMeta } from '../lib/partners';
 
 interface TakeawayOrdersProps {
   orders: any[];
@@ -80,16 +82,33 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
               // Now: <1h minutes, <24h hours, beyond → days.
               const elapsedText = elapsed < 1 ? '< 1 min' : elapsed < 60 ? `${elapsed} min` : elapsed < 1440 ? `${Math.floor(elapsed / 60)}h ${elapsed % 60}m` : `${Math.floor(elapsed / 1440)}d`;
 
-              return (
-                <div
-                  key={order.id}
-                  onClick={() => onSelectOrder(order)}
-                  className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer ${
-                    lightMode
-                      ? 'bg-white border-emerald-500 shadow-sm'
-                      : 'bg-zinc-900 border-emerald-500/60 shadow-sm'
-                  }`}
-                 >
+               // 2026-09-25 (owner redesign): partner takeaway orders →
+               // "Slick Dark" card (no courier row, elapsed chip instead of ETA).
+               if (partnerMeta(order.partner_source)) {
+                 return (
+                   <PartnerOrderCard
+                     key={order.id}
+                     order={order}
+                     kind="takeaway"
+                     stage={stage}
+                     status={status}
+                     lightMode={lightMode}
+                     t={t}
+                     onSelect={onSelectOrder}
+                     onAction={onOpenActionSheet}
+                   />
+                 );
+               }
+               return (
+                 <div
+                   key={order.id}
+                   onClick={() => onSelectOrder(order)}
+                   className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer ${
+                     lightMode
+                       ? 'bg-white border-emerald-500 shadow-sm'
+                       : 'bg-zinc-900 border-emerald-500/60 shadow-sm'
+                   }`}
+                  >
                    {/* 2026-09-25 (owner): partner branding (stripe + tint + logo chip). */}
                    <PartnerStripe source={order.partner_source} />
                    <PartnerTint source={order.partner_source} lightMode={lightMode} />

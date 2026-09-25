@@ -81,9 +81,10 @@ export async function POST(req: NextRequest) {
         delivery_zone: 'Bakı Mərkəz',
         delivery_street: 'Azərbaycan prospekti 54',
         delivery_building: '3',
-        courier_name: 'Elvin Məmmədov',
-        courier_phone: '+994 50 123 45 67',
-        courier_assigned_at: now,
+         courier_name: 'Elvin Məmmədov',
+         courier_phone: '+994 50 123 45 67',
+         courier_assigned_at: now,
+         courier_eta: '12–15 dəq', // simulated partner ETA (real value comes with the Bolt webhook phase)
       } : {}),
     }).select().single();
     if (oErr || !order) throw oErr || new Error('order insert failed');

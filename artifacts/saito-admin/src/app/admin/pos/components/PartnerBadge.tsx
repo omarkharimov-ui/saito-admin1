@@ -1,12 +1,70 @@
 'use client';
 
-// 2026-09-25 (owner): partner source branding on order cards —
-//   <PartnerBadge source="bolt"/>  → white chip with the partner logo
-//   <PartnerStripe source="bolt"/> → 3px brand-color left stripe on the card
-// Used by the POS delivery/takeaway boards, KDS tickets and (via KDSView)
-// the Bar Display, so a Bolt order is recognizable at a glance everywhere.
+// 2026-09-25 (owner redesign round 2 — "Slick Dark / Smoky" concept):
+//   <PartnerLogo source="bolt"/>  → native partner logo (transparent bg, no
+//     white sticker) — top-right of order cards, next to the ETA chip
+//   <PartnerGlow source="bolt"/>  → soft blurred radial brand glow in the
+//     card's top-left corner (replaces the hard stripe + flat tint on cards)
+//   <PartnerStripe source="bolt"/>→ 3px brand stripe — KDS/BDS tickets only
+//     (dense grid: a thin signal line reads better than a glow)
+//   <PartnerBadge  source="bolt"/>→ white-chip logo — settings catalog card
 import { partnerMeta } from '../lib/partners';
 
+/** Native partner logo (no chip). `variant` picks the asset that works on
+ *  the card background (dark card → logo, white card → logoLight). */
+export function PartnerLogo({ source, height = 18, variant = 'auto', lightMode = false }: {
+  source?: string | null;
+  height?: number;
+  variant?: 'auto' | 'dark' | 'light';
+  lightMode?: boolean;
+}) {
+  const p = partnerMeta(source);
+  if (!p) return null;
+  const onLight = variant === 'light' || (variant === 'auto' && lightMode);
+  return (
+    <img
+      src={onLight ? p.logoLight : p.logo}
+      alt={p.name}
+      title={`Sifariş mənbəyi: ${p.name}`}
+      draggable={false}
+      className="flex-shrink-0 select-none"
+      style={{ height, width: 'auto', maxWidth: 72, objectFit: 'contain', opacity: 0.95 }}
+    />
+  );
+}
+
+/** Soft "smoky" brand glow: blurred radial gradient in the top-left corner.
+ *  Card needs `relative overflow-hidden`. */
+export function PartnerGlow({ source, lightMode = false }: { source?: string | null; lightMode?: boolean }) {
+  const p = partnerMeta(source);
+  if (!p) return null;
+  const a = p.accent;
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute -top-10 -left-10 h-40 w-40 rounded-full"
+      style={{
+        background: `radial-gradient(circle, ${a}${lightMode ? '3d' : '40'} 0%, transparent 68%)`,
+        filter: 'blur(18px)',
+      }}
+    />
+  );
+}
+
+/** 3px brand-color stripe pinned to the card's left edge (KDS/BDS tickets). */
+export function PartnerStripe({ source }: { source?: string | null }) {
+  const p = partnerMeta(source);
+  if (!p) return null;
+  return (
+    <span
+      aria-hidden
+      className="absolute left-0 top-0 bottom-0 w-[3px]"
+      style={{ backgroundColor: p.accent }}
+    />
+  );
+}
+
+/** White-chip logo variant — settings catalog (PartnersTab). */
 export function PartnerBadge({ source, size = 'sm', showName = false }: {
   source?: string | null;
   size?: 'sm' | 'md';
@@ -23,7 +81,7 @@ export function PartnerBadge({ source, size = 'sm', showName = false }: {
     >
       <span className="flex items-center" style={{ padding: '2px 5px 2px 3px' }}>
         <img
-          src={p.logo}
+          src={p.logoLight}
           alt={p.name}
           draggable={false}
           style={{ height: h, width: 'auto', maxWidth: size === 'sm' ? 58 : 84, objectFit: 'contain' }}
@@ -38,20 +96,7 @@ export function PartnerBadge({ source, size = 'sm', showName = false }: {
   );
 }
 
-/** 3px brand-color stripe pinned to the card's left edge (card needs overflow-hidden). */
-export function PartnerStripe({ source }: { source?: string | null }) {
-  const p = partnerMeta(source);
-  if (!p) return null;
-  return (
-    <span
-      aria-hidden
-      className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l"
-      style={{ backgroundColor: p.accent }}
-    />
-  );
-}
-
-/** Soft brand tint for the card background (subtle, behind content). */
+/** Flat tint — kept for backwards compat; new cards use PartnerGlow. */
 export function PartnerTint({ source, lightMode }: { source?: string | null; lightMode?: boolean }) {
   const p = partnerMeta(source);
   if (!p) return null;

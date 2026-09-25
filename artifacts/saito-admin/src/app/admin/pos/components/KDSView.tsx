@@ -10,7 +10,7 @@ import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
-import { PartnerBadge, PartnerStripe } from './PartnerBadge';
+import { PartnerLogo, PartnerStripe } from './PartnerBadge';
 import { supabase } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings-client';
 import { usePrintClaimLoop, type PrintJob } from '@/hooks/usePrintClaimLoop';
@@ -517,9 +517,10 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                            : (lightMode ? 'border-gray-200 bg-white shadow-sm' : 'border-white/[0.08] bg-white/[0.02]')
                      }`}
                    >
-                     {/* 2026-09-25 (owner): partner branding on the ticket —
-                         brand-color left stripe + logo chip next to the title,
-                         so kitchens see at a glance a Bolt/Uber/Glovo/Wolt job. */}
+                     {/* 2026-09-25 (owner redesign): partner branding on the ticket —
+                         brand-color left stripe + NATIVE logo (no white sticker)
+                         next to the title, so kitchens see a Bolt/Uber/Glovo/Wolt
+                         job at a glance. */}
                      <PartnerStripe source={order.partner_source} />
                      {/* Order Header */}
                      <div className="flex items-center justify-between mb-3">
@@ -528,7 +529,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                            {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
                          </span>
                          {getOrderBadge(order, lightMode)}
-                         <PartnerBadge source={order.partner_source} />
+                         <PartnerLogo source={order.partner_source} height={18} lightMode={lightMode} />
                         {stationFilter && visibleItems.length > 1 && (
                           <span className={`text-[11px] font-black px-2 py-1 rounded-full border ${visibleAllReady ? (lightMode ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20') : (lightMode ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-white/[0.05] text-white/55 border-white/[0.08]')}`}>
                             {visibleReady}/{visibleItems.length}

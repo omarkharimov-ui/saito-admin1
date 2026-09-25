@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 30" role="img" aria-label="Uber Eats">
+  <!-- 2026-09-25: Uber Eats wordmark for DARK cards. The Commons asset
+       (#142328 dark wordmark) is invisible on near-black — this is the
+       light-surface variant: "Uber" white + "Eats" brand green. -->
+  <text x="0" y="23" font-family="'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="800" fill="#FFFFFF">Uber</text>
+  <text x="66" y="23" font-family="'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="600" fill="#06c167">Eats</text>
+</svg>

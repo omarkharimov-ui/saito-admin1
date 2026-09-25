@@ -4,9 +4,7 @@ import { Plus, Phone, User, Clock, ShoppingBag, UserCheck, MoreVertical, Wallet,
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
-import { PartnerBadge, PartnerStripe, PartnerTint } from './PartnerBadge';
-import PartnerOrderCard from './PartnerOrderCard';
-import { partnerMeta } from '../lib/partners';
+import BoardOrderCard from './BoardOrderCard';
 
 interface TakeawayOrdersProps {
   orders: any[];
@@ -70,119 +68,24 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                  ready: 'ready', paid: 'paid', closed: 'closed', cancelled: 'cancelled',
                };
                const status = TAKEAWAY_STATUS_CONFIG[TAKEAWAY_STAGE_MAP[stage]] || TAKEAWAY_STATUS_CONFIG.confirmed;
-               // 2026-09-23 (owner rule): the card title ALWAYS reads
-               // 2026-09-23 (owner): title = "Gel-Al 44" — PREFIX-LESS number (same font
-              // as the label), no customer name on the top line
-               // (legacy orders with numeric order_number rendered "Gel-Al 1").
-               const orderNo = (String(order.order_number || '').replace(/[^0-9]/g, '')) || String(order.id).slice(-4).toUpperCase();
-               const elapsed = order.created_at
-                ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)
-                : 0;
-              // QA bug 4 (2026-09-22): hours unbounded → "679h 15m", "1200h".
-              // Now: <1h minutes, <24h hours, beyond → days.
-              const elapsedText = elapsed < 1 ? '< 1 min' : elapsed < 60 ? `${elapsed} min` : elapsed < 1440 ? `${Math.floor(elapsed / 60)}h ${elapsed % 60}m` : `${Math.floor(elapsed / 1440)}d`;
-
-               // 2026-09-25 (owner redesign): partner takeaway orders →
-               // "Slick Dark" card (no courier row, elapsed chip instead of ETA).
-               if (partnerMeta(order.partner_source)) {
-                 return (
-                   <PartnerOrderCard
-                     key={order.id}
-                     order={order}
-                     kind="takeaway"
-                     stage={stage}
-                     status={status}
-                     lightMode={lightMode}
-                     t={t}
-                     onSelect={onSelectOrder}
-                     onAction={onOpenActionSheet}
-                   />
-                 );
-               }
-               return (
-                 <div
-                   key={order.id}
-                   onClick={() => onSelectOrder(order)}
-                   className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer ${
-                     lightMode
-                       ? 'bg-white border-emerald-500 shadow-sm'
-                       : 'bg-zinc-900 border-emerald-500/60 shadow-sm'
-                   }`}
-                  >
-                   {/* 2026-09-25 (owner): partner branding (stripe + tint + logo chip). */}
-                   <PartnerStripe source={order.partner_source} />
-                   <PartnerTint source={order.partner_source} lightMode={lightMode} />
-                   <div className="absolute top-4 right-4 z-20" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => onOpenActionSheet(order)}
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${lightMode ? 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-600' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'}`}
-                    >
-                      <MoreVertical size={14} />
-                    </button>
-                  </div>
-
-                    {/* 2026-09-22: order number always shown (fallback = last 4
-                        id chars for legacy orders without order_number).
-                        2026-09-25 (owner): partner logo chip right of the number. */}
-                    <div className="absolute top-5 left-5 flex items-center gap-2">
-                      <span className={`text-[26px] font-black tracking-tighter ${
-                        lightMode ? 'text-gray-900' : 'text-white'
-                      }`}>
-                        {t('takeaway_short')} {orderNo}
-                      </span>
-                      <PartnerBadge source={order.partner_source} />
-                    </div>
-
-                      {elapsed > 0 && (
-                        <span className={`absolute top-14 right-5 flex items-center gap-1 text-xs font-bold tabular-nums ${
-                          lightMode ? 'text-zinc-400' : 'text-white/40'
-                        }`}>
-                          <Clock size={10} strokeWidth={3} />
-                          {elapsedText}
-                        </span>
-                      )}
-
-                  {/* QA bug 5 (2026-09-22): missing name/phone rows vanished,
-                      so cards looked broken/shifted. Always render both rows,
-                      with a "—" placeholder when the data is absent. */}
-                  <div className="absolute top-[68px] left-5 right-5 flex flex-col gap-1">
-                    <div className="flex items-center gap-1.5">
-                      <User size={11} className="text-emerald-400" />
-                      <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                        {order.customer_name || '—'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Phone size={11} className="text-emerald-400" />
-                      <span className={`text-xs font-bold tabular-nums ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                        {order.customer_phone || '—'}
-                      </span>
-                    </div>
-                  </div>
-
-                   <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">
-                     <div className="flex items-center gap-2 flex-wrap">
-                       <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${lightMode ? status.bg : status.bgDark}`}>
-                         <div className={`w-1.5 h-1.5 rounded-full ${lightMode ? status.dot : status.dotDark}`} />
-                         <span className={`${lightMode ? status.text : status.textDark}`}>{t(status.labelKey as any)}</span>
-                       </div>
-                        {/* Amount chip: no more CreditCard icon (owner: remove the
-                            bank-card chip). Paid state shown via check + color.
-                            2026-09-22: the old !isFinalOrderStatus guard HID the
-                            chip on PAID orders (paid ∈ FINAL_ORDER_STATUSES) —
-                            but paid orders now STAY in the active list, so always
-                            render (the list is already fulfillment-filtered). */}
-                        {(
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${stage === 'paid' || stage === 'ready' ? (lightMode ? 'bg-green-50 border-green-200 text-green-700' : 'bg-green-500/10 border-green-500/20 text-green-400') : (lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400')}`}>
-                            {stage === 'paid' || stage === 'ready' ? <CheckCircle2 size={10} strokeWidth={2.5} /> : <Wallet size={10} strokeWidth={2.5} />}
-                            ₼{Number(order.total_amount || 0).toFixed(2)}
-                          </span>
-                        )}
-                     </div>
-                   </div>
-                </div>
-              );
-            })}
+                // 2026-09-25 (owner redesign rounds 2-3): same BoardOrderCard
+                // family (title rule 2026-09-23: in-house reads "Gel-Al 44",
+                // partner reads "#2812"). All in-house rows kept (QA bug 5:
+                // name + phone rows always render, "—" placeholders).
+                return (
+                  <BoardOrderCard
+                    key={order.id}
+                    order={order}
+                    kind="takeaway"
+                    stage={stage}
+                    status={status}
+                    lightMode={lightMode}
+                    t={t}
+                    onSelect={onSelectOrder}
+                    onAction={onOpenActionSheet}
+                  />
+                );
+             })}
           </div>
         </div>
       )}

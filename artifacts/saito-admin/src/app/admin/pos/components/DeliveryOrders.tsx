@@ -4,9 +4,7 @@ import { Plus, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical, Navigation,
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
-import { PartnerBadge, PartnerStripe, PartnerTint } from './PartnerBadge';
-import PartnerOrderCard from './PartnerOrderCard';
-import { partnerMeta } from '../lib/partners';
+import BoardOrderCard from './BoardOrderCard';
 
 interface DeliveryOrdersProps {
   orders: any[];
@@ -71,163 +69,27 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                  ready: 'ready', paid: 'paid', closed: 'delivered', cancelled: 'cancelled',
                };
                const status = DELIVERY_STATUS_CONFIG[DELIVERY_STAGE_MAP[stage]] || DELIVERY_STATUS_CONFIG.pending;
-               // 2026-09-23 (owner rule): the card title ALWAYS reads
-               // 2026-09-23 (owner): title = "Çatdırılma 41" — PREFIX-LESS number (same font
-              // as the label), no customer name on the top line.
-               const orderNo = (String(order.order_number || '').replace(/[^0-9]/g, '')) || String(order.id).slice(-4).toUpperCase();
-               const elapsed = order.created_at
-                ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)
-                : 0;
-              // QA bug 4 (2026-09-22): cap hours — beyond 24h show days (same as TakeawayOrders).
-              const elapsedText = elapsed < 1 ? '< 1 min' : elapsed < 60 ? `${elapsed} min` : elapsed < 1440 ? `${Math.floor(elapsed / 60)}h ${elapsed % 60}m` : `${Math.floor(elapsed / 1440)}d`;
-
-               // 2026-09-25 (owner redesign): partner orders (Bolt/Uber/Glovo/Wolt)
-               // get the "Slick Dark" card — #code + ETA + native logo + muted
-               // rows + glow. Internal orders keep the classic card below.
-               if (partnerMeta(order.partner_source)) {
-                 return (
-                   <PartnerOrderCard
-                     key={order.id}
-                     order={order}
-                     kind="delivery"
-                     stage={stage}
-                     status={status}
-                     lightMode={lightMode}
-                     t={t}
-                     onSelect={onSelectOrder}
-                     onAction={onOpenActionSheet}
-                   />
-                 );
-               }
-               return (
-                  <div
+                // 2026-09-25 (owner redesign rounds 2-3): ONE card family for
+                // partner AND in-house orders (BoardOrderCard): flex-flow
+                // (no overlap by construction), glow + accent border (stronger
+                // in light mode — "sonuk" fix), ALL in-house data kept
+                // (customer+phone / address / zone / courier+ETA), total text
+                // white on dark & near-black on light (NEVER yellow).
+                // Title rule (2026-09-23): in-house cards read "Çatdırılma 41".
+                return (
+                  <BoardOrderCard
                     key={order.id}
-                    onClick={() => onSelectOrder(order)}
-                    className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer ${
-                      lightMode
-                        ? 'bg-white border-emerald-500 shadow-sm'
-                        : 'bg-zinc-900 border-emerald-500/60 shadow-sm'
-                    }`}
-                  >
-                   {/* 2026-09-25 (owner): partner branding — brand-color
-                       left stripe + soft tint + logo chip, so a Bolt/Uber/
-                       Glovo/Wolt order is recognizable at a glance. */}
-                   <PartnerStripe source={order.partner_source} />
-                   <PartnerTint source={order.partner_source} lightMode={lightMode} />
-                  <div className="absolute top-4 right-4 z-20" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => onOpenActionSheet(order)}
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${lightMode ? 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-600' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'}`}
-                    >
-                      <MoreVertical size={14} />
-                    </button>
-                  </div>
-
-                    {/* 2026-09-22: order number always shown (legacy fallback).
-                        2026-09-25 (owner): partner logo chip sits right of the
-                        number (Bolt/Uber/Glovo/Wolt source). */}
-                    <div className="absolute top-5 left-5 flex items-center gap-2">
-                      <span className={`text-[26px] font-black tracking-tighter ${
-                        lightMode ? 'text-gray-900' : 'text-white'
-                      }`}>
-                        {t('delivery_short')} {orderNo}
-                      </span>
-                      <PartnerBadge source={order.partner_source} />
-                    </div>
-
-                      {elapsed > 0 && (
-                        <span className={`absolute top-14 right-5 flex items-center gap-1 text-xs font-bold tabular-nums ${
-                          lightMode ? 'text-zinc-400' : 'text-white/40'
-                        }`}>
-                          <Clock size={10} strokeWidth={3} />
-                          {elapsedText}
-                        </span>
-                      )}
-
-                    {/* 2026-09-22 (owner: "kartlarda min cür şey var"): the old
-                        block rendered UP TO 6 rows inside a fixed h-[180px] card
-                        starting at top-[68px] — with 5-6 rows the block ran INTO
-                        the bottom status badges (measured DOM overlap ~100%), and
-                        the phone appeared TWICE (once full, once as a
-                        slice(-4) "(0 03)" suffix). Now: hard cap of 4 rows,
-                        name+phone merged into one row, courier+ETA merged. */}
-                    <div className="absolute top-[62px] left-5 right-5 flex flex-col gap-[3px] overflow-hidden">
-                      {/* pr-16: keep the name+phone row clear of the
-                          top-right elapsed-time timer (measured 6px crowding). */}
-                      <div className="flex items-center gap-1.5 min-w-0 pr-16 leading-[15px]">
-                        <User size={11} className="text-blue-400 shrink-0" />
-                        <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                          {order.customer_name || '—'}
-                        </span>
-                        {order.customer_phone && (
-                          <span className={`text-[11px] font-semibold tabular-nums truncate ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                            {order.customer_phone}
-                          </span>
-                        )}
-                      </div>
-                      {(order.delivery_street || order.delivery_address) && (
-                        <div className="flex items-center gap-1.5 min-w-0 leading-[15px]">
-                          <MapPin size={11} className="text-blue-400 shrink-0" />
-                          <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                            {[order.delivery_street, order.delivery_building].filter(Boolean).join(' ')}{order.delivery_district ? `, ${order.delivery_district}` : ''}
-                            {!order.delivery_street && order.delivery_address}
-                          </span>
-                        </div>
-                      )}
-                      {order.delivery_zone && (
-                        <div className="flex items-center gap-1.5 min-w-0 leading-[15px]">
-                          <Route size={11} className="text-purple-400 shrink-0" />
-                          <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-purple-600' : 'text-purple-300'}`}>
-                            {order.delivery_zone}
-                          </span>
-                        </div>
-                      )}
-                      {(order.courier_name || order.estimated_delivery_time) && (
-                        <div className="flex items-center gap-1.5 min-w-0 leading-[15px]">
-                          {order.courier_name ? (
-                            <>
-                               <UserCheck size={11} className="text-emerald-400 shrink-0" />
-                               <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-emerald-700' : 'text-emerald-300'}`}>
-                                 {order.courier_name}{order.courier_phone ? <span className={lightMode ? 'text-zinc-500' : 'text-white/40'}> · {order.courier_phone}</span> : null}
-                               </span>
-                            </>
-                          ) : (
-                            <>
-                              <Clock size={11} className="text-amber-400 shrink-0" />
-                              <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
-                                {t('estimated')}: {new Date(order.estimated_delivery_time).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </>
-                          )}
-                          {order.courier_name && order.estimated_delivery_time && (
-                            <span className={`text-[11px] font-semibold tabular-nums shrink-0 ${lightMode ? 'text-amber-600' : 'text-amber-300/80'}`}>
-                              · {new Date(order.estimated_delivery_time).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                   <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">
-                     <div className="flex items-center gap-2 flex-wrap">
-                       <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${lightMode ? status.bg : status.bgDark}`}>
-                         <div className={`w-1.5 h-1.5 rounded-full ${lightMode ? status.dot : status.dotDark}`} />
-                         <span className={`${lightMode ? status.text : status.textDark}`}>{t(status.labelKey as any)}</span>
-                       </div>
-                        {/* Amount chip: CreditCard icon removed (owner request).
-                            2026-09-22: always render — the active list is
-                            fulfillment-filtered (paid orders stay visible). */}
-                        {(
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${stage === 'paid' || stage === 'ready' ? (lightMode ? 'bg-green-50 border-green-200 text-green-700' : 'bg-green-500/10 border-green-500/20 text-green-400') : (lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400')}`}>
-                            {stage === 'paid' || stage === 'ready' ? <CheckCircle2 size={10} strokeWidth={2.5} /> : <Wallet size={10} strokeWidth={2.5} />}
-                            ₼{Number(order.total_amount || 0).toFixed(2)}
-                          </span>
-                        )}
-                     </div>
-                   </div>
-                </div>
-              );
-            })}
+                    order={order}
+                    kind="delivery"
+                    stage={stage}
+                    status={status}
+                    lightMode={lightMode}
+                    t={t}
+                    onSelect={onSelectOrder}
+                    onAction={onOpenActionSheet}
+                  />
+                );
+             })}
           </div>
         </div>
       )}

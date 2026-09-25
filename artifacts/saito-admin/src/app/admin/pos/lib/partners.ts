@@ -26,22 +26,22 @@ export interface PartnerMeta {
 
 export const PARTNERS: Record<PartnerId, PartnerMeta> = {
   bolt: {
-    id: 'bolt', name: 'Bolt Food', logo: '/partners/bolt.svg', logoLight: '/partners/bolt.svg',
+    id: 'bolt', name: 'Bolt Food', logo: '/partners/bolt.svg', logoLight: '/partners/bolt-light.svg',
     accent: '#34D186', chipBg: '#ffffff',
     blurb: 'Bolt Food sifarişləri POS-a düşəndə kartda Bolt brendinqi (native logo + yaşıl glow) görünür.',
   },
   uber_eats: {
-    id: 'uber_eats', name: 'Uber Eats', logo: '/partners/uber-eats-dark.svg', logoLight: '/partners/uber-eats.svg',
+    id: 'uber_eats', name: 'Uber Eats', logo: '/partners/uber-eats-dark.svg', logoLight: '/partners/uber-eats-light.svg',
     accent: '#06c167', chipBg: '#ffffff',
     blurb: 'Uber Eats sifarişləri POS-a düşəndə kartda Uber Eats brendinqi görünür.',
   },
   glovo: {
-    id: 'glovo', name: 'Glovo', logo: '/partners/glovo.svg', logoLight: '/partners/glovo.svg',
+    id: 'glovo', name: 'Glovo', logo: '/partners/glovo.svg', logoLight: '/partners/glovo-light.svg',
     accent: '#fdc500', chipBg: '#ffffff',
     blurb: 'Glovo sifarişləri POS-a düşəndə kartda Glovo brendinqi görünür.',
   },
   wolt: {
-    id: 'wolt', name: 'Wolt', logo: '/partners/wolt-dark.svg', logoLight: '/partners/wolt-black.png',
+    id: 'wolt', name: 'Wolt', logo: '/partners/wolt-dark.svg', logoLight: '/partners/wolt-light.svg',
     accent: '#0022E6', chipBg: '#ffffff',
     blurb: 'Wolt sifarişləri POS-a düşəndə kartda Wolt brendinqi görünür.',
   },

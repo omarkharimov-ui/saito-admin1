@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer, Wallet, Star, Percent, Bike, BellRing } from 'lucide-react';
+import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer, Wallet, Star, Percent, Bike, BellRing, Monitor } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { AnimatedTabs } from '../components/ui/MotionControls';
 import GeneralTab from './tabs/GeneralTab';
@@ -21,9 +21,10 @@ import LocationTab from './tabs/LocationTab';
 import LoyaltyTab from './tabs/LoyaltyTab';
 import PartnersTab from './tabs/PartnersTab';
 import NotificationsTab from './tabs/NotificationsTab';
+import TerminalsTab from './tabs/TerminalsTab';
 
 
-type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'delivery' | 'receipt' | 'payment' | 'printer' | 'devices' | 'floors' | 'hours' | 'payroll' | 'location' | 'loyalty' | 'partners' | 'notifications';
+type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'delivery' | 'receipt' | 'payment' | 'printer' | 'devices' | 'floors' | 'hours' | 'payroll' | 'location' | 'loyalty' | 'partners' | 'notifications' | 'terminals';
 
 type TabDef = { key: Tab; labelKey: string; icon: React.ReactNode; superadminOnly?: boolean; desc?: string };
 
@@ -40,6 +41,7 @@ const TAB_DEFS: TabDef[] = [
   { key: 'payment',   labelKey: 'tab_payment',   icon: <Percent size={20} />,     desc: 'Ödəniş və ƏDV' },
   { key: 'printer',   labelKey: 'tab_printer',   icon: <Printer size={20} />,     desc: 'Printer ayarları' },
   { key: 'devices',   labelKey: 'tab_devices',   icon: <Printer size={20} />,     desc: 'Çap cihazları və yönləndirmə' },
+  { key: 'terminals', labelKey: 'tab_terminals' as any, icon: <Monitor size={20} />, desc: 'Terminal statusları: POS / KDS / BDS / Expo (heartbeat)' },
   { key: 'floors',    labelKey: 'tab_floors',    icon: <MapPin size={20} />,      desc: 'Zallar, mərtəbələr, masa planı' },
   { key: 'loyalty',   labelKey: 'tab_loyalty' as any, icon: <Star size={20} />,    desc: 'Məxsusiyyət (loyalty) proqramı' },
   { key: 'payroll',   labelKey: 'tab_payroll',   icon: <Wallet size={20} />,     desc: 'Payroll və webhook ayarları', superadminOnly: true },
@@ -67,6 +69,7 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
       {tab === 'payment'   && <PaymentTab />}
       {tab === 'printer'   && <PrinterTab initialData={settingsData} />}
       {tab === 'devices'   && <DevicesTab />}
+      {tab === 'terminals' && <TerminalsTab />}
       {tab === 'floors'    && <FloorsTab />}
       {tab === 'loyalty'   && <LoyaltyTab />}
       {tab === 'payroll'   && <PayrollTab />}
@@ -74,9 +77,18 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
     </>  );
 }
 
+const VALID_TABS: Tab[] = ['general', 'qr', 'analytics', 'kitchen', 'delivery', 'receipt', 'payment', 'printer', 'devices', 'floors', 'hours', 'payroll', 'location', 'loyalty', 'partners', 'notifications', 'terminals'];
+
 const SettingsPage = () => {
   const { t } = useLanguage();
-  const [tab, setTab] = useState<Tab>('general');
+  // 2026-09-25: deep link — /admin/settings?tab=terminals (dashboard card "Ayarlar")
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window !== 'undefined') {
+      const q = new URLSearchParams(window.location.search).get('tab') as Tab | null;
+      if (q && VALID_TABS.includes(q)) return q;
+    }
+    return 'general';
+  });
   const [mobileTab, setMobileTab] = useState<Tab | null>(null);
   const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [settingsData, setSettingsData] = useState<Record<string, any> | null>(null);

@@ -4,10 +4,12 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import HeroBanner from './widgets/HeroBanner';
 import LiveFloorSnapshot from './widgets/LiveFloorSnapshot';
+import TerminalStatus from './widgets/TerminalStatus';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Lightbulb, Zap, AlertTriangle, BrainCircuit } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useDeviceHeartbeat } from '@/lib/device-heartbeat';
 
 function YojiAdvice() {
   const { t, language } = useLanguage();
@@ -152,6 +154,7 @@ function YojiAdvice() {
 function DashboardContent() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
+  useDeviceHeartbeat('Admin', 'admin');
 
   if (searchParams.get('needsSetup') === 'true') {
     return (
@@ -173,7 +176,10 @@ function DashboardContent() {
       {/* 2. Yoji Advice (Now Center/Main) */}
       <YojiAdvice />
 
-      {/* 3. Live Floor Snapshot */}
+      {/* 3. Terminal statusları (device health, 2026-09-25 owner decision) */}
+      <TerminalStatus />
+
+      {/* 4. Live Floor Snapshot */}
       <LiveFloorSnapshot />
     </div>
   );

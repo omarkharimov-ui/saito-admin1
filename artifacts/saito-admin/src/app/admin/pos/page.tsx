@@ -7,6 +7,7 @@ import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView }
 import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useDeviceHeartbeat } from '@/lib/device-heartbeat';
 import { usePos, cartLineKey } from './hooks/usePos';
 import { isFinalOrderStatus, FULFILLMENT_FINAL_STATUSES, DELIVERY_FINAL_STATUSES } from '@/lib/pos-tables';
 import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
@@ -63,6 +64,7 @@ export default function POSPage() {
   const { t } = useLanguage();
   const pos = usePos();
   const router = useRouter();
+  useDeviceHeartbeat('POS', 'pos');
 
   // pr v1 — terminal print claim loop: this POS tab is a "browser terminal".
   // Claims QUEUED jobs routed to browser devices (receipt / kitchen), prints

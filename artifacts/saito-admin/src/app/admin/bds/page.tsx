@@ -15,9 +15,11 @@
 
 import { KDSView } from '@/app/admin/pos/components/KDSView';
 import { useRouter } from 'next/navigation';
+import { useDeviceHeartbeat } from '@/lib/device-heartbeat';
 
 export default function BDSPage() {
   const router = useRouter();
+  useDeviceHeartbeat('BDS', 'bds');
   return (
     <div className="h-full w-full p-6">
       <KDSView stationType="bar" onBack={() => router.push('/admin')} />

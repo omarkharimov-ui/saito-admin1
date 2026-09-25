@@ -2020,6 +2020,7 @@ export const en: TranslationMap = {
   tab_delivery: 'Delivery',
   tab_partners: 'Delivery Partners',
   tab_notifications: 'Notifications',
+  tab_terminals: 'Terminals',
   partners_hint: 'Pick a partner, fill in the credentials, hit "Connect" — one click. Once connected, partner orders appear in POS (Delivery/Pickup) and KDS/BDS with the partner logo and brand color. "Test" buttons create a real order to preview the live screens.',
   sms_hint: 'Pick a provider, fill in the credentials, enable — one click. Once enabled, notifications (payment, ready, delivery) will use these settings.',
   sms_note: 'Ready state: variables in the text are {name}, {last_name}, {order}, {total}, {status}, {time}, {date}, {reservation}, {table}, {phone}. Use "Test SMS" to send a trial message.',

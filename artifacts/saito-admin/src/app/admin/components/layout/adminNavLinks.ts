@@ -72,6 +72,15 @@ export function getAdminNavItems(
       roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier'],
     },
     {
+      // 2026-09-25 (owner, decision): EXPO display — tablet/2-ci ekran üçün
+      // canlı "sifariş hazırdır / masa boşaldı / hesab göndərildi" ekranı.
+      id: 'expo',
+      name: 'EXPO',
+      href: '/admin/expo',
+      icon: Monitor,
+      roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier', 'host'],
+    },
+    {
       id: 'reservations',
       name: t('reservations'),
       href: '/admin/reservations',

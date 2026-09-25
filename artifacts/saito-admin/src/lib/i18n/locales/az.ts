@@ -1741,6 +1741,7 @@ export const az = {
   tab_delivery: 'Çatdırılma',
   tab_partners: 'Delivery Partnerləri',
   tab_notifications: 'Bildirişlər',
+  tab_terminals: 'Terminallar',
   partners_hint: 'Partneri seçin, kredensialları doldurun və "Bağla" basın — 1 klik. Bağlandıqdan sonra partner sifarişləri POS-da (Çatdırılma/Gel-Al) və KDS/BDS-də partnerin logosu və breng rengi ilə görünür. "Test" düymələri canlı ekran üçün real sifariş yaradır.',
   sms_hint: 'Provider seçin, kredensialları doldurun, aktiv edin — 1 klik. Aktiv olduqdan sonra bildirişlərin göndərilməsi (ödəniş, hazırlıq, çatdırılma) bu parametrlərlə işləyəcək.',
   sms_note: 'Hazır vəziyyətdədir: mətndəki dəyişənlər {ad}, {cins}, {sifaris}, {toplam}, {status}, {zaman}, {tarix}, {resversiya}, {masa}, {telefon}. Test göndərişi üçün "Test SMS" düyməsi.',

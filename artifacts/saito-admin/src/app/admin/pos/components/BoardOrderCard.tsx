@@ -70,11 +70,19 @@ export default function BoardOrderCard({ order, kind, stage, status, lightMode, 
   const muted = lightMode ? 'text-zinc-500' : 'text-[#8E8E93]';
   const dimmer = lightMode ? 'text-zinc-400' : 'text-white/40';
 
+  // 2026-09-25 (CRITICAL FIX — owner screenshot "kartlar belə"): a round-6
+  // edit accidentally EATED the card ROOT element — the root became a
+  // topright-style div (no height, no background, no border, no onClick)
+  // and every board card collapsed to one inline strip. The root is restored
+  // below: fixed height + bg + accent border + flex-col + select onClick.
   return (
-        <div
-          className="relative flex items-center gap-1.5 min-w-0 flex-shrink"
-          onClick={(e) => e.stopPropagation()}
-        >
+    <div
+      onClick={() => onSelect(order)}
+      className={`relative h-[180px] rounded-4xl p-5 text-left cursor-pointer group overflow-hidden flex flex-col border ${
+        lightMode ? 'bg-white shadow-sm' : 'bg-[#141419]'
+      }`}
+      style={{ borderColor: lightMode ? accent + '59' : 'rgba(255,255,255,0.10)' }}
+    >
       {/* Smoky brand glow — PARTNER CARDS ONLY (owner round 4: "tüstü"
           effekti 3-cü tərəf üçün; restoran içi kartlarda yoxdur).
           Stronger in light mode — round-3 "sonuk" fix. */}

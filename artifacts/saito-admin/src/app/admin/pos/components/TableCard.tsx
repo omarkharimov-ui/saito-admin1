@@ -312,34 +312,43 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
   const displayGuests = table.guest_count && table.guest_count > 0 ? table.guest_count : null;
   const showContent = isReserved || isWaiting || isOccupied || displayAmount || displayGuests;
 
+  // 2026-09-25 (owner: "dine-in kartlarini duzelde, biraz daha seliqeli
+  // forma"): TableCard joins the board-card family — ONE calm surface
+  // (#141419 dark / white light) with a STATUS ACCENT BORDER instead of
+  // colored card fills; flex-flow layout (no absolute stacking). All data
+  // and interactions (rings, merge/transfer, selection, chips) are kept.
+  const stateBorder = isOverdue
+    ? (lightMode ? 'border-rose-500' : 'border-rose-500/70')
+    : table.bill_requested
+      ? (lightMode ? 'border-rose-400' : 'border-rose-500/50')
+      : table.status === 'ready'
+        ? (lightMode ? 'border-amber-400' : 'border-amber-500/60')
+        : isReserved
+          ? (lightMode ? 'border-indigo-300' : 'border-indigo-500/40')
+          : isDirty || isWaiting
+            ? (lightMode ? 'border-amber-300' : 'border-amber-500/40')
+            : isOccupied
+              ? (lightMode ? 'border-emerald-400/70' : 'border-emerald-500/45')
+              : (lightMode ? 'border-zinc-200' : 'border-white/10');
+
   return (
          <div
          onClick={() => { onTap(); }}
-          className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 overflow-hidden border cursor-pointer group active:scale-[0.97] shadow-card
-           ${isTransferSource
-             ? (lightMode ? 'bg-zinc-100 border-transparent opacity-60' : 'bg-zinc-800/50 border-transparent opacity-50')
-             : isTransferTarget
-               ? (lightMode ? 'bg-white border-zinc-400 border-dashed animate-pulse' : 'bg-zinc-900 border-zinc-400 border-dashed animate-pulse')
-               : isSelected 
-                 ? (lightMode ? 'bg-white border-blue-500 shadow-lg shadow-blue-500/20' : 'bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/20') 
-                 : isDirty
-                   ? (lightMode ? 'bg-amber-50 border-amber-300' : 'bg-amber-500/5 border-amber-500/30')
-                   : isWaiting
-                     ? (lightMode ? 'bg-amber-50/50 border-amber-300' : 'bg-amber-500/5 border-amber-500/30')
-                     : isReserved
-                     ? (lightMode ? 'bg-indigo-50/50 border-indigo-200' : 'bg-indigo-500/5 border-indigo-500/30')
-                     : isOverdue 
-                       ? (lightMode ? 'bg-white border-rose-500 shadow-sm' : 'bg-zinc-900 border-rose-500 shadow-md')
-                       : table.status === 'ready'
-                         ? (lightMode ? 'bg-white border-amber-400 shadow-sm' : 'bg-zinc-900 border-amber-500/60 shadow-sm')
-                       : isOccupied
-                         ? (lightMode ? 'bg-white border-emerald-500 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-sm')
-                         : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')
-           } ${
-             isGroup ? (lightMode ? 'border-l-[3px] border-l-blue-500 bg-blue-50/30' : 'border-l-[3px] border-l-blue-500 bg-blue-500/[0.03]') : ''
-           }`}
-          style={isGroup ? { borderLeftWidth: '3px', borderLeftColor: '#007AFF' } : {}}
-        >
+         className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 overflow-hidden border cursor-pointer group active:scale-[0.97] flex flex-col
+          ${isTransferSource
+            ? (lightMode ? 'bg-zinc-100 border-transparent opacity-60' : 'bg-[#141419] border-transparent opacity-50')
+            : isTransferTarget
+              ? (lightMode ? 'bg-white border-zinc-400 border-dashed animate-pulse' : 'bg-[#141419] border-zinc-400 border-dashed animate-pulse')
+              : isSelected
+                ? (lightMode ? 'bg-white border-blue-500 shadow-lg shadow-blue-500/20' : 'bg-[#141419] border-blue-500 shadow-lg shadow-blue-500/20')
+                : (lightMode ? 'bg-white shadow-sm' : 'bg-[#141419]')
+          } ${
+            (isTransferSource || isTransferTarget || isSelected) ? '' : stateBorder
+          } ${
+            isGroup ? 'border-l-[3px] border-l-blue-500' : ''
+          }`}
+         style={isGroup ? { borderLeftWidth: '3px', borderLeftColor: '#007AFF' } : {}}
+       >
         {/* Transition ring — seat (FREE→OCCUPIED, ~1s) or tap-open selection (~0.4s).
             Overlay-only, pointer-events-none; the card itself stays calm at rest. */}
         {(seatRingNonce > 0 || openRingNonce > 0) && (
@@ -359,8 +368,8 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
           />
         )}
 
-        {/* Top row: Table number + action */}
-        <div className="absolute top-4 left-5 right-4 flex items-start justify-between">
+        {/* Top row: Table number + action (flex-flow, was absolute) */}
+        <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             <span className={`text-2xl font-black tracking-tighter ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isDirty ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isWaiting ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
               {t('table' as any)} {table.table_number}
@@ -423,9 +432,9 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
            </div>
          </div>
 
-        {/* Main content: Amount hero + guests */}
+        {/* Main content: Amount hero + guests (flex-flow, was absolute) */}
         {showContent && (
-          <div className="absolute top-[52px] left-5 right-5">
+          <div className="mt-2.5 min-h-0 overflow-hidden">
               {/* Amount as hero element */}
               {displayAmount && (
                 <div className="mb-2">
@@ -476,11 +485,11 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
           </div>
         )}
 
-          {/* Bottom row — 2026-09-23 (owner): the STATUS/HESAB label chips sit
-              at the RIGHT (where the shopping+guest icons used to be); the
-              guest/item counts moved to the TOP row, filling the empty space.
-              LEFT now carries only the waiter name. */}
-           <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-2">
+           {/* Bottom row — 2026-09-23 (owner): the STATUS/HESAB label chips sit
+               at the RIGHT (where the shopping+guest icons used to be); the
+               guest/item counts moved to the TOP row, filling the empty space.
+               LEFT now carries only the waiter name. (flex-flow mt-auto) */}
+            <div className="mt-auto flex items-end justify-between gap-2">
              {/* LEFT: waiter name only */}
              <div className="flex items-center gap-2 flex-wrap min-w-0">
                {table.waiter_name && (

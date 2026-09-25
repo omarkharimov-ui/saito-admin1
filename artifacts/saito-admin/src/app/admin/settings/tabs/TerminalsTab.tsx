@@ -10,6 +10,7 @@ import { Monitor, Laptop, Coffee, BellRing, Shield, RefreshCw, RotateCw, Unplug,
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { getDeviceId } from '@/lib/device-identity';
 
 type Meta = {
   os?: string;
@@ -184,6 +185,9 @@ const TerminalsTab = () => {
             const key = d.device_id || `${d.type}-${d.name}`;
             const busy = busyId === key;
             const line = metaLine(d);
+            // Öz cihazını özün unpair edib geri aça bilməz (security):
+            // bloklanan kartın Bərpa et düyməsi YALNIZ başqa cihazdan işləyir.
+            const isSelf = !!d.device_id && d.device_id === getDeviceId();
             return (
               <div
                 key={key}
@@ -240,7 +244,8 @@ const TerminalsTab = () => {
                   </button>
                   <button
                     type="button"
-                    disabled={busy || !d.device_id}
+                    disabled={busy || !d.device_id || (d.blocked && isSelf)}
+                    title={d.blocked && isSelf ? 'Bu cihazı başqa (admin) cihazdan bərpa etmək olar' : 'Cihazı unpair et / bərpa et'}
                     onClick={() => toggleUnpair(d)}
                     className={
                       d.blocked

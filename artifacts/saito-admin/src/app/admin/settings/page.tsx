@@ -6,6 +6,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { AnimatedTabs } from '../components/ui/MotionControls';
 import GeneralTab from './tabs/GeneralTab';
 import { getSettings } from '@/lib/settings-client';
+import { useDeviceHeartbeat } from '@/lib/device-heartbeat';
 import QRTab from './tabs/QRTab';
 import HoursTab from './tabs/HoursTab';
 import AnalyticsTab from './tabs/AnalyticsTab';
@@ -81,6 +82,9 @@ const VALID_TABS: Tab[] = ['general', 'qr', 'analytics', 'kitchen', 'delivery', 
 
 const SettingsPage = () => {
   const { t } = useLanguage();
+  // 2026-09-25 (Phase 0): settings ekranı da heartbeat + UNPAIR lockout —
+  // bloklanan cihaz öz "Bərpa et"-ını basıb açıla bilməsin.
+  useDeviceHeartbeat('Admin', 'admin');
   // 2026-09-25: deep link — /admin/settings?tab=terminals (dashboard card "Ayarlar")
   const [tab, setTab] = useState<Tab>(() => {
     if (typeof window !== 'undefined') {

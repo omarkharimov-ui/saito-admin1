@@ -880,6 +880,12 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
   - Məntik zənciri (owner ssenari "masa 14"): müştəri gəlir + boş masa yox → NÖVBƏ → masa 14 boşalır → toast "Masa 14 boşaldı" → Oturdur → occupied + **order açıq, ad/telefon order-da** → kassir birbaşa məhsul əlavə edir.
 - **Yoxlama**: tsc — dəyişən fayllarda 0 error (`__tests__`-dəki jest-typelər pre-existing, toxunulmayıb). Visual E2E = owner login (PIN wall); test: NÖVBƏ-ə əlavə → Oturdur → masada order kartı ad/telefonla görünməlidir.
 
+#### Faza 0 LIVE VERİFİ + 2 gap fix (eyni gün)
+- **Live visual E2E** (owner PIN verdi, browser test): waitlist round 2 ✅ (NÖVBƏ button, panel, test entry add+delete, "Növbə boşdur"), Cihazlar panel ✅ (card: `macOS · Chrome 153 · 1470x956 · 80% · v0.1.0` + device_id mono + YENİ badge), **remote reload ✅** (admin "Yenilə" → Realtime → sayf reload), **unpair ✅** (BLOKLANIB, 0/1 online, button → Bərpa et), **lockout ✅** (full-screen "Bu cihaz bloklanıb" + device ID, z-999999 portal), **recovery ✅** (DB restore → reload → normal UI, 0 JS error).
+- **Gap 1 (fix)**: `/admin/settings`-də heartbeat hook YOXDU idi → settings ekranında lockout çıxmayıb + bloklanan cihaz öz "Bərpa et"-ını basıb açıla bilərdi (security hole). Fix: `useDeviceHeartbeat('Admin','admin')` settings page-ə qoşuldu.
+- **Gap 2 (fix)**: Self-restore qadağası — öz bloklanan kartının "Bərpa et" düyməsi disabled (`isSelf = device_id === getDeviceId()`); bərpa yalnız BAŞQA (admin) cihazdan.
+- Screenshotlar: `devices-cards.png`, `pos-toolbar.png`, `waitlist-entry-added.png`, `lockout-overlay.png`, `recovered.png` (workspace root).
+
 #### Device identity FAZA 0 — terminal kimliyi + Unpair + Remote Reload (eyni gün)
 - **Owner qərarı** ("bu native app olacaq... necə edirik") + Faza 0 təsdiqi ("başla brat"):
   - **DB** (`20260925020000`): `device_heartbeats` + `device_id` (stabil UUID; unique `(location_id, device_id)`), `first_seen_at` (YENİ badge), `blocked`/`blocked_at` (UNPAIR). Yeni cədvəl `device_commands` (remote command; RLS: select = authenticated → Realtime postgres_changes, insert = service role only).

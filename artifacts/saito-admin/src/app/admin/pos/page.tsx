@@ -4,10 +4,11 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
-import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft } from 'lucide-react';
+import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, Hourglass } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useDeviceHeartbeat } from '@/lib/device-heartbeat';
+import WaitlistPanel, { useWaitlistCount } from './components/WaitlistPanel';
 import { usePos, cartLineKey } from './hooks/usePos';
 import { isFinalOrderStatus, FULFILLMENT_FINAL_STATUSES, DELIVERY_FINAL_STATUSES } from '@/lib/pos-tables';
 import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
@@ -140,6 +141,8 @@ export default function POSPage() {
   const [flashInfo, setFlashInfo] = useState<{ tableNumber: number; nonce: number } | null>(null);
   const [cashDrawerOpen, setCashDrawerOpen] = useState(false);
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
+  // 2026-09-25 (owner: "waitlist duzelt"): dine-in queue (Növbə) panel.
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
   // 2026-09-22 (owner, v2 — final design): the POS order view has two
   // PHASES sharing the big (left) area:
@@ -201,6 +204,7 @@ export default function POSPage() {
   const [courierStatusLoading, setCourierStatusLoading] = useState(false);
   const pickedUpTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const posMode = pos.posMode;
+  const waitlistCount = useWaitlistCount(posMode === 'dine_in');
   const setPosMode = pos.setPosMode;
   const [posRole, setPosRole] = useState<string | null>(null);
   const posRoleNorm = posRole?.toLowerCase() || '';
@@ -1328,6 +1332,14 @@ export default function POSPage() {
     });
   }, [activeFloor?.tables]);
 
+  // Waitlist (2026-09-25): empty tables offered in the "Oturduul" table picker.
+  const emptyTables = useMemo(
+    () => visibleTables
+      .filter((t: any) => t.status === 'empty')
+      .map((t: any) => ({ table_number: t.table_number, seats: t.seats ?? t.capacity ?? null })),
+    [visibleTables]
+  );
+
   const openTableWithPulse = (table: any) => {
     setTableTapPulse({ tableNumber: table.table_number, nonce: Date.now() });
     if (tableTapTimerRef.current) clearTimeout(tableTapTimerRef.current);
@@ -2007,14 +2019,29 @@ export default function POSPage() {
                {printQueue.claimed > 0 ? printQueue.claimed : printQueue.queued}
              </div>
            )}
-           <button
-             onClick={() => setOrderHistoryOpen(true)}
-             className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-             title={t('order_history')}
-           >
-             <History size={16} />
-             <span className="hidden sm:inline">{t('history')}</span>
-           </button>
+            {posMode === 'dine_in' && (
+              <button
+                onClick={() => setWaitlistOpen(true)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                title="Növbə (Waitlist)"
+              >
+                <Hourglass size={16} />
+                <span className="hidden sm:inline">Növbə</span>
+                {waitlistCount > 0 && (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-500 text-white text-[10px] font-black tabular-nums flex items-center justify-center leading-none">
+                    {waitlistCount}
+                  </span>
+                )}
+              </button>
+            )}
+            <button
+              onClick={() => setOrderHistoryOpen(true)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+              title={t('order_history')}
+            >
+              <History size={16} />
+              <span className="hidden sm:inline">{t('history')}</span>
+            </button>
           {isCashierOrAdmin && (
             <button
               onClick={() => setCashDrawerOpen(true)}
@@ -3000,6 +3027,14 @@ export default function POSPage() {
         open={orderHistoryOpen}
         onClose={() => setOrderHistoryOpen(false)}
         posRole={posRole}
+      />
+
+      {/* 2026-09-25 (owner: "waitlist duzelt"): dine-in guest queue */}
+      <WaitlistPanel
+        open={waitlistOpen}
+        onClose={() => setWaitlistOpen(false)}
+        emptyTables={emptyTables}
+        onSeated={() => { pos.fetchData(); }}
       />
 
       <AnimatePresence>

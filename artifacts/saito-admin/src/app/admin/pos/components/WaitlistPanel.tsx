@@ -8,7 +8,7 @@
 // Queue position = index in waiting list ordered by created_at.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Users, Phone, Hourglass, Armchair, UserX, Trash2, Check } from 'lucide-react';
+import { X, Users, Phone, Hourglass, Armchair, UserX, Trash2, Check, AlertTriangle } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -227,6 +227,17 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
             </button>
           </div>
         </div>
+
+        {/* 2026-09-25 (owner): "yalnız boş masa" izahı — waitlist məhz dolan
+            masalar içindir: qonaq növbədə QALIR, masa boşalanda oturur. */}
+        {emptyTables.length === 0 && (
+          <div className={`mx-5 mt-3 rounded-xl border px-3 py-2.5 flex items-center gap-2 ${lightMode ? 'border-amber-200 bg-amber-50' : 'border-amber-500/25 bg-amber-500/10'}`}>
+            <AlertTriangle size={13} className={`shrink-0 ${lightMode ? 'text-amber-600' : 'text-amber-400'}`} />
+            <span className={`text-[11px] font-semibold ${lightMode ? 'text-amber-700' : 'text-amber-300/90'}`}>
+              Hazırda boş masa yoxdur — qonaqlar növbədə qalır, masa boşalanda bu paneli xəbər verəcək və "Oturduul" aktiv olacaq.
+            </span>
+          </div>
+        )}
 
         {/* Queue */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2.5 min-h-[180px]">

@@ -18,7 +18,7 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false); // Instant load - no spinner
   const [updating, setUpdating] = useState(false);
-  const [settings, setSettings] = useState({ id: '1', restaurant_name: 'Saito Sushi', address: '', phone: '', contact_email: '', opening_hours: '10:00-22:00', instagram_url: '', morning_greeting_enabled: true as boolean | string });
+  const [settings, setSettings] = useState({ id: '1', restaurant_name: 'Saito Sushi', address: '', phone: '', contact_email: '', opening_hours: '10:00-22:00', instagram_url: '', morning_greeting_enabled: true as boolean | string, waitlist_enabled: true });
   const [openTime, setOpenTime] = useState('10:00');
   const [closeTime, setCloseTime] = useState('22:00');
   const { isDirty } = useFormDirtyCompare(settings, [!loading]);
@@ -97,6 +97,25 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
             <p className="text-[10px] text-[var(--theme-text-muted)] mt-2">{t('gen_work_hours_hint')} <span className="text-[var(--theme-accent)] font-mono font-bold">{openTime} – {closeTime}</span></p>
           </div>
           <div><label className={labelCls}><Camera size={11} /> {t('gen_instagram')}</label><input className={inputCls} placeholder="https://instagram.com/…" value={settings.instagram_url} onChange={e => setSettings({ ...settings, instagram_url: e.target.value })} /></div>
+        </div>
+
+        {/* 2026-09-25 (owner: "toggle olsun ayarlarda"): waitlist feature master switch */}
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-4">
+          <div>
+            <div className="text-xs font-black uppercase tracking-wider">Növbə (Waitlist)</div>
+            <p className="text-[11px] text-[var(--theme-text-muted)] mt-1">
+              POS → İÇERİDƏ görünüşündə "NÖVBƏ" paneli: qonaq növbəsi + boş masaya oturtma. Bağlayanda düymə gizlənir.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={Boolean(settings.waitlist_enabled)}
+            onClick={() => setSettings(s => ({ ...s, waitlist_enabled: !s.waitlist_enabled }))}
+            className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${settings.waitlist_enabled ? 'bg-emerald-500' : 'bg-[var(--theme-border)]'}`}
+          >
+            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${settings.waitlist_enabled ? 'left-6' : 'left-1'}`} />
+          </button>
         </div>
 
         <div className="flex justify-end pt-2">

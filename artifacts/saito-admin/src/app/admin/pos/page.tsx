@@ -204,7 +204,23 @@ export default function POSPage() {
   const [courierStatusLoading, setCourierStatusLoading] = useState(false);
   const pickedUpTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const posMode = pos.posMode;
-  const waitlistCount = useWaitlistCount(posMode === 'dine_in');
+  // 2026-09-25 (owner: "toggle olsun ayarlarda"): waitlist master switch from
+  // Settings → General (fail-open: read error = enabled, same as delivery gates).
+  const [waitlistEnabled, setWaitlistEnabled] = useState(true);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await apiFetch('/api/settings/general');
+        if (!res.ok || !active) return;
+        const j = await res.json();
+        const v = j?.settings?.waitlist_enabled;
+        if (typeof v === 'boolean') setWaitlistEnabled(v);
+      } catch { /* fail-open */ }
+    })();
+    return () => { active = false; };
+  }, []);
+  const waitlistCount = useWaitlistCount(posMode === 'dine_in' && waitlistEnabled);
   const setPosMode = pos.setPosMode;
   const [posRole, setPosRole] = useState<string | null>(null);
   const posRoleNorm = posRole?.toLowerCase() || '';
@@ -1340,6 +1356,29 @@ export default function POSPage() {
     [visibleTables]
   );
 
+  // 2026-09-25 (owner: "o dursun, digəri gəlsin"): when a table just became
+  // EMPTY while the queue has people, propose seating the head of the queue.
+  const prevTableStatusRef = useRef<Map<number, string>>(new Map());
+  useEffect(() => {
+    if (posMode !== 'dine_in' || !waitlistEnabled) return;
+    const prev = prevTableStatusRef.current;
+    const next = new Map<number, string>();
+    for (const t of visibleTables) next.set(t.table_number, t.status);
+    if (waitlistCount > 0 && prev.size > 0) {
+      for (const [num, status] of next) {
+        const was = prev.get(num);
+        if (was && was !== 'empty' && status === 'empty') {
+          toast.success(`Masa ${num} boşaldı — növbədə ${waitlistCount} qonaq gözləyir`, {
+            id: `waitlist-table-${num}`,
+            duration: 8000,
+            action: { label: 'Oturdur', onClick: () => setWaitlistOpen(true) },
+          });
+        }
+      }
+    }
+    prevTableStatusRef.current = next;
+  }, [visibleTables, posMode, waitlistEnabled, waitlistCount]);
+
   const openTableWithPulse = (table: any) => {
     setTableTapPulse({ tableNumber: table.table_number, nonce: Date.now() });
     if (tableTapTimerRef.current) clearTimeout(tableTapTimerRef.current);
@@ -2019,7 +2058,7 @@ export default function POSPage() {
                {printQueue.claimed > 0 ? printQueue.claimed : printQueue.queued}
              </div>
            )}
-            {posMode === 'dine_in' && (
+            {posMode === 'dine_in' && waitlistEnabled && (
               <button
                 onClick={() => setWaitlistOpen(true)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}

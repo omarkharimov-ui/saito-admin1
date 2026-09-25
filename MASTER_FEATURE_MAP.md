@@ -860,6 +860,12 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - **Yolboyu qeyd**: `DevicesTab.tsx` (çap) ad collision → yeni tab `TerminalsTab.tsx`; yazma zamanı mövcud DevicesTab overwrite olundu → git-dən bərpa olundu (dərs: mövcud fayla yazmadan əvvəl read et).
 - **Yoxlama**: tsc clean; route-lar compile OK (401/307); v9 design mock screenshot (Expo frame + terminal card + settings rows, 0 overlap). Canlı verify = owner login (heartbeat yalnız auth session-də yazılır).
 
+#### Waitlist — "waitlist duzelt" (owner, eyni gün; Q4 = sadə UI)
+- **Root cause**: `/api/waitlist` + `/api/waitlist/seat` route-ları var idi, amma **`waitlist` cədvəli heç vaxt yaratılmayıb** — hər çağırış 500. UI də yox idi. (Sidebar-dakı "NÖVBƏLƏR" = staff shifts səhifəsidir, waitlist DƏYİL.)
+- **Fix**: migrasiya `20260925060000` (APPLIED): `waitlist` (id, location_id, name, phone, guests 1-99, status waiting/seated/cancelled/no_show, notes, created_at, seated_at; idx status+created_at). Yeni `WaitlistPanel.tsx` + toolbar "NÖVBƏ" düyməsi (yalnız dine_in, indigo count badge, 20s poll) — modal: əlavə formu (ad lazımdır, telefon opsional, guests stepper), queue listesi (pozisiya #n, gözləmə dəqiqəsi live, name+guests+phone), aksiyalar: **OTURDUUL** (boş masa picker → mövcud `/api/waitlist/seat` → masa occupied + guest info + 'seated' + floor refresh), **No-show** (PATCH), **SİL** (DELETE). 15s poll + 10s tick. Snappy spring (500/26).
+- **Yoxlama**: tsc clean; v10 design mock (panel+queue+table picker, 0 overlap). Canlı flow = owner login: NÖVBƏ → əlavə → boş masaya oturduul.
+- **SMS notify (növbə çağırması)**: bildirişlər faza-sında (Settings → Bildirişlər provider connect olanda) — hazırda yox.
+
 ### Jurnal sətiri — 2026-09-25 (GERİ QAYTAR → Miqdar sətiri + status hint + məcburi səbəb + return backend tamamlandı, `886c9871`; VOID eyni gün GERİ Gətirildi — owner: "geri getir bunu və öz başına heçnə silmə")
 - VOID RESTORATION: CartPanel + page.tsx (`onVoidSuccess`) + i18n `hint_minus_blocked` mətnləri `51b2705d`-dən **bayt-bayt** restora edildi (pill, void mode, doVoid, manager PIN fallback, CTA void branch, rose strip, sətir void render). Status hint chip yox edilmədi — Təmizlə + Ləğv et + status chip indi eyni row-da flex. Miqdar-sətiri GERİ QAYTAR, məcburi səbəb, return backend (migrasiya 20260925010000) dəyişməz qaldı. Visual E2E: browser session müddəti keçmişdi (PIN wall); owner tab-da PIN-dən keçəndə W1–W4 tamamlanır.
 

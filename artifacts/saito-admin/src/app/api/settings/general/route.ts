@@ -16,6 +16,7 @@ const COLS = [
   'contact_email',
   'morning_greeting_enabled',
   'is_open',
+  'waitlist_enabled',
 ];
 
 export async function GET() {

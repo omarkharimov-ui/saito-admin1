@@ -4,6 +4,7 @@ import { Plus, Phone, User, Clock, ShoppingBag, UserCheck, MoreVertical, Wallet,
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
+import { PartnerBadge, PartnerStripe, PartnerTint } from './PartnerBadge';
 
 interface TakeawayOrdersProps {
   orders: any[];
@@ -88,8 +89,11 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                       ? 'bg-white border-emerald-500 shadow-sm'
                       : 'bg-zinc-900 border-emerald-500/60 shadow-sm'
                   }`}
-                >
-                  <div className="absolute top-4 right-4 z-20" onClick={(e) => e.stopPropagation()}>
+                 >
+                   {/* 2026-09-25 (owner): partner branding (stripe + tint + logo chip). */}
+                   <PartnerStripe source={order.partner_source} />
+                   <PartnerTint source={order.partner_source} lightMode={lightMode} />
+                   <div className="absolute top-4 right-4 z-20" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => onOpenActionSheet(order)}
                       className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${lightMode ? 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-600' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'}`}
@@ -98,13 +102,17 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                     </button>
                   </div>
 
-                   {/* 2026-09-22: order number always shown (fallback = last 4
-                       id chars for legacy orders without order_number). */}
-                   <span className={`absolute top-5 left-5 text-[26px] font-black tracking-tighter ${
-                     lightMode ? 'text-gray-900' : 'text-white'
-                   }`}>
-                     {t('takeaway_short')} {orderNo}
-                   </span>
+                    {/* 2026-09-22: order number always shown (fallback = last 4
+                        id chars for legacy orders without order_number).
+                        2026-09-25 (owner): partner logo chip right of the number. */}
+                    <div className="absolute top-5 left-5 flex items-center gap-2">
+                      <span className={`text-[26px] font-black tracking-tighter ${
+                        lightMode ? 'text-gray-900' : 'text-white'
+                      }`}>
+                        {t('takeaway_short')} {orderNo}
+                      </span>
+                      <PartnerBadge source={order.partner_source} />
+                    </div>
 
                       {elapsed > 0 && (
                         <span className={`absolute top-14 right-5 flex items-center gap-1 text-xs font-bold tabular-nums ${

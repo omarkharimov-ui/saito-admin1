@@ -4,6 +4,7 @@ import { Plus, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical, Navigation,
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
+import { PartnerBadge, PartnerStripe, PartnerTint } from './PartnerBadge';
 
 interface DeliveryOrdersProps {
   orders: any[];
@@ -79,15 +80,20 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
               const elapsedText = elapsed < 1 ? '< 1 min' : elapsed < 60 ? `${elapsed} min` : elapsed < 1440 ? `${Math.floor(elapsed / 60)}h ${elapsed % 60}m` : `${Math.floor(elapsed / 1440)}d`;
 
               return (
-                <div
-                  key={order.id}
-                  onClick={() => onSelectOrder(order)}
-                  className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer ${
-                    lightMode
-                      ? 'bg-white border-emerald-500 shadow-sm'
-                      : 'bg-zinc-900 border-emerald-500/60 shadow-sm'
-                  }`}
-                >
+                 <div
+                   key={order.id}
+                   onClick={() => onSelectOrder(order)}
+                   className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer ${
+                     lightMode
+                       ? 'bg-white border-emerald-500 shadow-sm'
+                       : 'bg-zinc-900 border-emerald-500/60 shadow-sm'
+                   }`}
+                 >
+                   {/* 2026-09-25 (owner): partner branding — brand-color
+                       left stripe + soft tint + logo chip, so a Bolt/Uber/
+                       Glovo/Wolt order is recognizable at a glance. */}
+                   <PartnerStripe source={order.partner_source} />
+                   <PartnerTint source={order.partner_source} lightMode={lightMode} />
                   <div className="absolute top-4 right-4 z-20" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => onOpenActionSheet(order)}
@@ -97,12 +103,17 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                     </button>
                   </div>
 
-                   {/* 2026-09-22: order number always shown (legacy fallback). */}
-                   <span className={`absolute top-5 left-5 text-[26px] font-black tracking-tighter ${
-                     lightMode ? 'text-gray-900' : 'text-white'
-                   }`}>
-                     {t('delivery_short')} {orderNo}
-                   </span>
+                    {/* 2026-09-22: order number always shown (legacy fallback).
+                        2026-09-25 (owner): partner logo chip sits right of the
+                        number (Bolt/Uber/Glovo/Wolt source). */}
+                    <div className="absolute top-5 left-5 flex items-center gap-2">
+                      <span className={`text-[26px] font-black tracking-tighter ${
+                        lightMode ? 'text-gray-900' : 'text-white'
+                      }`}>
+                        {t('delivery_short')} {orderNo}
+                      </span>
+                      <PartnerBadge source={order.partner_source} />
+                    </div>
 
                       {elapsed > 0 && (
                         <span className={`absolute top-14 right-5 flex items-center gap-1 text-xs font-bold tabular-nums ${
@@ -155,10 +166,10 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                         <div className="flex items-center gap-1.5 min-w-0 leading-[15px]">
                           {order.courier_name ? (
                             <>
-                              <UserCheck size={11} className="text-emerald-400 shrink-0" />
-                              <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-emerald-700' : 'text-emerald-300'}`}>
-                                {order.courier_name}
-                              </span>
+                               <UserCheck size={11} className="text-emerald-400 shrink-0" />
+                               <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-emerald-700' : 'text-emerald-300'}`}>
+                                 {order.courier_name}{order.courier_phone ? <span className={lightMode ? 'text-zinc-500' : 'text-white/40'}> · {order.courier_phone}</span> : null}
+                               </span>
                             </>
                           ) : (
                             <>

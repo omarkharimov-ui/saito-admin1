@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer, Wallet, Star, Percent, Bike } from 'lucide-react';
+import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer, Wallet, Star, Percent, Bike, BellRing } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { AnimatedTabs } from '../components/ui/MotionControls';
 import GeneralTab from './tabs/GeneralTab';
@@ -19,9 +19,11 @@ import FloorsTab from './tabs/FloorsTab';
 import PayrollTab from './tabs/PayrollTab';
 import LocationTab from './tabs/LocationTab';
 import LoyaltyTab from './tabs/LoyaltyTab';
+import PartnersTab from './tabs/PartnersTab';
+import NotificationsTab from './tabs/NotificationsTab';
 
 
-type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'delivery' | 'receipt' | 'payment' | 'printer' | 'devices' | 'floors' | 'hours' | 'payroll' | 'location' | 'loyalty';
+type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'delivery' | 'receipt' | 'payment' | 'printer' | 'devices' | 'floors' | 'hours' | 'payroll' | 'location' | 'loyalty' | 'partners' | 'notifications';
 
 type TabDef = { key: Tab; labelKey: string; icon: React.ReactNode; superadminOnly?: boolean; desc?: string };
 
@@ -32,6 +34,8 @@ const TAB_DEFS: TabDef[] = [
   { key: 'analytics', labelKey: 'tab_analytics', icon: <BrainCircuit size={20} />,desc: 'Statistika parametrləri' },
   { key: 'kitchen',   labelKey: 'tab_kitchen',   icon: <Timer size={20} />,      desc: 'Mətbəx ayarları' },
   { key: 'delivery',  labelKey: 'tab_delivery',  icon: <Bike size={20} />,       desc: 'Çatdırılma: ünvan, zonalar, haqq' },
+  { key: 'partners',  labelKey: 'tab_partners',  icon: <Bike size={20} />, desc: 'Delivery partnerləri: 1-klik bağlan + test' },
+  { key: 'notifications', labelKey: 'tab_notifications', icon: <BellRing size={20} />, desc: 'SMS / bildirişlər (hazır)' },
   { key: 'receipt',   labelKey: 'tab_receipt',   icon: <Receipt size={20} />,     desc: 'Çek və çıxarış' },
   { key: 'payment',   labelKey: 'tab_payment',   icon: <Percent size={20} />,     desc: 'Ödəniş və ƏDV' },
   { key: 'printer',   labelKey: 'tab_printer',   icon: <Printer size={20} />,     desc: 'Printer ayarları' },
@@ -57,6 +61,8 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
       {tab === 'analytics' && <AnalyticsTab initialData={settingsData} />}
       {tab === 'kitchen'   && <KitchenTab initialData={settingsData} />}
       {tab === 'delivery'  && <DeliveryTab />}
+      {tab === 'partners'  && <PartnersTab />}
+      {tab === 'notifications' && <NotificationsTab />}
       {tab === 'receipt'   && <ReceiptTab initialData={settingsData} />}
       {tab === 'payment'   && <PaymentTab />}
       {tab === 'printer'   && <PrinterTab initialData={settingsData} />}

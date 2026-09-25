@@ -10,6 +10,7 @@ import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
+import { PartnerBadge, PartnerStripe } from './PartnerBadge';
 import { supabase } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings-client';
 import { usePrintClaimLoop, type PrintJob } from '@/hooks/usePrintClaimLoop';
@@ -42,6 +43,7 @@ interface KDSOrder {
   table_number: number;
   order_source: string;
   order_type?: string;
+  partner_source?: string | null;
   customer_name?: string;
   customer_phone?: string;
   customer_note?: string;
@@ -310,9 +312,10 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
           .map((o: any) => ({
             id: o.id,
             table_number: o.table_number,
-            order_source: o.order_source || 'dine_in',
-            order_type: o.order_type,
-            customer_name: o.customer_name,
+             order_source: o.order_source || 'dine_in',
+             order_type: o.order_type,
+             partner_source: o.partner_source,
+             customer_name: o.customer_name,
             customer_phone: o.customer_phone,
             customer_note: o.customer_note,
             items: (o.order_items || []).map((i: any) => ({
@@ -504,23 +507,28 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                   ? order.items.filter(i => itemInBoard(i) && itemStation(i) !== stationFilter && !isItemReady(i)).length
                   : 0;
                 return (
-                  <div
-                    key={order.id}
-                    className={`rounded-3xl border p-4 transition-all duration-200 ${
-                      allItemsReady
-                        ? (lightMode ? 'border-emerald-300 bg-emerald-50' : 'border-emerald-500/30 bg-emerald-500/5')
-                        : timer.color === 'red' || timer.color === 'purple'
-                          ? (lightMode ? 'border-red-300 bg-red-50 shadow-sm' : 'border-red-500/30 bg-red-500/5 shadow-sm')
-                          : (lightMode ? 'border-gray-200 bg-white shadow-sm' : 'border-white/[0.08] bg-white/[0.02]')
-                    }`}
-                  >
-                    {/* Order Header */}
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xl font-black tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>
-                          {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
-                        </span>
-                        {getOrderBadge(order, lightMode)}
+                   <div
+                     key={order.id}
+                     className={`relative overflow-hidden rounded-3xl border p-4 transition-all duration-200 ${
+                       allItemsReady
+                         ? (lightMode ? 'border-emerald-300 bg-emerald-50' : 'border-emerald-500/30 bg-emerald-500/5')
+                         : timer.color === 'red' || timer.color === 'purple'
+                           ? (lightMode ? 'border-red-300 bg-red-50 shadow-sm' : 'border-red-500/30 bg-red-500/5 shadow-sm')
+                           : (lightMode ? 'border-gray-200 bg-white shadow-sm' : 'border-white/[0.08] bg-white/[0.02]')
+                     }`}
+                   >
+                     {/* 2026-09-25 (owner): partner branding on the ticket —
+                         brand-color left stripe + logo chip next to the title,
+                         so kitchens see at a glance a Bolt/Uber/Glovo/Wolt job. */}
+                     <PartnerStripe source={order.partner_source} />
+                     {/* Order Header */}
+                     <div className="flex items-center justify-between mb-3">
+                       <div className="flex items-center gap-2">
+                         <span className={`text-xl font-black tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>
+                           {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
+                         </span>
+                         {getOrderBadge(order, lightMode)}
+                         <PartnerBadge source={order.partner_source} />
                         {stationFilter && visibleItems.length > 1 && (
                           <span className={`text-[11px] font-black px-2 py-1 rounded-full border ${visibleAllReady ? (lightMode ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20') : (lightMode ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-white/[0.05] text-white/55 border-white/[0.08]')}`}>
                             {visibleReady}/{visibleItems.length}

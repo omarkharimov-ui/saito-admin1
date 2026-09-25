@@ -169,7 +169,7 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
     : 'bg-white/[0.06] border-white/10 text-white placeholder:text-white/25';
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60" style={{ paddingBottom: 'var(--vk-height, 0px)' }} onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, y: 18, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}

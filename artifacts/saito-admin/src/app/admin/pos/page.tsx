@@ -2049,21 +2049,6 @@ export default function POSPage() {
                {printQueue.claimed > 0 ? printQueue.claimed : printQueue.queued}
              </div>
            )}
-            {posMode === 'dine_in' && waitlistEnabled && (
-              <button
-                onClick={() => setWaitlistOpen(true)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-                title="Növbə (Waitlist)"
-              >
-                <Hourglass size={16} />
-                <span className="hidden sm:inline">Növbə</span>
-                {waitlistCount > 0 && (
-                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-500 text-white text-[10px] font-black tabular-nums flex items-center justify-center leading-none">
-                    {waitlistCount}
-                  </span>
-                )}
-              </button>
-            )}
             <button
               onClick={() => setOrderHistoryOpen(true)}
               className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
@@ -2133,9 +2118,26 @@ export default function POSPage() {
                      // the toolbar can never be squeezed by the scroll region.
                      className="flex-shrink-0 flex items-center justify-end gap-3 mb-6"
                    >
-                    <div className="flex items-center gap-2">
-                     <button
-                       onClick={() => router.push('/admin/reservations')}
+                     <div className="flex items-center gap-2">
+                      {/* 2026-09-25 (owner): NÖVBƏ buraya — REZERVSİYALAR-ın SOLUNA
+                          (global top-right sətirdən köçürüldü). */}
+                      {posMode === 'dine_in' && waitlistEnabled && (
+                        <button
+                          onClick={() => setWaitlistOpen(true)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] ${lightMode ? 'border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100' : 'border-indigo-500/30 bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30'}`}
+                          title="Növbə (Waitlist)"
+                        >
+                          <Hourglass size={16} />
+                          <span className="hidden sm:inline">Növbə</span>
+                          {waitlistCount > 0 && (
+                            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-500 text-white text-[10px] font-black tabular-nums flex items-center justify-center leading-none">
+                              {waitlistCount}
+                            </span>
+                          )}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => router.push('/admin/reservations')}
                        className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100' : 'border-white/10 text-white/80 hover:text-white hover:bg-white/10'}`}
                        title={t('reservations')}
                      >
@@ -2184,12 +2186,29 @@ export default function POSPage() {
                      transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
                      className="flex-shrink-0"
                    >
-                     <div className="flex items-center justify-end gap-3 mb-6">
-                     <button
-                       onClick={() => router.push('/admin/reservations')}
-                       className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-                       title={t('reservations')}
-                     >
+                      <div className="flex items-center justify-end gap-3 mb-6">
+                      {/* 2026-09-25 (owner): NÖVBƏ — REZERVSİYALAR-ın SOLUNA (normal toolbar
+                          branch; the clean-mode branch has its own copy). */}
+                      {posMode === 'dine_in' && waitlistEnabled && (
+                        <button
+                          onClick={() => setWaitlistOpen(true)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] ${lightMode ? 'border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100' : 'border-indigo-500/30 bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30'}`}
+                          title="Növbə (Waitlist)"
+                        >
+                          <Hourglass size={16} />
+                          <span className="hidden sm:inline">Növbə</span>
+                          {waitlistCount > 0 && (
+                            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-500 text-white text-[10px] font-black tabular-nums flex items-center justify-center leading-none">
+                              {waitlistCount}
+                            </span>
+                          )}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => router.push('/admin/reservations')}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                        title={t('reservations')}
+                      >
                        <Calendar size={16} />
                        <span className="hidden sm:inline">{t('reservations')}</span>
                      </button>
@@ -2761,10 +2780,7 @@ export default function POSPage() {
                               if (!pos.cart) return;
                               pos.setCart({ ...pos.cart, coupon: null });
                             }}
-                            boundOrderLabel={posMode !== 'dine_in' && pos.cart?.order_id ? (
-                              `${posMode === 'takeaway' ? t('takeaway_short') : t('delivery_short')} ${(String(editingOrder?.order_number || '').replace(/[^0-9]/g, '')) || (String(editingOrder?.id || pos.cart?.order_id || '').slice(-4).toUpperCase())}`
-                            ) : null}
-                           onOpenModifiers={(productId) => {
+                            onOpenModifiers={(productId) => {
                              const product = pos.products.find((p: any) => p.id === productId);
                              if (product) gridRef.current?.openEditor(productId);
                            }}

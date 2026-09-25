@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check, RotateCcw, Package, Trash2, ArrowLeft } from 'lucide-react';
+import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check, RotateCcw, Package, Trash2, ArrowLeft, Flame } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
@@ -96,6 +96,42 @@ const FILTER_TABS = [
   { id: 'popular' as const, labelKey: 'popular', icon: Star },
 ];
 
+// 2026-09-25 (owner): GLOBAL kitchen summary — the MƏTBƏX button in the
+// filter row replaces the old per-cart chip (removed: "cirkın tooltip").
+// Counts ALL open orders' portions: hazırlanır / hazır / draft — same
+// semantics as the old cart statusCounts (served_quantity + kitchen_status).
+function useKitchenSummary() {
+  const [summary, setSummary] = useState<{ ready: number; prep: number; draft: number } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        // 2026-09-26: dedicated aggregation RPC (3 ints, ~60 bytes) instead of
+        // polling /api/orders (~1.5 MB per tick, and the un-scoped status-only
+        // variant reliably 500s in the dev-server fetch layer).
+        const res = await apiFetch('/api/rpc/get_kitchen_summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        });
+        if (!res.ok) return;
+        const d: any = await res.json();
+        if (!cancelled) {
+          setSummary({
+            ready: Number(d?.ready) || 0,
+            prep: Number(d?.prep) || 0,
+            draft: Number(d?.draft) || 0,
+          });
+        }
+      } catch { /* best effort — kitchen hint is auxiliary */ }
+    };
+    load();
+    const iv = window.setInterval(load, 5000);
+    return () => { cancelled = true; window.clearInterval(iv); };
+  }, []);
+  return summary;
+}
+
 type GridItem = PosProduct & { _isCombo?: boolean; _raw?: any; variants?: any[]; modifiers?: any[]; modifier_groups?: any[] };
 
 function AllergenBadges({ item }: { item: GridItem | undefined; lightMode?: boolean }) {
@@ -132,6 +168,22 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
   const [retryCount, setRetryCount] = useState<Record<string, number>>({});
   const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'popular'>('all');
+  // 2026-09-25 (owner): MƏTBƏX button + hint (global kitchen summary).
+  const kitchen = useKitchenSummary();
+  const [kitchenHintOpen, setKitchenHintOpen] = useState(false);
+  // 2026-09-26: the hint is rendered as a FIXED-position panel anchored to the
+  // button's rect. It used to be `absolute` inside the filter row, but that row
+  // is `overflow-x-auto` → the browser clipped the dropdown (present in DOM /
+  // ARIA, invisible in pixels). Fixed positioning escapes the scroll container.
+  const kitchenBtnRef = useRef<HTMLButtonElement>(null);
+  const [kitchenHintPos, setKitchenHintPos] = useState<{ top: number; left: number } | null>(null);
+  // The hint is a glanceable popover — auto-close after 8s so a stray open
+  // can never leave the full-screen click-away backdrop up over the POS.
+  useEffect(() => {
+    if (!kitchenHintOpen) return;
+    const t = window.setTimeout(() => setKitchenHintOpen(false), 8000);
+    return () => window.clearTimeout(t);
+  }, [kitchenHintOpen]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>(undefined);
   const [noteForProduct, setNoteForProduct] = useState<string>('');
@@ -375,6 +427,15 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         toast.success(`${returnQty}x ${returnCtx.product_name} — ${fate === 'stock'
           ? (t('returned_to_stock') || 'Anbara qaytarıldı')
           : (t('waste_recorded') || 'İtki qeyd edildi')}`);
+        // 2026-09-25 (owner: "sonra öz avtomatik bağlanmırdı"): DETERMINISTIC
+        // close — reset the ENTIRE return state, then close the modal. A
+        // stale returnCtx/returnView/returnReason must never survive a
+        // successful submit.
+        setReturnView(false);
+        setReturnCtx(null);
+        setReturnReason('');
+        setReturnReasonText('');
+        setReturnPinOpen(false);
         handleClose();
       } else {
         toast.error(data.error || (fate === 'stock'
@@ -503,10 +564,98 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
               }`}
             >
              <tab.icon size={12} />
-             {t(tab.labelKey as any)}
-           </motion.button>
+              {t(tab.labelKey as any)}
+            </motion.button>
           ))}
-      </div>
+
+          {/* 2026-09-25 (owner): MƏTBƏX status button — next to HAMISI/SON/MƏŞHUR.
+              Replaces the removed cart chip (ugly native tooltip). Tap → hint
+              with ALL portions: hazırlanır / hazır / draft (every open order). */}
+          <div className="relative flex-shrink-0 ml-0.5">
+            <motion.button
+              ref={kitchenBtnRef}
+              onClick={() => {
+                if (kitchenHintOpen) { setKitchenHintOpen(false); return; }
+                // Capture the button's rect → fixed-position panel below it
+                // (fixed escapes the row's overflow-x-auto clipping).
+                const r = kitchenBtnRef.current?.getBoundingClientRect();
+                if (r) {
+                  const panelW = 240; // w-60
+                  setKitchenHintPos({
+                    top: r.bottom + 8,
+                    left: Math.min(Math.max(8, r.left), window.innerWidth - panelW - 8),
+                  });
+                }
+                setKitchenHintOpen(true);
+              }}
+              whileTap={{ scale: 0.94 }}
+              transition={TAP}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap border ${
+                kitchenHintOpen
+                  ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/25'
+                  : kitchen && kitchen.ready + kitchen.prep > 0
+                    ? (lightMode ? 'bg-orange-50 border-orange-300 text-orange-600 hover:bg-orange-100' : 'bg-orange-500/15 border-orange-500/40 text-orange-300 hover:bg-orange-500/25')
+                    : (lightMode ? 'bg-white border-zinc-200 text-zinc-400 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-500 hover:bg-white/10')
+              }`}
+            >
+              <Flame size={12} />
+              {t('tab_kitchen') || 'Mətbəx'}
+              {kitchen && kitchen.ready + kitchen.prep > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-black tabular-nums flex items-center justify-center leading-none">
+                  {kitchen.ready + kitchen.prep}
+                </span>
+              )}
+            </motion.button>
+          </div>
+       </div>
+
+       {/* MƏTBƏX hint — rendered OUTSIDE the overflow-x-auto filter row (2026-09-26):
+           absolute positioning inside the row was clipped by the scroll container
+           (present in DOM/ARIA, invisible in pixels). Fixed + backdrop as siblings. */}
+       {kitchenHintOpen && <div className="fixed inset-0 z-[60]" onClick={() => setKitchenHintOpen(false)} />}
+       <AnimatePresence>
+         {kitchenHintOpen && kitchen && kitchenHintPos && (
+           <motion.div
+             initial={{ opacity: 0, y: -6, scale: 0.97 }}
+             animate={{ opacity: 1, y: 0, scale: 1 }}
+             exit={{ opacity: 0, y: -6, scale: 0.97 }}
+             transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+             className="fixed z-[70] w-60 rounded-2xl border p-4 shadow-elevated backdrop-blur-lg"
+             style={{
+               top: kitchenHintPos.top,
+               left: kitchenHintPos.left,
+               ...(lightMode ? { background: '#ffffff', borderColor: '#e4e4e7' } : { background: 'rgba(24,24,28,0.97)', borderColor: 'rgba(255,255,255,0.12)' }),
+             }}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+               {t('kitchen_status') || 'Mətbəx statusu'} — BÜTÜN SİFARİŞLƏR
+             </p>
+             <div className="space-y-2">
+               <div className="flex items-center justify-between">
+                 <span className="flex items-center gap-2 text-xs font-bold text-amber-500">
+                   <span className="w-2 h-2 rounded-full bg-amber-500" />
+                   {t('st_preparing') || 'hazırlanır'}
+                 </span>
+                 <span className={`text-base font-black tabular-nums ${lightMode ? 'text-zinc-800' : 'text-white'}`}>{kitchen.prep}</span>
+               </div>
+               <div className="flex items-center justify-between">
+                 <span className="flex items-center gap-2 text-xs font-bold text-emerald-500">
+                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                   {t('st_ready') || 'hazır'}
+                 </span>
+                 <span className={`text-base font-black tabular-nums ${lightMode ? 'text-zinc-800' : 'text-white'}`}>{kitchen.ready}</span>
+               </div>
+               <div className={`flex items-center justify-between ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
+                 <span className="flex items-center gap-2 text-xs font-bold">
+                   <span className={`w-2 h-2 rounded-full ${lightMode ? 'bg-zinc-400' : 'bg-white/40'}`} />
+                   {t('st_draft') || 'draft'}
+                 </span>
+                 <span className={`text-base font-black tabular-nums ${lightMode ? 'text-zinc-800' : 'text-white'}`}>{kitchen.draft}</span>
+               </div>
+             </div>
+           </motion.div>
+         )}
+       </AnimatePresence>
 
       {/* Categories */}
       <div className="mb-4 flex-shrink-0">
@@ -702,7 +851,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={appleBackdrop}
-            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4" style={{ paddingBottom: 'var(--vk-height, 0px)' }}
             onClick={handleClose}
           >
             <motion.div

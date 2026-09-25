@@ -226,7 +226,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error('[API /orders] Catch error:', error);
+    console.error('[API /orders] Catch error:', error, 'cause:', error?.cause);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

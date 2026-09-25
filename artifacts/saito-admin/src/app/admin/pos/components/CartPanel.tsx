@@ -81,9 +81,9 @@ interface CartPanelProps {
    *  item-campaigns. Persisted onto cart.coupon by the parent. */
    onCouponApplied?: (c: { code: string; campaign_id: string; name: string; discount_amount: number }) => void;
    onCouponRemoved?: () => void;
-  /** 2026-09-23 (owner): compact cart→order binding chip label ("Gel-Al 044").
-      Replaces the wide blue banner that occupied the cart column top. */
-  boundOrderLabel?: string | null;
+  /** 2026-09-25 (owner): boundOrderLabel chip REMOVED ("heç bir tabda elə bir
+      şey olmasın") — prop deleted; order number now lives in the dine-in
+      ORD chip (cart.order_number) instead.
   /** 2026-09-25 (owner, partner Part 1): when the bound order is a PARTNER
       (aggregator) order, customer info comes from the partner app via API —
       the cart renders it READ-ONLY (no customer phase, no re-entry). */
@@ -157,7 +157,6 @@ export function CartPanel({
   onVoidSuccess,
     onCouponApplied,
     onCouponRemoved,
-    boundOrderLabel,
     partnerSource,
     partnerOrder,
 }: CartPanelProps) {
@@ -443,22 +442,9 @@ export function CartPanel({
   }, [cart]);
   const hasVoidableItems = voidableItems.length > 0;
 
-  // 2026-09-25 (owner): status hint counts — how many portions are
-  // hazır (served/ready), hazırlanır (sent to kitchen, still in progress)
-  // and draft (not yet sent). Shown ALONGSIDE the restored Ləğv et pill.
-  const statusCounts = useMemo(() => {
-    let ready = 0, prep = 0, draft = 0;
-    if (!cart) return { ready, prep, draft };
-    for (const it of cart.items) {
-      const sent = it.sentQuantity ?? 0;
-      const ks = (it as any).kitchen_status || 'pending';
-      if (sent > 0 && ['ready', 'completed', 'served'].includes(ks)) ready += sent;
-      else if (sent > 0) prep += sent;
-      draft += Math.max(0, (it.quantity ?? 0) - sent);
-    }
-    return { ready, prep, draft };
-  }, [cart]);
-  const hasKitchenItems = statusCounts.ready + statusCounts.prep > 0;
+  // 2026-09-25 (owner): the per-cart status chip was REPLACED by the global
+  // MƏTBƏX button in the product filter row (ProductGrid.useKitchenSummary).
+  // Same semantics live there: ready / prep (hazırlanır) / draft counts.
 
   // 2026-09-24 (owner, final decision): the Ləğv pill is VOID-ONLY again
   // (08-26 placement/behavior — untouched). Return is NOT a button anywhere:
@@ -768,14 +754,6 @@ export function CartPanel({
                   <GitMerge size={10} /> {[cart.table_number, ...mergedChildNumbers].join('+')}
                 </span>
               )}
-              {/* 2026-09-23 (owner): compact cart→order binding chip. Replaces the
-                  rejected wide blue banner that occupied the whole cart-column top. */}
-              {boundOrderLabel && (
-                <span className={`ml-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-black tracking-wider border ${lightMode ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-blue-500/10 border-blue-400/25 text-blue-300'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${lightMode ? 'bg-blue-500' : 'bg-blue-400'}`} />
-                  {boundOrderLabel}
-                </span>
-              )}
             </p>
             {isReservationMode && (
               <div className="flex items-center gap-1.5 mt-1">
@@ -1050,45 +1028,10 @@ export function CartPanel({
                 {voidMode ? (t('cancel') || 'Ləğv et') : (t('void_items') || 'Ləğv et')}
               </button>
             </motion.div>
-            {/* 2026-09-25 (owner): status hint — how many portions are
-                hazır / hazırlanır / draft. Shown alongside the Ləğv et
-                pill (restored 2026-09-25, owner: "geri getir"). */}
-            <motion.div
-              initial={false}
-              animate={{
-                flex: hasKitchenItems ? '1 1 0%' : '0 0 0%',
-                opacity: hasKitchenItems ? 1 : 0,
-                scale: hasKitchenItems ? 1 : 0.9,
-              }}
-              transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
-              style={{ overflow: 'hidden', minWidth: 0 }}
-            >
-              <div
-                title={t('kitchen_status') || 'Mətbəx statusu'}
-                className={`flex items-center justify-center gap-2.5 h-full px-2 py-2.5 rounded-xl border text-[11px] font-black uppercase tracking-wider whitespace-nowrap overflow-hidden ${
-                  lightMode ? 'bg-[var(--theme-surface)] border-zinc-200' : 'bg-white/5 border-[var(--theme-border)]'
-                }`}
-              >
-                {statusCounts.ready > 0 && (
-                  <span className="flex items-center gap-1.5 text-emerald-500">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                    {statusCounts.ready} {t('st_ready') || 'hazır'}
-                  </span>
-                )}
-                {statusCounts.prep > 0 && (
-                  <span className="flex items-center gap-1.5 text-amber-500">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
-                    {statusCounts.prep} {t('st_preparing') || 'hazırlanır'}
-                  </span>
-                )}
-                {statusCounts.draft > 0 && (
-                  <span className={`flex items-center gap-1.5 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${lightMode ? 'bg-zinc-400' : 'bg-white/40'}`} />
-                    {statusCounts.draft} {t('st_draft') || 'draft'}
-                  </span>
-                )}
-              </div>
-            </motion.div>
+            {/* 2026-09-25 (owner): this chip REMOVED — "bele bir cirkın
+                şəkildə olmasın, HAMISI/SON/MƏŞHUR yanına button yaradaq".
+                Replaced by the global MƏTBƏX button in the product filter
+                row (ProductGrid) with a hint showing ALL counts. */}
           </div>
         </div>
       )}

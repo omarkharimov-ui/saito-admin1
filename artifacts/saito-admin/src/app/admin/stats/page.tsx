@@ -14,6 +14,7 @@ import StatsProductTable from './components/StatsProductTable';
 import StatsSenseiPanel from './components/StatsSenseiPanel';
 import StatsFinancePanel from './components/StatsFinancePanel';
 import StatsCancellationChart from './components/StatsCancellationChart';
+import StatsReturnWastePanel from './components/StatsReturnWastePanel';
 import StatsMobileView from './components/StatsMobileView';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -266,6 +267,13 @@ const StatsPage = () => {
             cancellationDetails={cancellationDetails}
             selectedReason={selectedCancellationReason}
             onSelectReason={setSelectedCancellationReason}
+          />
+
+          {/* 2026-09-25 (owner): return/waste reasons — mandatory in POS,
+              surfaced here for the statistics page. */}
+          <StatsReturnWastePanel
+            stats={stats.returnWasteStats || []}
+            totals={stats.returnWasteTotals || null}
           />
 
           <StatsSenseiPanel

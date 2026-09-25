@@ -977,6 +977,12 @@ export const en: TranslationMap = {
   stats_cancellation_reasons: 'Cancellation Reasons',
   stats_cancelled_orders_count: '{count} cancelled orders',
   stats_order_unit: 'orders',
+  // 2026-09-25 (owner): Return & Waste reasons panel
+  stats_return_waste_title: 'Returns & Waste (by reason)',
+  stats_return_event: 'event',
+  stats_portion: 'portion',
+  stats_to_stock: 'returned to stock',
+  stats_to_waste: 'written off as waste',
   stats_tap_to_details: 'Tap on a color in the ring or a reason row to see details.',
   stats_selected_reason: 'Selected reason',
   stats_loss_label: 'Loss',

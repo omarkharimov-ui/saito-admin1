@@ -976,6 +976,12 @@ export const az = {
   stats_cancellation_reasons: 'Ləğv Səbəbləri',
   stats_cancelled_orders_count: '{count} ləğv edilmiş sifariş',
   stats_order_unit: 'sifariş',
+  // 2026-09-25 (owner): Return & Waste reasons panel
+  stats_return_waste_title: 'Geri qaytar & İtki (səbəb üzrə)',
+  stats_return_event: 'hadisə',
+  stats_portion: 'porsiyon',
+  stats_to_stock: 'anbara qaytarıldı',
+  stats_to_waste: 'itkiyə yazıldı',
   stats_tap_to_details: 'Detalları görmək üçün halqadakı rəngə və ya səbəb sətrinə toxunun.',
   stats_selected_reason: 'Seçilmiş səbəb',
   stats_loss_label: 'İtki',

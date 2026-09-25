@@ -1004,6 +1004,12 @@ export const ru: TranslationMap = {
   stats_cancellation_reasons: 'Причины отмен',
   stats_cancelled_orders_count: '{count} отменённых заказов',
   stats_order_unit: 'заказов',
+  // 2026-09-25 (owner): Return & Waste reasons panel
+  stats_return_waste_title: 'Возвраты и потери (по причинам)',
+  stats_return_event: 'событие',
+  stats_portion: 'порция',
+  stats_to_stock: 'возврат на склад',
+  stats_to_waste: 'списано в потери',
   stats_tap_to_details: 'Нажмите на цвет в кольце или строку причины для подробностей.',
   stats_selected_reason: 'Выбранная причина',
   stats_loss_label: 'Убыток',

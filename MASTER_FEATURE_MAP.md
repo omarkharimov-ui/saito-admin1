@@ -257,6 +257,7 @@ dən kənarda, idempotent outbox** ilə (`outbox_events` + `emit_outbox_event`).
 | State machine (DRAFT→…→CLOSED, VOIDED/REOPENED…) | ✅ FROZEN | `state_transitions`, `get_valid_transitions` | `transition_order_status_validated` |
 | Total SSOT + VAT | ✅ FROZEN (1.5) | `settings.vat_*`, `orders.apply_vat` | `calculate_order_total_v3`, `/api/orders/apply-vat` |
 | Undo | ✅ | `operation_logs` + `undo_payload` | `undo_operation_v4`, `/api/orders/undo` |
+| Return (served item → anbar/itki, **məcburi səbəb DB-də**) | ✅ (09-25, `886c9871`+`a18da538`) | `return_to_stock` (20260925010000 bill-update), `record_item_waste`, `inventory_logs.reason`, `audit_logs_canonical.new_data.reason` | POS details-panel morph (Miqdar row → PinGuard → return view + 8 səbəb chip), `/api/orders/return-to-stock`, `/api/orders/waste` |
 | 86 / sold-out | ✅ | `products.availability` | `mark_sold_out_atomic`, `/api/kitchen/sold-out` |
 | Offline-first POS | ❌ | — | Wave A (Q8 qərarı gözləyir: offline-first?) |
 | Handheld / tableside payment | ❌ | — | Q7 terminal provider qərarı gözləyir |
@@ -303,7 +304,7 @@ Exceptions: VOIDED / CANCELLED / REFUNDED / REOPENED / PARTIALLY_REFUNDED
 | Payment reconciliation + approve/dispute | ✅ | `cash_reconciliations`, `payment_reconciliation` | `/api/finance/reconciliation` |
 | Void payment + reverse | ✅ FROZEN | `void_payment_atomic_v2`, `saito_reverse_payment` | `/api/payments/void` |
 | QR payment (Scan & Pay) | ✅ | `/api/orders/qr` (SSOT bağlı) | menu QR səhifəsi |
-| Gift card tender | 🟡 | `gift_cards`, `gift_card_ledger`, `gift_card_redeem` (0 card) | UI yox — Addım 2 |
+| Gift card tender | ✅ (09-25 verify) | `gift_cards`, `gift_card_ledger`, `gift_card_redeem` (DB-də 0 card) | POS `ActionSheet` payment method `gift_card` + `GiftCardModal` (onSuccess → tender); `admin/gift-cards` |
 | Bar tab (pre-auth) | ❌ | `customers` var, tab sahəsi yox | Addım 2 (C-modul) |
 | Customer tab / house account / credit | ❌ | — | Addım 2 |
 | Offline payment | ❌ | — | Q7/Q8 qərarından sonra |
@@ -379,7 +380,8 @@ Calendar, guest, phone, party size, date/time, table; lifecycle BOOKED→CONFIRM
 
 | Feature | Saito | DB | API/UI |
 |---|---|---|---|
-| Reservation engine (atomic: reserve/assign/cancel/walk-in/seating/no-show) | ✅ | `reservations` (86), `reservation_tables`, `assign_reservation_tables_atomic`, `confirm_and_checkin_atomic`, `mark_no_show_atomic`, `auto_no_show_v2` | `/api/reservations*` (14 route), `admin/reservations`, `public/reservations` |
+| Reservation engine (atomic: reserve/assign/cancel/walk-in/seating/no-show) | ✅ (09-25 verify: 87 rez, 16 route) | `reservations` (87), `reservation_tables`, `assign_reservation_tables_atomic`, `confirm_and_checkin_atomic`, `mark_no_show_atomic`, `auto_no_show_v2`, `seat_guests_atomic` | `/api/reservations*` (16 route: reserve/cancel/no-show/walk-in/guest-arrived/move/merge/pre-order/send-kitchen/kitchen-schedule/status/public + cron), `admin/reservations`, `public/reservations` |
+| Reservation↔POS linkage | ✅ (09-25 verify) | `orders.reservation_id`, `table_floors.reservation_*` (name/phone/time/status), `seat_guests_atomic` = order yarat + **pre-order → order_items**-ə köçür + `kitchen_scheduled_for` | POS `TableCard` rez chip + `ReservedTableModal` (Guest Arrived / Edit / Move / Merge / Print / No-Show) |
 | Pre-order on reservation | ✅ | `reservation_preorder_items`, `upsert_reservation_preorders`, `send-kitchen` | — |
 | Table merge/move within reservation | ✅ | `merge_table_to_reservation`, `move_reservation_table_atomic` | — |
 | Waitlist (SMS + queue + estimated wait) | 🟡 | `waitlist` route + `/api/waitlist/seat` | SMS notification YOX; UI Addım 2 (Q4 qərarı) |
@@ -409,7 +411,7 @@ Suggested modifier, recommended item, combo upsell, cross-sell, AI recommendatio
 |---|---|---|---|
 | Campaign-based upsell (best cart campaign) | 🟡 | `get_best_cart_campaign` | POS-də "recommend" UI bloku yox |
 | AI recommendation (Sensei) | ✅ | `ai_cache`, `popular_queries`, Sensei routes | `/api/sensei/*`, `recipes/ai-suggest` |
-| **Predictive upsell engine (staff)** | ✅ **v2 (09-21, `8732fdc2`)** | `upsell_offers` + `suggest_addons_v2` (per-order budget 2 shown/1 accepted, dismiss cooldown 120s, 2.5× price-jump, ≥15% evidence, offer types complement/beverage/generic) | `/api/upsell/suggest` + `/api/upsell/outcome` (gate 36/36, E2E 2 rənd); **UI = PARKED P-3** (A: predictive bar / B: menyu ✦ — user co-design); upgrade+addon tipləri staged (variant/modifier pairing data lazımdır) |
+| **Predictive upsell engine (staff)** | ✅ **v2 (09-21, `8732fdc2`)** | `upsell_offers` + `suggest_addons_v2` (per-order budget 2 shown/1 accepted, dismiss cooldown 120s, 2.5× price-jump, ≥15% evidence, offer types complement/beverage/generic) | `/api/upsell/suggest` + `/api/upsell/outcome` (gate 36/36, E2E 2 rənd); **UI = PARKED P-3** (09-25 owner: **kiosk üçün lazımdır, ofisiant POS-unda YOX** — UI kiosk build-inə qədər toxunulmayacaq); upgrade+addon tipləri staged (variant/modifier pairing data lazımdır) |
 
 ---
 
@@ -530,6 +532,7 @@ Sales (gross/net/tax/tips/discounts/voids/comps/refunds), revenue (by day/hour/e
 | Sales + Z-report + close-day (atomic) | ✅ FROZEN | `get_sales_report`, `get_z_report`, `close_day_atomic`, `daily_reports` | `/api/finance/*`, `admin/stats` |
 | Staff performance (revenue, voids, refunds, drawer variance, avg ticket) | ✅ | `get_staff_performance`, `get_staff_directory_v2`, `staff_metrics` | `/api/reports/staff-performance` |
 | Kitchen analytics | ✅ | `kitchen_analytics` | `admin/kitchen-analytics` |
+| Return & waste by mandatory reason | ✅ (09-25) | `audit_logs_canonical` (action=return_to_stock/item_waste, `new_data.reason`+`reason_text`) | `admin/stats` → `StatsReturnWastePanel` (donut + reason list + anbar/itki split) via `/api/stats` |
 | Discrepancy alerts + loss prevention (compliance rules, violations, risk scores) | ✅ | `discrepancy_alerts`, `compliance_rules`, `compliance_violations`, `risk_scores`, `/api/discrepancies` | `admin/loss-prevention` |
 | AI insights (Sensei: what-if, behavioral, daily tip, correlator) | ✅ | `ai_cache`, `popular_queries` | `/api/sensei/*` |
 | Customer retention / AOV / table-revenue ayrısı | 🟡 | xammal data var | Rapor bloku Addım 2 |

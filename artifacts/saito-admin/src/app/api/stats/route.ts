@@ -70,6 +70,7 @@ export async function GET(request: Request) {
       clockEventsRes,
       staffRes,
       expensesRes,
+      returnWasteRes,
     ] = await Promise.all([
       fetch(`${supabaseUrl}/rest/v1/orders?select=id,total_amount,created_at,status,table_number,created_by,assigned_to&status=eq.paid&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}&order=created_at.asc`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/order_items?select=*,order:orders!inner(id,status,created_at)&order.status=eq.paid&order.created_at=gte.${isoStartDate}&order.created_at=lte.${isoEndDate}`, { headers: H }),
@@ -83,9 +84,12 @@ export async function GET(request: Request) {
       fetch(`${supabaseUrl}/rest/v1/clock_events?select=*&clock_in=gte.${isoStartDate}`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/staff?select=id,full_name,role,phone`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/expenses?select=amount,category,expense_date&expense_date=gte.${isoStartDate}&expense_date=lte.${isoEndDate}`, { headers: H }),
+      // 2026-09-25: Return & Waste — mandatory reason codes (return_to_stock /
+      // item_waste) from the canonical audit log (feeds the statistics panel).
+      fetch(`${supabaseUrl}/rest/v1/audit_logs_canonical?select=action,new_data,created_at&or=(action.eq.return_to_stock,action.eq.item_waste)&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}`, { headers: H }),
     ]);
 
-    const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs, activeOrders, clockEvents, staff, expenses] = await Promise.all([
+    const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs, activeOrders, clockEvents, staff, expenses, returnWaste] = await Promise.all([
       ordersRes.json(),
       orderItemsRes.json(),
       productsRes.json(),
@@ -98,6 +102,7 @@ export async function GET(request: Request) {
       clockEventsRes.json(),
       staffRes.json(),
       expensesRes.json(),
+      returnWasteRes.json(),
     ]);
 
     // Real Labor Cost Calculation — use actual expenses if available, fallback to clock_events estimate
@@ -354,6 +359,27 @@ export async function GET(request: Request) {
 
     const activeTables = new Set(Array.isArray(activeOrders) ? activeOrders.map((o: any) => o.table_number).filter(Boolean) : []).size;
 
+    // 2026-09-25: Return & Waste aggregation by MANDATORY reason code
+    // (the POS return flow requires a reason before logging — owner, for the
+    // statistics page). Counts portions + events per reason, split by fate.
+    const returnWasteAgg: Record<string, { reason: string; fate: 'stock' | 'waste'; count: number; qty: number; products: string[]; notes: string[] }> = {};
+    (Array.isArray(returnWaste) ? returnWaste : []).forEach((r: any) => {
+      const d = r?.new_data || {};
+      const reason = d.reason || 'unknown';
+      const fate: 'stock' | 'waste' = r.action === 'return_to_stock' ? 'stock' : 'waste';
+      if (!returnWasteAgg[reason]) returnWasteAgg[reason] = { reason, fate, count: 0, qty: 0, products: [], notes: [] };
+      const agg = returnWasteAgg[reason];
+      agg.count += 1;
+      agg.qty += Number(d.quantity) || 0;
+      if (d.product_name) agg.products.push(d.product_name);
+      if (d.reason_text) agg.notes.push(d.reason_text);
+    });
+    const returnWasteStats = Object.values(returnWasteAgg).sort((a, b) => b.count - a.count || b.qty - a.qty);
+    const returnWasteTotals = returnWasteStats.reduce(
+      (acc, s) => ({ count: acc.count + s.count, qty: acc.qty + s.qty, stock: acc.stock + (s.fate === 'stock' ? s.count : 0), waste: acc.waste + (s.fate === 'waste' ? s.count : 0) }),
+      { count: 0, qty: 0, stock: 0, waste: 0 }
+    );
+
     const topProduct = productPerformance[0]?.name || '\u2014';
     const topPeakHour = peakHours[0];
     const peakHour = topPeakHour
@@ -380,9 +406,11 @@ export async function GET(request: Request) {
       netProfit: Math.round(netProfit * 100) / 100,
       foodCostPct: Math.round(foodCostPct * 10) / 10,
       topProfitableItems,
-      financeChartData,
-      staffPerformance,
-    });
+       financeChartData,
+       staffPerformance,
+       returnWasteStats,
+       returnWasteTotals,
+     });
 
   } catch (error: any) {
     console.error('[Stats API] Error:', error);

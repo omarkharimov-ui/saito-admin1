@@ -167,7 +167,7 @@ export default function POSPage() {
   const [transferSource, setTransferSource] = useState<number | null>(null);
   const [transferTarget, setTransferTarget] = useState<number | null>(null);
   const [transferConfirm, setTransferConfirm] = useState(false);
-  const [reservationArrival, setReservationArrival] = useState<{ table_number: number; reservation_id: string | null; name: string | null; guests: number; phone?: string | null; time?: string | null; is_vip?: boolean | null } | null>(null);
+  const [reservationArrival, setReservationArrival] = useState<{ table_number: number; reservation_id: string | null; name: string | null; guests: number; phone?: string | null; time?: string | null; is_vip?: boolean | null; deposit_amount?: number | string | null } | null>(null);
 
   const [unmergeMode, setUnmergeMode] = useState(false);
   const [selectedForUnmerge, setSelectedForUnmerge] = useState<number[]>([]);
@@ -2004,6 +2004,9 @@ export default function POSPage() {
         phone: table.reservation_phone || null,
         time: table.reservation_time || null,
         is_vip: table.is_vip || false,
+        // 2026-09-26 (owner, Task 49): carry the table-hold deposit so the
+        // sheet can show the "Depozit ₼X" line (was dropped here).
+        deposit_amount: (table as any).deposit_amount ?? null,
       });
       return;
     }
@@ -2275,11 +2278,12 @@ export default function POSPage() {
                        reservation_name: reservationArrival.name,
                        reservation_phone: reservationArrival.phone,
                        reservation_time: reservationArrival.time,
-                       guest_count: reservationArrival.guests,
-                       status: 'reserved',
-                       is_vip: reservationArrival.is_vip,
-                     }}
-                     onGuestArrived={() => handleGuestArrived(reservationArrival)}
+                        guest_count: reservationArrival.guests,
+                        status: 'reserved',
+                        is_vip: reservationArrival.is_vip,
+                        deposit_amount: reservationArrival.deposit_amount ?? null,
+                      }}
+                      onGuestArrived={() => handleGuestArrived(reservationArrival)}
                      onEditReservation={() => {
                        setReservationArrival(null);
                        if (reservationArrival.reservation_id) {

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Phone, Clock, Users, Star, ChevronRight, Pencil, Printer, UserX, Merge, Move, Ban, CheckCircle, PhoneCall } from 'lucide-react';
+import { X, Phone, Clock, Users, Star, ChevronRight, Pencil, Printer, UserX, Merge, Move, Ban, CheckCircle, PhoneCall, Wallet } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -21,6 +21,8 @@ interface ReservedTableModalProps {
     status: string;
     reservation_status_snapshot?: string | null;
     is_vip?: boolean | null;
+    /** 2026-09-26 (owner, Task 49): table-hold deposit (₼) — credited at payment. */
+    deposit_amount?: number | string | null;
   } | null;
   onGuestArrived: () => void;
   onEditReservation: () => void;
@@ -103,6 +105,15 @@ export default function ReservedTableModal({
                 <div className="flex items-center gap-2 text-base text-zinc-900 font-black">
                   <Users size={18} className="text-amber-500" />
                   <span>{table.guest_count} Nəfər</span>
+                </div>
+              )}
+              {/* 2026-09-26 (owner, Task 49): table-hold deposit — cashier must
+                  know the hold money before seating; credited to the bill later. */}
+              {Number(table.deposit_amount) > 0 && (
+                <div className="flex items-center gap-2 text-sm font-black text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                  <Wallet size={15} />
+                  <span>{t('deposit' as any) || 'Depozit'}: ₼{Number(table.deposit_amount).toFixed(0)}</span>
+                  <span className="ml-auto text-[9px] font-bold uppercase tracking-widest text-emerald-500/70">hesaba düşürülür</span>
                 </div>
               )}
             </div>

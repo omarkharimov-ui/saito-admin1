@@ -76,10 +76,14 @@ interface UpsertReservationModalProps {
 
 export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loading }: UpsertReservationModalProps) => {
   const { t } = useLanguage();
+  // 2026-09-26 (owner, Task 49): local-date helper — toISOString() is UTC and
+  // mis-files "today" reservations in UTC+4 between 00:00–04:00.
+  const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
   const [formData, setFormData] = useState({
     customer_name: '',
     phone: '',
-    date: new Date().toISOString().split('T')[0],
+    date: localToday(),
     time: '19:00',
     guests: 2,
     notes: '',
@@ -93,7 +97,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
       setFormData({
         customer_name: initialData.customer_name || initialData.name || '',
         phone: initialData.phone || '',
-        date: initialData.date || new Date().toISOString().split('T')[0],
+        date: initialData.date || localToday(),
         time: initialData.time || '19:00',
         guests: initialData.guests || 2,
         notes: initialData.notes || initialData.note || '',
@@ -104,7 +108,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
       setFormData({
         customer_name: '',
         phone: '',
-        date: new Date().toISOString().split('T')[0],
+        date: localToday(),
         time: '19:00',
         guests: 2,
         notes: '',

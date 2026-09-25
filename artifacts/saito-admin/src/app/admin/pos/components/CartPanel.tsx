@@ -178,6 +178,12 @@ export function CartPanel({
   const [numpadOpen, setNumpadOpen] = useState(false);
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
   const [seatBusy, setSeatBusy] = useState(false);
+  // 2026-09-26 (owner): MOVED here from after the `if (!cart) return` early
+  // exit (was line ~495) — a hook after a conditional return breaks React's
+  // rule of hooks: reserved tables render cart=null first (early exit, N
+  // hooks) then the draft order arrives (N+1 hooks) → "Rendered more hooks
+  // than during the previous render" crash on every reserved-table tap.
+  const [pinGuardOpen, setPinGuardOpen] = useState(false);
   const [isNoteOpen, setIsNoteOpen] = useState(false);
   const [voidMode, setVoidMode] = useState(false);
   const [voidSelection, setVoidSelection] = useState<Record<string, number>>({});
@@ -492,7 +498,7 @@ export function CartPanel({
   // Void with manager-PIN fallback (Sprint-1 pattern, same as VoidItemsModal):
   // when the server says the void amount needs void.approve, open the PIN
   // guard and retry with the PIN-verified approver's staffId.
-  const [pinGuardOpen, setPinGuardOpen] = useState(false);
+  // (pinGuardOpen state lives with the other useState hooks — top of component.)
   const doVoid = async (approverStaffId?: string | null) => {
     const activeOrder = (cart as any).order_id;
     if (!activeOrder) return;

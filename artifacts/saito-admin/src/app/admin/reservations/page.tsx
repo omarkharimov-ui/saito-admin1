@@ -575,7 +575,11 @@ export default function ReservationsPage() {
   };
 
   const filteredReservations = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    // 2026-09-26 (owner, Task 49): LOCAL date, not UTC — toISOString() is UTC,
+    // so in Baku (UTC+4) between 00:00–04:00 "BUGÜN" meant yesterday and the
+    // list rendered empty while the API had the rows.
+    const _d = new Date();
+    const todayStr = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}-${String(_d.getDate()).padStart(2, '0')}`;
     
     return reservations.filter(res => {
       const matchesSearch = (res.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 

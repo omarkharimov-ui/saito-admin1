@@ -866,6 +866,13 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - **Yoxlama**: tsc clean; v10 design mock (panel+queue+table picker, 0 overlap). Canlı flow = owner login: NÖVBƏ → əlavə → boş masaya oturduul.
 - **SMS notify (növbə çağırması)**: bildirişlər faza-sında (Settings → Bildirişlər provider connect olanda) — hazırda yox.
 
+#### Waitlist round 2 — owner sualı + toggle (eyni gün)
+- **Owner sualı**: "yalnız boş masa nədir? waitlist dolu masalar üçündür — o dursun, digəri gəlsin; toggle olsun ayarlarda." Cavab: boş-masa picker DOĞRUDUR — gözləyən qonaq yalnız BOŞ masaya oturur; masa dolanda qonaq növbədə qalır, boşalanda oturur. Təkmilləşdirmələr:
+  - **Settings toggle**: `settings.waitlist_enabled` (migrasiya `20260925070000` APPLIED, default TRUE = fail-open pattern); `/api/settings/general` COLS + GeneralTab-də "Növbə (Waitlist)" switch. POS: düymə `posMode==='dine_in' && waitlistEnabled` (mount-da /api/settings/general, fail-open).
+  - **"Bütün masalar doludur" halı**: panel-da amber hint strip ("qonaqlar növbədə qalır, boşalanda toast + Oturduul aktiv olacaq").
+  - **"O dursun, digəri gəlsin" automation**: POS dine-in-da table-status transition detect (occupied→empty) + növbə doludur → `toast.success("Masa N boşaldı — növbədə X qonaq")` + **action button "Oturdur"** (panel açır). Dedup: transition bazlı (prev status map ref).
+- **Yoxlama**: tsc clean; /api/settings/general compile OK (401 fast).
+
 ### Jurnal sətiri — 2026-09-25 (GERİ QAYTAR → Miqdar sətiri + status hint + məcburi səbəb + return backend tamamlandı, `886c9871`; VOID eyni gün GERİ Gətirildi — owner: "geri getir bunu və öz başına heçnə silmə")
 - VOID RESTORATION: CartPanel + page.tsx (`onVoidSuccess`) + i18n `hint_minus_blocked` mətnləri `51b2705d`-dən **bayt-bayt** restora edildi (pill, void mode, doVoid, manager PIN fallback, CTA void branch, rose strip, sətir void render). Status hint chip yox edilmədi — Təmizlə + Ləğv et + status chip indi eyni row-da flex. Miqdar-sətiri GERİ QAYTAR, məcburi səbəb, return backend (migrasiya 20260925010000) dəyişməz qaldı. Visual E2E: browser session müddəti keçmişdi (PIN wall); owner tab-da PIN-dən keçəndə W1–W4 tamamlanır.
 

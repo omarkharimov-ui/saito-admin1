@@ -1737,6 +1737,7 @@ export const az = {
   campaign_applied: 'Kampaniya tətbiq olundu',
   delivery_address: 'Çatdırma Ünvanı',
   delivery_fee: 'Çatdırma Haqqı',
+  calculating_fee: 'Hesablayır…',
   free: 'Pulsuz',
   tab_delivery: 'Çatdırılma',
   tab_partners: 'Delivery Partnerləri',

@@ -75,9 +75,11 @@ interface CustomerPhasePanelProps {
   deliveryPaused?: boolean;
   /** Delivery Phase 2: global min order (settings) — fallback for zone.min_order. */
   deliveryMinOrder?: number | null;
+  /** 2026-09-26 (owner, Task 50): fee RPC in flight → shimmer "hesablayır…". */
+  feeCalculating?: boolean;
 }
 
-export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZoneSelect, onBack, focusField, deliveryPaused, deliveryMinOrder }: CustomerPhasePanelProps) {
+export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZoneSelect, onBack, focusField, deliveryPaused, deliveryMinOrder, feeCalculating }: CustomerPhasePanelProps) {
   const { lightMode } = useTheme();
   const { t } = useLanguage();
 
@@ -251,9 +253,24 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                 />
               </div>
 
-              {/* Fee + note */}
+              {/* 2026-09-26 (owner, Task 50): Wolt-style distance field —
+                  typing a km re-resolves the zone by its km-range and re-prices
+                  the fee live (distance overload of calculate_delivery_fee). */}
               <div className="flex gap-3">
-                 <div className="w-[150px] flex-shrink-0">
+                 <div className="w-[86px] flex-shrink-0">
+                   <p className={labelCls}>KM</p>
+                   <input
+                     type="number"
+                     inputMode="decimal"
+                     min={0}
+                     step={0.5}
+                     value={cart?.delivery_km ?? ''}
+                     onChange={e => onUpdate('delivery_km', e.target.value === '' ? null : Number(e.target.value))}
+                     placeholder="0.0"
+                     className={`${inputCls('delivery_km', 'h-12 text-base font-semibold text-center')} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                   />
+                 </div>
+                 <div className="flex-1 min-w-0">
                    <p className={labelCls}>{t('delivery_fee')}</p>
                    {/* 2026-09-23 (owner): free-delivery is now VISIBLE — the
                        zone's threshold (₼50+) and campaign free delivery
@@ -270,23 +287,35 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                       const minOrder = zMinRaw > 0 ? zMinRaw : (deliveryMinOrder != null ? Number(deliveryMinOrder) : 0);
                       const toMin = minOrder > 0 ? Math.max(0, minOrder - itemsTotal) : 0;
                       const isFree = feeNum === 0 && !!z;
-                     return (
-                       <>
-                         <div className={`h-12 rounded-2xl border flex items-center justify-between px-4 ${isFree ? (lightMode ? 'bg-emerald-50 border-emerald-300' : 'bg-emerald-500/10 border-emerald-500/30') : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.02] border-white/[0.08]'}`}>
-                           <Wallet size={14} className={isFree ? 'text-emerald-500' : lightMode ? 'text-zinc-400' : 'text-white/35'} />
-                           {isFree ? (
-                             <span className="text-sm font-black tabular-nums text-emerald-500">
-                               {t('free') || 'Pulsuz'}
-                               {threshold > 0 && itemsTotal >= threshold
-                                 ? <span className="text-[10px] font-bold opacity-70"> (₼{threshold.toFixed(0)}+)</span>
-                                 : <span className="text-[10px] font-bold opacity-70"> (kampaniya)</span>}
-                             </span>
-                           ) : (
-                             <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-zinc-700' : 'text-white/75'}`}>
-                               ₼{feeNum.toFixed(0)}
-                             </span>
-                           )}
-                         </div>
+                      return (
+                        <>
+                          {/* 2026-09-26 (owner): iPhone-call-style shimmer sweep
+                              while the fee RPC resolves ("hesablayır…"). */}
+                          <style>{`
+@keyframes vk-fee-shimmer { 0% { transform: translateX(-110%);} 100% { transform: translateX(260%);} }
+.vk-fee-shimmer { position: relative; width: 72px; height: 10px; border-radius: 999px; overflow: hidden; background: ${lightMode ? 'rgba(16,165,129,0.12)' : 'rgba(16,185,129,0.14)'}; }
+.vk-fee-shimmer::after { content: ''; position: absolute; top: 0; bottom: 0; width: 55%; border-radius: 999px; background: linear-gradient(90deg, transparent, ${lightMode ? 'rgba(5,150,105,0.75)' : 'rgba(52,211,153,0.9)'}, transparent); animation: vk-fee-shimmer 1.1s ease-in-out infinite; }
+`}</style>
+                          <div className={`h-12 rounded-2xl border flex items-center justify-between px-4 ${isFree ? (lightMode ? 'bg-emerald-50 border-emerald-300' : 'bg-emerald-500/10 border-emerald-500/30') : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.02] border-white/[0.08]'}`}>
+                            <Wallet size={14} className={isFree ? 'text-emerald-500' : lightMode ? 'text-zinc-400' : 'text-white/35'} />
+                            {feeCalculating ? (
+                              <span className={`flex items-center gap-2 text-[11px] font-black uppercase tracking-wider ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                                {t('calculating_fee' as any) || 'Hesablayır…'}
+                                <span className="vk-fee-shimmer" />
+                              </span>
+                            ) : isFree ? (
+                              <span className="text-sm font-black tabular-nums text-emerald-500">
+                                {t('free') || 'Pulsuz'}
+                                {threshold > 0 && itemsTotal >= threshold
+                                  ? <span className="text-[10px] font-bold opacity-70"> (₼{threshold.toFixed(0)}+)</span>
+                                  : <span className="text-[10px] font-bold opacity-70"> (kampaniya)</span>}
+                              </span>
+                            ) : (
+                              <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-zinc-700' : 'text-white/75'}`}>
+                                ₼{Number.isInteger(feeNum) ? feeNum.toFixed(0) : feeNum.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
                           {!isFree && toFree > 0 && (
                             <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
                               ₼{toFree.toFixed(0)} daha əlavə et — çatdırılma pulsuz olar

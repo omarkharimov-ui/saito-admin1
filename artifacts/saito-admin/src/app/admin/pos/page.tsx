@@ -1634,24 +1634,41 @@ export default function POSPage() {
   // 2026-09-23 (owner): the RPC's is_free flag is now RESPECTED — before, a
   // cart above the zone's free-delivery threshold still paid the full fee
   // (DB: calculate_delivery_fee returns {fee:2, is_free:true} at ₼100).
+  // 2026-09-26 (owner, Task 50): fee RPC in flight → shimmer "hesablayır…"
+  const [deliveryFeeCalculating, setDeliveryFeeCalculating] = useState(false);
+
   const recalcDeliveryFee = useCallback(async (cart: any, zoneName: string | null | undefined) => {
     if (!cart || !zoneName) return;
     const zone = deliveryZones.find(z => z.name === zoneName);
     if (!zone) return;
     const itemsTotal = (cart.items || []).reduce((s: number, i: any) => s + (i.unit_price || 0) * (i.quantity || 0), 0);
     let fee = Number(zone.fee) || 0;
+    // 2026-09-26 (owner, Task 50): Wolt-style — an entered KM distance re-resolves
+    // the zone by km-range and re-prices (distance overload). No KM → explicit
+    // zone name overload. The surge multiplier is applied server-side.
+    const km = Number(cart.delivery_km);
+    let resolvedZone: string | null = null;
+    setDeliveryFeeCalculating(true);
     try {
+      const body = km >= 0.1
+        ? { p_order_amount: itemsTotal, p_distance_km: km }
+        : { p_zone_name: zone.name, p_order_amount: itemsTotal, p_customer_address: cart.delivery_address || null };
       const res = await apiFetch('/api/rpc/calculate_delivery_fee', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_zone_name: zone.name, p_order_amount: itemsTotal, p_customer_address: cart.delivery_address || null }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         const data: any = await res.json();
         const rpcFee = Number(typeof data === 'number' ? data : data?.fee ?? fee) || 0;
         fee = data?.is_free ? 0 : rpcFee;
+        // KM-resolution may pick a different zone (km-range) — remember it; the
+        // single persist below commits it (no double-setCart race).
+        if (km >= 0.1 && data?.zone) resolvedZone = data.zone;
       }
-    } catch { /* keep the zone's base fee */ }
+    } catch { /* keep the zone's base fee */ } finally {
+      setDeliveryFeeCalculating(false);
+    }
     // 2026-09-23 (owner, Wolt-like): a matching active FREE_DELIVERY campaign
     // zeroes the fee — display mirrors the server (which is authoritative at
     // creation; E2E probe #D049: cart said ₼2, server billed ₼0).
@@ -1681,7 +1698,8 @@ export default function POSPage() {
     // 2026-09-23 (E2E catch): ALWAYS persist — the old "only if fee changed"
     // guard skipped setCart when a campaign made the fee 0 == current 0, so
     // delivery_zone was never stored and the zone chip stayed unselected.
-    pos.setCart({ ...cart, delivery_fee: fee });
+    // 2026-09-26 (Task 50): also persist the KM-distance-resolved zone.
+    pos.setCart({ ...cart, delivery_zone: resolvedZone || cart.delivery_zone, delivery_fee: fee });
     // No loop risk: the recalc effect deps are itemsTotal/zoneName, not cart identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryZones]);
@@ -2649,12 +2667,36 @@ export default function POSPage() {
                                 mode={posMode}
                                 cart={pos.cart}
                                 zones={deliveryZones}
-                                onUpdate={(field, value) => { if (pos.cart) pos.setCart({ ...pos.cart, [field]: value }); }}
+                                onUpdate={(field, value) => {
+                                  if (!pos.cart) return;
+                                  const next = { ...pos.cart, [field]: value };
+                                  pos.setCart(next);
+                                  if (posMode !== 'delivery') return;
+                                  // 2026-09-26 (owner, Task 50, Wolt-style): the
+                                  // MOMENT the address is typed and no zone is
+                                  // selected → auto-commit the top-priority
+                                  // active zone and price the fee immediately
+                                  // (previously the fee only appeared after a
+                                  // manual zone-chip click; the recalc effect
+                                  // also skips EMPTY carts, so call it here).
+                                  if (field === 'delivery_address' && String(value || '').trim() && !next.delivery_zone && !(Number(next.delivery_km) >= 0.1)) {
+                                    const z = [...deliveryZones].sort((a: any, b: any) => (a.priority ?? 999) - (b.priority ?? 999))[0];
+                                    if (z) {
+                                      const withZone = { ...next, delivery_zone: z.name };
+                                      pos.setCart(withZone);
+                                      recalcDeliveryFee(withZone, z.name);
+                                    }
+                                  } else if (field === 'delivery_km' && Number(value) >= 0.1 && next.delivery_zone) {
+                                    // KM typed → distance overload re-prices.
+                                    recalcDeliveryFee(next, next.delivery_zone);
+                                  }
+                                }}
                                 onZoneSelect={handleZoneSelect}
                                 onBack={() => { setPosPhase('products'); setCustomerFocus(null); }}
                                 focusField={customerFocus}
                                 deliveryPaused={deliveryGates.accepting === false}
                                 deliveryMinOrder={deliveryGates.minOrder}
+                                feeCalculating={deliveryFeeCalculating}
                               />
                             </motion.div>
                           ) : (
@@ -2725,9 +2767,10 @@ export default function POSPage() {
                              if ((editingOrder as any)?.partner_source) return;
                              setPosPhase('customer'); setCustomerFocus(null);
                            }}
-                           partnerSource={(editingOrder as any)?.partner_source || null}
-                           partnerOrder={(editingOrder as any)?.partner_source ? (editingOrder as any) : null}
-                          onRecordLoss={handleRecordLoss}
+                            partnerSource={(editingOrder as any)?.partner_source || null}
+                            partnerOrder={(editingOrder as any)?.partner_source ? (editingOrder as any) : null}
+                            feeCalculating={deliveryFeeCalculating}
+                           onRecordLoss={handleRecordLoss}
                          onClearDraft={() => pos.clearCart()}
                          mergedChildNumbers={posMode === 'dine_in' ? activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number) : undefined}
                          customerId={pos.cart?.customer_id}

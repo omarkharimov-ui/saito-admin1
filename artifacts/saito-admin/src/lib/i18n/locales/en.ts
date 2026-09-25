@@ -1738,6 +1738,7 @@ export const en: TranslationMap = {
   campaign_applied: 'Campaign applied',
   delivery_address: 'Delivery Address',
   delivery_fee: 'Delivery Fee',
+  calculating_fee: 'Calculating…',
   notes: 'Notes',
   customer_name_placeholder: 'Customer name',
   address_placeholder: 'Enter address',

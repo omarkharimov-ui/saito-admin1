@@ -14,13 +14,16 @@ export async function GET(request: NextRequest) {
     if (!auth.authenticated) return auth;
 
     const s = svc();
-    const { searchParams } = new URL(request.url);
-    const activeOnly = searchParams.get('active') !== 'false';
 
-    let query = `${s.url}/rest/v1/couriers?select=*&order=name.asc`;
-    if (activeOnly) query += `&is_active=eq.true`;
-
-    const res = await fetch(query, { headers: s.headers });
+    // 2026-09-26 (owner, Task 50): SSOT fix — "Kuryer təyin et" showed
+    // "Kuryer tapılmadı" because it read the LEGACY couriers table (0 rows);
+    // Task 37 moved couriers into staff (role 'courier'). get_courier_staff()
+    // unions active courier-role staff + active legacy couriers.
+    // orders.courier_id has no FK, so staff ids assign safely.
+    const res = await fetch(`${s.url}/rest/v1/rpc/get_courier_staff`, {
+      method: 'POST',
+      headers: s.headers,
+    });
     if (!res.ok) {
       const err = await res.text();
       return NextResponse.json({ error: err }, { status: 500 });

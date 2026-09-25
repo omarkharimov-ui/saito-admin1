@@ -81,7 +81,7 @@ export async function GET() {
 
     const { data: general } = await s
       .from('settings')
-      .select('delivery_fee, free_delivery_threshold, min_order_amount, delivery_enabled, delivery_accepting_orders')
+      .select('delivery_fee, free_delivery_threshold, min_order_amount, delivery_enabled, delivery_accepting_orders, delivery_fee_multiplier')
       .limit(1)
       .maybeSingle();
 
@@ -91,6 +91,7 @@ export async function GET() {
       general: general || {
         delivery_fee: 2, free_delivery_threshold: 50, min_order_amount: 15,
         delivery_enabled: true, delivery_accepting_orders: true,
+        delivery_fee_multiplier: 1,
       },
     });
   } catch (e: any) {
@@ -145,6 +146,17 @@ export async function PUT(req: NextRequest) {
       }
       for (const f of ['delivery_enabled', 'delivery_accepting_orders']) {
         if (typeof gen[f] === 'boolean') g[f] = gen[f];
+      }
+      // 2026-09-26 (owner, Task 50): Wolt-style SURGE factor (0.5..10).
+      if (gen.delivery_fee_multiplier !== undefined) {
+        if (gen.delivery_fee_multiplier === null) g.delivery_fee_multiplier = 1;
+        else {
+          const m = Number(gen.delivery_fee_multiplier);
+          if (!Number.isFinite(m) || m < 0.5 || m > 10) {
+            return NextResponse.json({ error: 'invalid general.delivery_fee_multiplier (0.5..10)' }, { status: 400 });
+          }
+          g.delivery_fee_multiplier = m;
+        }
       }
       if (Object.keys(g).length > 0) {
         const { data: row } = await s.from('settings').select('id').limit(1).maybeSingle();

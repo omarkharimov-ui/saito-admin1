@@ -91,6 +91,8 @@ interface CartPanelProps {
   /** The full partner order row (courier/ETA/address fields live on the order,
       not in the cart) — rendered as the read-only "API payload" block. */
   partnerOrder?: any;
+  /** 2026-09-26 (owner, Task 50): fee RPC in flight → shimmer on the fee row. */
+  feeCalculating?: boolean;
   }
 
 const STATIONS = [
@@ -159,6 +161,7 @@ export function CartPanel({
     onCouponRemoved,
     partnerSource,
     partnerOrder,
+    feeCalculating,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -715,6 +718,12 @@ export function CartPanel({
 
   return (
     <>
+      {/* 2026-09-26 (owner, Task 50): delivery-fee shimmer (iPhone-call style sweep). */}
+      <style>{`
+@keyframes vk-fee-shimmer { 0% { transform: translateX(-110%);} 100% { transform: translateX(260%);} }
+.vk-fee-shimmer-row { position: relative; display: inline-block; width: 72px; height: 10px; border-radius: 999px; overflow: hidden; background: ${lightMode ? 'rgba(16,165,129,0.12)' : 'rgba(16,185,129,0.14)'}; }
+.vk-fee-shimmer-row::after { content: ''; position: absolute; top: 0; bottom: 0; width: 55%; border-radius: 999px; background: linear-gradient(90deg, transparent, ${lightMode ? 'rgba(5,150,105,0.75)' : 'rgba(52,211,153,0.9)'}, transparent); animation: vk-fee-shimmer 1.1s ease-in-out infinite; }
+`}</style>
       <motion.div
         initial={{ opacity: 0, y: 3 }}
         animate={{ opacity: 1, y: 0 }}
@@ -1344,16 +1353,18 @@ export function CartPanel({
                  </div>
                  {/* Delivery fee (2026-09-23: now charged — shows the amount
                      or the free state from zone threshold / campaign) */}
-                 {posMode === 'delivery' && cart.delivery_zone && (
-                   <div className="flex items-center justify-between">
-                     <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('delivery_fee') || 'Çatdırılma'}</span>
-                     {deliveryFeeTotal > 0 ? (
-                       <NumberRoll value={deliveryFeeTotal} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
-                     ) : (
-                       <span className="text-xs font-black text-emerald-500">{t('free') || 'Pulsuz'}</span>
-                     )}
-                   </div>
-                 )}
+                  {posMode === 'delivery' && cart.delivery_zone && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('delivery_fee') || 'Çatdırılma'}</span>
+                      {feeCalculating ? (
+                        <span className="vk-fee-shimmer-row" />
+                      ) : deliveryFeeTotal > 0 ? (
+                        <NumberRoll value={deliveryFeeTotal} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
+                      ) : (
+                        <span className="text-xs font-black text-emerald-500">{t('free') || 'Pulsuz'}</span>
+                      )}
+                    </div>
+                  )}
                  {/* TOTAL — biggest, most prominent */}
                   <div className="flex items-center justify-between pt-1 border-t border-[var(--theme-border)]">
                     <span className="text-xs uppercase tracking-widest font-bold text-[var(--theme-text-secondary)]">{t('total_label')}</span>

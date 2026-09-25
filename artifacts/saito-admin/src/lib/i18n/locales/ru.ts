@@ -1740,6 +1740,7 @@ export const ru: TranslationMap = {
   campaign_applied: 'Акция применена',
   delivery_address: 'Адрес доставки',
   delivery_fee: 'Сбор за доставку',
+  calculating_fee: 'Вычисляем…',
   notes: 'Примечание',
   customer_name_placeholder: 'Имя клиента',
   address_placeholder: 'Введите адрес',

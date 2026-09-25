@@ -39,6 +39,8 @@ interface General {
   min_order_amount: number;
   delivery_enabled: boolean;
   delivery_accepting_orders: boolean;
+  /** 2026-09-26 (owner, Task 50): Wolt-style SURGE factor (0.5..10). */
+  delivery_fee_multiplier: number;
 }
 
 const DEFAULT_GENERAL: General = {
@@ -47,6 +49,7 @@ const DEFAULT_GENERAL: General = {
   min_order_amount: 15,
   delivery_enabled: true,
   delivery_accepting_orders: true,
+  delivery_fee_multiplier: 1,
 };
 
 interface DeliveryData {
@@ -253,7 +256,7 @@ export default function DeliveryTab() {
               <option value="both">Hər ikisi</option>
             </select>
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div>
               <label className={label}>Haqq (₼)</label>
               <input
@@ -279,6 +282,22 @@ export default function DeliveryTab() {
                 type="number" step="1" min="0"
                 value={toInput(general.min_order_amount)}
                 onChange={e => { setGeneral(g => ({ ...g, min_order_amount: fromInput(e.target.value) ?? 0 })); setDirty(true); }}
+              />
+            </div>
+            {/* 2026-09-26 (owner, Task 50): Wolt-style surge/dynamic factor.
+                1.0 = normal; 1.5 = yağış/talebat → haqq ×1.5. Feels dynamic
+                without any external pricing engine. */}
+            <div>
+              <label className={label}>Surge × (0.5–10)</label>
+              <input
+                className={input}
+                type="number" step="0.1" min="0.5" max="10"
+                value={toInput(general.delivery_fee_multiplier)}
+                onChange={e => {
+                  const v = fromInput(e.target.value);
+                  const clamped = v === null ? 1 : Math.min(10, Math.max(0.5, v));
+                  setGeneral(g => ({ ...g, delivery_fee_multiplier: clamped })); setDirty(true);
+                }}
               />
             </div>
           </div>

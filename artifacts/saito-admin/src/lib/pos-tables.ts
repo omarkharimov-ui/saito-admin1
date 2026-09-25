@@ -267,11 +267,22 @@ export function composeAggregates({
   };
 }
 
-/** kitchen_status for the composed table (unchanged legacy precedence). */
+/** kitchen_status for the composed table (legacy precedence + 0-item guard). */
 export function composedKitchenStatus(
   currentOrder: OpenOrderLike | null,
   floorKitchen: string | null | undefined,
-  fallbackOrders: OpenOrderLike[]
+  fallbackOrders: OpenOrderLike[],
+  itemCount?: number
 ): string | null {
+  // 2026-09-25 (full seat): an open order with 0 items (waitlist Oturdur
+  // auto-opened order, or a fresh seat before the first item) has NO kitchen
+  // work. BOTH sources are untrustworthy here: the order's kitchen_status
+  // defaults to 'pending', and the sync_table_kitchen_status trigger mirrors
+  // that 'pending' onto table_floors.kitchen_status for ANY open order.
+  // 0 items => return null => no MƏTBƏXDƏ badge. (Pre-order drafts are
+  // 'reserved' tables — their look comes from table.status, not this.)
+  if ((itemCount ?? 0) === 0) {
+    return null;
+  }
   return currentOrder?.kitchen_status ?? floorKitchen ?? fallbackOrders[0]?.kitchen_status ?? null;
 }

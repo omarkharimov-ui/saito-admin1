@@ -55,6 +55,8 @@ export interface PosCart {
   items: PosCartItem[];
   notes: string;
   order_type: 'dine_in' | 'takeaway' | 'delivery';
+  /** Active order number (ORD-xxxx) — shown in the cart header (2026-09-25). */
+  order_number?: string | null;
   customer_id?: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;

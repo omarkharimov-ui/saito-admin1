@@ -172,7 +172,7 @@ export async function GET() {
         is_group: isChild || isParent,
         parent_table_number: parentTableNumber,
         order_ids: isChild || isParent ? groupOrderIds : singleOrderIds,
-        kitchen_status: composedKitchenStatus(currentOrder, f.kitchen_status, tableOrders),
+        kitchen_status: composedKitchenStatus(currentOrder, f.kitchen_status, tableOrders, agg.item_count),
         orders: (isChild || isParent) ? allInGroup.map((tNum: number) => {
           const tFloor = floorByNumber.get(tNum);
           const tOrder = tFloor?.current_order_id ? currentOrderMap.get(tFloor.current_order_id) : null;

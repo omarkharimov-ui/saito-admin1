@@ -648,6 +648,13 @@ export function usePos() {
               notes: primary.customer_note || '',
               order_type: primary.order_type || 'dine_in',
               order_id: primary.id,
+              // 2026-09-25 (full-seat): guest identity + order number from the
+              // existing order (waitlist Oturdur yazar customer_name/phone —
+              // cart bunu göstərməli ki, "qonaq kimdir" tapşırıqda görünsün).
+              customer_id: primary.customer_id || null,
+              customer_name: primary.customer_name || null,
+              customer_phone: primary.customer_phone || null,
+              order_number: primary.order_number || null,
               serverTotal: serverTotal !== itemSum ? serverTotal : undefined,
             };
           });
@@ -1600,6 +1607,7 @@ export function usePos() {
       delivery_fee: order.delivery_fee || 0,
       estimated_delivery_time: order.estimated_delivery_time || null,
       order_id: order.id,
+      order_number: order.order_number || null,
       payment_method: order.payment_method || null,
     });
   };

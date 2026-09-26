@@ -105,8 +105,14 @@ export default function BoardOrderCard({ order, kind, stage, status, lightMode, 
       <div className="relative flex items-center justify-between gap-2">
         {/* The order number is the #1 datum — NEVER truncated (owner). In tight
             rows the LOGO shrinks instead (shrinkable), chip/menu stay fixed. */}
+        {/* 2026-09-26 (Task 55, owner REJECTED the "Çatdırılma 047" / "Gel-Al
+            043" title — "heç bir tabda elə bir şey olmayın"): the in-house
+            card title was the old 2026-09-23 rule (type-label + number). Now
+            ALL cards (partner + in-house) read "#orderNo" — the mode is
+            already obvious from the active tab; the label+number chip is gone
+            from every tab. */}
         <span className={`text-[24px] leading-none font-black tracking-tighter whitespace-nowrap flex-shrink-0 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
-          {isPartner ? `#${orderNo}` : `${t(kind === 'delivery' ? 'delivery_short' : 'takeaway_short')} ${orderNo}`}
+          {`#${orderNo}`}
         </span>
         {/* 2026-09-25 (owner round 6): top-right = LOGO + ⋮ ONLY. The time
             chip used to sit here and on narrow live cards it pushed the ⋮

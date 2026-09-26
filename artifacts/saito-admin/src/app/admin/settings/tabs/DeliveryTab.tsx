@@ -13,7 +13,7 @@
  * priority ASC — lower priority number wins.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { MapPin, Plus, Trash2, Save, Loader2, Route, Settings2 } from 'lucide-react';
+import { MapPin, Plus, Trash2, Save, Loader2, Route, Settings2, CloudRain, Clock, Zap } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
 import toast from 'react-hot-toast';
@@ -41,6 +41,16 @@ interface General {
   delivery_accepting_orders: boolean;
   /** 2026-09-26 (owner, Task 50): Wolt-style SURGE factor (0.5..10). */
   delivery_fee_multiplier: number;
+  // 2026-09-26 (owner, Task 55): SMART SURGE — Wolt-class dynamic pricing.
+  // Weather surge (Open-Meteo precipitation) + peak-hour windows (venue TZ).
+  delivery_weather_surge_enabled: boolean;
+  delivery_weather_surge_multiplier: number;
+  delivery_peak_surge_enabled: boolean;
+  delivery_peak_surge_multiplier: number;
+  delivery_peak_start_hour: number;
+  delivery_peak_end_hour: number;
+  delivery_peak2_start_hour: number;
+  delivery_peak2_end_hour: number;
 }
 
 const DEFAULT_GENERAL: General = {
@@ -50,6 +60,14 @@ const DEFAULT_GENERAL: General = {
   delivery_enabled: true,
   delivery_accepting_orders: true,
   delivery_fee_multiplier: 1,
+  delivery_weather_surge_enabled: true,
+  delivery_weather_surge_multiplier: 1.5,
+  delivery_peak_surge_enabled: false,
+  delivery_peak_surge_multiplier: 1.25,
+  delivery_peak_start_hour: 12,
+  delivery_peak_end_hour: 14,
+  delivery_peak2_start_hour: 18,
+  delivery_peak2_end_hour: 22,
 };
 
 interface DeliveryData {
@@ -62,6 +80,11 @@ const toInput = (v: number | null | undefined): string =>
   v === null || v === undefined ? '' : String(v);
 const fromInput = (v: string): number | null =>
   v.trim() === '' ? null : Number(v);
+// Task 55: peak-window hour options — start 00:00–23:00, end 01:00–24:00
+// (end is exclusive; 24 = yarım gecə).
+const HOURS_START = Array.from({ length: 24 }, (_, i) => i);
+const HOURS_END = Array.from({ length: 24 }, (_, i) => i + 1);
+const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
 function fillZone(z: any): Zone {
   return {
@@ -301,6 +324,146 @@ export default function DeliveryTab() {
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* 2026-09-26 (owner, Task 55): SMART SURGE — Wolt-class dynamic
+          pricing. Weather (Open-Meteo rain at the venue) + peak windows
+          (venue timezone). The engine applies MAX(weather, peak) — never
+          stacked; everything operator-configured, nothing hardcoded. */}
+      <div className={card}>
+        <div className="flex items-center gap-2">
+          <Zap size={16} className={lightMode ? 'text-amber-500' : 'text-amber-400'} />
+          <h3 className={`text-sm font-black ${lightMode ? 'text-zinc-900' : 'text-white'}`}>Smart Sürx (Wolt)</h3>
+          <span className={`ml-auto text-[10px] font-black uppercase tracking-widest ${
+            general.delivery_weather_surge_enabled || general.delivery_peak_surge_enabled
+              ? 'text-emerald-500' : (lightMode ? 'text-zinc-400' : 'text-white/30')
+          }`}>
+            {general.delivery_weather_surge_enabled || general.delivery_peak_surge_enabled ? 'Fəal' : 'Söndürülüb'}
+          </span>
+        </div>
+        <p className={`text-xs ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+          Haqq dinamik dəyişir: yağış yağanda və ya seçdiyin pik saatlarda sürx avtomatik işləyir
+          və POS-da qızılı parlayıcı hint kimi görünür. Hər ikisi eyni anda işləsə, yalnız
+          YÜKSEK sürx tətbiq olunur — üst-üstə yığılma yoxdur (Wolt mexanizmi).
+        </p>
+
+        {/* Weather surge */}
+        <div className={`rounded-2xl border p-4 space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.02] border-white/[0.08]'}`}>
+          <button
+            type="button"
+            onClick={() => { setGeneral(g => ({ ...g, delivery_weather_surge_enabled: !g.delivery_weather_surge_enabled })); setDirty(true); }}
+            className={`flex items-center gap-3 w-full rounded-xl border px-3.5 py-3 text-left transition-colors ${
+              lightMode ? 'bg-white border-zinc-200' : 'bg-white/[0.03] border-white/[0.08]'
+            }`}
+          >
+            <span className={toggleBtn(general.delivery_weather_surge_enabled)}>
+              <span className={toggleKnob(general.delivery_weather_surge_enabled)} />
+            </span>
+            <CloudRain size={16} className={general.delivery_weather_surge_enabled ? 'text-sky-500' : (lightMode ? 'text-zinc-400' : 'text-white/30')} />
+            <span className="flex-1">
+              <span className={`block text-xs font-black ${lightMode ? 'text-zinc-900' : 'text-white'}`}>Hava sürxi (yağış)</span>
+              <span className={`block text-[11px] ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                Restoranın yerinə yağış düşəndə (live hava datası) haqq avtomatik artır
+              </span>
+            </span>
+          </button>
+          {general.delivery_weather_surge_enabled && (
+            <div className="w-32">
+              <label className={label}>Sürx × (1–3)</label>
+              <input
+                className={input}
+                type="number" step="0.05" min="1" max="3"
+                value={toInput(general.delivery_weather_surge_multiplier)}
+                onChange={e => {
+                  const v = fromInput(e.target.value);
+                  setGeneral(g => ({ ...g, delivery_weather_surge_multiplier: v === null ? 1 : Math.min(3, Math.max(1, v)) }));
+                  setDirty(true);
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Peak-hour surge */}
+        <div className={`rounded-2xl border p-4 space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.02] border-white/[0.08]'}`}>
+          <button
+            type="button"
+            onClick={() => { setGeneral(g => ({ ...g, delivery_peak_surge_enabled: !g.delivery_peak_surge_enabled })); setDirty(true); }}
+            className={`flex items-center gap-3 w-full rounded-xl border px-3.5 py-3 text-left transition-colors ${
+              lightMode ? 'bg-white border-zinc-200' : 'bg-white/[0.03] border-white/[0.08]'
+            }`}
+          >
+            <span className={toggleBtn(general.delivery_peak_surge_enabled)}>
+              <span className={toggleKnob(general.delivery_peak_surge_enabled)} />
+            </span>
+            <Clock size={16} className={general.delivery_peak_surge_enabled ? 'text-amber-500' : (lightMode ? 'text-zinc-400' : 'text-white/30')} />
+            <span className="flex-1">
+              <span className={`block text-xs font-black ${lightMode ? 'text-zinc-900' : 'text-white'}`}>Pik saat sürxi</span>
+              <span className={`block text-[11px] ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                Dəyişən saat pəncirələrində (məs. yemək vaxtı) haqq avtomatik artır
+              </span>
+            </span>
+          </button>
+          {general.delivery_peak_surge_enabled && (
+            <div className="space-y-3">
+              <div className="w-32">
+                <label className={label}>Sürx × (1–3)</label>
+                <input
+                  className={input}
+                  type="number" step="0.05" min="1" max="3"
+                  value={toInput(general.delivery_peak_surge_multiplier)}
+                  onChange={e => {
+                    const v = fromInput(e.target.value);
+                    setGeneral(g => ({ ...g, delivery_peak_surge_multiplier: v === null ? 1 : Math.min(3, Math.max(1, v)) }));
+                    setDirty(true);
+                  }}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={label}>Pik pəncərəsi 1</label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className={input}
+                      value={general.delivery_peak_start_hour}
+                      onChange={e => { setGeneral(g => ({ ...g, delivery_peak_start_hour: Number(e.target.value) })); setDirty(true); }}
+                    >
+                      {HOURS_START.map(h => <option key={h} value={h}>{hh(h)}</option>)}
+                    </select>
+                    <span className={`text-xs font-black ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>–</span>
+                    <select
+                      className={input}
+                      value={general.delivery_peak_end_hour}
+                      onChange={e => { setGeneral(g => ({ ...g, delivery_peak_end_hour: Number(e.target.value) })); setDirty(true); }}
+                    >
+                      {HOURS_END.map(h => <option key={h} value={h}>{hh(h)}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className={label}>Pik pəncərəsi 2</label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className={input}
+                      value={general.delivery_peak2_start_hour}
+                      onChange={e => { setGeneral(g => ({ ...g, delivery_peak2_start_hour: Number(e.target.value) })); setDirty(true); }}
+                    >
+                      {HOURS_START.map(h => <option key={h} value={h}>{hh(h)}</option>)}
+                    </select>
+                    <span className={`text-xs font-black ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>–</span>
+                    <select
+                      className={input}
+                      value={general.delivery_peak2_end_hour}
+                      onChange={e => { setGeneral(g => ({ ...g, delivery_peak2_end_hour: Number(e.target.value) })); setDirty(true); }}
+                    >
+                      {HOURS_END.map(h => <option key={h} value={h}>{hh(h)}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

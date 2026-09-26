@@ -39,6 +39,11 @@ export default function MobileModal({ open, onClose, children, className = '' }:
         alignItems: 'center',
         justifyContent: 'center',
         padding: '16px',
+        // 2026-09-26 (Task 55, audit55 P1 "klavye popup üstünə çıxır"): the
+        // in-app VKB (z-10002, fixed bottom) sets --vk-height on <html>; lift
+        // the centered dialog above it. When the VKB is closed the variable is
+        // removed → 0px (no-op). Systemic: every MobileModal on every page.
+        paddingBottom: 'calc(var(--vk-height, 0px) + 16px)',
         pointerEvents: open ? 'auto' : 'none',
       }}
     >
@@ -62,6 +67,12 @@ export default function MobileModal({ open, onClose, children, className = '' }:
           position: 'relative',
           width: '100%',
           maxWidth: 400,
+          // 2026-09-26 (Task 55): long forms (reservation: 710px content) must
+          // SCROLL inside the dialog when the keyboard lifts it — the audit
+          // found the YARAT button buried with a non-scrollable modal.
+          maxHeight: 'calc(100vh - 32px - var(--vk-height, 0px))',
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
           background: 'var(--card)',
           border: '1px solid rgba(128,128,128,0.22)',
           borderRadius: 20,

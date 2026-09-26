@@ -104,9 +104,13 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'Əlavə oluna bilmədi');
-      toast.success(`${n} növbəyə əlavə olundu`);
-      setName(''); setPhone(''); setGuests(2);
-      load();
+       toast.success(`${n} növbəyə əlavə olundu`);
+       setName(''); setPhone(''); setGuests(2);
+       load();
+       // 2026-09-26 (Task 55, owner: "daxil etdim amma avtomatik bağlanmırdı"):
+       // successful save → panel auto-closes (count chip in the NÖVBƏ header
+       // shows the queue). VKB releases with the panel unmount (blur).
+       onClose();
     } catch (e: any) {
       toast.error(e.message || 'Növbəyə əlavə oluna bilmədi');
     } finally { setBusyId(null); }

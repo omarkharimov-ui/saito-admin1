@@ -1,25 +1,46 @@
 'use client';
 
-import React from 'react';
-import { Calendar, Users, Phone, Clock, Trash2, Star, UserPlus, Zap, ShoppingBag, Pencil } from 'lucide-react';
-
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { Trash2, Star, Pencil, RotateCcw, MoreVertical } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Reservation } from '@/types';
 
+// 2026-09-26 (Task 55): the reservation CARD list was rejected by the owner
+// ("KARTLAR İSTEMİRƏM") — replaced by a time-anchored "reservation book" row:
+// [ HH:MM | divider | guest + subline | status / table / ⋮ ]. No boxed cards,
+// no grid of boxes: one hairline-separated row per reservation.
+// Data + handlers are unchanged — this is a pure presentation swap.
+
+/** House micro-interaction spring (stiffness 500 / damping 26). */
+const SPRING = { type: 'spring' as const, stiffness: 500, damping: 26 };
+
+type ResLike = Reservation & {
+  visitCount?: number;
+  is_vip?: boolean;
+  deposit_amount?: number | null;
+};
+
 interface Props {
-  res: Reservation & { visitCount?: number };
-  statusBadge: (status: string) => React.ReactNode;
+  res: ResLike;
+  /** Localized table label, e.g. "98" or "98 + 99" (null/undefined = none). */
+  tableLabel?: string | null;
+  /** GƏLƏCƏK / archive views: show the date under the time. */
+  showDate?: boolean;
+  /** Detail sheet is open for this row → gold accent border-left. */
+  isActive?: boolean;
+  onSelect: (res: any) => void;
   onEdit?: (res: any) => void;
   onDelete?: (id: string, name: string) => void;
-  onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
-  onSelect: (res: any) => void;
   selectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
 }
 
+/** Phone stays masked in the list (same privacy behaviour as the old card);
+ *  the full number is visible in the detail sheet. */
 const maskPhone = (phone: string) => {
   if (!phone) return '—';
   const clean = phone.replace(/\D/g, '');
@@ -28,216 +49,252 @@ const maskPhone = (phone: string) => {
   return `+994 •••• •• ${last4.slice(0, 2)} ${last4.slice(2)}`;
 };
 
-const getGuestTag = (count: number, lightMode: boolean) => {
-  if (count > 5) return {
-    label: 'VIP', icon: Star,
-    color: lightMode ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/30',
-  };
-  if (count > 1) return { label: 'Regular', icon: Zap, color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
-  return { label: 'Yeni', icon: UserPlus, color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
-};
+/** "2026-09-26" → "26.09" — string math, so no Intl/hydration drift. */
+const shortDate = (date: string) =>
+  date && date.length >= 10 ? `${date.slice(8, 10)}.${date.slice(5, 7)}` : '';
 
-const isLate = (res: Reservation) => {
-  if (res.status === 'archived' || res.status === 'cancelled' || res.status === 'completed') return false;
-  const today = new Date().toISOString().split('T')[0];
+const isLate = (res: ResLike) => {
+  if (res.status === 'archived' || res.status === 'cancelled' || res.status === 'completed' || res.status === 'no_show') return false;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (!res.date) return false;
   if (res.date < today) return true;
   if (res.date === today && res.time) {
     const [h, m] = res.time.split(':').map(Number);
-    const resTime = new Date();
-    resTime.setHours(h, m, 0);
-    return new Date().getTime() - resTime.getTime() > 0;
+    const target = new Date();
+    target.setHours(h, m, 0);
+    return Date.now() - target.getTime() > 0;
   }
   return false;
 };
 
-const parsePreOrder = (res: Reservation): { count: number; total: number } => {
-  const items = res.pre_order_items;
-  const arr = Array.isArray(items)
-    ? items
-    : typeof items === 'string'
-      ? JSON.parse(items)
-      : null;
-  if (arr && arr.length > 0) {
-    const total = arr.reduce((s: number, i: any) => s + (Number(i.total_price ?? i.unit_price) || 0) * (i.quantity || 1), 0);
-    return { count: arr.length, total };
+/** status enum → localized label key */
+const statusKey = (status: string) => {
+  switch (status) {
+    case 'pending': return 'resv_status_pending' as const;
+    case 'confirmed': return 'resv_status_confirmed' as const;
+    case 'waiting': return 'resv_status_waiting' as const;
+    case 'checked_in': return 'resv_status_checked_in' as const;
+    case 'completed': return 'resv_status_completed' as const;
+    case 'cancelled': return 'resv_status_cancelled' as const;
+    case 'no_show': return 'resv_status_no_show' as const;
+    case 'expired': return 'resv_status_expired' as const;
+    case 'archived': return 'resv_status_archived' as const;
+    default: return 'resv_status_pending' as const;
   }
-  if (res.pre_order_total) return { count: 0, total: Number(res.pre_order_total) || 0 };
-  return { count: 0, total: 0 };
 };
 
-export const ReservationCard = ({
+/** One small ⋮ popover item (POS ActionSheet language: icon + uppercase label). */
+const MenuItem = ({
+  icon, label, danger, lightMode, onClick,
+}: { icon: React.ReactNode; label: string; danger?: boolean; lightMode: boolean; onClick: () => void }) => (
+  <button
+    onClick={(e) => { e.stopPropagation(); onClick(); }}
+    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-left transition-colors ${
+      danger
+        ? (lightMode ? 'text-rose-600 hover:bg-rose-50' : 'text-rose-400 hover:bg-rose-500/10')
+        : (lightMode ? 'text-zinc-600 hover:bg-zinc-100' : 'text-white/60 hover:bg-white/5')
+    }`}
+  >
+    {icon}
+    {label}
+  </button>
+);
+
+export const ReservationRow = ({
   res,
-  statusBadge,
+  tableLabel,
+  showDate,
+  isActive,
+  onSelect,
   onEdit,
   onDelete,
-  onArchive,
   onRestore,
-  onSelect,
   selectionMode,
   isSelected,
   onToggleSelect,
 }: Props) => {
+  const { t } = useLanguage();
   const { lightMode } = useTheme();
-  const tag = getGuestTag(res.visitCount || 1, lightMode);
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const displayName = res.name || res.customer_name || 'Qonaq';
-  const late = isLate(res);
-  const pre = parsePreOrder(res);
-  const hasPreOrder = pre.count > 0 || pre.total > 0;
   const archived = res.status === 'archived' || res.status === 'cancelled';
+  const late = isLate(res);
+  const vip = !!res.is_vip;
+  const deposit = Number(res.deposit_amount || 0);
+  const guests = res.guests || 1;
+  const note = (res.notes || res.note || '').trim();
+
+  const subline = [`${guests} ${t('resv_guests_unit')}`, maskPhone(res.phone), note]
+    .filter(Boolean)
+    .join(' · ');
+
+  const statusTone = archived
+    ? 'cancelled'
+    : res.status === 'confirmed' || res.status === 'checked_in' || res.status === 'completed'
+      ? 'ok'
+      : late
+        ? 'late'
+        : 'pending';
+
+  const statusCls = statusTone === 'ok'
+    ? (lightMode ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-green-500/10 text-green-400 border-green-500/25')
+    : statusTone === 'late'
+      ? (lightMode ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-rose-500/10 text-rose-400 border-rose-500/25')
+      : statusTone === 'cancelled'
+        ? (lightMode ? 'bg-zinc-100 text-zinc-500 border-zinc-200' : 'bg-white/5 text-white/40 border-white/10')
+        : (lightMode ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-amber-500/10 text-amber-400 border-amber-500/25');
+
+  // VIP rows carry a subtle 2px gold rail; the open (selected) row gets the same
+  // rail plus a faint gold wash — the only two "accents" in the list.
+  const railCls = vip || isActive ? 'border-l-2 border-l-[#D4AF37]' : 'border-l-2 border-l-transparent';
+  const bgCls = isActive
+    ? (lightMode ? 'bg-amber-50/70' : 'bg-[#D4AF37]/[0.07]')
+    : (lightMode ? 'hover:bg-zinc-50' : 'hover:bg-white/[0.03]');
+
+  const openMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(v => !v);
+  };
 
   return (
     <motion.div
-      layout
-      whileHover={{ scale: 1.01 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      layout="position"
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.24, ease: 'easeOut' }}
+      whileTap={selectionMode ? undefined : { scale: 0.996 }}
       onClick={() => (selectionMode ? onToggleSelect?.(res.id) : onSelect(res))}
-      className={`relative rounded-[2rem] border-2 p-5 md:p-6 flex flex-col gap-4 overflow-hidden cursor-pointer transition-all duration-300 shadow-2xl ${
-        isSelected
-          ? (lightMode ? 'bg-amber-50 border-blue-400 shadow-blue-200/60' : 'bg-amber-500/10 border-blue-400 shadow-black/60')
-          : lightMode
-            ? 'bg-white border-amber-300/70 shadow-amber-100/50 hover:border-amber-400'
-            : 'bg-[#101012] border-[#D4AF37]/25 shadow-black/60 hover:border-[#D4AF37]/50'
+      className={`relative flex items-stretch gap-0 border-b cursor-pointer transition-colors duration-200 ${railCls} ${bgCls} ${
+        lightMode ? 'border-b-zinc-100' : 'border-b-white/[0.05]'
       }`}
     >
-      {/* left gold accent bar — distinguishes reservation from order cards */}
-      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-[#F5D67B] to-[#D4AF37]" />
-
-      {selectionMode && (
-        <div className="absolute top-4 right-4 z-10" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onToggleSelect?.(res.id)}
-            className="w-5 h-5 rounded accent-blue-500 cursor-pointer"
-          />
-        </div>
-      )}
-
-      {/* top: eyebrow + big status badge */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <span className={`text-[9px] font-black uppercase tracking-[0.3em] ${lightMode ? 'text-amber-600' : 'text-[#D4AF37]'}`}>
-            REZERVASİYA
-          </span>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`font-black text-lg md:text-xl leading-none truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-              {displayName}
-            </span>
-            <span className={`px-2 py-0.5 rounded-md border text-[9px] font-black uppercase whitespace-nowrap ${tag.color}`}>
-              {tag.label}
-            </span>
-          </div>
-          <span className={`flex items-center gap-1.5 text-xs font-medium mt-1.5 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-            <Phone size={11} className="opacity-40" /> {maskPhone(res.phone)}
-          </span>
-        </div>
-        <div className="flex-shrink-0">{statusBadge(res.status)}</div>
-      </div>
-
-      {/* date & time */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-bold">
-        <span className={`flex items-center gap-2 ${lightMode ? 'text-zinc-600' : 'text-white/80'}`}>
-          <Calendar size={14} className="opacity-30" /> {new Date(res.date).toLocaleDateString('az-AZ')}
-        </span>
-        <span className={`flex items-center gap-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-          <Clock size={14} className="opacity-30" /> {res.time}
-          {late && (
-            <span className="px-2 py-0.5 rounded-md bg-red-500/15 text-red-400 text-[9px] font-black uppercase tracking-widest">
-              Vaxtı keçib
-            </span>
-          )}
-        </span>
-      </div>
-
-      {/* hero row: guest count (main info) + pre-order (distinct) */}
-      <div className={`grid gap-3 ${hasPreOrder ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-1'}`}>
-        <div
-          className={`flex items-center gap-4 px-5 py-4 rounded-2xl border ${
-            lightMode ? 'bg-amber-50 border-amber-200' : 'bg-[#D4AF37]/10 border-[#D4AF37]/25'
+      {/* ── LEFT: time anchor + vertical divider ── */}
+      <div
+        className={`relative shrink-0 w-[62px] sm:w-[86px] flex flex-col justify-center py-3.5 pr-2.5 sm:pr-4 border-r ${
+          lightMode ? 'border-zinc-200/80' : 'border-white/[0.07]'
+        }`}
+      >
+        <span
+          className={`text-xl sm:text-2xl font-black tabular-nums leading-none tracking-tight ${
+            lightMode ? 'text-zinc-900' : 'text-white'
           }`}
         >
-          <Users size={28} className={`flex-shrink-0 ${lightMode ? 'text-amber-600' : 'text-[#D4AF37]'}`} />
-          <div>
-            <span className={`text-3xl md:text-4xl font-black leading-none ${lightMode ? 'text-amber-600' : 'text-[#D4AF37]'}`}>
-              {res.guests}
-            </span>
-            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 ${lightMode ? 'text-amber-700/60' : 'text-[#D4AF37]/60'}`}>
-              Nəfər
-            </p>
-          </div>
+          {res.time ? res.time.slice(0, 5) : '--:--'}
+        </span>
+        {showDate && (
+          <span className={`mt-1 text-[9px] font-black tabular-nums tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+            {shortDate(res.date)}
+          </span>
+        )}
+      </div>
+
+      {/* ── MIDDLE: guest + subline ── */}
+      <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 py-3.5 pl-3.5 sm:pl-4 pr-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {vip && <Star size={13} className="shrink-0 fill-[#D4AF37] text-[#D4AF37]" />}
+          <span className={`font-black text-[15px] sm:text-base truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+            {displayName}
+          </span>
         </div>
 
-        {hasPreOrder && (
-          <div
-            className={`flex items-center justify-between gap-3 px-5 py-4 rounded-2xl border border-dashed ${
-              lightMode ? 'bg-amber-100/60 border-amber-300' : 'bg-amber-500/15 border-amber-500/40'
-            }`}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-amber-200/70 text-amber-700' : 'bg-amber-500/20 text-amber-400'}`}>
-                <ShoppingBag size={22} />
-              </div>
-              <div className="min-w-0">
-                <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-amber-700' : 'text-amber-400'}`}>
-                  Öncədən Sifariş
-                </p>
-                {pre.count > 0 && (
-                  <p className={`text-sm font-black truncate mt-0.5 ${lightMode ? 'text-zinc-800' : 'text-white'}`}>
-                    {pre.count} məhsul
-                  </p>
-                )}
-              </div>
-            </div>
-            <span className={`font-black text-xl tabular-nums flex-shrink-0 ${lightMode ? 'text-amber-700' : 'text-amber-400'}`}>
-              ₼{pre.total.toFixed(2)}
+        <div className="flex items-center gap-2 min-w-0">
+          <p className={`flex-1 min-w-0 truncate text-[11px] font-medium ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>
+            {subline}
+          </p>
+          {deposit > 0 && (
+            <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-wider tabular-nums ${
+              lightMode ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-[#D4AF37]/10 border-[#D4AF37]/25 text-[#D4AF37]'
+            }`}>
+              {t('resv_deposit_chip')} ₼{deposit.toFixed(0)}
             </span>
-          </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── RIGHT: status + table + ⋮ ── */}
+      <div
+        className="shrink-0 flex flex-col items-end justify-center gap-1.5 py-3.5 pl-1 pr-2.5 sm:pr-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {selectionMode ? (
+          <input
+            type="checkbox"
+            checked={!!isSelected}
+            onChange={() => onToggleSelect?.(res.id)}
+            className="w-5 h-5 rounded accent-[#D4AF37] cursor-pointer"
+          />
+        ) : (
+          <>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest whitespace-nowrap ${statusCls}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${statusTone === 'ok' ? 'bg-emerald-400' : statusTone === 'late' ? 'bg-rose-400' : statusTone === 'cancelled' ? 'bg-zinc-400' : 'bg-amber-400'}`} />
+              {t(late && statusTone === 'late' ? 'resv_late' : statusKey(res.status))}
+            </span>
+
+            <div className="flex items-center gap-1.5">
+              {tableLabel && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${
+                  lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-white/60'
+                }`}>
+                  {t('resv_table')} {tableLabel}
+                </span>
+              )}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                transition={SPRING}
+                onClick={openMenu}
+                title={t('resv_actions')}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                  lightMode ? 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700' : 'text-white/35 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <MoreVertical size={16} />
+              </motion.button>
+            </div>
+          </>
         )}
       </div>
 
-      {/* note */}
-      {(res.notes || res.note) && (
-        <p className={`text-[11px] italic truncate ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-          “{res.notes || res.note}”
-        </p>
-      )}
-
-      {/* actions */}
-      <div className="flex items-center gap-2 mt-auto pt-1" onClick={(e) => e.stopPropagation()}>
-        {onEdit && (
-          <button
-            title="Düzəliş"
-            onClick={() => onEdit(res)}
-            className={`p-2.5 rounded-xl transition-all flex items-center justify-center ${
-              lightMode ? 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <Pencil size={15} />
-          </button>
+      {/* ⋮ popover — invisible backdrop closes it, so no outside-click plumbing */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-20"
+              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: -4 }}
+              transition={SPRING}
+              onClick={(e) => e.stopPropagation()}
+              className={`absolute right-2 top-full z-30 mt-1 w-44 p-1.5 rounded-2xl border shadow-2xl ${
+                lightMode ? 'bg-white border-zinc-200 shadow-zinc-300/40' : 'bg-[#141419] border-white/10 shadow-black/60'
+              }`}
+            >
+              {onEdit && (
+                <MenuItem lightMode={lightMode} icon={<Pencil size={13} />} label={t('resv_edit')} onClick={() => { setMenuOpen(false); onEdit(res); }} />
+              )}
+              {archived && onRestore && (
+                <MenuItem lightMode={lightMode} icon={<RotateCcw size={13} />} label={t('resv_restore')} onClick={() => { setMenuOpen(false); onRestore(res.id); }} />
+              )}
+              {archived && onDelete && (
+                <MenuItem lightMode={lightMode} danger icon={<Trash2 size={13} />} label={t('resv_delete')} onClick={() => { setMenuOpen(false); onDelete(res.id, displayName); }} />
+              )}
+            </motion.div>
+          </>
         )}
-        {archived && onRestore && (
-          <button
-            title="Bərpa et"
-            onClick={() => onRestore(res.id)}
-            className={`p-2.5 rounded-xl transition-all flex items-center justify-center ${
-              lightMode ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-            }`}
-          >
-            <Zap size={15} />
-          </button>
-        )}
-        {archived && onDelete && (
-          <button
-            title="Sil"
-            onClick={() => onDelete(res.id, displayName)}
-            className={`p-2.5 rounded-xl transition-all flex items-center justify-center ${
-              lightMode ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
-            }`}
-          >
-            <Trash2 size={15} />
-          </button>
-        )}
-      </div>
+      </AnimatePresence>
     </motion.div>
   );
 };
+
+/** @deprecated 2026-09-26 (Task 55) — the card list was rejected by the owner.
+ *  Kept as an alias so any stale import keeps compiling. */
+export const ReservationCard = ReservationRow;
+
+/** Kept for callers that need the shared status label key. */
+export const reservationStatusKey = statusKey;

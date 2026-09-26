@@ -213,7 +213,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
             </button>
             <div className="space-y-2">
               <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold flex items-center gap-2">
-                <Wallet size={12} /> {t('deposit' as any) || 'Depozit (₼)'}
+                <Wallet size={12} /> {t('deposit')}
               </label>
               <input
                 type="number"

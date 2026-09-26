@@ -15,12 +15,19 @@ import { resolveWriteLocationContext } from '@/lib/location-context';
  *            zones: [...all zone fields...],
  *            general: { delivery_fee, free_delivery_threshold,
  *                       min_order_amount, delivery_enabled,
- *                       delivery_accepting_orders } }
+ *                       delivery_accepting_orders, delivery_fee_multiplier,
+ *                       delivery_weather_surge_enabled, delivery_weather_surge_multiplier,
+ *                       delivery_peak_surge_enabled, delivery_peak_surge_multiplier,
+ *                       delivery_peak_start_hour, delivery_peak_end_hour,
+ *                       delivery_peak2_start_hour, delivery_peak2_end_hour } }
  *   PUT  → { address?, phone?, delivery_mode?, general?,
  *            zones: [{id?, name, fee, free_delivery_threshold,
  *                     estimated_minutes, is_active,
  *                     min_km?, max_km?, min_order?, priority?,
  *                     est_minutes_min?, est_minutes_max?}] }
+ *
+ * 2026-09-26 (Task 55): smart-surge fields (weather + peak windows) ride in
+ * `general` — the /api/rpc/calculate_delivery_fee route reads them live.
  *
  * Zones are upserted; removed zones are soft-disabled, never hard-deleted.
  * The POS reads delivery_zones directly (RLS off); this route is the only
@@ -81,7 +88,7 @@ export async function GET() {
 
     const { data: general } = await s
       .from('settings')
-      .select('delivery_fee, free_delivery_threshold, min_order_amount, delivery_enabled, delivery_accepting_orders, delivery_fee_multiplier')
+      .select('delivery_fee, free_delivery_threshold, min_order_amount, delivery_enabled, delivery_accepting_orders, delivery_fee_multiplier, delivery_weather_surge_enabled, delivery_weather_surge_multiplier, delivery_peak_surge_enabled, delivery_peak_surge_multiplier, delivery_peak_start_hour, delivery_peak_end_hour, delivery_peak2_start_hour, delivery_peak2_end_hour')
       .limit(1)
       .maybeSingle();
 
@@ -92,6 +99,11 @@ export async function GET() {
         delivery_fee: 2, free_delivery_threshold: 50, min_order_amount: 15,
         delivery_enabled: true, delivery_accepting_orders: true,
         delivery_fee_multiplier: 1,
+        // 2026-09-26 (Task 55) smart-surge defaults (match DB migration).
+        delivery_weather_surge_enabled: true, delivery_weather_surge_multiplier: 1.5,
+        delivery_peak_surge_enabled: false, delivery_peak_surge_multiplier: 1.25,
+        delivery_peak_start_hour: 12, delivery_peak_end_hour: 14,
+        delivery_peak2_start_hour: 18, delivery_peak2_end_hour: 22,
       },
     });
   } catch (e: any) {
@@ -157,6 +169,27 @@ export async function PUT(req: NextRequest) {
           }
           g.delivery_fee_multiplier = m;
         }
+      }
+      // 2026-09-26 (owner, Task 55): SMART SURGE — weather + peak windows.
+      // Same bounds as the DB check constraints (multipliers 1..3, hours 0..24).
+      for (const f of ['delivery_weather_surge_enabled', 'delivery_peak_surge_enabled']) {
+        if (typeof gen[f] === 'boolean') g[f] = gen[f];
+      }
+      for (const f of ['delivery_weather_surge_multiplier', 'delivery_peak_surge_multiplier']) {
+        if (gen[f] === undefined) continue;
+        const m = Number(gen[f]);
+        if (!Number.isFinite(m) || m < 1 || m > 3) {
+          return NextResponse.json({ error: `invalid general.${f} (1..3)` }, { status: 400 });
+        }
+        g[f] = m;
+      }
+      for (const f of ['delivery_peak_start_hour', 'delivery_peak_end_hour', 'delivery_peak2_start_hour', 'delivery_peak2_end_hour']) {
+        if (gen[f] === undefined) continue;
+        const h = Math.trunc(Number(gen[f]));
+        if (!Number.isFinite(h) || h < 0 || h > 24) {
+          return NextResponse.json({ error: `invalid general.${f} (0..24)` }, { status: 400 });
+        }
+        g[f] = h;
       }
       if (Object.keys(g).length > 0) {
         const { data: row } = await s.from('settings').select('id').limit(1).maybeSingle();

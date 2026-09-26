@@ -9,7 +9,7 @@ import {
   UserCheck, CreditCard, TrendingUp, ChefHat,
   CheckCircle, XCircle, FileText, Download,
   ShieldCheck, ConciergeBell, Receipt, Flame, Wine, DoorOpen, Info,
-  KeyRound, Briefcase, HandPlatter, Landmark, Martini, CalendarDays, Coffee
+   KeyRound, Briefcase, HandPlatter, Landmark, Martini, CalendarDays, Coffee, Bike
 } from 'lucide-react';
 import { DragTabSwitcher } from '@/components/ui/DragTabSwitcher';
 
@@ -39,8 +39,22 @@ function getRoleIcon(roleName: string): React.ComponentType<any> {
     kitchen: ChefHat,
     bartender: Martini,
     host: CalendarDays,
+    courier: Bike,
   };
   return icons[roleName?.toLowerCase()] || UserCheck;
+}
+
+// 2026-09-26 (Task 55, owner: "kuryer staff bölmesində göstərmir"): role
+// tags rendered the raw English DB value ("courier", "cashier") — the owner
+// searched for "kuryer" and found 0. Localize the tag (AZ first).
+const ROLE_LABELS: Record<string, string> = {
+  courier: 'Kuryer', cashier: 'Kassir', waiter: 'Servis', manager: 'Menecer',
+  host: 'Host', kitchen: 'Mətbəx', bartender: 'Bar', owner: 'Sahib',
+  superadmin: 'Superadmin', admin: 'Admin', accountant: 'Mühasib', stock: 'Anbar',
+};
+function roleLabel(name?: string): string {
+  const n = (name || '').toLowerCase();
+  return ROLE_LABELS[n] || (name || '—');
 }
 
 // Format duration from interval string
@@ -131,7 +145,7 @@ export default function StaffPage() {
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [activeView, setActiveView] = useState<'all' | 'on_shift' | 'off_shift' | 'schedule' | 'owners'>('all');
+  const [activeView, setActiveView] = useState<'all' | 'on_shift' | 'off_shift' | 'schedule' | 'owners' | 'couriers'>('all');
   const [showCreateSheet, setShowCreateSheet] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
 
@@ -223,6 +237,10 @@ export default function StaffPage() {
     // Owner/admins get their own tab — they are not "staff" in the
     // worker sense (no shifts to schedule, no tables to assign).
     if (activeView === 'owners') result = result.filter(m => isOwnerRole(m.role_name));
+    // 2026-09-26 (Task 55, owner: "kuryer staff bölmesindən seçəndə bizdə
+    // kuryer təyin et-də göstərmir"): couriers were buried in the 377-row
+    // off-shift list with an English "courier" tag. Dedicated KURYER tab.
+    if (activeView === 'couriers') result = result.filter(m => (m.role_name || '').toLowerCase() === 'courier');
     return result;
   }, [staff, search, activeView, lifecycle]);
 
@@ -232,6 +250,8 @@ export default function StaffPage() {
     return s.shift_status === 'active';
   }).length;
   const ownerCount = staff.filter(s => isOwnerRole(s.role_name)).length;
+  // 2026-09-26 (Task 55): courier count for the KURYER tab.
+  const courierCount = staff.filter(s => (s.role_name || '').toLowerCase() === 'courier').length;
 
   return (
     <div className="h-full flex flex-col gap-4">
@@ -382,12 +402,13 @@ export default function StaffPage() {
             items={[
               { id: 'all', label: `${t('st_all')} (${staff.length})` },
               { id: 'owners', label: `${t('st_owners')} (${ownerCount})` },
+              { id: 'couriers', label: `${t('st_couriers')} (${courierCount})` },
               { id: 'on_shift', label: `${t('st_on_shift')} (${onShiftCount})` },
               { id: 'off_shift', label: `${t('st_off_shift')} (${staff.length - onShiftCount})` },
               { id: 'schedule', label: t('st_schedule') },
             ]}
             value={activeView}
-            onChange={(v) => setActiveView(v as 'all' | 'on_shift' | 'off_shift' | 'schedule' | 'owners')}
+            onChange={(v) => setActiveView(v as 'all' | 'on_shift' | 'off_shift' | 'schedule' | 'owners' | 'couriers')}
             activeStyle={{
               pillBackground: '#383838',
               pillBorder: '1px solid rgba(255,255,255,0.06)',
@@ -592,7 +613,7 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin, lifecy
               className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] uppercase tracking-widest font-bold mt-1.5"
               style={{ color: roleColor.color, backgroundColor: `${roleColor.color}14` }}
             >
-              {member.role_name}
+              {roleLabel(member.role_name)}
             </span>
           </div>
           {!member.is_active && (

@@ -332,6 +332,15 @@ export default function POSPage() {
 
   useEffect(() => {
     setFlashInfo(null);
+    // 2026-09-26 (Task 55, audit55 P0 leak): the waitlist overlay + its VKB
+    // used to survive a posMode switch (e.g. dine-in → TAKEAWAY) and block the
+    // whole screen until manually closed. Mode switch = any open sheet/panel
+    // resets.
+    setWaitlistOpen(false);
+    setActionSheetOpen(false);
+    // 2026-09-26 (Task 55): a stale smart-surge badge (rain/peak) from a
+    // previous delivery cart must not follow into dine-in or takeaway.
+    setDeliverySurge(null);
   }, [posMode]);
 
   // 2026-09-26 (Task 53 P1-6 ready-notify — Toast "food ready → ping server"):
@@ -1698,6 +1707,9 @@ export default function POSPage() {
   // (DB: calculate_delivery_fee returns {fee:2, is_free:true} at ₼100).
   // 2026-09-26 (owner, Task 50): fee RPC in flight → shimmer "hesablayır…"
   const [deliveryFeeCalculating, setDeliveryFeeCalculating] = useState(false);
+  // 2026-09-26 (owner, Task 55): live smart-surge info for the fee hint
+  // (weather/peak multiplier + reason + base fee) — Wolt-class badge.
+  const [deliverySurge, setDeliverySurge] = useState<{ mult: number; reason: 'weather' | 'peak'; base: number } | null>(null);
 
   const recalcDeliveryFee = useCallback(async (cart: any, zoneName: string | null | undefined) => {
     if (!cart || !zoneName) return;
@@ -1710,6 +1722,9 @@ export default function POSPage() {
     // zone name overload. The surge multiplier is applied server-side.
     const km = Number(cart.delivery_km);
     let resolvedZone: string | null = null;
+    // 2026-09-26 (Task 55): hoisted so the smart-surge capture below the
+    // try/catch can read it (block-scoped `data` was out of scope there).
+    let rpcData: any = null;
     setDeliveryFeeCalculating(true);
     try {
       const body = km >= 0.1
@@ -1721,7 +1736,8 @@ export default function POSPage() {
         body: JSON.stringify(body),
       });
       if (res.ok) {
-        const data: any = await res.json();
+        rpcData = await res.json();
+        const data: any = rpcData;
         const rpcFee = Number(typeof data === 'number' ? data : data?.fee ?? fee) || 0;
         fee = data?.is_free ? 0 : rpcFee;
         // KM-resolution may pick a different zone (km-range) — remember it; the
@@ -1762,6 +1778,9 @@ export default function POSPage() {
     // delivery_zone was never stored and the zone chip stayed unselected.
     // 2026-09-26 (Task 50): also persist the KM-distance-resolved zone.
     pos.setCart({ ...cart, delivery_zone: resolvedZone || cart.delivery_zone, delivery_fee: fee });
+    // 2026-09-26 (Task 55): carry the server smart-surge badge (weather/peak)
+    // to the panel hint; null when no surge is active.
+    setDeliverySurge(rpcData?.smart_surge ? { mult: Number(rpcData.smart_surge), reason: rpcData.smart_surge_reason, base: Number(rpcData.base_fee) || 0 } : null);
     // No loop risk: the recalc effect deps are itemsTotal/zoneName, not cart identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryZones]);
@@ -1771,11 +1790,13 @@ export default function POSPage() {
     const nextCart = { ...pos.cart, delivery_zone: zoneName || null };
     if (!zoneName) {
       pos.setCart({ ...nextCart, delivery_fee: 0 });
+      setDeliverySurge(null); // no zone → no fee → no surge badge
       return;
     }
     const zone = deliveryZones.find(z => z.name === zoneName);
     if (!zone) {
       pos.setCart({ ...nextCart, delivery_fee: 0 });
+      setDeliverySurge(null);
       return;
     }
     await recalcDeliveryFee(nextCart, zoneName);
@@ -2763,6 +2784,7 @@ export default function POSPage() {
                                 deliveryPaused={deliveryGates.accepting === false}
                                 deliveryMinOrder={deliveryGates.minOrder}
                                 feeCalculating={deliveryFeeCalculating}
+                                surge={deliverySurge}
                               />
                             </motion.div>
                           ) : (
@@ -2795,10 +2817,17 @@ export default function POSPage() {
                             </motion.div>
                           )}
                         </AnimatePresence>
-                      </div>
-                       <div
-                          className="w-[440px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
-                         >
+                       </div>
+                        {/* 2026-09-26 (Task 55, audit55 P0 "şəkil 4"): the customer
+                            phase (name/phone/zone/address) is a FULL-WIDTH step — the
+                            440px cart column used to stay mounted beside it and at
+                            phone widths (w-full cart) squeezed the phase to a 50px
+                            sliver (inner inputs 0px, unusable). Mobile stepper:
+                            products → customer (cart hidden) → back. */}
+                        {posPhase !== 'customer' && (
+                        <div
+                           className="w-[440px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
+                          >
                                 {/* 2026-09-23 (owner): the wide blue binding banner is
                                     REJECTED — it ate the whole cart column top. The
                                     binding identity now lives as a compact chip inside
@@ -2944,14 +2973,15 @@ export default function POSPage() {
                                         }
                                       : undefined,
                                  };
-                              gridRef.current?.toggleEditor(productId, preset);
-                            }}
-                         />
-                     </div>
-                   </div>
-              </motion.div>
-           )}
-           </AnimatePresence>
+                               gridRef.current?.toggleEditor(productId, preset);
+                             }}
+                          />
+                      </div>
+                        )}
+                    </div>
+               </motion.div>
+            )}
+            </AnimatePresence>
 
             <ActionSheet
             table={(() => {
@@ -3336,10 +3366,11 @@ export default function POSPage() {
 
        </AnimatePresence>
 
-       {/* SHIFT REVIEW MODAL */}
-       <AnimatePresence>
-         {shiftReviewOpen && (
-            <motion.div className="fixed inset-0 z-[300] flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop}>
+        {/* SHIFT REVIEW MODAL */}
+        <AnimatePresence>
+          {shiftReviewOpen && (
+             // 2026-09-26 (Task 55): same VKB lift as the discount modal.
+             <motion.div className="fixed inset-0 z-[300] flex items-center justify-center p-4" style={{ paddingBottom: 'calc(var(--vk-height, 0px) + 16px)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop}>
               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShiftReviewOpen(false)} />
               <motion.div className={`relative w-full max-w-md rounded-3xl border p-6 shadow-2xl ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-white/10'}`} {...morphView}>
                <h2 className="text-lg font-black uppercase tracking-tight mb-1">Shift Review</h2>
@@ -3373,13 +3404,16 @@ export default function POSPage() {
          )}
        </AnimatePresence>
 
-    {/* DISCOUNT MODAL (Phase-1 G1: canonical /api/orders/discount) */}
-       <AnimatePresence>
-         {discountOpen && (
-            <motion.div className="fixed inset-0 z-[320] flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop}>
+        {/* DISCOUNT MODAL (Phase-1 G1: canonical /api/orders/discount) */}
+        <AnimatePresence>
+          {discountOpen && (
+             // 2026-09-26 (Task 55, audit55 P0): VKB covered the action buttons
+             // by 51px and the card was not scrollable — lift via --vk-height +
+             // let the card scroll when the keyboard is up.
+             <motion.div className="fixed inset-0 z-[320] flex items-center justify-center p-4" style={{ paddingBottom: 'calc(var(--vk-height, 0px) + 16px)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop}>
               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !discountBusy && setDiscountOpen(false)} />
-              <motion.div className={`relative w-full max-w-sm rounded-3xl border p-6 shadow-2xl ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-white/10'}`} {...morphView}>
-                <h2 className="text-lg font-black uppercase tracking-tight mb-4">{t('discount_modal_title')}</h2>
+               <motion.div className={`relative w-full max-w-sm max-h-[calc(100vh-var(--vk-height,0px)-32px)] overflow-y-auto rounded-3xl border p-6 shadow-2xl ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-white/10'}`} {...morphView}>
+                 <h2 className="text-lg font-black uppercase tracking-tight mb-4">{t('discount_modal_title')}</h2>
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   <button onClick={() => setDiscountType('percent')} className={`py-2.5 rounded-2xl text-sm font-black uppercase border transition-all ${discountType === 'percent' ? 'bg-indigo-500 text-white border-indigo-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}>{t('discount_mode_percent')}</button>
                   <button onClick={() => setDiscountType('fixed')} className={`py-2.5 rounded-2xl text-sm font-black uppercase border transition-all ${discountType === 'fixed' ? 'bg-indigo-500 text-white border-indigo-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}>{t('discount_mode_amount')}</button>

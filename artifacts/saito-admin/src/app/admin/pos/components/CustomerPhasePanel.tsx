@@ -24,7 +24,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, User, Route, Wallet, MessageCircle, PauseCircle } from 'lucide-react';
+import { ArrowLeft, User, Route, Wallet, MessageCircle, PauseCircle, CloudRain, Clock } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -77,14 +77,26 @@ interface CustomerPhasePanelProps {
   deliveryMinOrder?: number | null;
   /** 2026-09-26 (owner, Task 50): fee RPC in flight → shimmer "hesablayır…". */
   feeCalculating?: boolean;
+  /** 2026-09-26 (owner, Task 55): live smart-surge badge (weather/peak). */
+  surge?: { mult: number; reason: 'weather' | 'peak'; base: number } | null;
 }
 
-export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZoneSelect, onBack, focusField, deliveryPaused, deliveryMinOrder, feeCalculating }: CustomerPhasePanelProps) {
+export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZoneSelect, onBack, focusField, deliveryPaused, deliveryMinOrder, feeCalculating, surge }: CustomerPhasePanelProps) {
   const { lightMode } = useTheme();
   const { t } = useLanguage();
 
   const [flashField, setFlashField] = useState<string | null>(null);
   const fieldRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // 2026-09-26 (owner, Task 55): ADDRESS → KM auto (Nominatim geocode +
+  // haversine from the venue). Owner: "unvan daxil edende hesablasın km
+  // gedən yolu, sonra real qiymət desin; hardcoded olmasin, çox dinamik".
+  // Manual KM input wins (kmManualRef) — the auto only fills when the
+  // operator hasn't typed a distance.
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'ok' | 'fail'>('idle');
+  const [geoKm, setGeoKm] = useState<number | null>(null);
+  const [geoDisplay, setGeoDisplay] = useState<string>('');
+  const kmManualRef = useRef(false);
 
   // Send-validation focus + flash.
   useEffect(() => {
@@ -123,6 +135,37 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
     }`;
 
   const labelCls = `text-[10px] font-black uppercase tracking-[0.14em] mb-1.5 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`;
+
+  // (Task 55) address → km auto-resolve, debounced 1.2s. The page's
+  // onUpdate('delivery_km', ...) handler already triggers the fee RPC
+  // (distance overload) — so the fee follows the address automatically.
+  useEffect(() => {
+    if (mode !== 'delivery' || kmManualRef.current) { setGeoStatus('idle'); return; }
+    const addr = address.trim();
+    if (addr.length < 8) { setGeoStatus('idle'); setGeoKm(null); setGeoDisplay(''); return; }
+    let cancelled = false;
+    setGeoStatus('loading');
+    const timer = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/geocode?address=${encodeURIComponent(addr)}`, { cache: 'no-store' });
+        const d = r.ok ? await r.json() : null;
+        if (cancelled) return;
+        if (d?.km && Number(d.km) > 0) {
+          setGeoStatus('ok');
+          setGeoKm(Number(d.km));
+          setGeoDisplay(d.display || addr);
+          if (Number(cart?.delivery_km || 0) !== Number(d.km)) onUpdate('delivery_km', Number(d.km));
+        } else {
+          setGeoStatus('fail');
+          setGeoKm(null);
+        }
+      } catch {
+        if (!cancelled) { setGeoStatus('fail'); setGeoKm(null); }
+      }
+    }, 1200);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, mode]);
 
   return (
     <div className="h-full flex flex-col min-h-0">
@@ -241,17 +284,35 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                 </div>
               )}
 
-              {/* Address */}
-              <div>
-                <p className={labelCls}>{t('delivery_address')} *</p>
-                <input
-                  ref={el => { fieldRefs.current['delivery_address'] = el; }}
-                  value={address}
-                  onChange={setField('delivery_address')}
-                  placeholder={t('address_placeholder')}
-                  className={inputCls('delivery_address', 'h-12 text-base font-semibold')}
-                />
-              </div>
+               {/* Address */}
+               <div>
+                 <p className={labelCls}>{t('delivery_address')} *</p>
+                 <input
+                   ref={el => { fieldRefs.current['delivery_address'] = el; }}
+                   value={address}
+                   onChange={e => { kmManualRef.current = false; setField('delivery_address')(e); }}
+                   placeholder={t('address_placeholder')}
+                   className={inputCls('delivery_address', 'h-12 text-base font-semibold')}
+                 />
+                 {/* 2026-09-26 (Task 55): live distance hint — Nominatim +
+                     haversine from the venue. loading = shimmer, ok = km,
+                     fail = silent (manual KM stays available). */}
+                 <style>{`
+@keyframes vk-geo-shimmer { 0% { transform: translateX(-110%);} 100% { transform: translateX(260%);} }
+.vk-geo-bar { position: relative; width: 56px; height: 7px; border-radius: 999px; overflow: hidden; background: ${lightMode ? 'rgba(16,165,129,0.12)' : 'rgba(16,185,129,0.14)'}; }
+.vk-geo-bar::after { content: ''; position: absolute; top: 0; bottom: 0; width: 55%; border-radius: 999px; background: linear-gradient(90deg, transparent, ${lightMode ? 'rgba(5,150,105,0.75)' : 'rgba(52,211,153,0.9)'}, transparent); animation: vk-geo-shimmer 1.1s ease-in-out infinite; }
+`}</style>
+                 {geoStatus === 'loading' && (
+                   <p className={`mt-1 flex items-center gap-2 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                     Məsafə hesablanır… <span className="vk-geo-bar" />
+                   </p>
+                 )}
+                 {geoStatus === 'ok' && geoKm != null && (
+                   <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                     ≈ {geoKm} km <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>· {geoDisplay.slice(0, 48)}</span>
+                   </p>
+                 )}
+               </div>
 
               {/* 2026-09-26 (owner, Task 50): Wolt-style distance field —
                   typing a km re-resolves the zone by its km-range and re-prices
@@ -264,11 +325,11 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                      inputMode="decimal"
                      min={0}
                      step={0.5}
-                     value={cart?.delivery_km ?? ''}
-                     onChange={e => onUpdate('delivery_km', e.target.value === '' ? null : Number(e.target.value))}
-                     placeholder="0.0"
-                     className={`${inputCls('delivery_km', 'h-12 text-base font-semibold text-center')} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                   />
+                      value={cart?.delivery_km ?? ''}
+                      placeholder="0.0"
+                      onChange={e => { kmManualRef.current = true; setGeoStatus('idle'); onUpdate('delivery_km', e.target.value === '' ? null : Number(e.target.value)); }}
+                      className={`${inputCls('delivery_km', 'h-12 text-base font-semibold text-center')} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                    />
                  </div>
                  <div className="flex-1 min-w-0">
                    <p className={labelCls}>{t('delivery_fee')}</p>
@@ -315,8 +376,36 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                                 ₼{Number.isInteger(feeNum) ? feeNum.toFixed(0) : feeNum.toFixed(2)}
                               </span>
                             )}
-                          </div>
-                          {!isFree && toFree > 0 && (
+                           </div>
+                           {/* 2026-09-26 (owner, Task 55): SMART-SURGE badge —
+                               Wolt-class "yağış/pik" hint with the iPhone-call
+                               glow sweep across the text (owner: "iphone-da
+                               zeng gelende text uzerinde parlayib gedən
+                               animation kimi"). Server-authoritative: the fee
+                               above ALREADY includes the surge; this badge
+                               explains WHY (reason + base fee). */}
+                           {surge && feeNum > 0 && !isFree && (
+                             <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                               <style>{`
+@keyframes vk-surge-glow { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
+.vk-surge-text { background-image: linear-gradient(110deg, ${lightMode ? '#B45309' : '#F59E0B'} 38%, ${lightMode ? '#78350F' : '#FDE68A'} 50%, ${lightMode ? '#B45309' : '#F59E0B'} 62%); background-size: 220% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: vk-surge-glow 1.6s linear infinite; }
+`}</style>
+                               <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
+                                 lightMode ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                               }`}>
+                                 {surge.reason === 'weather' ? <CloudRain size={11} /> : <Clock size={11} />}
+                                 <span className="vk-surge-text">
+                                   {surge.reason === 'weather' ? 'Yağış · sürx' : 'Pik saat · sürx'} ×{surge.mult}
+                                 </span>
+                               </span>
+                               {surge.base > 0 && (
+                                 <span className={`text-[10px] font-bold ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                                   bazada ₼{Number.isInteger(surge.base) ? surge.base.toFixed(0) : surge.base.toFixed(2)}
+                                 </span>
+                               )}
+                             </div>
+                           )}
+                           {!isFree && toFree > 0 && (
                             <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
                               ₼{toFree.toFixed(0)} daha əlavə et — çatdırılma pulsuz olar
                             </p>

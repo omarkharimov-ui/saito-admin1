@@ -96,6 +96,9 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'ok' | 'fail'>('idle');
   const [geoKm, setGeoKm] = useState<number | null>(null);
   const [geoDisplay, setGeoDisplay] = useState<string>('');
+  // precision 'area' = the street wasn't in OSM; the km is a city/area-level
+  // estimate — the UI marks it "təxmini" so the operator can correct via KM.
+  const [geoApprox, setGeoApprox] = useState(false);
   const kmManualRef = useRef(false);
 
   // Send-validation focus + flash.
@@ -154,10 +157,12 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
           setGeoStatus('ok');
           setGeoKm(Number(d.km));
           setGeoDisplay(d.display || addr);
+          setGeoApprox(d.precision === 'area');
           if (Number(cart?.delivery_km || 0) !== Number(d.km)) onUpdate('delivery_km', Number(d.km));
         } else {
           setGeoStatus('fail');
           setGeoKm(null);
+          setGeoApprox(false);
         }
       } catch {
         if (!cancelled) { setGeoStatus('fail'); setGeoKm(null); }
@@ -307,11 +312,18 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                      Məsafə hesablanır… <span className="vk-geo-bar" />
                    </p>
                  )}
-                 {geoStatus === 'ok' && geoKm != null && (
-                   <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
-                     ≈ {geoKm} km <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>· {geoDisplay.slice(0, 48)}</span>
-                   </p>
-                 )}
+                  {geoStatus === 'ok' && geoKm != null && (
+                    <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                      ≈ {geoKm} km{geoApprox ? ' (təxmini)' : ''} <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>· {geoDisplay.slice(0, 48)}</span>
+                    </p>
+                  )}
+                  {/* Geocode failed (address not in OSM) — point the operator
+                      to the manual KM field so the fee can still be exact. */}
+                  {geoStatus === 'fail' && (
+                    <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-amber-600' : 'text-amber-400/80'}`}>
+                      Ünvan xəritədə tapılmadı — məsafəni KM sahəsinə əl ilə daxil edin
+                    </p>
+                  )}
                </div>
 
               {/* 2026-09-26 (owner, Task 50): Wolt-style distance field —

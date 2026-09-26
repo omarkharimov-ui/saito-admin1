@@ -198,6 +198,11 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const onFocusOut = () => {
       requestAnimationFrame(() => {
+        const el = activeElRef.current;
+        // 2026-09-26 (Task 55, verify55): the focused element was UNMOUNTED
+        // (e.g. POS mode switch tears the panel down) — focusout is unreliable
+        // in that path, so close on detachment explicitly.
+        if (el && !el.isConnected) { activeElRef.current = null; setActiveEl(null); return; }
         const a = document.activeElement;
         if (!a || (a !== document.body && !a.classList.contains('vk-active') && !(a instanceof HTMLInputElement) && !(a instanceof HTMLTextAreaElement))) setActiveEl(null);
       });
@@ -205,6 +210,24 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
     document.addEventListener('focusout', onFocusOut);
     return () => document.removeEventListener('focusout', onFocusOut);
   }, []);
+
+  // 2026-09-26 (Task 55, verify55 item 5): DETACHED-ELEMENT GUARD. When the
+  // panel holding the focused input unmounts (mode switch İÇƏRİDƏ ⇄ TAKEAWAY
+  // ⇄ ÇATDIRILMA), Chrome does not always fire focusout and the keyboard
+  // stayed open, blocking the screen (reproduced in verification: activeElement
+  // === body but VKB still rendered). While the keyboard is open, poll a cheap
+  // isConnected check — detached input = close.
+  useEffect(() => {
+    if (!activeEl) return;
+    const id = setInterval(() => {
+      const el = activeElRef.current;
+      if (el && !el.isConnected) {
+        activeElRef.current = null;
+        setActiveEl(null);
+      }
+    }, 300);
+    return () => clearInterval(id);
+  }, [activeEl]);
 
   // QA bug 8 (2026-09-22): the focusout auto-close was not reliable on every
   // interaction path (some taps never move document.activeElement), so the

@@ -2257,6 +2257,7 @@ export const en: TranslationMap = {
   resv_table: 'Table',
   resv_empty: 'No reservation found',
   resv_actions: 'Actions',
+  resv_cancel: 'Cancel',
   resv_edit: 'Edit',
   resv_restore: 'Restore',
   resv_delete: 'Delete',

@@ -42,6 +42,11 @@ export default function ReservationsPage() {
   const [archiveSelectionMode, setArchiveSelectionMode] = useState(false);
   const [selectedArchiveIds, setSelectedArchiveIds] = useState<string[]>([]);
   const [confirmDeleteReservation, setConfirmDeleteReservation] = useState<{ id: string; guest: string } | null>(null);
+  // 2026-09-26 (owner fact-check): cancel (ləğv) flow — /api/reservations/cancel
+  // existed but had NO UI path; row menu was edit-only.
+  const [confirmCancelReservation, setConfirmCancelReservation] = useState<{ id: string; guest: string } | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelLoading, setCancelLoading] = useState(false);
   const [confirmMergeTables, setConfirmMergeTables] = useState(false);
   const [merging, setMerging] = useState(false);
   const [confirmClearArchiveModal, setConfirmClearArchiveModal] = useState(false);
@@ -475,17 +480,49 @@ export default function ReservationsPage() {
 
   const handleGuestArrived = async (id: string) => {
     try {
-      await apiFetch('/api/reservations/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservation_id: id, status: 'checked_in' }) });
+      // 2026-09-26 (owner fact-check): res.ok check — the invalid-transition
+      // 400 used to be swallowed (fetchData ran anyway, nothing visibly happened).
+      const res = await apiFetch('/api/reservations/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservation_id: id, status: 'checked_in' }) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Əməliyyat uğursuz oldu');
+      }
+      toast.success('Qonaq daxil oldu');
       fetchData();
     } catch (e: any) { toast.error(e.message); }
   };
 
   const handleConfirmReservation = async (id: string) => {
     try {
-      await apiFetch('/api/reservations/reserve-table', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservation_id: id, table_ids: selectedTableIds }) });
+      // 2026-09-26 (owner fact-check): P0 — this used to call /reserve-table
+      // (a table-booking endpoint). The toast said "təsdiqləndi" but no status
+      // mutation ever happened. Confirm = status transition pending→confirmed.
+      const res = await apiFetch('/api/reservations/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservation_id: id, status: 'confirmed' }) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Təsdiqetmə uğursuz oldu');
+      }
       toast.success('Rezervasiya təsdiqləndi');
       fetchData();
     } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleCancelReservation = async () => {
+    if (!confirmCancelReservation) return;
+    const { id } = confirmCancelReservation;
+    setCancelLoading(true);
+    try {
+      const res = await apiFetch('/api/reservations/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservation_id: id, reason: cancelReason.trim() || 'guest_cancel' }) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Ləğv uğursuz oldu');
+      }
+      toast.success('Rezervasiya ləğv olundu');
+      setConfirmCancelReservation(null);
+      setCancelReason('');
+      fetchData();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setCancelLoading(false); }
   };
 
   const handleDelete = async (id: string) => {
@@ -774,10 +811,11 @@ export default function ReservationsPage() {
                 onToggleSelect={(id) => {
                   setSelectedArchiveIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
                 }}
-                onSelect={(r) => { selectReservation(r, 'main'); }}
-                onEdit={(r) => { setEditingReservation(r); setUpsertModalOpen(true); }}
-                onDelete={(id, guest) => setConfirmDeleteReservation({ id, guest })}
-                onRestore={handleRestore}
+                 onSelect={(r) => { selectReservation(r, 'main'); }}
+                 onEdit={(r) => { setEditingReservation(r); setUpsertModalOpen(true); }}
+                 onCancel={(id, guest) => { setCancelReason(''); setConfirmCancelReservation({ id, guest }); }}
+                 onDelete={(id, guest) => setConfirmDeleteReservation({ id, guest })}
+                 onRestore={handleRestore}
               />
             ))}
           </AnimatePresence>
@@ -1126,6 +1164,46 @@ export default function ReservationsPage() {
         onConfirm={handleDeleteFromPanel} 
         onCancel={() => setConfirmDeleteReservation(null)} 
       />
+
+      {/* 2026-09-26 (owner fact-check): cancel-with-reason dialog (row ⋮ → LƏĞV ET) */}
+      <AnimatePresence>
+        {confirmCancelReservation && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={() => setConfirmCancelReservation(null)}
+              className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 6 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[111] w-[calc(100%-2rem)] max-w-sm rounded-3xl border border-white/10 bg-[#141419] p-5 shadow-2xl"
+            >
+              <p className="text-base font-black text-white">Rezervasiya ləğv edilsin?</p>
+              <p className="mt-1 text-xs text-white/50">{confirmCancelReservation.guest} — ləğv arxivdə saxlanılır (status: LƏĞV EDİLİB).</p>
+              <input
+                autoFocus
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+                placeholder="Səbəb (məs: qonaq zəng etdi, gecikir...)"
+                className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/40"
+              />
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setConfirmCancelReservation(null)}
+                  className="rounded-xl border border-white/10 py-3 text-xs font-black uppercase tracking-widest text-white/60 transition-colors hover:bg-white/5"
+                >Bağla</button>
+                <button
+                  onClick={handleCancelReservation}
+                  disabled={cancelLoading}
+                  className="rounded-xl bg-rose-500/90 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-rose-500 disabled:opacity-50"
+                >{cancelLoading ? 'İşlənir...' : 'Ləğv et'}</button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
       
       <ClearArchiveModal 
         open={confirmClearArchiveModal} 

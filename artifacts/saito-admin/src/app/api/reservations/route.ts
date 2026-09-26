@@ -39,7 +39,10 @@ export async function GET() {
     const [reservationsRes, ordersRes, tablesRes] = await Promise.all([
       fetch(`${svc().url}/rest/v1/reservations?select=*&order=date.desc,time.desc`, { headers: svc().headers }),
       fetch(`${svc().url}/rest/v1/orders?select=table_number,status&or=(status.eq.new,status.eq.confirmed,status.eq.paid)`, { headers: svc().headers }),
-      fetch(`${svc().url}/rest/v1/table_floors?select=id,table_number,status,floor_name,floor_id,location_id,organization_id,reservation_id,reserved_at,reserved_until,guest_count,deposit_amount&order=floor_name.asc,table_number.asc${orgFilter}`, { headers: svc().headers }),
+      // 2026-09-26 (owner fact-check): is_archived=eq.false — the picker used to
+      // show the ~78 archived QA test tables (1104–1605) as free. The POS floor
+      // hides them; the reservation grid must too.
+      fetch(`${svc().url}/rest/v1/table_floors?select=id,table_number,status,floor_name,floor_id,location_id,organization_id,reservation_id,reserved_at,reserved_until,guest_count,deposit_amount&is_archived=eq.false&order=floor_name.asc,table_number.asc${orgFilter}`, { headers: svc().headers }),
     ]);
 
     const reservations = await reservationsRes.json();

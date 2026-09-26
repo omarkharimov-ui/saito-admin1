@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Trash2, Star, Pencil, RotateCcw, MoreVertical } from 'lucide-react';
+import { Trash2, Star, Pencil, RotateCcw, MoreVertical, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -32,6 +32,9 @@ interface Props {
   isActive?: boolean;
   onSelect: (res: any) => void;
   onEdit?: (res: any) => void;
+  /** 2026-09-26 (owner fact-check): cancel (ləğv) with reason — the /api/reservations/cancel
+      endpoint existed but had NO UI path (row menu was edit-only). */
+  onCancel?: (id: string, name: string) => void;
   onDelete?: (id: string, name: string) => void;
   onRestore?: (id: string) => void;
   selectionMode?: boolean;
@@ -108,6 +111,7 @@ export const ReservationRow = ({
   isActive,
   onSelect,
   onEdit,
+  onCancel,
   onDelete,
   onRestore,
   selectionMode,
@@ -277,6 +281,11 @@ export const ReservationRow = ({
             >
               {onEdit && (
                 <MenuItem lightMode={lightMode} icon={<Pencil size={13} />} label={t('resv_edit')} onClick={() => { setMenuOpen(false); onEdit(res); }} />
+              )}
+              {/* 2026-09-26 (owner fact-check): the missing LƏĞV path — active
+                  rows get a cancel action (reason prompted by the page). */}
+              {!archived && onCancel && (
+                <MenuItem lightMode={lightMode} icon={<XCircle size={13} />} label={t('resv_cancel')} onClick={() => { setMenuOpen(false); onCancel(res.id, displayName); }} />
               )}
               {archived && onRestore && (
                 <MenuItem lightMode={lightMode} icon={<RotateCcw size={13} />} label={t('resv_restore')} onClick={() => { setMenuOpen(false); onRestore(res.id); }} />

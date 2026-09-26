@@ -9,7 +9,11 @@ function svc() {
 
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled', 'expired'],
-  confirmed: ['waiting', 'cancelled', 'no_show', 'expired'],
+  // 2026-09-26 (owner fact-check): 'checked_in' added to confirmed — the route's
+  // own handler (below) explicitly processes confirmed→checked_in table
+  // activation, but the stale map 409'd it first. The UI's "Qonaq gəldi" button
+  // jumps straight from confirmed (guest seated, no lobby wait).
+  confirmed: ['waiting', 'checked_in', 'cancelled', 'no_show', 'expired'],
   waiting: ['checked_in', 'cancelled', 'no_show'],
   checked_in: ['completed', 'cancelled'],
   completed: ['archived'],

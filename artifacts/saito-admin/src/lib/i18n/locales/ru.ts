@@ -2258,6 +2258,7 @@ export const ru: TranslationMap = {
   resv_table: 'Стол',
   resv_empty: 'Бронирование не найдено',
   resv_actions: 'Действия',
+  resv_cancel: 'Отменить',
   resv_edit: 'Изменить',
   resv_restore: 'Восстановить',
   resv_delete: 'Удалить',

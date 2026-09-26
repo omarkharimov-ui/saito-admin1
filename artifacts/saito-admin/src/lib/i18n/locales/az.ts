@@ -2256,6 +2256,7 @@ export const az = {
   resv_table: 'Masa',
   resv_empty: 'Rezervasiya tapılmadı',
   resv_actions: 'Əməliyyatlar',
+  resv_cancel: 'Ləğv et',
   resv_edit: 'Düzəliş et',
   resv_restore: 'Bərpa et',
   resv_delete: 'Sil',

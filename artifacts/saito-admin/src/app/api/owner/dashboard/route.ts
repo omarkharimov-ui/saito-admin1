@@ -115,7 +115,7 @@ export async function GET() {
     const ORDER_COLS =
       'id,order_number,table_number,order_type,order_source,status,kitchen_status,delivery_status,total_amount,created_at';
 
-    const [ordersRes, itemsRes, stockRes, settingsRes, tablesRes] = await Promise.all([
+    const [ordersRes, itemsRes, stockRes, settingsRes, tablesRes, openOrdersRes] = await Promise.all([
       // All of today's orders (every state) — sales, "now", last-10 and the
       // overdue-KDS computation all derive from this single read.
       fetch(
@@ -135,6 +135,14 @@ export async function GET() {
       ),
       fetch(`${baseUrl}/rest/v1/settings?select=restaurant_name,order_delay_minutes&limit=1`, opts),
       fetch(`${baseUrl}/rest/v1/table_floors?select=id,status&status=eq.occupied`, opts),
+      // 2026-09-26 (Task 54 round-2): "Now" snapshot must mirror the LIVE
+      // boards — the today-scoped `orders` query misses older tickets still
+      // open (round-2: İNDİ showed 2 while /kitchen showed 8 aktif). Status
+      // filter mirrors the KDS ticket definition exactly (not terminal).
+      fetch(
+        `${baseUrl}/rest/v1/orders?select=${ORDER_COLS}&status=not.in.(paid,cancelled,closed,completed)&order=created_at.desc&limit=200`,
+        opts,
+      ),
     ]);
 
     const orders: any[] = asArray(await ordersRes.json().catch(() => []));
@@ -142,6 +150,7 @@ export async function GET() {
     const lowStockRows: any[] = asArray(await stockRes.json().catch(() => []));
     const settingsRows: any[] = asArray(await settingsRes.json().catch(() => []));
     const occupiedTables: any[] = asArray(await tablesRes.json().catch(() => []));
+    const openOrdersLive: any[] = asArray(await openOrdersRes.json().catch(() => []));
 
     const settingsRow = settingsRows[0] || {};
     const delayMinutes =
@@ -176,8 +185,8 @@ export async function GET() {
     });
     const maxHourRevenue = hourly.reduce((m, b) => Math.max(m, b.revenue), 0);
 
-    /* ── 3. "Now" snapshot ───────────────────────────────────────────────── */
-    const openOrders = orders.filter((o) => !isDead(o.status));
+    /* ── 3. "Now" snapshot (LIVE open orders — all ages, board-mirroring) ─── */
+    const openOrders = openOrdersLive.filter((o) => !isDead(o.status));
 
     const kdsTickets = openOrders.filter((o) => {
       const k = String(o.kitchen_status || '').toLowerCase();

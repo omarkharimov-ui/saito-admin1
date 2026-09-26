@@ -809,6 +809,20 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-26 (Task 54: POS FULL A→Z VERIFY — 2 braun, sıfır-bug acceptance)
+- **Owner**: "pos da heqiqeten verify olunub butun ui, backend, features, en xirdaa bug belə istemirem" → browser E2E (PIN 4321, dev :3000) + psql DB check + console sweep, 2 braun.
+- **Round 1 (11 checkpoint)**: flow-lar green (floor→cart→send→KDS→pay→DB), amma **5 product bug** tapıldı:
+  1. **P0 /kitchen crash** — `merged_into_table:orders!merged_into(table_number)` PostgREST EMBED = `{table_number}` OBJECT; `mapRawOrder` onu raw render edir → "Objects are not valid as a React child" (hər open merged order crash). Fix: number[] normalization (scalar + embed + array shape-ləri).
+  2. **P0 Pay button görünmür** — stale `localStorage pos_session` (dəyişən role) `isCashierOrAbove=false` edib close_bill/void/discount-u SİNTSƏ gizlədir (zero feedback). Fix: session effect **həmişə** role-u live `/api/pos/session`-dən re-sync edir (SSOT = cookie; localStorage = instant-paint cache).
+  3. **P1 ready-notify part** — 'partially_ready' in-progress set-dən çıxılmışdı (2-item order preparing→partially_ready→ready ping-etməzdi). Fix: əlavə olundu.
+  4. **P2 raw enum leak** — TableCard chip `PARTIALLY_READY` raw render. Fix: case normalization + hər value → localized label (partial→hazırlanır), raw fallback YOX.
+  5. **P2 owner dashboard** — (a) UTC server TZ: 12:18 Baku order → hour 8 → chart boş; fix = frozen S-05 `localDayRange` (locations.timezone) + `hourInTz`. (b) `kds_active`: 'sent' whitelist-dən kənar idi → 0 vs 6 live; fix = non-terminal definition (KDS mirror). (c) `##D053` double-hash (partner number özündə '#' daşıyır) → prefix guard.
+  - Əlavə hardening: floor ilk-load retry 3×1s → 5×1.5s (dev cold-start compile).
+- **Round 2 (7 checkpoint, re-verify)**: **7/7 PASS** — /kitchen render (0 crash, merged header numbers, 8 ticket), chips localized (regex sweep 0 raw enum), **PAYMENT E2E GREEN** (Masa 97 → HESABI BAĞLA → Nağd ₼13 → "Bütün sifarişlər ödənildi" → chip TƏMIZLƏNMƏLI; DB: `order_payments` row cash 13.00 captured @12:40 Baku — qeyd: POS payment SSOT = `order_payments`, `payments` = legacy empty), **READY-TOAST captured** ("Masa 511 — sifarişi hazırdır — təhvil verin" + green flash), owner chart bar present (hour 12, ₼30), no `##`, **console: 0 errors** (3 page).
+- **Round-2 fix-ləri**: İNDİ counter = LIVE open orders (KDS mirror status filter, today-scoped deyil — 2 vs 8 mismatch tapıldı+fix); HESABI BAĞLA = gold primary affordance (cosmetic, round-2 qeydi).
+- **Qalan qeydlər (bug DEYİL)**: (1) `/kitchen` order-level "Hazırdır — Servisə Ver" (per-item ✓ = `/admin/bds` KDSView-də — design fərqi, feature request olarsa birləşdirilir); (2) first cold-compile 500 = transient, reload-da self-heal (monitor); (3) offline = FROZEN (cache-first prerequisite).
+- **Nəticə**: POS A→Z (UI + backend + DB) = **verify olundu, round-1 bugs fix+re-verify green, sıfır-bug acceptance PASS**.
+
 ### Jurnal sətiri — 2026-09-26 (Task 53: Toast FEATURE-COUNT compare + missing implement)
 - **Owner request**: "pos compare et toast ilə ne qədər features var, hər şeyi compare et, eksikləri DİREKT implement et + heç bug istemirem".
 - **Gap-report düzəliş (stale state tapıldı)**: §2-də "missing" deyilən **tip engine, loyalty engine, recipe costing artıq var imiş** (code-verify: `/api/tips`+rules+TipManagement+payroll, `loyalty_accounts`+earn/reverse triggers+LoyaltyTab+redeem UI, `/api/recipes/margin-analysis`+waste+BOM+AI constructor). Əsl missing list ~30%-a düşdü.

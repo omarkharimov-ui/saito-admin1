@@ -476,7 +476,7 @@ export function ActionSheet({
                        <div>
                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('main_actions')}</p>
                          <div className="grid grid-cols-3 gap-3">
-                              {visibleActions.filter(a => ['customer', 'close_bill', 'clear', 'release_table'].includes(a.id)).map((action) => {
+                               {visibleActions.filter(a => ['customer', 'close_bill', 'clear', 'release_table'].includes(a.id)).map((action) => {
                                if (action.id === 'customer') {
                                 return (
                                   <button key={action.id} onClick={() => setShowCustomerSearch(true)}
@@ -501,13 +501,19 @@ export function ActionSheet({
                                    }[action.id as string];
                                    if (fn) fn();
                                  }}
-                                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
-                                      action.id === 'bill_request'
-                                      ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                      : action.id === 'cancel_table'
-                                      ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                                      : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
-                                  } active:scale-95`}>
+                                   className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
+                                       // 2026-09-26 (Task 54 round-2, cosmetic): the PAY action
+                                       // (close_bill / HESABI BAĞLA) gets the gold primary
+                                       // affordance — round-2 verify noted it rendered zinc while
+                                       // the bell (HESAB ÇAĞIR) was gold, inverting the priority.
+                                       action.id === 'close_bill'
+                                       ? lightMode ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-gold/10 border-gold/30 text-gold'
+                                       : action.id === 'bill_request'
+                                       ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                       : action.id === 'cancel_table'
+                                       ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                       : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
+                                   } active:scale-95`}>
                                  <action.icon size={24} strokeWidth={2.5} />
                                  <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{action.label}</span>
                                </button>
@@ -537,13 +543,19 @@ export function ActionSheet({
                                   }[action.id as string];
                                  if (fn) fn();
                                }}
-                                 className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
-                                   action.id === 'bill_request'
-                                     ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                      : action.id === 'cancel_table'
-                                      ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                                     : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
-                                 } active:scale-95`}>
+                                   className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
+                                       // 2026-09-26 (Task 54 round-2, cosmetic): the PAY action
+                                       // (close_bill / HESABI BAĞLA) gets the gold primary
+                                       // affordance — round-2 verify noted it rendered zinc while
+                                       // the bell (HESAB ÇAĞIR) was gold, inverting the priority.
+                                       action.id === 'close_bill'
+                                       ? lightMode ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-gold/10 border-gold/30 text-gold'
+                                       : action.id === 'bill_request'
+                                       ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                       : action.id === 'cancel_table'
+                                       ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                       : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
+                                   } active:scale-95`}>
                                  <action.icon size={24} strokeWidth={2.5} />
                                  <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{action.label}</span>
                                </button>

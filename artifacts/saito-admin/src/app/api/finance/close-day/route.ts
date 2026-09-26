@@ -118,17 +118,45 @@ export async function POST(request: NextRequest) {
     const taxCollected = taxableRevenue * VAT_RATE;
 
     // E. Cash Drawer Reconciliation
-    const startingCash = Array.isArray(prevReports) && prevReports.length > 0 
-      ? Number(prevReports[0].actual_cash) || 0 
+    const startingCash = Array.isArray(prevReports) && prevReports.length > 0
+      ? Number(prevReports[0].actual_cash) || 0
       : 0;
 
-    const cashRefundsRes = await fetch(`${url}/rest/v1/orders?select=paid_amount&status=eq.refunded&created_at=gte.${todayStart}&created_at=lt.${tomorrowStart}`, { headers: h });
-    const cashRefunds = await cashRefundsRes.json();
-    const cashRefundsTotal = Array.isArray(cashRefunds)
-      ? cashRefunds.reduce((s: number, o: any) => s + (Number(o.paid_amount) || 0), 0)
-      : 0;
+    // 2026-09-26 (owner): the old formula (cashTotal − orders?status=refunded
+    // paid_amount) was wrong three ways:
+    //   1. CARD refunds counted as cash out — card money never sat in the
+    //      drawer, so expected cash drifted down on every card refund.
+    //   2. Fully-refunded CASH orders were double-counted: their cash left
+    //      cashTotal (status ≠ 'paid') AND their paid_amount was subtracted
+    //      again here.
+    //   3. Partially-refunded orders never entered the refund side at all.
+    // Physically-correct formula — drawer money only:
+    //   cashIn  = cash legs of every order PAID today (orders.cash_amount,
+    //             paid_at inside the day, regardless of CURRENT status — a
+    //             refunded order's cash was still received in the drawer).
+    //   cashOut = today's CASH-method refund ledger rows, from BOTH tables
+    //             (MODE 2 refunds → order_payments, positive amount +
+    //             is_refund; MODE 1 item refunds → payments, negative
+    //             amount + is_refund). Card refunds are excluded: the
+    //             physical step happens on the handheld card terminal.
+    const [cashInRes, cashOutOpRes, cashOutPayRes] = await Promise.all([
+      fetch(`${url}/rest/v1/orders?select=cash_amount&paid_at=gte.${todayStart}&paid_at=lt.${tomorrowStart}`, { headers: h }),
+      fetch(`${url}/rest/v1/order_payments?select=amount&is_refund=eq.true&payment_method=eq.cash&created_at=gte.${todayStart}&created_at=lt.${tomorrowStart}`, { headers: h }),
+      fetch(`${url}/rest/v1/payments?select=amount&is_refund=eq.true&payment_method=eq.cash&created_at=gte.${todayStart}&created_at=lt.${tomorrowStart}`, { headers: h }),
+    ]);
+    const [cashInRows, cashOutOpRows, cashOutPayRows] = await Promise.all([
+      cashInRes.json(),
+      cashOutOpRes.json(),
+      cashOutPayRes.json(),
+    ]);
+    const cashInToday = (Array.isArray(cashInRows) ? cashInRows : [])
+      .reduce((s: number, o: any) => s + Math.abs(Number(o.cash_amount) || 0), 0);
+    const cashOutToday = [
+      ...(Array.isArray(cashOutOpRows) ? cashOutOpRows : []),
+      ...(Array.isArray(cashOutPayRows) ? cashOutPayRows : []),
+    ].reduce((s: number, p: any) => s + Math.abs(Number(p.amount) || 0), 0);
 
-    const expectedCash = startingCash + cashTotal - cashRefundsTotal;
+    const expectedCash = startingCash + cashInToday - cashOutToday;
     const actualCash = actualCashCounted ?? 0;
     const cashDifference = actualCash - expectedCash;
 
@@ -187,6 +215,10 @@ export async function POST(request: NextRequest) {
       },
       cash_drawer: {
         starting_cash: startingCash,
+        // 2026-09-26 (owner): transparent drawer walk — the UI can show
+        // "gələn nağd / gedən nağd (refund)" instead of a black-box expected.
+        cash_in: cashInToday,
+        cash_out_refunds: cashOutToday,
         expected_cash: expectedCash,
         actual_cash: actualCash,
         cash_difference: cashDifference,

@@ -876,9 +876,14 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     >
                       <Printer size={14} /> {t('reprint') || 'Çap'}
                     </button>
+                    {/* 2026-09-26 (owner): previously only status==='paid' — a
+                        partially_refunded order (e.g. ₼30 of ₼100 refunded)
+                        locked the button even though the API explicitly
+                        supports sequential partial refunds. The
+                        remaining-amount check is the real gate. */}
                     <button
                       onClick={() => guardAction(() => openRefundModal(detailOrder), 'refund')}
-                      disabled={detailOrder.status !== 'paid' || (Number(detailOrder.refund_amount) || 0) >= (Number(detailOrder.paid_amount) || 0)}
+                      disabled={!['paid', 'partially_refunded'].includes(detailOrder.status) || (Number(detailOrder.refund_amount) || 0) >= (Number(detailOrder.paid_amount) || 0)}
                       className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center gap-2 hover:bg-amber-500/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <RefreshCw size={14} /> {t('refund') || 'Geri ödəniş'}
@@ -940,6 +945,12 @@ function RefundView({
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+  // 2026-09-26 (owner): refund METHOD choice. Default = how the order was
+  // paid, but operators can pick another (real case: kartla ödədi → nağd
+  // geri verdi). The chosen method is persisted on the refund ledger row.
+  const originalMethod = order.payment_method || 'cash';
+  const [refundMethod, setRefundMethod] = useState<string>(originalMethod);
+  const methodOptions = Array.from(new Set(['cash', 'card', originalMethod]));
 
   // P-4 (D-1/D-4): memoized refund retry tokens per (order, op) for this view
   // instance. A double-click / lost-response retry of the SAME refund reuses
@@ -1024,9 +1035,9 @@ function RefundView({
                 body: JSON.stringify({
                   order_id: order.id,
                   amount: itemAmount,
-                  method: order.payment_method || 'cash',
+                  method: refundMethod,
                   reason: reason || 'customer_return',
-                  idempotency_key: refundKeyFor(`item:${itemId}:none:${itemAmount}`),
+                  idempotency_key: refundKeyFor(`item:${itemId}:${refundMethod}:none:${itemAmount}`),
                 }),
               });
             if (!res.ok) {
@@ -1043,11 +1054,11 @@ function RefundView({
                 order_id: order.id,
                 order_item_id: itemId,
                 quantity: sel.qty,
-                amount: itemAmount,
-                method: order.payment_method || 'cash',
-                item_fate: sel.fate,
-                reason: reason || 'customer_return',
-                idempotency_key: refundKeyFor(`item:${itemId}:${sel.fate}:${sel.qty}`),
+                    amount: itemAmount,
+                    method: refundMethod,
+                    item_fate: sel.fate,
+                    reason: reason || 'customer_return',
+                    idempotency_key: refundKeyFor(`item:${itemId}:${refundMethod}:${sel.fate}:${sel.qty}`),
               }),
             });
             if (!res.ok) {
@@ -1075,9 +1086,9 @@ function RefundView({
           body: JSON.stringify({
             order_id: order.id,
             amount: refundAmount,
-            method: order.payment_method || 'cash',
+            method: refundMethod,
             reason: reason || 'Refund',
-            idempotency_key: refundKeyFor(`order:${mode}:${refundAmount}`),
+            idempotency_key: refundKeyFor(`order:${mode}:${refundMethod}:${refundAmount}`),
           }),
         });
         const data = await res.json();
@@ -1150,6 +1161,37 @@ function RefundView({
               {m.desc && <p className="text-[9px] mt-0.5 opacity-60">{m.desc}</p>}
             </button>
           ))}
+        </div>
+
+        {/* 2026-09-26 (owner): REFUND METHOD — defaults to the method the
+            order was paid with; the operator can pick another (real case:
+            kartla ödədi → nağd geri verdi). Persisted on the refund ledger
+            row and drives the physical-step hint below. The deployment runs
+            a HANDHELD (mobile) card terminal — the physical card refund is
+            performed on that device against the original transaction. */}
+        <div className="mb-4">
+          <p className={`mb-2 text-[9px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Qaytarılma üsulu</p>
+          <div className="grid grid-cols-2 gap-2">
+            {methodOptions.map(m => (
+              <button key={m} type="button" onClick={() => setRefundMethod(m)}
+                className={`h-10 rounded-xl border text-xs font-black transition-all ${refundMethod === m ? 'border-red-500/50 bg-red-500/10 text-red-400' : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                {m === 'cash' ? 'Nağd' : m === 'card' ? 'Kart' : m}
+              </button>
+            ))}
+          </div>
+          {refundMethod === 'card' && (
+            <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-[11px] leading-relaxed text-amber-600">
+              <span className="font-black">Kart refund — handheld terminal:</span> sistemi qeydi POS yaradır, fiziki
+              refundu handheld terminalda <b>orijinal tranzaksiya üzrə</b> (terminalın refund funksiyası) aparın.
+              Pul kart sahibinə 1–3 iş günündə qayıdır.
+            </div>
+          )}
+          {refundMethod === 'cash' && originalMethod !== 'cash' && (
+            <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-[11px] leading-relaxed text-amber-600">
+              <span className="font-black">Fərqli üsulla qaytarılır</span> (ödəniş: {originalMethod === 'card' ? 'Kart' : originalMethod}).
+              Nağd qaytarış kassadan çıxır — Z-report-da drawer hesabatına daxil olur.
+            </div>
+          )}
         </div>
 
         {/* Amount input for full/partial */}

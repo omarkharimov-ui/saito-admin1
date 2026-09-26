@@ -538,8 +538,10 @@ export default function OwnerDashboard() {
                           key={row.id}
                           className="flex items-center justify-between gap-2 rounded-xl bg-red-500/10 px-2.5 py-2"
                         >
-                          <span className="truncate text-[12px] font-bold text-red-400">
-                            {row.order_number ? `#${row.order_number}` : `#${row.id.slice(-4).toUpperCase()}`}
+                            <span className="truncate text-[12px] font-bold text-red-400">
+                              {/* 2026-09-26 (Task 54 verify fix): order numbers that already carry
+                                  a '#' (e.g. partner order "#D053") must not render as "##D053". */}
+                              {row.order_number ? (row.order_number.startsWith('#') ? row.order_number : `#${row.order_number}`) : `#${row.id.slice(-4).toUpperCase()}`}
                             {row.table_number != null && (
                               <span className="ml-1.5 text-[10px] font-medium text-[var(--theme-text-muted)]">
                                 {row.table_number}
@@ -596,8 +598,10 @@ export default function OwnerDashboard() {
             ) : (
               (data?.last_orders ?? []).map((order) => {
                 const { Icon, tint } = typeMeta(order.order_type);
+                // 2026-09-26 (Task 54 verify fix): don't double-prefix partner
+                // numbers that already start with '#' ("#D053" → not "##D053").
                 const ref = order.order_number
-                  ? `#${order.order_number}`
+                  ? (order.order_number.startsWith('#') ? order.order_number : `#${order.order_number}`)
                   : `#${order.id.slice(-4).toUpperCase()}`;
                 return (
                   <div key={order.id} className="flex items-center gap-3 px-3 py-2.5">

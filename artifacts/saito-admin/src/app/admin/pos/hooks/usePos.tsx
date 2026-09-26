@@ -147,7 +147,11 @@ export function usePos() {
   };
   const terminalId = getTerminalId();
 
-  const retryWithBackoff = async (fn: () => Promise<Response>, retries = 3, delay = 1000): Promise<Response> => {
+  // 2026-09-26 (Task 54 verify hardening, P1 floor empty first load): dev
+  // cold-start (route compile ~5-10s) used to exhaust 3×1s retries → the
+  // floor sat on the empty state until the user clicked YENIDƏN CƏHD ET.
+  // 5×1.5s ≈ covers a slow compile; the 3s poll still heals after.
+  const retryWithBackoff = async (fn: () => Promise<Response>, retries = 5, delay = 1500): Promise<Response> => {
     let lastError: any;
     for (let i = 0; i < retries; i++) {
       try {

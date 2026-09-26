@@ -343,7 +343,10 @@ export default function POSPage() {
   const prevKitchenStatusRef = useRef<Map<number, string>>(new Map());
   useEffect(() => {
     const prev = prevKitchenStatusRef.current;
-    const inProgress = new Set(['pending', 'accepted', 'sent', 'preparing', 'hold']);
+    // 2026-09-26 (Task 54 verify fix): 'partially_ready' MUST be in the
+    // in-progress set — a 2-item order goes preparing → partially_ready →
+    // ready, and the ping fires on the final transition.
+    const inProgress = new Set(['pending', 'accepted', 'sent', 'preparing', 'hold', 'partially_ready']);
     const readySet = new Set(['ready', 'completed']);
     (pos.floors || []).forEach((f: any) => {
       (f.tables || []).forEach((tb: any) => {
@@ -482,32 +485,43 @@ export default function POSPage() {
         const s = JSON.parse(saved);
         setPosSession(s);
         setPosRole(s.role);
-        return;
       } catch { localStorage.removeItem('pos_session'); }
     }
-    // 2) Development bypass — skip auth in dev mode
-    if (process.env.NODE_ENV === 'development') {
+    // 2) Development bypass — skip auth in dev mode (only if no saved session)
+    if (!saved && process.env.NODE_ENV === 'development') {
       const devSession = { staffId: 'dev-001', name: 'DEV User', role: 'superadmin' };
       setPosSession(devSession);
       setPosRole('admin');
       localStorage.setItem('pos_session', JSON.stringify(devSession));
-      return;
     }
-    // 3) Try to restore from existing saito_token cookie (staff-login or admin-login)
+    // 3) 2026-09-26 (Task 54 verify fix, P0 "no payment UI"): ALWAYS re-sync
+    //    the role from the LIVE session cookie — localStorage is only the
+    //    instant-paint cache. A STALE pos_session (previous cashier logged
+    //    out / role changed server-side) used to silently hide every
+    //    cashier+ action (ÖDƏNİŞ/void/discount) with zero feedback because
+    //    isCashierOrAbove=false. Live session = SSOT.
     (async () => {
       try {
         const res = await fetch('/api/pos/session', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          setPosSession(data);
-          setPosRole(data.role);
-          localStorage.setItem('pos_session', JSON.stringify(data));
-        } else {
-          // No valid session — redirect to canonical staff login
+          if (data?.role) {
+            setPosSession(data);
+            setPosRole(data.role);
+            try { localStorage.setItem('pos_session', JSON.stringify(data)); } catch { /* private mode */ }
+          }
+          return;
+        }
+        // No valid session:
+        if (!saved && process.env.NODE_ENV !== 'development') {
           window.location.href = '/staff/login?returnTo=/admin/pos';
         }
+        // Saved session but cookie gone: keep the local role for now — the
+        // next authed API call fires pos:unauthorized → canonical redirect.
       } catch {
-        window.location.href = '/staff/login?returnTo=/admin/pos';
+        if (!saved && process.env.NODE_ENV !== 'development') {
+          window.location.href = '/staff/login?returnTo=/admin/pos';
+        }
       }
     })();
   }, []);

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { validateAuth } from '@/lib/api-auth';
+import { localDayRange } from '@/lib/timezone';
 
 /**
  * GET /api/owner/dashboard
@@ -30,8 +31,11 @@ export const dynamic = 'force-dynamic';
 // Terminal order states — must never count as "active" (mirrors
 // /admin/delivery ORDER_DEAD + /api/stats paid-only revenue rule).
 const DEAD_ORDER_STATUSES = ['cancelled', 'closed', 'refunded', 'partially_refunded', 'voided'];
-// Kitchen-side active ticket states (orders.kitchen_status — see src/lib/posStatus.ts).
-const KDS_ACTIVE_STATUSES = ['pending', 'cooking', 'preparing'];
+// 2026-09-26 (Task 54 verify fix, P2 "0 MƏTBƏXDƏ" bug): an active KDS ticket
+// is any NON-terminal kitchen state — the live values are sent/preparing/
+// partially_ready/cooking (the old whitelist missed 'sent' → counted 0 while
+// 6 tickets were on the board).
+const KDS_TERMINAL_STATUSES = ['completed', 'cancelled'];
 // Courier-side in-progress states (delivery_status machine).
 const DELIVERY_IN_PROGRESS_STATUSES = ['picked_up', 'in_transit'];
 const DEFAULT_DELAY_MINUTES = 15;
@@ -53,6 +57,18 @@ function num(v: unknown): number {
 
 function asArray(v: unknown): any[] {
   return Array.isArray(v) ? v : [];
+}
+
+// 2026-09-26 (Task 54 verify fix): venue-timezone hour for chart buckets.
+function hourInTz(iso: string, tz?: string | null): number {
+  try {
+    return parseInt(
+      new Date(iso).toLocaleString('en-GB', { timeZone: tz || undefined, hour: '2-digit', hour12: false }),
+      10,
+    ) % 24;
+  } catch {
+    return new Date(iso).getHours();
+  }
 }
 
 function isDead(status: unknown): boolean {
@@ -83,10 +99,18 @@ export async function GET() {
     const opts: RequestInit = { headers: H, cache: 'no-store' };
 
     const now = new Date();
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-    const startIso = todayStart.toISOString();
-    const endIso = now.toISOString();
+    // 2026-09-26 (Task 54 verify fix, P2 empty hourly chart): "today" and the
+    // hour buckets must be computed in the VENUE timezone (locations.timezone,
+    // frozen S-05 contract via localDayRange) — the server process TZ is UTC,
+    // so a 12:18 Baku order bucketed into hour 8 and fell out of the 10..23
+    // chart. Venue tz fetched below; fallback = server tz (pre-fix behavior).
+    let venueTz: string | null = null;
+    const tzRes = await fetch(`${baseUrl}/rest/v1/locations?select=timezone&limit=1`, opts);
+    const tzRows = asArray(await tzRes.json().catch(() => []));
+    venueTz = tzRows[0]?.timezone || null;
+    const dayRange = localDayRange(now, venueTz);
+    const startIso = dayRange.start;
+    const endIso = dayRange.end;
 
     const ORDER_COLS =
       'id,order_number,table_number,order_type,order_source,status,kitchen_status,delivery_status,total_amount,created_at';
@@ -95,12 +119,12 @@ export async function GET() {
       // All of today's orders (every state) — sales, "now", last-10 and the
       // overdue-KDS computation all derive from this single read.
       fetch(
-        `${baseUrl}/rest/v1/orders?select=${ORDER_COLS}&created_at=gte.${startIso}&created_at=lte.${endIso}&order=created_at.desc`,
+        `${baseUrl}/rest/v1/orders?select=${ORDER_COLS}&created_at=gte.${startIso}&created_at=lt.${endIso}&order=created_at.desc`,
         opts,
       ),
       // Today's PAID order items — top dishes + items sold (same query shape as /api/stats).
       fetch(
-        `${baseUrl}/rest/v1/order_items?select=order_id,product_id,product_name,quantity,total_price,order:orders!inner(status,created_at)&order.status=eq.paid&order.created_at=gte.${startIso}&order.created_at=lte.${endIso}`,
+        `${baseUrl}/rest/v1/order_items?select=order_id,product_id,product_name,quantity,total_price,order:orders!inner(status,created_at)&order.status=eq.paid&order.created_at=gte.${startIso}&order.created_at=lt.${endIso}`,
         opts,
       ),
       // Low stock — the same inventory_status VIEW the /admin/stock page uses
@@ -145,7 +169,7 @@ export async function GET() {
     }
     const hourIndex = new Map(hourly.map((b, i) => [b.hour, i]));
     paidOrders.forEach((o) => {
-      const i = hourIndex.get(new Date(o.created_at).getHours());
+      const i = hourIndex.get(hourInTz(o.created_at, venueTz));
       if (i === undefined) return;
       hourly[i].revenue += num(o.total_amount);
       hourly[i].orders += 1;
@@ -156,8 +180,10 @@ export async function GET() {
     const openOrders = orders.filter((o) => !isDead(o.status));
 
     const kdsTickets = openOrders.filter((o) => {
-      const k = o.kitchen_status || 'pending';
-      return KDS_ACTIVE_STATUSES.includes(k);
+      const k = String(o.kitchen_status || '').toLowerCase();
+      // Ticket = has a kitchen status and it is not terminal (mirrors the
+      // KDSView ticket filter: non-terminal + ≥1 active kitchen item).
+      return k !== '' && !KDS_TERMINAL_STATUSES.includes(k);
     });
 
     // Overdue: kitchen ticket still pending/preparing past the configured

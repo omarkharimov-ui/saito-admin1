@@ -181,7 +181,19 @@ function mapRawOrder(o: any, lang = 'az'): Order {
     customer_note: o.customer_note || '',
     status: o.status || 'new',
     is_rush: o.is_rush ?? false,
-    merged_from_tables: o.merged_into_table ? [o.merged_into_table] : [],
+    // 2026-09-26 (Task 54 verify fix, P0 crash): the query embeds
+    // `merged_into_table:orders!merged_into(table_number)` — a PostgREST
+    // EMBED, so the value is an object/array of {table_number}, NOT a scalar.
+    // Rendering it raw crashed /kitchen ("Objects are not valid as a React
+    // child") for any open merged order. Normalize to numbers[] (both shapes).
+    merged_from_tables: (() => {
+      const raw = o.merged_into_table;
+      if (raw == null) return [] as number[];
+      const arr: any[] = Array.isArray(raw) ? raw : [raw];
+      return arr
+        .map((r: any) => (r != null && typeof r === 'object' ? r.table_number : r))
+        .filter((n: any) => typeof n === 'number' && n > 0);
+    })(),
     items,
   };
 }

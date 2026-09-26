@@ -499,30 +499,33 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                )}
              </div>
              {/* RIGHT: status label chips + HESAB */}
-             <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">
-                <AnimatePresence mode="wait">
-               {!showOccupiedFlash && isOccupied && showKitchenStatus && kitchenStatus && kitchenStatus !== 'completed' && kitchenStatus !== 'cancelled' && kitchenStatus !== 'ready' && table.status !== 'served' && table.status !== 'dining' ? (
-                 <motion.div
-                   key="kitchen"
-                   initial={{ opacity: 0, y: 4 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   exit={{ opacity: 0, y: -4 }}
-                   transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                    className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${
-                      kitchenStatus === 'preparing' || kitchenStatus === 'cooking'
+              <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">
+                 <AnimatePresence mode="wait">
+                {/* 2026-09-26 (Task 54 verify fix, P2): kitchen status chip —
+                    normalize case ('PARTIALLY_READY' leak) + map every known
+                    value to a localized label; NEVER render the raw enum. */}
+                {(() => { const ks = String(kitchenStatus || '').toLowerCase(); return !showOccupiedFlash && isOccupied && showKitchenStatus && ks && !['completed', 'cancelled', 'ready'].includes(ks) && table.status !== 'served' && table.status !== 'dining'; })() ? (
+                  <motion.div
+                    key="kitchen"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+                     className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${
+                      ['preparing', 'cooking', 'partially_ready'].includes(String(kitchenStatus).toLowerCase())
                         ? lightMode ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-blue-500/25 border-blue-400/50 text-blue-300'
-                        : kitchenStatus === 'ready'
+                        : String(kitchenStatus).toLowerCase() === 'ready'
                           ? lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-700' : 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300'
                           : lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-600' : 'bg-white/10 border-white/20 text-zinc-300'
                     }`}>
-                   <div className={`w-1.5 h-1.5 rounded-full ${
-                     kitchenStatus === 'preparing' || kitchenStatus === 'cooking' ? (lightMode ? 'bg-blue-500 animate-pulse' : 'bg-blue-400 animate-pulse')
-                       : kitchenStatus === 'ready' ? (lightMode ? 'bg-emerald-500' : 'bg-emerald-400')
-                       : lightMode ? 'bg-zinc-400' : 'bg-white/40'
-                   }`} />
-                   {kitchenStatus === 'preparing' || kitchenStatus === 'cooking' ? t('kitchen_preparing' as any) : kitchenStatus === 'ready' ? t('table_ready' as any) : kitchenStatus === 'new' ? t('kitchen_new_badge' as any) : kitchenStatus === 'pending' ? t('kitchen_pending' as any) : kitchenStatus}
-                 </motion.div>
-               ) : (
+                    <div className={`w-1.5 h-1.5 rounded-full ${
+                      ['preparing', 'cooking', 'partially_ready'].includes(String(kitchenStatus).toLowerCase()) ? (lightMode ? 'bg-blue-500 animate-pulse' : 'bg-blue-400 animate-pulse')
+                        : String(kitchenStatus).toLowerCase() === 'ready' ? (lightMode ? 'bg-emerald-500' : 'bg-emerald-400')
+                        : lightMode ? 'bg-zinc-400' : 'bg-white/40'
+                    }`} />
+                    {(() => { const ks2 = String(kitchenStatus).toLowerCase(); return ks2 === 'preparing' || ks2 === 'cooking' ? t('kitchen_preparing' as any) : ks2 === 'ready' ? t('table_ready' as any) : ks2 === 'new' ? t('kitchen_new_badge' as any) : ks2 === 'pending' ? t('kitchen_pending' as any) : t('kitchen_preparing' as any); })()}
+                  </motion.div>
+                ) : (
                  <motion.div
                    key="status"
                    initial={{ opacity: 0, y: 4 }}

@@ -616,16 +616,23 @@ export default function ReservationsPage() {
 
   // Row table chip ("98" / "98 + 99"): table_ids resolved against the table list
   // that /api/reservations already returns; falls back to table_number.
-  // NOTE: table_ids are opaque ids — without a match we show the count, never a
-  // broken "Masa undefined".
+  // 2026-09-26 (owner fact-check, verify55): two fixes:
+  //   1. RESOLVE VIA BACKLINK — a reservation created by marking a table
+  //      "reserved" (table_floors.reservation_id) has empty table_ids; the
+  //      chip used to miss that table. The API already returns reservation_id
+  //      per table, so we resolve it here.
+  //   2. NO MISLEADING COUNT — legacy rows carry integer table_ids (e.g.
+  //      {4,5}) that match no UUID table. The old fallback showed the COUNT
+  //      with the "Masa" prefix → read as "Masa 2" for a reservation with NO
+  //      table assigned. Unresolvable ids now render no chip at all.
   const tableLabelFor = (res: any): string | null => {
     const ids: string[] = Array.isArray(res.table_ids) ? res.table_ids : [];
-    if (ids.length > 0) {
-      const nums = ids
-        .map((id: string) => tables.find(t => t.id === id)?.table_number)
-        .filter((n: any) => n !== undefined && n !== null);
-      return nums.length > 0 ? nums.join(' + ') : `${ids.length}`;
-    }
+    const resolved = ids
+      .map((id: string) => tables.find(t => t.id === id)?.table_number)
+      .filter((n: any) => n !== undefined && n !== null);
+    const backlinked = tables.find((t: any) => t.reservation_id && t.reservation_id === res.id)?.table_number;
+    const all = Array.from(new Set([...resolved, ...(backlinked != null ? [backlinked] : [])]));
+    if (all.length > 0) return all.join(' + ');
     if (res.table_number) return String(res.table_number);
     return null;
   };

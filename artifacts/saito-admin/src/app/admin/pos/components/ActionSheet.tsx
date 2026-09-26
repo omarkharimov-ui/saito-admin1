@@ -9,6 +9,7 @@ import {
   ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag, Star, Shield, Navigation,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-fetch';
+import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { isOrderPaid } from '@/lib/order-stage';
@@ -202,7 +203,9 @@ export function ActionSheet({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(data.error || 'Loyalty redeem failed');
+        // 2026-09-26 (Task 51 freeze audit): native alert() → toast (alert is
+        // blocking + ugly under native webviews); friendly fallback for raw codes.
+        toast.error(typeof data.error === 'string' && data.error ? data.error : t('loyalty_redeem_failed' as any) || 'Loyalty xalını istifadə etmək olmadı');
       } else {
         setLoyaltyPts('');
         setLoyaltyExpanded(false);
@@ -211,7 +214,7 @@ export function ActionSheet({
         onLoyaltyRedeemed?.();
       }
     } catch {
-      alert('Loyalty redeem failed');
+      toast.error(t('loyalty_redeem_failed' as any) || 'Loyalty xalını istifadə etmək olmadı');
     } finally {
       setLoyaltyBusy(false);
     }

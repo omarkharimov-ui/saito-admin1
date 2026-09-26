@@ -76,6 +76,9 @@ onlyBuiltDependencies:
   - esbuild
   - msw
   - unrs-resolver
+  # Electron binary download (Faza 1 desktop wrap — trusted publisher,
+  # same class as `next` in minimumReleaseAgeExclude)
+  - electron
 
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms

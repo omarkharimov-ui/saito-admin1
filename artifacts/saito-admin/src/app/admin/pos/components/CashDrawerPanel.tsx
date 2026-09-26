@@ -360,14 +360,15 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
     try {
       // 2026-09-24 (E2E catch): the browser client has no Supabase JWT (custom
       // PIN session → anon role), so the RPC must run server-side (service role).
-      const res = await apiFetch(`/api/reports/z?date=${new Date().toISOString().split('T')[0]}`);
+       const res = await apiFetch(`/api/reports/z?date=${new Date().toISOString().split('T')[0]}`);
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast.error(`Z report: ${err.error || 'failed'}`);
+        // 2026-09-26 (Task 51 freeze audit): raw `Z report: <error>` toast →
+        // friendly i18n message (raw codes must never be user-facing).
+        toast.error(t('z_report_error' as any) || 'Z hesabatı əldə edilə bilmədi');
         return;
       }
       setZData(await res.json());
-    } catch { toast.error('Z report əldə edilə bilmədi'); }
+    } catch { toast.error(t('z_report_error' as any) || 'Z hesabatı əldə edilə bilmədi'); }
     finally { setZLoading(false); }
   };
 

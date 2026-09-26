@@ -28,6 +28,8 @@ export interface DeviceMeta {
   screen?: string;
   battery?: DeviceBattery | null;
   app_version?: string;
+  /** 2026-09-26 (Faza 1): native platform name (ios/android) — web-də yox. */
+  platform?: string;
 }
 
 let cachedId: string | null = null;
@@ -97,6 +99,17 @@ export async function collectDeviceMeta(): Promise<DeviceMeta> {
     meta.os = os;
     meta.browser = browser;
   } catch { /* SSR / unusual */ }
+  // 2026-09-26 (Faza 1): native platformda real model/OS (Capacitor Device) —
+  // UA parse webview UA-sı üçün kifayət deyil (Faza 0 jurnal: "native
+  // model/OS info wrap zamanı buraya qoşulacaq"). Web-də null → heç nə.
+  try {
+    const { getNativeDeviceInfo } = await import('@/lib/native-bridge');
+    const nativeInfo = await getNativeDeviceInfo();
+    if (nativeInfo) {
+      if (nativeInfo.os) meta.os = nativeInfo.model ? `${nativeInfo.os} · ${nativeInfo.model}` : nativeInfo.os;
+      meta.platform = nativeInfo.platform;
+    }
+  } catch { /* native-bridge optional — UA fallback qalır */ }
   try {
     if (typeof window !== 'undefined' && window.screen) {
       meta.screen = `${window.screen.width}x${window.screen.height}`;

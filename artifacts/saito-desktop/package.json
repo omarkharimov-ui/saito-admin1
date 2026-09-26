@@ -1,0 +1,15 @@
+{
+  "name": "@workspace/saito-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Saito POS desktop kiosk (Electron) — Faza 1 native wrap (Mac/Windows). Next.js core = server URL; bu shell onu kiosk mode-da yükləyir.",
+  "main": "electron/main.mjs",
+  "scripts": {
+    "dev": "electron . --dev",
+    "start": "electron .",
+    "kiosk": "electron . --kiosk"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5"
+  }
+}

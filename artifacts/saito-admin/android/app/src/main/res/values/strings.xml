@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Saito POS</string>
+    <string name="title_activity_main">Saito POS</string>
+    <string name="package_name">com.saito.pos</string>
+    <string name="custom_url_scheme">com.saito.pos</string>
+</resources>

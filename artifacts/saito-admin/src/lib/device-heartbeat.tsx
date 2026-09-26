@@ -23,6 +23,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { apiFetch } from '@/lib/api-fetch';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { getDeviceId, collectDeviceMeta } from '@/lib/device-identity';
+import { ensureNativeDeviceId, keepAwakeOn, keepAwakeOff } from '@/lib/native-bridge';
 import { MonitorOff, Lock } from 'lucide-react';
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -115,6 +116,12 @@ export function useDeviceHeartbeat(deviceName: string, deviceType: DeviceType = 
     if (typeof window === 'undefined') return;
     let stopped = false;
     let blockedSeen = false;
+
+    // 2026-09-26 (Faza 1): native wrap — device_id Keychain/KeyStore-a sync
+    // (eyni ID, localStorage-dan migrasiya) + keep-awake (shift boyunca ekran
+    // yuxuya getməsin). Web-də hər ikisi no-op / best-effort.
+    void ensureNativeDeviceId();
+    void keepAwakeOn();
 
     const runBeat = async () => {
       if (stopped) return;

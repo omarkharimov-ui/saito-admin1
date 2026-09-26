@@ -244,7 +244,8 @@ dən kənarda, idempotent outbox** ilə (`outbox_events` + `emit_outbox_event`).
 
 ## 1. FOH — FRONT OF HOUSE
 
-### 2. POS (terminal + order entry)
+### 2. POS (terminal + order entry) — 🔒 FROZEN (2026-09-26, Task 51)
+> A→Z audit bitdi (jurnal 09-26): markers 0, hooks violations 0, 3+2 i18n key fix, worst error-leak fix; 6 dead component = SAQLANIR (DEAD marker); ~40 error pass-through = FROZEN note; `prompt()`×2 = Faza 2. Yeni feature = owner request-ə görə yalnız.
 - Order Entry: dine-in / takeout / pickup / delivery / bar / catering / phone / online / QR / kiosk
 - Cart: items, qty, modifiers, notes, courses, seats, special instructions
 - Order Actions: hold, send, fire, recall, void, comp, discount, transfer, reopen
@@ -807,6 +808,26 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-09-26 (Task 51 Faza 1: native wrap — Capacitor + Electron)
+- **Capacitor (iOS/Android)**: `capacitor.config.ts` (com.saito.pos, **server-url mode** — Next.js core server-də qalır, native shell `SAITO_SERVER_URL` ilə yükləyir), `cap add android/ios` + `cap sync` green; plugins: `@capacitor/preferences` (Keychain/KeyStore device_id), `@capacitor/device` (model/OS meta), `@capacitor/status-bar`, `@capgo/capacitor-keep-awake`. AndroidManifest `usesCleartextTraffic` (dev localhost).
+- **Device identity Faza 1**: `src/lib/native-bridge.ts` — native-də `saito_device_id` @capacitor/preferences-a re-home (SSOT); web→native migrasiya = **EYNİ ID** (localStorage seed); `ensureNativeDeviceId()` `useDeviceHeartbeat`-dən çağırılır (idempotent); `collectDeviceMeta()` real OS/model qaytarır (`meta.os`, yeni `meta.platform`). Web-də no-op.
+- **Keep-awake (wake lock)**: native → CapGo `KeepAwake.keepAwake()/allowSleep()`; web/Electron/Android-Chrome → Web Wake Lock API; heartbeat mount/unmount-da on/off → BÜTÜN stansiya səhifələri (POS/KDS/BDS/Expo/Admin) shift boyunca ekranda qalır.
+- **Electron desktop** (`artifacts/saito-desktop`, @workspace/saito-desktop, Electron 44): kiosk `main.mjs` — fullscreen, menyu/resize/devtools OFF (prod), navigasiya LOCK (yalnız SAITO_URL origin), external link → OS browser, permission-lər DENY, **watchdog** (render-process-gone / 10s unresponsive → auto-reload — kiosk boş ekran qalmır); sandboxed preload (`window.SAITO_DESKTOP`); README + macOS/Windows kiosk provisioning; dev-də Escape = çıxış.
+- **Provisioning (kod DEYİL)**: iOS **Guided Access** + Android **Lock Task** (Device Owner/MDM) — `NATIVE_NOTES.md`-də qeyd.
+- **Faza 1 verify**: tsc clean, cap sync green (4 plugin × 2 platform), POS page compile OK (307 auth redirect, 500 yox). **Electron binary download TƏMMALANMADI** (GitHub releases yavaş; proses owner istəyilə kill olundu — komputer donurdu, səbəb Spotlight indexing idi → android/ios/node_modules üçün `.metadata_never_index` qoyuldu) — re-download = 1 command; kiosk launch testi deferred.
+- **Faza 2 (deferred)**: auto-update (electron-updater) + code signing, iOS native print path, `prompt()`×2 → native modal, offline (Q8 — cache-first prerequisite).
+
+### Jurnal sətiri — 2026-09-26 (Task 51: POS A→Z FROZEN audit + qərarlar)
+- **Owner request**: "POSla bağlı digər ne varsa ne varsa tap, qərar ver, uje bağla, frozen etmək lazımdır" → A→Z final audit (`admin/pos/**` + reservations + KDS/BDS + device lib), sonra Faza 1 wrap.
+- **Audit nəticələri (code sweep, exhaustive)**:
+  - **TODO/FIXME/HACK markers: 0.** Əlavə 3 i18n key missing idi (`select_courier`, `service_charge`, `admin_action`) + 2 yeni (`loyalty_redeem_failed`, `z_report_error`) — **hamısı az/en/ru-də əlavə olundu**.
+  - **Worst error-leak fix-ler (owner qaydası: raw DB code = heç vaxt user-facing)**: `alert()`×2 → `toast` (ActionSheet loyalty redeem — native alert webview-də blocking idi), no-fallback `toast.error(err.error)` (usePos transfer → `t('transfer_failed')`), Z-report `Z report: <raw>` → i18n `z_report_error`. **Qərar: qalan ~40 `err.error ||` pass-through YERİ = FROZEN NOTE** — server dost business kod qaytarır (kritik qapılarda mapping var: OPEN_SHIFT_REQUIRED s.k.); mərkəzi `friendlyError` mapper = növbəti wave candidate (FROZEN-a toxunma).
+  - **Dead components: 6** (`LossItemModal`, `OrderDetailSheet`, `PaymentSuccessModal`, `RefundModal`, `ReservedTableModal`, `VoidItemsModal` + `SendOrderButton` body = type-only import). **Qərar: FAYLLAR SAQLANIR (owner qaydası: özbaşına silmə) — DEAD marker** (map-da qeyd; live path-lər: inline refund OrderHistory-də, inline void CartPanel-də, `ReservationActionSheet` reserved-table üçün).
+  - **Hooks-rule violations: 0** (CartPanel crash klassı bütün POS components-ində verify edildi — early return-lər bütün hooks-dan SONRA).
+  - **Native-wrap (Faza 1) blockers**: `prompt()`×2 (target_table / merge_tables, page.tsx) → 4 platformada da işləyir (WKWebView/Electron JS dialog) = **defer Faza 2** (native modal); `navigator.getBattery` already guarded; `window.open` print path → Electron-da OK, iOS Faza 2 (prod print = LAN agent path).
+  - **Storage keys (7)**: `pos_session`, `saito_pos_preorder_context`, `pos_terminal_id`, `pos_draft_${mode}`, `saito_device_id`, `saito_admin_language`, `saito_light_mode` — webview-də persistent, heysi işləyir; Faza 1-də YALNIZ `saito_device_id` re-home olunur (Keychain/KeyStore, eyni ID).
+- **POS = FROZEN** (2026-09-26-dan): yeni feature YOX (owner request-ə görə yalnız); regression yoxlaması icazəli.
 
 ### Jurnal sətiri — 2026-09-25 (Partner branding: Bolt/Uber Eats/Glovo/Wolt — logo + brend rengi + kurye; Partners + SMS settings tabları; test order ORD-2804)
 - **Owner request**: "partner api üçün logolar olsun — delivery/pickup tab-larında hansı qoşulubsa onun logosu solda; POS/BDS/KDS mətbəxlərin hamısında; kurye adı soyadı nömrəsi; kartın arxa planda tətbiqin rengi (Bolt = yaşıl); 1 dənə test burax görəyim necə görünür."

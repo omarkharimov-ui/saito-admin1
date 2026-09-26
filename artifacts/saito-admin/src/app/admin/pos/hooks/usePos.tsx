@@ -747,8 +747,10 @@ export function usePos() {
         setLastUndo({ action: 'transfer', data: data.undo, message: `Masa ${from} → ${to}` });
         fetchFloor();
       } else {
-        const err = await res.json();
-        toast.error(err.error);
+        const err = await res.json().catch(() => ({}));
+        // 2026-09-26 (Task 51 freeze audit): no-fallback toast.error(err.error)
+        // could toast undefined — friendly fallback.
+        toast.error(err.error || t('transfer_failed'));
       }
     });
   };

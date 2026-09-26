@@ -6,12 +6,14 @@
 // first_seen (YENİ badge), UNPAIR (blok) + REMOTE RELOAD ("Yenilə" düyməsi).
 // Hər terminal 30s heartbeat atır; online = last_seen ≤ 45s. Tab 30s poll.
 import { useCallback, useEffect, useState } from 'react';
-import { Monitor, Laptop, Coffee, BellRing, Shield, RefreshCw, RotateCw, Unplug, CheckCheck, Loader2, BatteryCharging, BatteryLow, CreditCard } from 'lucide-react';
+import { Monitor, Laptop, Coffee, BellRing, Shield, RefreshCw, RotateCw, Unplug, CheckCheck, Loader2, BatteryCharging, BatteryLow, CreditCard, WifiOff } from 'lucide-react';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { getDeviceId } from '@/lib/device-identity';
 import { TERMINAL_PROVIDERS, ACTIVE_TERMINAL } from '@/lib/terminal/simulator';
+import { isForcedOffline, setForcedOffline } from '@/lib/offline/monitor';
+import { drainNow } from '@/lib/offline/queue';
 
 type Meta = {
   os?: string;
@@ -60,6 +62,7 @@ const TerminalsTab = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [forceTick, setForceTick] = useState(0); // offline test-mode re-render
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
@@ -178,6 +181,47 @@ const TerminalsTab = () => {
           Fiziki terminal alındıqda: provider seç + API key → adapter wave (M). Simulator
           müddətində hər KART ödənişi virtual terminal dialogu ilə işlənir və auth code
           ledger-ə (order_payments.reference) yazılır.
+        </p>
+      </div>
+
+      {/* 2026-09-27 (owner: "internet söndürsəm işləyəcək??"): offline test mode —
+          internet KƏSİLMƏDƏN tam offline davranışı test et: aç → POS cache-dən
+          işləyir, yazılar növbəyə düşür; bağla → növbə canlı server-ə replay olunur. */}
+      <div className={`rounded-2xl border p-4 ${lightMode ? 'bg-white border-zinc-200' : 'bg-white/[0.03] border-white/10'}`}>
+        <div className="flex items-center gap-2.5">
+          <span className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center">
+            <WifiOff size={14} className="text-amber-400" />
+          </span>
+          <div>
+            <h4 className="text-[12px] font-black uppercase tracking-widest">Offline Test Rejimi</h4>
+            <p className={`text-[10px] ${muted}`}>İnternet var, amma sistem offline qəbul edir — real yoxlama üçün</p>
+          </div>
+          <button
+            onClick={async () => {
+              const next = !isForcedOffline();
+              setForcedOffline(next);
+              if (next) toast('Offline TEST REJİMİ AKTİVDIR — POS indi yerli qeydə alır. Buraxmaq üçün yenə bas.', { id: 'offline-test' });
+              else {
+                toast.success('Test rejimi buraxıldı — növbə sinxronlaşdırılır');
+                await new Promise(r => setTimeout(r, 500));
+                drainNow();
+              }
+              setForceTick(t => t + 1);
+            }}
+            className={`ml-auto flex items-center gap-2 px-3.5 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-colors ${
+              isForcedOffline()
+                ? 'border-rose-400/50 bg-rose-500/10 text-rose-300'
+                : 'border-amber-400/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${isForcedOffline() ? 'bg-rose-400 animate-pulse' : 'bg-amber-400'}`} />
+            {isForcedOffline() ? 'AKTİVDİR — BURAQ' : 'TESTİ BAŞLAT'}
+          </button>
+        </div>
+        <p className={`text-[10px] mt-2.5 leading-relaxed ${muted}`}>
+          1) Başlat → bütün səhifələr keşdən işləyir, əməliyyatlar növbəyə düşür (üst-orta ambr banner).
+          2) Normal istifadə et (sifariş, cədvəl, offline ödəniş). 3) Buraq → növbə avtomatik canlı
+          server-ə sinxronlaşır, "N əməliyyat sinxronlaşdı" toast gəlir. Real internet kəsimi də eyni yoldan işləyir.
         </p>
       </div>
 

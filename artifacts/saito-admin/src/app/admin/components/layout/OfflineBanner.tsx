@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WifiOff, RefreshCw, X, ListOrdered } from 'lucide-react';
-import { startMonitor, useIsOffline } from '@/lib/offline/monitor';
+import { startMonitor, useIsOffline, isForcedOffline, setForcedOffline } from '@/lib/offline/monitor';
 import {
   startReplayPump, useQueueCount, onSyncComplete, drainNow, peekQueue, QueueItem,
 } from '@/lib/offline/queue';
@@ -155,6 +155,18 @@ export default function OfflineBanner() {
                 <span className="text-emerald-400">● auto</span> = internet qayıtda avtomatik yüklənir (idempotency-guaranteed).{' '}
                 <span className="text-amber-400">● manual</span> = mütəxəssis təsdiqi (duplication riski). Ödənişlər idempotency_key ilə qorunur.
               </p>
+
+              {/* Test mode: internet is up, app behaves offline → release = real replay */}
+              <button
+                onClick={() => setForcedOffline(!isForcedOffline())}
+                className={`w-full py-2.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-colors ${
+                  isForcedOffline()
+                    ? 'border-rose-400/50 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
+                    : 'border-white/10 bg-white/[0.03] text-white/45 hover:bg-white/[0.06]'
+                }`}
+              >
+                {isForcedOffline() ? '⚠ Test rejimi AKTİV — buraxmaq üçün bas (sinxron başlayacaq)' : 'Offline test rejimi (internet var, sistem offline qəbul edir)'}
+              </button>
             </motion.div>
           </motion.div>
         )}

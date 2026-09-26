@@ -20,7 +20,36 @@ let state: NetState = typeof navigator !== 'undefined' && navigator.onLine ? 'on
 let pingInFlight = false;
 const listeners = new Set<() => void>();
 
+// TEST MODE (owner: "internet söndürsəm işləyəcək??") — the banner's
+// "Offline test rejimi" toggle: internet IS up, but the app behaves as if
+// it were down (reads from cache, writes to queue). Releasing it drains
+// the queue against the live server = a full end-to-end offline test
+// without cutting the network.
+const FORCE_KEY = 'saito_offline_force';
+
+export function isForcedOffline(): boolean {
+  try { return localStorage.getItem(FORCE_KEY) === '1'; } catch { return false; }
+}
+
+export function setForcedOffline(on: boolean) {
+  try {
+    if (on) localStorage.setItem(FORCE_KEY, '1');
+    else localStorage.removeItem(FORCE_KEY);
+  } catch { /* private mode */ }
+  if (on) {
+    emit('offline');
+  } else {
+    // release = optimistic online (instant UI recovery), then the ping
+    // verifies; if the ping fails, recompute flips back to offline.
+    if (typeof navigator !== 'undefined' && navigator.onLine) emit('online');
+    void ping().then(ok => recompute(typeof navigator !== 'undefined' && navigator.onLine, ok));
+  }
+  // notify the queue pump to drain on release
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { state: on ? 'offline' : 'online' } }));
+}
+
 function emit(next: NetState) {
+  if (isForcedOffline() && next === 'online') return; // force mode wins
   if (next === state) return;
   state = next;
   try { localStorage.setItem(LS_KEY, next); } catch { /* private mode */ }
@@ -34,7 +63,7 @@ function subscribe(cb: () => void) {
 }
 function getSnapshot(): NetState { return state; }
 
-export function isOffline(): boolean { return state === 'offline'; }
+export function isOffline(): boolean { return state === 'offline' || isForcedOffline(); }
 
 /** One heartbeat ping. Returns true when the server answers. */
 export async function ping(): Promise<boolean> {

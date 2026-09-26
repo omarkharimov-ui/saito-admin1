@@ -54,6 +54,13 @@ export default function NotificationsTab() {
     postmark: { host: 'smtp.postmarkapp.com', port: 587, user: 'user', keyLabel: 'Postmark server token' },
     custom: { host: '', port: 587, user: '', keyLabel: 'SMTP parol' },
   };
+  const EMAIL_HINTS: Record<string, string> = {
+    gmail: 'Google hesabı → Təhlükəsizlik → 2 Addımlı Doğrulama → "App parolları (App passwords)" → 16 simvolluq kodu buraya yapışdırın.',
+    brevo: 'Xərcsiz 300 mail/gün. brevo.com → Transactional → SMTP & API → Keys → yeni key yaradın.',
+    resend: 'Xərcsiz 100 mail/gün. resend.com → API Keys → Create new key.',
+    postmark: 'postmarkapp.com → Servers → server seç → "Server token".',
+    custom: 'Öz SMTP serveriniz üçün host / port / user "İlərk" sahəsində açılır.',
+  };
   const applyPreset = (id: string) => {
     const p = EMAIL_PRESETS[id] || EMAIL_PRESETS.custom;
     setEmailForm(f => ({
@@ -94,7 +101,8 @@ export default function NotificationsTab() {
             port: e.port || 587,
             user: e.user || '',
             pass: e.has_password ? '••••••••' : '',
-            enabled: !!e.enabled,
+            // 2026-09-27 (owner 1-addım UX): config tamam olanda DEFOLT AKTİV
+            enabled: e.enabled ?? true,
             provider: (e as any).provider || (e.host ? 'custom' : 'gmail'),
           });
         }
@@ -274,9 +282,9 @@ export default function NotificationsTab() {
         </div>
       </div>
 
-      {/* 2026-09-26 (owner): EMAIL card — business e-mail + SMTP + test send.
-          Rezerv səhifəsindəki "EMAIL GÖNDƏR" buttonları bu konfiqurasiyanı
-          istifadə edir (confirm/reminder şablonları). */}
+      {/* 2026-09-27 (owner: "whatsapp settings kimi gözəl, hint'li, min input"):
+          3-addımlı guid dizayn — provider seç → 2 sahə (email + key) → Test.
+          Host/port/user avtomatik (yalnız Custom-da görünür). */}
       <div className="rounded-2xl border border-white/10 p-5 space-y-4">
         <div className="flex items-center gap-2.5">
           <span className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center">
@@ -284,17 +292,34 @@ export default function NotificationsTab() {
           </span>
           <div>
             <h4 className="text-[12px] font-black uppercase tracking-widest text-white/80">E-mail</h4>
-            <p className="text-[10px] text-white/35">Rezervasiya təsdiqi + xatırlatma — SMTP ilə</p>
+            <p className="text-[10px] text-white/35">Rezerv təsdiqi + xatırlatma — avtomatik</p>
           </div>
-          {emailConfigured
-            ? <span className="ml-auto px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">Hazırdır</span>
-            : <span className="ml-auto px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-white/35">Konfiqurasiya lazımdır</span>}
+          {(() => {
+            const hasKey = email.has_password || (!!emailForm.pass && !emailForm.pass.startsWith('•'));
+            const hasFrom = !!emailForm.from.trim();
+            const done = hasKey && hasFrom;
+            return done
+              ? <span className="ml-auto px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">Hazırdır</span>
+              : <span className="ml-auto px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                  Qalan: {[!hasFrom && 'e-mail', !hasKey && 'key'].filter(Boolean).join(' + ')}
+                </span>;
+          })()}
         </div>
 
+        {/* nə edir — user heç düşünmədən anlasın */}
+        <div className="rounded-xl bg-emerald-500/[0.06] border border-emerald-500/15 px-3.5 py-2.5 space-y-1">
+          <p className="text-[11px] text-white/60 leading-relaxed">
+            <span className="text-emerald-400 font-bold">Avtomatik işləyəcək:</span> yeni rezerv → <b>təsdiq maili</b> anında · bugünkü+sabahki rezervlər → <b>xatırlatma</b> 09:00 + 16:00 · qonağın e-mail-i yoxdursa → <b>business mail-ə</b> düşür.
+          </p>
+        </div>
+
+        {/* ADDIM 1 — provider */}
         <div>
-          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Provider</label>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
+            1 · Provider seç
+          </label>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-            {([['gmail', 'Gmail'], ['brevo', 'Brevo'], ['resend', 'Resend'], ['postmark', 'Postmark'], ['custom', 'Custom']] as const).map(
+            {([['gmail', 'Gmail'], ['brevo', 'Brevo'], ['resend', 'Resend'], ['postmark', 'Postmark'], ['custom', 'Öz SMTP']] as const).map(
               ([id, label]) => (
                 <button key={id} type="button" onClick={() => applyPreset(id)}
                   className={`h-9 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-colors ${
@@ -307,77 +332,88 @@ export default function NotificationsTab() {
               )
             )}
           </div>
-          <p className="text-[10px] text-white/35 mt-1.5 leading-relaxed">
-            <span className="text-emerald-400 font-bold">1 şey yaz:</span> aşağıdakı {EMAIL_PRESETS[emailForm.provider]?.keyLabel || 'parol'} + business e-mail.
-            Qonağın e-mail-i YOXSA — bütün rezerv mail-ləri business mail-ə düşür.
-          </p>
+          {/* kontekstual hint — seçilən provider-in key-ini necə alacağını */}
+          <div className="mt-2 rounded-xl bg-white/[0.03] border border-white/8 px-3.5 py-2.5">
+            <p className="text-[11px] text-white/50 leading-relaxed">
+              <span className="text-white/70 font-bold">Key necə alınır: </span>
+              {EMAIL_HINTS[emailForm.provider] || EMAIL_HINTS.custom}
+            </p>
+            {emailForm.provider !== 'custom' && (
+              <p className="text-[10px] text-white/30 mt-1">
+                SMTP avtomatik: <span className="font-mono text-white/45">{emailForm.host}:{emailForm.port}</span> · user: <span className="font-mono text-white/45">{emailForm.user || 'auto'}</span>
+              </p>
+            )}
+          </div>
         </div>
 
+        {/* ADDIM 2 — cəmi 2 sahə (custom-da +3 ilərk) */}
         <div>
-          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Business e-mail (göndərən)</label>
-          <input value={emailForm.from} onChange={e => setEmailForm(f => ({ ...f, from: e.target.value }))} placeholder="info@saito.az"
-            className="w-full h-10 px-3 rounded-xl bg-white/[0.04] border border-white/10 text-[13px] text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400/60" />
-          {contactEmail && emailForm.from !== contactEmail && (
-            <p className="text-[10px] text-white/30 mt-1">Settings-dəki ümumi e-mail: {contactEmail}</p>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
+            2 · Business e-mail + key
+          </label>
+          <div className="space-y-2.5">
+            <input value={emailForm.from} onChange={e => setEmailForm(f => ({ ...f, from: e.target.value }))} placeholder="info@saito.az — mail-lər bu ünvan adından gedir"
+              className="w-full h-10 px-3 rounded-xl bg-white/[0.04] border border-white/10 text-[13px] text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400/60" />
+            <input type="password" value={emailForm.pass} onChange={e => setEmailForm(f => ({ ...f, pass: e.target.value }))}
+              placeholder={email.has_password ? 'Key saxlanılıb (yenisini yazıb dəyiş)' : (EMAIL_PRESETS[emailForm.provider]?.keyLabel || 'SMTP parol')}
+              className="w-full h-10 px-3 rounded-xl bg-white/[0.04] border border-white/10 text-[13px] text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400/60" />
+            {contactEmail && emailForm.from !== contactEmail && (
+              <button type="button" onClick={() => setEmailForm(f => ({ ...f, from: contactEmail }))}
+                className="text-[10px] text-emerald-400/80 hover:text-emerald-300 font-semibold">
+                ⚡ Settings-dəki ümumi e-maili istifadə et: {contactEmail}
+              </button>
+            )}
+          </div>
+          {emailForm.provider === 'custom' && (
+            <details className="mt-2.5">
+              <summary className="text-[10px] font-black uppercase tracking-widest text-white/40 cursor-pointer select-none">
+                İlərk: öz SMTP (host / port / user)
+              </summary>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-2.5">
+                <input value={emailForm.host} onChange={e => setEmailForm(f => ({ ...f, host: e.target.value }))} placeholder="smtp.mysite.com"
+                  className="h-10 px-3 rounded-xl bg-white/[0.04] border border-white/10 text-[13px] text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400/60 sm:col-span-2" />
+                <input type="number" value={emailForm.port} onChange={e => setEmailForm(f => ({ ...f, port: Number(e.target.value) || 587 }))} placeholder="587"
+                  className="h-10 px-3 rounded-xl bg-white/[0.04] border border-white/10 text-[13px] text-white focus:outline-none focus:border-emerald-400/60" />
+                <input value={emailForm.user} onChange={e => setEmailForm(f => ({ ...f, user: e.target.value }))} placeholder="SMTP user"
+                  className="h-10 px-3 rounded-xl bg-white/[0.04] border border-white/10 text-[13px] text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400/60 sm:col-span-3" />
+              </div>
+            </details>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="sm:col-span-2">
-            <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">SMTP Host</label>
-            <input value={emailForm.host} onChange={e => setEmailForm(f => ({ ...f, host: e.target.value }))} placeholder="smtp.gmail.com"
-              className="w-full h-10 px-3 rounded-xl bg-white/[0.04] border border-white/10 text-[13px] text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400/60" />
-          </div>
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Port</label>
-            <input type="number" value={emailForm.port} onChange={e => setEmailForm(f => ({ ...f, port: Number(e.target.value) || 587 }))}
-              className="w-full h-10 px-3 rounded-xl bg-white/[0.04] border border-white/10 text-[13px] text-white focus:outline-none focus:border-emerald-400/60" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">SMTP User</label>
-            <input value={emailForm.user} onChange={e => setEmailForm(f => ({ ...f, user: e.target.value }))} placeholder="info@saito.az"
-              className="w-full h-10 px-3 rounded-xl bg-white/[0.04] border border-white/10 text-[13px] text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400/60" />
-          </div>
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">SMTP Parol</label>
-            <input type="password" value={emailForm.pass} onChange={e => setEmailForm(f => ({ ...f, pass: e.target.value }))} placeholder={email.has_password ? 'mövcuddur (dəyişmə)' : 'parol'}
-              className="w-full h-10 px-3 rounded-xl bg-white/[0.04] border border-white/10 text-[13px] text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400/60" />
-          </div>
-        </div>
-
-        <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3 space-y-1.5">
-          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">Şablonlar (rezerv səhifəsindən göndərilir)</label>
-          <p className="text-[11px] text-white/45">{'• Təsdiq: "Salam {ad}, rezervasiyanız {tarix} {saat} üçün təsdiqlənib." ★VIP + Depozit çipi daxil'}</p>
-          <p className="text-[11px] text-white/45">{'• Xatırlatma: "Salam {ad}, xatırladırıq: {tarix} {saat} rezervasiyanız." '}</p>
-        </div>
-
-        <div className="flex items-center justify-between pt-1">
-          <button type="button" onClick={() => setEmailForm(f => ({ ...f, enabled: !f.enabled }))}
-            className="flex items-center gap-2.5 text-[12px] font-semibold text-white/70">
-            <span className={`relative h-6 w-11 rounded-full transition-colors ${emailForm.enabled ? 'bg-emerald-500' : 'bg-white/15'}`}>
-              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${emailForm.enabled ? 'left-[22px]' : 'left-0.5'}`} />
-            </span>
-            {emailForm.enabled ? 'Aktivdir' : 'Sönükdür'}
-          </button>
+        {/* ADDIM 3 — test + saxla */}
+        <div>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
+            3 · Test et → Saxla
+          </label>
           <div className="flex items-center gap-2">
-            {emailForm.enabled && !emailConfigured && (
-              <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-wide">SMTP lazımdır</span>
-            )}
             <button type="button" onClick={testEmail} disabled={testing || !emailForm.from}
-              className="h-9 px-4 rounded-xl border border-emerald-400/40 text-emerald-300 text-[11px] font-black uppercase tracking-wider flex items-center gap-2 disabled:opacity-40 hover:bg-emerald-400/10 transition-colors">
+              className="flex-1 h-10 rounded-xl border border-emerald-400/40 text-emerald-300 text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-emerald-400/10 transition-colors">
               {testing ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-              Test
+              Test maili göndər
             </button>
             <button type="button" onClick={saveEmail} disabled={savingEmail}
-              className="h-9 px-4 rounded-xl bg-emerald-500 text-white text-[11px] font-black uppercase tracking-wider flex items-center gap-2 disabled:opacity-40 hover:bg-emerald-400 transition-colors">
+              className="flex-1 h-10 rounded-xl bg-emerald-500 text-white text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-emerald-400 transition-colors">
               {savingEmail ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
               Saxla
             </button>
           </div>
+          <p className="text-[10px] text-white/30 mt-1.5">
+            Test = bu kartdakı business e-mailə real mail gedir. Saxladıqdan sonra avtomatik rejim başlayır.
+          </p>
         </div>
+
+        {/* şablon preview — fold edilib (səs-sessiz işləyir, amma user görür) */}
+        <details className="rounded-xl bg-white/[0.03] border border-white/5 px-3.5 py-2.5">
+          <summary className="text-[10px] font-black uppercase tracking-widest text-white/40 cursor-pointer select-none">
+            Mail-nin görünüşü (preview)
+          </summary>
+          <div className="mt-2 space-y-1.5">
+            <p className="text-[11px] text-white/45">{'Təsdiq: "Salam {ad}, rezervasiyanız {tarix} {saat} üçün təsdiqlənib" — ★VIP + Depozit çipi daxil'}</p>
+            <p className="text-[11px] text-white/45">{'Xatırlatma: "Salam {ad}, xatırladırıq: {tarix} {saat} rezervasiyanız"'}</p>
+            <p className="text-[11px] text-white/45">Rezerv səhifəsində ayrıca <b>"EMAIL GÖNDƏR"</b> buttonu — istənilən vaxt əl ilə.</p>
+          </div>
+        </details>
       </div>
 
       <p className="text-[10px] text-white/25 flex items-center gap-1.5">

@@ -628,7 +628,12 @@ export default function ReservationsPage() {
   const tableLabelFor = (res: any): string | null => {
     const ids: string[] = Array.isArray(res.table_ids) ? res.table_ids : [];
     const resolved = ids
-      .map((id: string) => tables.find(t => t.id === id)?.table_number)
+      .map((id: string) =>
+        // current rows store UUIDs; pre-redesign test rows store table
+        // NUMBERS — fall back to a number match so old rows show the real
+        // tables ("4 + 5") instead of an empty chip
+        tables.find(t => t.id === id)?.table_number
+        ?? tables.find(t => String(t.table_number) === String(id))?.table_number)
       .filter((n: any) => n !== undefined && n !== null);
     const backlinked = tables.find((t: any) => t.reservation_id && t.reservation_id === res.id)?.table_number;
     const all = Array.from(new Set([...resolved, ...(backlinked != null ? [backlinked] : [])]));

@@ -12,6 +12,7 @@ import AdminLoadingScreen from './components/layout/AdminLoadingScreen';
 import AdminAuthScreen from './components/layout/AdminAuthScreen';
 import AdminMobileShell from './components/layout/AdminMobileShell';
 import AdminDesktopShell from './components/layout/AdminDesktopShell';
+import OfflineBanner from './components/layout/OfflineBanner';
 
 function subscribe(cb: () => void) {
   const mq = window.matchMedia('(max-width: 1023px)');
@@ -99,6 +100,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <ThemeProvider>
       <LanguageProvider>
+        {/* 2026-09-26 (Q8 phase 1): offline detection + write queue + sync */}
+        <OfflineBanner />
         <AdminLayoutContent>{children}</AdminLayoutContent>
       </LanguageProvider>
     </ThemeProvider>

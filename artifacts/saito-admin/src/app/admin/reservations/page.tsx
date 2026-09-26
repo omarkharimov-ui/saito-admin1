@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { Reservation } from '@/types';
-import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, Clock, ChevronLeft, Plus, Trash2, ChefHat, Tag, Merge, Wallet } from 'lucide-react';
+import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, Clock, ChevronLeft, Plus, Trash2, ChefHat, Tag, Merge, Wallet, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { useNotifications } from '../context/NotificationContext';
@@ -15,7 +15,7 @@ import { apiFetch } from '@/lib/api-fetch';
 import ReservationFilters from './components/ReservationFilters';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { ReservationRow } from './components/ReservationRow';
-import { DeleteReservationModal, ClearArchiveModal, UpsertReservationModal } from './components/ReservationModals';
+import { DeleteReservationModal, ClearArchiveModal, UpsertReservationModal, SendReservationEmailModal } from './components/ReservationModals';
 
 export default function ReservationsPage() {
   const { t, language } = useLanguage();
@@ -45,6 +45,8 @@ export default function ReservationsPage() {
   // 2026-09-26 (owner fact-check): cancel (ləğv) flow — /api/reservations/cancel
   // existed but had NO UI path; row menu was edit-only.
   const [confirmCancelReservation, setConfirmCancelReservation] = useState<{ id: string; guest: string } | null>(null);
+  // 2026-09-26 (owner): reservation e-mail sender (confirm/reminder)
+  const [emailModalRes, setEmailModalRes] = useState<any>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
   const [confirmMergeTables, setConfirmMergeTables] = useState(false);
@@ -424,6 +426,7 @@ export default function ReservationsPage() {
         data: {
           name: formData.customer_name,
           phone: formData.phone,
+          email: formData.email || null,
           date: formData.date,
           time: formData.time,
           guests: Number(formData.guests) || 1,
@@ -865,7 +868,11 @@ export default function ReservationsPage() {
                            <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-2 leading-none break-words">{selectedRes.name}</h2>
                            <p className="text-xs font-black uppercase tracking-widest opacity-50 mb-2">{t('resv_detail_sub')}</p>
                            <div className="flex flex-wrap gap-4 text-xs font-black opacity-40 uppercase tracking-widest mb-2">
-                              <span className="flex items-center gap-1.5 text-blue-500"><Phone size={14} /> {selectedRes.phone}</span>
+                               <span className="flex items-center gap-1.5 text-blue-500"><Phone size={14} /> {selectedRes.phone}</span>
+                               {/* 2026-09-26 (owner): guest e-mail chip (confirm/reminder recipient) */}
+                               {selectedRes.email && (
+                                 <span className="flex items-center gap-1.5 text-emerald-500"><Mail size={14} /> {selectedRes.email}</span>
+                               )}
                               {/* 2026-09-26 (Task 55): visitCount is optional on the
                                   payload — the old hardcoded render printed
                                   "undefined Ziyarət" whenever it was missing. */}
@@ -1076,13 +1083,26 @@ export default function ReservationsPage() {
                                      </div>
                                    </div>
 
-                                   {/* SİL — red danger (delete confirm kept, now closed after) */}
-                                   <button
-                                     onClick={() => setConfirmDeleteReservation({ id: selectedRes.id, guest: selectedRes.name || selectedRes.customer_name || 'Qonaq' })}
-                                     className={`flex items-center justify-center gap-2 py-4 rounded-[1.5rem] border text-xs font-black uppercase tracking-widest transition-all active:scale-95 ${lightMode ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-rose-500/10 border-rose-500/25 text-rose-400'}`}
-                                   >
-                                     <Trash2 size={18} /> {t('resv_delete')}
-                                   </button>
+                                    {/* 2026-09-26 (owner): EMAIL GÖNDƏR — confirm/reminder
+                                        via Settings→Notifications→E-mail SMTP config.
+                                        One-tap: prefills guest e-mail, persists it on send. */}
+                                    <button
+                                      onClick={() => setEmailModalRes(selectedRes)}
+                                      className={`col-span-2 flex items-center justify-center gap-2 py-3.5 rounded-[1.5rem] border text-xs font-black uppercase tracking-widest transition-all active:scale-95 ${lightMode ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'}`}
+                                    >
+                                      <Mail size={16} /> {t('resv_email_action') || 'E-mail göndər'}
+                                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">
+                                        {selectedRes.email ? selectedRes.email : (t('resv_email_action_hint') || 'ünvan dialogda')}
+                                      </span>
+                                    </button>
+
+                                    {/* SİL — red danger (delete confirm kept, now closed after) */}
+                                    <button
+                                      onClick={() => setConfirmDeleteReservation({ id: selectedRes.id, guest: selectedRes.name || selectedRes.customer_name || 'Qonaq' })}
+                                      className={`flex items-center justify-center gap-2 py-4 rounded-[1.5rem] border text-xs font-black uppercase tracking-widest transition-all active:scale-95 ${lightMode ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-rose-500/10 border-rose-500/25 text-rose-400'}`}
+                                    >
+                                      <Trash2 size={18} /> {t('resv_delete')}
+                                    </button>
                                    <button
                                      onClick={() => closeReservation(false)}
                                      className={`flex items-center justify-center gap-2 py-4 rounded-[1.5rem] border text-xs font-black uppercase tracking-widest transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/10 border-white/15 text-white/80'}`}
@@ -1163,6 +1183,13 @@ export default function ReservationsPage() {
         reservation={confirmDeleteReservation} 
         onConfirm={handleDeleteFromPanel} 
         onCancel={() => setConfirmDeleteReservation(null)} 
+      />
+
+      {/* 2026-09-26 (owner): reservation e-mail sender (confirm/reminder) */}
+      <SendReservationEmailModal
+        reservation={emailModalRes}
+        onSent={() => { setEmailModalRes(null); fetchData(); }}
+        onClose={() => setEmailModalRes(null)}
       />
 
       {/* 2026-09-26 (owner fact-check): cancel-with-reason dialog (row ⋮ → LƏĞV ET) */}

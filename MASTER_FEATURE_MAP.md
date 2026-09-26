@@ -20,7 +20,7 @@
 > - **Q3 Gift cards → BUILD (minimal):** satış/redeem/balance/report + bar-tab; UI istifadəçilə birlikdə (hard-stop qaydası).
 > - **Q4 Waitlist → DEFER (provider-dependent):** backend hazırkı halda FROZEN qalır; SMS notification provider qərarından ayrılır (abstraction).
 > - **Q7 Terminal provider → INVESTIGATE, NO LOCK:** əvvəl capability matrix (API/SDK, card-present, offline-auth, pre-auth, capture/void/refund, chargeback/webhook, pay-at-table, device mgmt, country/acquirer, settlement) → sonra seçim.
-> - **Q8 Offline → BUILD (controlled offline):** `local operation → durable queue → idempotency → reconnect → sync → conflict → audit`; architecture contract İNDİ, implementation ayrıca wave (frozen backend-ə toxunmadan).
+> - **Q8 Offline → PHASE 1 LIVE (2026-09-26):** monitor (navigator+ping) + write-queue (localStorage FIFO, idempotency dedupe, conservative auto-replay) + read snapshot cache (apiFetch fallback) + OfflineBanner + money routes BLOCKED (503 OFFLINE). Phase 2: offline cash ledger + manual sync panel + offline card (Q7 ilə).
 > - **Q10 Push → BUILD (abstraction):** `device → user/customer → token → platform → consent/status`; provider sonrakı qərar.
 > - **ICRA SIRASI (user):** C-16 → commit/push → Wave A: 1) add-to-check 2) customer timeline 3) gift card minimal UI 4) daily checklists 5) device registry/print routing → loyalty/waitlist SMS deferred, push abstraction; PARALEL: Q7 provider discovery (implementation lock YOX).
 >
@@ -386,7 +386,7 @@ Calendar, guest, phone, party size, date/time, table; lifecycle BOOKED→CONFIRM
 | Pre-order on reservation | ✅ | `reservation_preorder_items`, `upsert_reservation_preorders`, `send-kitchen` | — |
 | Table merge/move within reservation | ✅ | `merge_table_to_reservation`, `move_reservation_table_atomic` | — |
 | Waitlist (SMS + queue + estimated wait) | 🟡 | `waitlist` route + `/api/waitlist/seat` | SMS notification YOX; UI Addım 2 (Q4 qərarı) |
-| Online booking channel (public) | 🟡 | `api/public/reservations` | Confirmation/reminder push YOX |
+| Online booking channel (public) | ✅ + 🟡 | `api/public/reservations`, `reservations.email`, `/api/email/send` (SMTP, 09-26) | **E-mail confirm/reminder ✅** (Settings→Bildirişlər EMAIL card + rezerv "EMAIL GÖNDƏR"); **SMS/Push YOX** — SMS provider PARKED (owner 09-26), push = Q10 |
 | Google/third-party booking | ❌ | — | Wave C |
 
 ### 12. TABLESIDE / WAITER HANDHELD
@@ -403,7 +403,7 @@ Add guest, party size, estimated wait, preferred area, phone, SMS, queue positio
 
 | Feature | Saito | DB | API/UI |
 |---|---|---|---|
-| Waitlist core | 🟡 | `/api/waitlist`, `/api/waitlist/seat` | UI + SMS Addım 2 |
+| Waitlist core | ✅ + 🟡 | `/api/waitlist`, `/api/waitlist/seat`, WaitlistPanel (09-25) | UI + automation ✅ (empty-table→notify→seat→auto-order); **SMS = PARKED** (owner 09-26 qərarı — provider qoşulmayacaq) |
 
 ### 14. UPSELLING
 Suggested modifier, recommended item, combo upsell, cross-sell, AI recommendation, server prompt, time-based.
@@ -808,6 +808,12 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-09-26 (377-feature 4-vendor matrix + Email infra + OFFLINE Phase 1 START)
+- **377-sətirlik tam matrix** (owner: "hər 320 features + map — bu tam hazırdırmı?"): Saito vs Toast vs Lightspeed vs Square, module-module. Sənəd: workspace `SAITO-OS-VS-TOAST-LIGHTSPEED-SQUARE.md`. Nəticə: Saito 271✅/38🟡/4⚪/64❌ = 77% (377); core-scope (ekosistem çıxıldı, 298 sətir) ≈ **88% vs Toast 89%**, BOH 94% (rəqiblərdən irəli), 20★ differentiator. Hüküm: single-venue satışa hazırdır; açarlar Q7 terminal, Q8 offline, Q10 comms.
+- **Email infra (owner: "settingsden business mail daxil edib mail göndər — UI buttonlar")**: migration `20260926070000` (`reservations.email`, `settings.email_settings` jsonb, `email_logs` audit + RLS). `/api/partners` GET/POST +`email` (pass MASKED — heç vaxt client-ə qaytmır). **Yeni `/api/email/send`**: test/confirm/remind şablonları (brand layout, VIP+depozit çipləri), nodemailer SMTP, hər cəhd → `email_logs`, success-da `reservations.email` persist. Settings → Bildirişlər: **EMAIL card** (business e-mail + SMTP host/port/user/pass + Test + enable). Rezerv səhifəsi: form-da email field, detail-da email chip, action grid-də **"EMAIL GÖNDƏR"** (prefill + template picker + preview). i18n az/en/ru. tsc 0 error; smoke: /api/health 200 (PUBLIC_PATHS-ə əlavə edildi), admin routes 307, /reservation 200.
+- **OFFLINE Phase 1 START (owner: "offline 10000% bunu basla duzeltmeye")**: (1) `lib/offline/monitor.ts` — navigator.onLine + 20s `/api/health` ping, cross-tab sync, `useIsOffline()`; (2) `lib/offline/queue.ts` — localStorage FIFO write-queue, dedupe by idempotency_key, **conservative auto-replay** (yalnız guarded/upsert route-lar: `/api/pos/tables`, `/api/reservations/pre-order-items`), append-type route-lar = manual (sync panel Phase 2), backoff 10s→120s; (3) `lib/offline/cache.ts` + **apiFetch integration**: offline GET (products/floors/settings/orders/staff) → snapshot cache (`X-Saito-From-Cache: 1`), online-da hər ok GET snapshot-refresh; offline writes → queue+202 `{queued:true}`; **PUL ROUTE-LARI (pay/cash-drawer/refund/void/gift-card redeem) = BLOCK 503 `{error:'OFFLINE'}`** — offline "paid" receipt = yalan, Phase 2 offline cash ledger; (4) **OfflineBanner** (admin layout, amber pill, spring 500/26, queue count + "N sinxronlaşdı" toast). Q8 qalan: offline cash ledger + offline card (Q7 terminal ilə birlikdə) + manual sync panel + Electron/Capacitor offline davranışı.
+- **Qərarlar (owner, bu turn)**: upsell = PARKED qalır (toxunulmur); waitlist/reserv **SMS provider = PARKED** (ready-state config saxlanılır, provider qoşulmaz); Q7 terminal = açıkladı (manually-captured card işləyir, contactless/bar-tab/tableside-pay/stored-cards terminal bridge gözləyir — provider qərarı: Harbon/SkyPay/Qiwi).
 
 ### Jurnal sətiri — 2026-09-26 (Task 54: POS FULL A→Z VERIFY — 2 braun, sıfır-bug acceptance)
 - **Owner**: "pos da heqiqeten verify olunub butun ui, backend, features, en xirdaa bug belə istemirem" → browser E2E (PIN 4321, dev :3000) + psql DB check + console sweep, 2 braun.

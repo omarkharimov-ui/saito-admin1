@@ -27,6 +27,9 @@ const PUBLIC_PATHS = [
   // pr v1: headless LAN print agent — called without a staff cookie; the route
   // itself enforces the device agent_key (48-hex secret, per-device).
   '/api/print/agent',
+  // 2026-09-26 (Q8 offline phase 1): client net-monitor liveness probe.
+  // Public by design — leaks nothing (ok + timestamp).
+  '/api/health',
   '/api/pwa',
   '/manifest.webmanifest',
   '/manifest-staff.json',

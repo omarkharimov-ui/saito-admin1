@@ -20,14 +20,26 @@ export async function GET() {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
     const supabase = await createAuthClient();
-    const { data, error } = await supabase.from('settings').select('delivery_partners,sms_settings').limit(1);
+    const { data, error } = await supabase.from('settings').select('delivery_partners,sms_settings,email_settings,contact_email,restaurant_name').limit(1);
     if (error) throw error;
     const row = data?.[0] || {};
     const partners: Record<string, { connected: boolean; connected_at: string | null }> = {};
     for (const id of PARTNER_IDS) {
       partners[id] = row.delivery_partners?.[id] || { connected: false, connected_at: null };
     }
-    return NextResponse.json({ partners, sms: row.sms_settings || {} });
+    // 2026-09-26 (owner): e-mail infra — password never leaves the server;
+    // the UI gets a `has_password` flag + masked value only.
+    const emailRaw = row.email_settings || {};
+    const email = { ...emailRaw };
+    delete (email as any).pass;
+    email.has_password = !!emailRaw.pass;
+    return NextResponse.json({
+      partners,
+      sms: row.sms_settings || {},
+      email,
+      contact_email: row.contact_email || '',
+      restaurant_name: row.restaurant_name || '',
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -42,7 +54,7 @@ export async function POST(req: NextRequest) {
     }
     const supabase = await createAuthClient();
     const body = await req.json();
-    const { data: rows, error: selErr } = await supabase.from('settings').select('id,delivery_partners,sms_settings').limit(1);
+    const { data: rows, error: selErr } = await supabase.from('settings').select('id,delivery_partners,sms_settings,email_settings').limit(1);
     if (selErr) throw selErr;
     const row = rows?.[0];
     if (!row) return NextResponse.json({ error: 'settings row not found' }, { status: 500 });
@@ -65,6 +77,19 @@ export async function POST(req: NextRequest) {
     if (body.sms !== undefined && typeof body.sms === 'object') {
       const prev = row.sms_settings || {};
       patch.sms_settings = { ...prev, ...body.sms, updated_at: new Date().toISOString() };
+    }
+
+    // 2026-09-26 (owner): e-mail config. Client omits `pass` when unchanged
+    // (masked '••••••••' placeholder) → keep the previously stored password.
+    if (body.email !== undefined && typeof body.email === 'object') {
+      const prev = row.email_settings || {};
+      const { pass, ...rest } = body.email as Record<string, unknown>;
+      patch.email_settings = {
+        ...prev,
+        ...rest,
+        pass: (typeof pass === 'string' && !pass.startsWith('•') && pass !== '') ? pass : prev.pass,
+        updated_at: new Date().toISOString(),
+      };
     }
 
     if (Object.keys(patch).length === 0) {

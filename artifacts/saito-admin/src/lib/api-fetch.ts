@@ -48,6 +48,29 @@ function ensureCsrfToken(): string | null {
   return __csrfSingleton;
 }
 
+// ─── Q8 offline phase 1 (2026-09-26, owner: "offline 10000% bunu basla") ───
+// Behavior when the monitor reports OFFLINE (or a fetch dies on the network):
+//   GET  + cached read route  → serve the last snapshot (X-Saito-From-Cache: 1)
+//   POST + capture route      → queue it, reply 202 {queued:true} (non-money)
+//   POST + money route        → BLOCK, reply 503 {error:'OFFLINE'} (no fake
+//                               "paid" — phase 2 adds the offline cash ledger)
+//   everything else           → normal fetch, caller's existing error path
+import { isOffline } from '@/lib/offline/monitor';
+import { OFFLINE_WRITE_ROUTES, OFFLINE_BLOCKED_ROUTES, enqueue } from '@/lib/offline/queue';
+import { OFFLINE_READ_ROUTES, cacheGet, cachePut } from '@/lib/offline/cache';
+
+function routeOf(url: string): string {
+  try { return new URL(url, window.location.origin).pathname; }
+  catch { return url.split('?')[0]; }
+}
+
+function syntheticJson(body: unknown, status: number, extraHeaders: Record<string, string> = {}): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+  });
+}
+
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const csrfToken = ensureCsrfToken();
 
@@ -60,8 +83,77 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     headers['X-CSRF-Token'] = csrfToken;
   }
 
-  return fetch(url, {
-    ...options,
-    headers,
-  });
+  const method = (options.method || 'GET').toUpperCase();
+  const route = routeOf(url);
+  const offline = typeof window !== 'undefined' && isOffline();
+
+  // ── offline: reads from snapshot cache ──
+  if (offline && method === 'GET' && OFFLINE_READ_ROUTES.has(route)) {
+    const snap = cacheGet(url);
+    if (snap) {
+      return new Response(snap.body, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Saito-From-Cache': '1',
+          'X-Saito-Cache-At': String(snap.ts),
+        },
+      });
+    }
+    // no snapshot yet — fall through to a real fetch (it will fail cleanly
+    // and the caller's existing catch shows the standard error)
+  }
+
+  // ── offline: money routes are blocked, never faked ──
+  if (offline && method !== 'GET' && OFFLINE_BLOCKED_ROUTES.has(route)) {
+    return syntheticJson(
+      { error: 'OFFLINE', message: 'Offline rejim: ödəniş əməliyyatları onlayn işləyir. İnternet qayıtdıqdan sonra təkrarlayın.' },
+      503,
+    );
+  }
+
+  // ── offline: capture whitelisted writes into the queue ──
+  if (offline && method !== 'GET' && OFFLINE_WRITE_ROUTES.has(route)) {
+    const body = typeof options.body === 'string' ? options.body : null;
+    const idemKey = body ? (safeParseIdem(body)) : null;
+    const id = enqueue(url, method, body, idemKey);
+    if (id) return syntheticJson({ queued: true, queueId: id }, 202);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, headers });
+  } catch (err) {
+    // Network dead (navigator still "online" — server-side outage): same
+    // offline policy, but only for mutation routes we know how to replay.
+    if (method !== 'GET' && OFFLINE_BLOCKED_ROUTES.has(route)) {
+      return syntheticJson(
+        { error: 'OFFLINE', message: 'Offline rejim: ödəniş əməliyyatları onlayn işləyir. İnternet qayıtdıqdan sonra təkrarlayın.' },
+        503,
+      );
+    }
+    if (method !== 'GET' && OFFLINE_WRITE_ROUTES.has(route)) {
+      const body = typeof options.body === 'string' ? options.body : null;
+      const idemKey = body ? (safeParseIdem(body)) : null;
+      const id = enqueue(url, method, body, idemKey);
+      if (id) return syntheticJson({ queued: true, queueId: id }, 202);
+    }
+    throw err;
+  }
+
+  // ── online: refresh read snapshots for the next outage ──
+  if (res.ok && method === 'GET' && OFFLINE_READ_ROUTES.has(route)) {
+    res.clone().text().then(t => cachePut(url, t)).catch(() => { /* noop */ });
+  }
+
+  return res;
+}
+
+function safeParseIdem(body: string): string | null {
+  try {
+    const j = JSON.parse(body);
+    return typeof j?.idempotency_key === 'string' ? j.idempotency_key : null;
+  } catch {
+    return null;
+  }
 }

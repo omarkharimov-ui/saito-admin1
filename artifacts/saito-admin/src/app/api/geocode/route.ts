@@ -176,10 +176,14 @@ export async function GET(request: NextRequest) {
       const v = await nominatim(loc.address as string);
       if (!v) return NextResponse.json({ error: 'Məkan ünvanı geocode edilmədi (Nominatim)' }, { status: 502 });
       vLat = v.lat; vLng = v.lng;
-      // persist for future calls (one-time bootstrap)
-      try {
-        await supabase.from('locations').update({ latitude: vLat, longitude: vLng }).eq('id', loc.id);
-      } catch { /* RLS may deny — non-fatal, re-geocodes next time */ }
+      // Persist ONLY street-level matches. A city/area fallback (street not
+      // in OSM) must not be locked in — otherwise the venue is stuck at the
+      // city centroid forever and every km estimate drifts by several km.
+      if (v.precision === 'address') {
+        try {
+          await supabase.from('locations').update({ latitude: vLat, longitude: vLng }).eq('id', loc.id);
+        } catch { /* RLS may deny — non-fatal, re-geocodes next time */ }
+      }
     }
 
     // ── 2) customer point (progressive chain: street → area → city) ────────

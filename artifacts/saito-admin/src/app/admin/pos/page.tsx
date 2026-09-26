@@ -25,6 +25,7 @@ import DeliveryOrders from './components/DeliveryOrders';
 import { CashDrawerPanel } from './components/CashDrawerPanel';
 import { VirtualKeyboardProvider } from './components/VirtualKeyboard';
 import ClearTablePinModal from './components/ClearTablePinModal';
+import TerminalTapModal from './components/TerminalTapModal';
 import { OrderHistory } from './components/OrderHistory';
 import { FloorSkeleton, ProductGridSkeleton, CartSkeleton } from './components/PosSkeletons';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
@@ -182,6 +183,9 @@ export default function POSPage() {
   const [paymentView, setPaymentView] = useState(false);
   const [receiptView, setReceiptView] = useState<PosReceipt | null>(null);
   const [receiptTendered, setReceiptTendered] = useState<number | undefined>(undefined);
+  // 2026-09-26 (Q8 offline phase 2): receipt flag when payment was captured
+  // locally (offline) instead of applied server-side.
+  const [payOfflinePending, setPayOfflinePending] = useState(false);
   const [discountOpen, setDiscountOpen] = useState(false);
   const [discountBusy, setDiscountBusy] = useState(false);
   const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
@@ -998,7 +1002,13 @@ export default function POSPage() {
     }
   };
 
-  const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge' | string, tenderedAmount?: number, tipAmount?: number) => {
+  // 2026-09-26 (owner, Q7): card flow now passes through the terminal
+  // adapter (SIMULATOR today; real PSP on owner decision — same interface).
+  const [terminalState, setTerminalState] = useState<{ amount: number; method: string; tendered?: number; tip?: number } | null>(null);
+  const cartTotalNow = () =>
+    Number(pos.cart?.items?.reduce((s: number, i: any) => s + (i.total_price || 0), 0) || 0) || 0;
+
+  const runPaymentFlow = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge' | string, tenderedAmount?: number, tipAmount?: number, cardRef?: string) => {
     if (!actionSheetTable) return;
     const tableNumbers = actionSheetGroup
       ? [actionSheetTable.table_number, ...actionSheetGroup.children.map((c: any) => c.table_number)]
@@ -1112,6 +1122,11 @@ export default function POSPage() {
       }
 
       const failedOrders: string[] = [];
+      // 2026-09-26 (Q8 offline phase 2): offline pay = captured into the
+      // local queue with the SAME deterministic idempotency key (payKeyFor),
+      // auto-replayed on reconnect; 409 idempotent_conflict on duplicate
+      // replay is dropped server-side. The operator sees a pending receipt.
+      let queuedCount = 0;
       const manualTip = Math.max(0, Number(tipAmount) || 0);
       // P1: a manually entered tip belongs to the primary order (the one the
       // operator is paying at), not spread across all group orders.
@@ -1134,8 +1149,15 @@ export default function POSPage() {
             discount_amount: activeOrder.discount_amount || 0,
             discount_type: activeOrder.discount_type || 'fixed',
             idempotency_key: payKeyFor(activeOrder.id),
+            // 2026-09-26 (Q7): terminal authorization code → order_payments.reference
+            ...(cardRef ? { card_reference: cardRef } : {}),
           }),
         });
+
+        if (res.status === 202) {
+          const qd = await res.json().catch(() => ({}));
+          if (qd.queued) { queuedCount++; continue; }
+        }
 
         if (!res.ok) {
           const err = await res.json();
@@ -1151,7 +1173,16 @@ export default function POSPage() {
         if (pos.selectedTable && tableNumbers.includes(pos.selectedTable.table_number)) pos.resetCart();
         return;
       }
-      toast.success(t('all_orders_paid'), { id: 'action-toast' });
+      if (queuedCount > 0) {
+        setPayOfflinePending(true);
+        toast(
+          `OFFLINE: ${queuedCount} ödəniş yerli qeydə alındı — internet qayıtda avtomatik sinxronlaşacaq`,
+          { id: 'action-toast' },
+        );
+      } else {
+        setPayOfflinePending(false);
+        toast.success(t('all_orders_paid'), { id: 'action-toast' });
+      }
 
       setPaymentView(false);
       setActionSheetOpen(false);
@@ -1213,6 +1244,16 @@ export default function POSPage() {
     } catch (e: any) {
       toast.error(e.message || t('payment_error'));
     }
+  };
+
+  const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge' | string, tenderedAmount?: number, tipAmount?: number) => {
+    // 2026-09-26 (owner, Q7): card → terminal adapter first (simulator today;
+    // real PSP on owner decision — same interface, M wave).
+    if (method === 'card') {
+      setTerminalState({ amount: cartTotalNow(), method, tendered: tenderedAmount, tip: tipAmount });
+      return;
+    }
+    await runPaymentFlow(method, tenderedAmount, tipAmount);
   };
 
   const handleSplitConfirm = async (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }, tipAmount?: number) => {
@@ -3247,9 +3288,14 @@ export default function POSPage() {
                     />
                   </svg>
                 </motion.div>
-                <h2 className="text-sm font-black text-emerald-600 tracking-tight uppercase">
-                  {t('order_paid')} ✓
+                <h2 className={`text-sm font-black tracking-tight uppercase ${payOfflinePending ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  {payOfflinePending ? 'Sifariş qeydə alındı — sinxron olacaq' : `${t('order_paid')} ✓`}
                 </h2>
+                {payOfflinePending && (
+                  <div className="mt-2 mx-auto max-w-[240px] text-center text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                    Offline ödəniş · internet qayıtda avtomatik yüklənəcək
+                  </div>
+                )}
                 {(receiptView.staffName || receiptView.paymentMethodName) && (
                   <motion.div
                     initial={{ opacity: 0, y: 4 }}
@@ -3364,7 +3410,19 @@ export default function POSPage() {
           }}
         />
 
-       </AnimatePresence>
+        </AnimatePresence>
+
+        {/* 2026-09-26 (owner, Q7): virtual card terminal (simulator adapter) */}
+        <TerminalTapModal
+          open={terminalState != null}
+          amount={terminalState?.amount || 0}
+          onDone={(code) => {
+            const st = terminalState;
+            setTerminalState(null);
+            if (st) void runPaymentFlow(st.method, st.tendered, st.tip, code);
+          }}
+          onClose={() => setTerminalState(null)}
+        />
 
         {/* SHIFT REVIEW MODAL */}
         <AnimatePresence>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { resolveWriteLocationContext } from '@/lib/location-context';
+import { sendReservationEmail } from '@/lib/resv-email';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -200,6 +201,18 @@ export async function POST(request: Request) {
     if (action === 'create') {
       const newId = result?.[0]?.id || result?.id;
       if (newId) logAudit('reservations', newId, 'create', null, result, performedBy);
+      // 2026-09-26 (owner): AUTO-CONFIRM e-mail — "1 şey yaz, bütün rezervlər
+      // düşsün": guest e-mail varsa ona, yoxsa business mail-ə. Fire-and-forget:
+      // SMTP yoxdursa səs-sessiz skip (UI-də manual "EMAIL GÖNDƏR" qalır).
+      const createdRow: any = result?.[0] || (result && !Array.isArray(result) ? result : null);
+      if (createdRow) {
+        void sendReservationEmail({
+          to: createdRow.email || null,
+          template: 'confirm',
+          reservation: createdRow,
+          reservation_id: newId,
+        }).catch(() => { /* non-blocking */ });
+      }
     } else if (action === 'update') {
       logAudit('reservations', id, 'update', null, payload, performedBy);
     } else if (action === 'delete') {

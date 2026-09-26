@@ -10,14 +10,32 @@
 const PREFIX = 'saito_cache_';
 
 // Read routes worth caching for offline POS continuity.
+// 2026-09-26 phase 2 (owner: "bütün POS offline-da işləyə bilsin,
+// səhifələrə keçdikcə bütün sistem"): every POS/FOH read surface.
 export const OFFLINE_READ_ROUTES = new Set<string>([
+  // POS core
   '/api/products',
   '/api/pos/floors',
-  '/api/settings/general',
   '/api/pos/tables',
   '/api/orders',
+  '/api/settings/general',
   '/api/campaigns/list',
   '/api/staff/active',
+  '/api/cash-drawer',
+  // CRM / customers
+  '/api/customers',
+  // Reservations
+  '/api/reservations',
+  '/api/reservations/status',
+  // Waitlist
+  '/api/waitlist',
+  // Delivery
+  '/api/couriers',
+  '/api/pos/delivery-status',
+  // History / reports (read surfaces)
+  '/api/orders/history',
+  '/api/orders/history/exceptions',
+  '/api/reports/z',
 ]);
 
 interface Snapshot { ts: number; body: string; }

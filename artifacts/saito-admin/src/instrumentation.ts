@@ -56,4 +56,49 @@ export async function register() {
     }
     throw new Error('unreachable');
   }) as typeof fetch;
+
+  // ── 2026-09-26 (owner): reservation e-mail pump ─────────────────────────
+  // The POS server runs 24/7 (kiosk / native). Twice a day (09:00 + 16:00
+  // Asia/Baku) POST /api/cron/resv-emails with CRON_SECRET via loopback.
+  // Idempotent server-side (last_reminder_at stamp, 20h cutoff).
+  const CRON_SECRET = process.env.CRON_SECRET;
+  if (CRON_SECRET) {
+    const runPump = async () => {
+      try {
+        const port = process.env.PORT || 3000;
+        const res = await orig(`http://127.0.0.1:${port}/api/cron/resv-emails`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${CRON_SECRET}` },
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) console.error('[resv-email-pump] failed:', res.status, body.error);
+        else console.log('[resv-email-pump] ok:', JSON.stringify(body));
+      } catch (e) {
+        console.error('[resv-email-pump]', e);
+      }
+    };
+    const schedulePump = () => {
+      // Baku wall-clock as a fake local Date (consistent frame for the diff)
+      const nowBaku = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Baku' }));
+      const cands: Date[] = [];
+      for (const h of [9, 16]) {
+        const d = new Date(nowBaku);
+        d.setHours(h, 0, 0, 0);
+        cands.push(d);
+      }
+      const d2 = new Date(nowBaku);
+      d2.setDate(d2.getDate() + 1);
+      d2.setHours(9, 0, 0, 0);
+      cands.push(d2);
+      const next = cands
+        .filter(c => c.getTime() > nowBaku.getTime())
+        .sort((a, b) => a.getTime() - b.getTime())[0];
+      const delay = Math.max(60_000, next.getTime() - nowBaku.getTime());
+      setTimeout(async () => {
+        await runPump();
+        schedulePump();
+      }, delay);
+    };
+    schedulePump();
+  }
 }

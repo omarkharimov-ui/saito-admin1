@@ -30,15 +30,20 @@ export interface QueueItem {
   lastError: string | null;
 }
 
-// Blind-replay-safe: guarded transition (no-op on re-apply) or upsert
-// semantics (re-send = same state).
+// Blind-replay-safe:
+//  - /api/orders/pay        → idempotency_key REQUIRED server-side; duplicate
+//                             replay = 409 idempotent_conflict → dropped,
+//                             payment was applied (or is retried with same key).
+//  - /api/pos/tables        → guarded state transition (re-apply = no-op)
+//  - /api/reservations/pre-order-items → upsert semantics
 const AUTO_REPLAY_ROUTES = new Set<string>([
+  '/api/orders/pay',
   '/api/pos/tables',
-  '/api/reservations/pre-order-items', // upsert_reservation_preorders
+  '/api/reservations/pre-order-items',
 ]);
 
 // Captured (queued, manual) but NOT auto-replayed: append-type or
-// counter-type routes where a blind re-send could duplicate.
+// counter-type routes where a blind re-send could duplicate items.
 export const OFFLINE_WRITE_ROUTES = new Set<string>([
   ...AUTO_REPLAY_ROUTES,
   '/api/orders',
@@ -48,10 +53,9 @@ export const OFFLINE_WRITE_ROUTES = new Set<string>([
   '/api/campaigns/coupon',
 ]);
 
-// MONEY routes — never captured in phase 1: an offline "paid" receipt would
-// be a lie. Blocked with a friendly error; phase 2 = offline cash ledger.
+// Still blocked offline: cash-drawer sessions must exist server-side, and
+// refund/void/redeem mutate ledgers that have no offline counterpart yet.
 export const OFFLINE_BLOCKED_ROUTES = new Set<string>([
-  '/api/orders/pay',
   '/api/cash-drawer',
   '/api/orders/refund',
   '/api/payments/void',
@@ -149,6 +153,11 @@ export function peekQueue(): QueueItem[] {
 
 let replaying = false;
 let started = false;
+
+/** Manual trigger (banner "İNDİ SİNHRONLAŞDIR" button). */
+export function drainNow() {
+  void drain();
+}
 
 export function startReplayPump() {
   if (started || typeof window === 'undefined') return;

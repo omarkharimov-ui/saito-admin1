@@ -44,7 +44,26 @@ export default function NotificationsTab() {
   const [sms, setSms] = useState<SmsState>({});
   const [form, setForm] = useState({ provider: 'twilio', sender: '', sid: '', token: '', enabled: false });
   const [email, setEmail] = useState<EmailState>({});
-  const [emailForm, setEmailForm] = useState({ from: '', host: '', port: 587, user: '', pass: '', enabled: false });
+  const [emailForm, setEmailForm] = useState({ from: '', host: '', port: 587, user: '', pass: '', enabled: false, provider: 'gmail' });
+  // 2026-09-26 (owner: "sadece 1 şey yazıb bütün rezervlər düşsün"):
+  // provider preset → host/user avtomatik; operator yalnız KEY (pass) + from.
+  const EMAIL_PRESETS: Record<string, { host: string; port: number; user: string; keyLabel: string }> = {
+    gmail: { host: 'smtp.gmail.com', port: 587, user: 'info@saito.az', keyLabel: 'App Password (Google → Security → App passwords)' },
+    brevo: { host: 'smtp-relay.brevo.com', port: 587, user: 'default', keyLabel: 'Brevo API key (xərcsiz 300 mail/gün)' },
+    resend: { host: 'smtp.resend.com', port: 587, user: 'resend', keyLabel: 'Resend API key (xərcsiz 100 mail/gün)' },
+    postmark: { host: 'smtp.postmarkapp.com', port: 587, user: 'user', keyLabel: 'Postmark server token' },
+    custom: { host: '', port: 587, user: '', keyLabel: 'SMTP parol' },
+  };
+  const applyPreset = (id: string) => {
+    const p = EMAIL_PRESETS[id] || EMAIL_PRESETS.custom;
+    setEmailForm(f => ({
+      ...f,
+      provider: id,
+      host: id === 'custom' ? f.host : p.host,
+      port: p.port,
+      user: id === 'custom' ? f.user : p.user,
+    }));
+  };
   const [contactEmail, setContactEmail] = useState('');
   const [testing, setTesting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -71,11 +90,12 @@ export default function NotificationsTab() {
           setContactEmail(data.contact_email || '');
           setEmailForm({
             from: e.from || data.contact_email || '',
-            host: e.host || '',
+            host: e.host || EMAIL_PRESETS[(e as any).provider || 'gmail'].host,
             port: e.port || 587,
             user: e.user || '',
             pass: e.has_password ? '••••••••' : '',
             enabled: !!e.enabled,
+            provider: (e as any).provider || (e.host ? 'custom' : 'gmail'),
           });
         }
       } catch { /* offline */ }
@@ -124,6 +144,7 @@ export default function NotificationsTab() {
             host: emailForm.host || null,
             port: emailForm.port || 587,
             user: emailForm.user || null,
+            provider: emailForm.provider,
             // masked placeholder = keep the stored password
             pass: emailForm.pass && !emailForm.pass.startsWith('•') ? emailForm.pass : undefined,
             enabled: emailForm.enabled,
@@ -268,6 +289,28 @@ export default function NotificationsTab() {
           {emailConfigured
             ? <span className="ml-auto px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">Hazırdır</span>
             : <span className="ml-auto px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-white/35">Konfiqurasiya lazımdır</span>}
+        </div>
+
+        <div>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Provider</label>
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+            {([['gmail', 'Gmail'], ['brevo', 'Brevo'], ['resend', 'Resend'], ['postmark', 'Postmark'], ['custom', 'Custom']] as const).map(
+              ([id, label]) => (
+                <button key={id} type="button" onClick={() => applyPreset(id)}
+                  className={`h-9 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-colors ${
+                    emailForm.provider === id
+                      ? 'bg-emerald-500/15 border-emerald-400/50 text-emerald-300'
+                      : 'bg-white/[0.03] border-white/10 text-white/45 hover:bg-white/[0.06]'
+                  }`}>
+                  {label}
+                </button>
+              )
+            )}
+          </div>
+          <p className="text-[10px] text-white/35 mt-1.5 leading-relaxed">
+            <span className="text-emerald-400 font-bold">1 şey yaz:</span> aşağıdakı {EMAIL_PRESETS[emailForm.provider]?.keyLabel || 'parol'} + business e-mail.
+            Qonağın e-mail-i YOXSA — bütün rezerv mail-ləri business mail-ə düşür.
+          </p>
         </div>
 
         <div>

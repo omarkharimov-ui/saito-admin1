@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createAuthClient();
 
-    const { order_id, payment_method, cash_amount, card_amount, paid_amount, tip_amount, campaign_id, discount_amount, discount_type, per_item_allocations, cash_received, idempotency_key } = await request.json();
+    const { order_id, payment_method, cash_amount, card_amount, paid_amount, tip_amount, campaign_id, discount_amount, discount_type, per_item_allocations, cash_received, idempotency_key, card_reference } = await request.json();
     if (!order_id) {
       return NextResponse.json({ error: 'order_id is required' }, { status: 400 });
     }
@@ -199,6 +199,21 @@ export async function POST(request: NextRequest) {
       await supabase.rpc('prune_expired_idempotency_keys');
     } catch (pruneErr) {
       console.warn('[pay] prune_expired_idempotency_keys (non-blocking):', pruneErr);
+    }
+
+    // 2026-09-26 (owner, Q7): card terminal authorization code (today:
+    // simulator SIM-XXXXXX; later: PSP auth code) → order_payments.reference.
+    // Best-effort; a reference-write failure NEVER voids the payment.
+    if (card_reference && Array.isArray(data.payment_ids) && data.payment_ids.length > 0) {
+      try {
+        await supabase
+          .from('order_payments')
+          .update({ reference: String(card_reference).slice(0, 120) })
+          .in('id', data.payment_ids)
+          .eq('is_refund', false);
+      } catch (refErr) {
+        console.warn('[pay] card_reference write (non-blocking):', refErr);
+      }
     }
 
     return NextResponse.json({

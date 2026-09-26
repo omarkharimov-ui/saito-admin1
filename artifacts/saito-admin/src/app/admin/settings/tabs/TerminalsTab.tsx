@@ -6,11 +6,12 @@
 // first_seen (YENİ badge), UNPAIR (blok) + REMOTE RELOAD ("Yenilə" düyməsi).
 // Hər terminal 30s heartbeat atır; online = last_seen ≤ 45s. Tab 30s poll.
 import { useCallback, useEffect, useState } from 'react';
-import { Monitor, Laptop, Coffee, BellRing, Shield, RefreshCw, RotateCw, Unplug, CheckCheck, Loader2, BatteryCharging, BatteryLow } from 'lucide-react';
+import { Monitor, Laptop, Coffee, BellRing, Shield, RefreshCw, RotateCw, Unplug, CheckCheck, Loader2, BatteryCharging, BatteryLow, CreditCard } from 'lucide-react';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { getDeviceId } from '@/lib/device-identity';
+import { TERMINAL_PROVIDERS, ACTIVE_TERMINAL } from '@/lib/terminal/simulator';
 
 type Meta = {
   os?: string;
@@ -146,6 +147,40 @@ const TerminalsTab = () => {
 
   return (
     <div className="space-y-4">
+      {/* 2026-09-26 (owner, Q7): card terminal adapter status.
+          Simulator = ACTIVE (fiziki terminal yoxdur — full card flow virtual
+          terminal ilə işləyir). Real PSP = owner qərarı + API key (M wave). */}
+      <div className={`rounded-2xl border p-4 ${lightMode ? 'bg-white border-zinc-200' : 'bg-white/[0.03] border-white/10'}`}>
+        <div className="flex items-center gap-2.5 mb-3">
+          <span className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center">
+            <CreditCard size={14} className="text-blue-400" />
+          </span>
+          <div>
+            <h4 className="text-[12px] font-black uppercase tracking-widest">Kart Terminalı (PSP)</h4>
+            <p className={`text-[10px] ${muted}`}>POS-da KART ödənişi bu adapter-dən keçir</p>
+          </div>
+          <span className="ml-auto px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+            {TERMINAL_PROVIDERS.find(p => p.id === ACTIVE_TERMINAL)?.name}
+          </span>
+        </div>
+        <div className="space-y-1.5">
+          {TERMINAL_PROVIDERS.map(p => (
+            <div key={p.id} className={`flex items-center gap-2.5 rounded-xl px-3 py-2 border ${p.id === ACTIVE_TERMINAL ? 'border-blue-400/40 bg-blue-500/5' : 'border-white/5 bg-white/[0.02]'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${p.ready ? 'bg-emerald-400' : 'bg-white/20'}`} />
+              <span className={`text-[12px] font-bold ${p.id === ACTIVE_TERMINAL ? 'text-white' : muted}`}>{p.name}</span>
+              <span className={`ml-auto text-[9px] font-black uppercase tracking-widest ${p.ready ? 'text-emerald-400' : 'text-white/30'}`}>
+                {p.id === ACTIVE_TERMINAL ? 'Aktiv' : p.ready ? 'Hazırdır' : 'Adapter gözləyir'}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className={`text-[10px] mt-2.5 leading-relaxed ${muted}`}>
+          Fiziki terminal alındıqda: provider seç + API key → adapter wave (M). Simulator
+          müddətində hər KART ödənişi virtual terminal dialogu ilə işlənir və auth code
+          ledger-ə (order_payments.reference) yazılır.
+        </p>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-base font-black tracking-tight">Cihazlar (Device Health)</h3>

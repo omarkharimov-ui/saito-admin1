@@ -34,6 +34,7 @@ import { printReceipt, getReceiptSettings, printReservation, printKitchenTicket 
 import { usePrintClaimLoop, type PrintJob } from '@/hooks/usePrintClaimLoop';
 import { apiFetch } from '@/lib/api-fetch';
 import { supabase } from '@/lib/supabase';
+import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import ReceiptPreview from '@/app/admin/shared/ReceiptPreview';
 import type { PosProduct, LossItem } from './types/shared';
 
@@ -333,6 +334,33 @@ export default function POSPage() {
     setFlashInfo(null);
   }, [posMode]);
 
+  // 2026-09-26 (Task 53 P1-6 ready-notify — Toast "food ready → ping server"):
+  // when a table's aggregated kitchen_status transitions in-progress
+  // (pending/accepted/sent/preparing) → ready/completed, chime + toast + flash
+  // the table card so the floor server runs the food. Driven by the same
+  // `pos.floors` state that pos-sync realtime + 3s poll keep fresh — no extra
+  // poll. First load never pings (prev map empty).
+  const prevKitchenStatusRef = useRef<Map<number, string>>(new Map());
+  useEffect(() => {
+    const prev = prevKitchenStatusRef.current;
+    const inProgress = new Set(['pending', 'accepted', 'sent', 'preparing', 'hold']);
+    const readySet = new Set(['ready', 'completed']);
+    (pos.floors || []).forEach((f: any) => {
+      (f.tables || []).forEach((tb: any) => {
+        const num = tb.table_number;
+        const cur = (tb.kitchen_status || null) as string | null;
+        const was = prev.get(num);
+        if (cur && readySet.has(cur) && was && inProgress.has(was)) {
+          playHapticSound('success');
+          toast(`Masa ${num} — ${t('kitchen_ready_notify')}`, { id: `ready-${num}`, duration: 5000 });
+          setFlashInfo({ tableNumber: num, nonce: Date.now() });
+        }
+        if (cur) prev.set(num, cur);
+        else if (was !== undefined) prev.delete(num); // table emptied — forget
+      });
+    });
+  }, [pos.floors, t]);
+
   // 2026-09-22 (payment ↔ fulfillment separation): the active lists must keep
   // PAID orders visible (they still need handover/delivery) and only drop
   // FULFILLMENT-final ones. The old FINAL_ORDER_STATUSES included 'paid', so a
@@ -388,7 +416,27 @@ export default function POSPage() {
       if (posMode === 'takeaway') fetchTakeawayOrders();
       if (posMode === 'delivery') fetchDeliveryOrders();
     }, 15000);
-    return () => clearInterval(poll);
+    // 2026-09-26 (Task 53 P0-2 realtime): TA/Delivery order list was poll-only
+    // (15s) — a new delivery order could sit invisible up to 15s. Now
+    // orders/order_items row changes push a debounced (1.5s) refetch; the 15s
+    // poll stays as the safety fallback (pos-sync covers dine-in floor only).
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    const onRowChange = () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        if (posMode === 'takeaway') fetchTakeawayOrders();
+        if (posMode === 'delivery') fetchDeliveryOrders();
+      }, 1500);
+    };
+    const channel = createRealtimeChannel('pos-tad-list')
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'orders' }, onRowChange)
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'order_items' }, onRowChange)
+      .subscribe();
+    return () => {
+      clearInterval(poll);
+      if (debounce) clearTimeout(debounce);
+      removeRealtimeChannel(channel);
+    };
   }, [posMode, fetchTakeawayOrders, fetchDeliveryOrders, actionSheetOpen, paymentView]);
 
   useEffect(() => {

@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings-client';
 import { usePrintClaimLoop, type PrintJob } from '@/hooks/usePrintClaimLoop';
 import { printKitchenTicket, printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
+import { useCrossTableRefresh } from '@/hooks/useCrossTableRefresh';
 
 interface KDSItem {
   id: string;
@@ -128,6 +129,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   const [delayMin, setDelayMin] = useState(30);
   const prevOrderCountRef = useRef(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const fetchKDSRef = useRef<() => void>(() => {});
 
   // BDS #28 — station boards. SSOT: `stations` (via /api/stations; the
   // stations RLS policy is location-scoped so the browser client can't be
@@ -352,9 +354,17 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
       }
     };
     fetchKDS();
+    fetchKDSRef.current = fetchKDS;
     const interval = setInterval(fetchKDS, 5000);
     return () => clearInterval(interval);
   }, [playSound]);
+
+  // 2026-09-26 (Task 53 P0-2 realtime): KDS/BDS was the last major board on
+  // poll-only sync (5s). Now orders/order_items row changes push a debounced
+  // refetch (~1.5s coalescing) — sub-second ticket appearance across
+  // terminals, Toast-style. The 5s poll stays as the safety fallback (same
+  // defense-in-depth pattern as pos-sync).
+  useCrossTableRefresh('kdsview', ['orders', 'order_items'], () => fetchKDSRef.current(), 1500);
 
   // U-1 fix: per-item ✓ now calls the FROZEN atomic mark-ready route for a
   // single item (the old action 'updateItemStatus' was not handled by

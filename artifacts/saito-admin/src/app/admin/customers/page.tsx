@@ -34,7 +34,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Search, X, ChevronRight, Users, Phone, Pencil } from 'lucide-react';
+import { Search, X, ChevronRight, Users, Phone, Pencil, Star } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
 import { cachedFetch, cachePeek } from '@/lib/data-cache';
@@ -82,7 +82,7 @@ const LIVE = (s: string) => s !== 'cancelled' && s !== 'voided';
 const methodAZ = (m: string) => METHOD_AZ[m] || m.charAt(0).toUpperCase() + m.slice(1);
 
 interface CustomerRow { id: string; name: string; phone?: string | null; }
-interface RowStats { visits: number; spent: number; avg: number; last: string | null; }
+  interface RowStats { visits: number; spent: number; avg: number; last: string | null; points: number; }
 interface Timeline {
   customer: {
     id: string; name: string; phone?: string | null; created_at: string;
@@ -235,6 +235,19 @@ function LedgerRow({
           ) : <Ghost w="56px" h={10} className="ml-auto" />}
       </div>
 
+      {/* Xal (loyalty balance — 2026-09-26 Task 53) */}
+      <div className="hidden md:block w-20 shrink-0 text-right">
+        {hasS && stats!.points > 0 ? (
+          <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.3 }}
+            className="inline-flex items-center gap-1 text-[13px] tabular-nums font-semibold text-[var(--theme-text-secondary)]">
+            <Star size={11} className="text-amber-400/80 shrink-0" />
+            {stats!.points}
+          </motion.span>
+        ) : statsReady && hasS ? (
+          <span className="text-[13px] text-[var(--theme-text-muted)]/40">—</span>
+        ) : <Ghost w="40px" h={10} className="ml-auto" />}
+      </div>
+
       {/* Orta */}
       <div className="hidden lg:block w-24 shrink-0 text-right">
         {!hasS && statsReady ? <span className="text-[13px] text-[var(--theme-text-muted)]">—</span>
@@ -270,12 +283,14 @@ function LedgerRow({
 
 // ── Inspector content ───────────────────────────────────────────────────────
 function Inspector({
-  customer, tl, tlErr, onRetry, onProfileSaved, reduce,
+  customer, tl, tlErr, onRetry, onProfileSaved, reduce, loyalty,
 }: {
   customer: CustomerRow; tl: Timeline | null; tlErr: boolean;
   onRetry: () => void; reduce: boolean;
   // CP-1: parent applies the saved profile to the open inspector (zero-latency)
   onProfileSaved: (p: { birthday: string | null; email: string | null; notes: string | null }) => void;
+  // 2026-09-26 (Task 53): loyalty account record (balance/earned/redeemed)
+  loyalty?: { points_balance: number; total_earned: number; total_redeemed: number };
 }) {
   const { lightMode } = useTheme();
   const s = tl?.stats;
@@ -415,7 +430,7 @@ function Inspector({
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: reduce ? 0 : 0.4, delay: d(0.14), ease: [0.32, 0.72, 0, 1] }}
-            className="grid grid-cols-3 divide-x divide-[var(--theme-border)] py-6 border-b border-[var(--theme-border)]">
+            className="grid grid-cols-4 divide-x divide-[var(--theme-border)] py-6 border-b border-[var(--theme-border)]">
             <div className="pr-5">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">Ziyarət</p>
               <p className="mt-2 text-[20px] font-black tabular-nums text-[var(--theme-text)]">{s.visit_count}</p>
@@ -445,6 +460,17 @@ function Inspector({
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">Orta Sifariş</p>
               <p className="mt-2 text-[20px] font-black tabular-nums text-[var(--theme-text-secondary)]">
                 {s.visit_count > 0 ? money(s.avg_order) : '—'}
+              </p>
+            </div>
+            {/* 2026-09-26 (Task 53): loyalty point balance KPI — earned/redeemed subline */}
+            <div className="pl-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">Xal Balansı</p>
+              <p className="mt-2 flex items-center gap-1.5 text-[20px] font-black tabular-nums text-[var(--theme-text-secondary)]">
+                <Star size={14} className={loyalty && loyalty.points_balance > 0 ? 'text-amber-400/90' : 'text-[var(--theme-text-muted)]/40'} />
+                {loyalty ? loyalty.points_balance : '—'}
+              </p>
+              <p className="mt-0.5 text-[11px] tabular-nums text-[var(--theme-text-muted)]">
+                {loyalty ? `${loyalty.total_earned} qazanıldı · ${loyalty.total_redeemed} istifadə` : 'loyalty hesabı yoxdur'}
               </p>
             </div>
           </motion.div>
@@ -705,6 +731,9 @@ export default function CustomersPage() {
   const [rows, setRows] = useState<CustomerRow[] | null>(null);
   const [rowsErr, setRowsErr] = useState(false);
   const [rowStats, setRowStats] = useState<Record<string, RowStats>>({});
+  // 2026-09-26 (Task 53): full loyalty record per customer (balance + earned
+  // + redeemed) for the detail-panel KPI.
+  const [loyaltyMap, setLoyaltyMap] = useState<Record<string, { points_balance: number; total_earned: number; total_redeemed: number }>>({});
   const [statsReady, setStatsReady] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<CustomerRow | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -778,15 +807,28 @@ export default function CustomersPage() {
                 spent: Number(d.stats.total_spent),
                 avg: Number(d.stats.avg_order),
                 last: d.stats.last_visit,
+                points: 0, // filled below from the chunk loyalty fetch
               };
             }
           } catch { /* quiet — cell shows — */ }
           fetchedIds.current.add(c.id);
           done[c.id] = true;
         }));
+        // 2026-09-26 (Task 53): loyalty point balances — one REST call per
+        // 5-id chunk (loyalty_accounts via service role; customers without an
+        // account are simply absent → points 0).
+        let loyaltyChunk: Record<string, { points_balance: number; total_earned: number; total_redeemed: number }> = {};
+        try {
+          const lr = await fetch(`/api/customers/loyalty?ids=${chunk.map(c => c.id).join(',')}`, { cache: 'no-store' });
+          if (lr.ok) loyaltyChunk = await lr.json();
+        } catch { /* quiet — cell shows — */ }
+        for (const c of chunk) {
+          if (out[c.id]) out[c.id].points = Number(loyaltyChunk[c.id]?.points_balance) || 0;
+        }
         if (!cancelled) {
           setRowStats(prev => ({ ...prev, ...out }));
           setStatsReady(prev => ({ ...prev, ...done }));
+          setLoyaltyMap(prev => ({ ...prev, ...loyaltyChunk }));
         }
       }
     })();
@@ -954,6 +996,7 @@ export default function CustomersPage() {
             <span className="flex-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Ad</span>
             <span className="hidden sm:block w-16 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Ziyarət</span>
             <span className="w-28 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Xərçəy</span>
+            <span className="hidden md:block w-20 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Xal</span>
             <span className="hidden lg:block w-24 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Orta</span>
             <span className="hidden sm:block w-32 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">Son</span>
             <span className="w-6" />
@@ -1109,6 +1152,7 @@ export default function CustomersPage() {
                       onRetry={() => selected && openCustomer(selected)}
                       onProfileSaved={p => setTl(prev => prev ? { ...prev, customer: { ...prev.customer, ...p } } : prev)}
                       reduce={reduce}
+                      loyalty={loyaltyMap[selected.id]}
                     />
                   </AnimatePresence>
                 </motion.aside>

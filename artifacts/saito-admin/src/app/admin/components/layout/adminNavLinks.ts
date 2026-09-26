@@ -20,6 +20,7 @@ import {
   Bike,
   Coffee,
   Wallet,
+  Smartphone,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -44,6 +45,16 @@ export function getAdminNavItems(
 ): AdminNavItem[] {
   return [
     { id: 'dashboard', name: t('dashboard'), href: '/admin', icon: LayoutDashboard, roles: ['admin', 'manager', 'superadmin', 'owner'] },
+    {
+      // 2026-09-26 (Task 53 P1-3): owner mobile dashboard — phone-first
+      // "Sahib paneli" (/owner): live sales/orders/alerts. Top-level, next to
+      // Dashboard, so the owner can pin it to their home screen.
+      id: 'owner-dash',
+      name: t('owner_dash'),
+      href: '/owner',
+      icon: Smartphone,
+      roles: ['admin', 'manager', 'superadmin', 'owner'],
+    },
     {
       id: 'pos',
       name: 'POS',

@@ -135,5 +135,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/kitchen/:path*', '/staff/:path*', '/api/:path*', '/'],
+  // 2026-09-26 (Task 53 P1-3): '/owner/:path*' — the owner mobile dashboard is
+  // an authenticated admin surface and must behave EXACTLY like /admin for a
+  // session-less visitor (307 → /staff/login), not serve the app shell first.
+  matcher: ['/admin/:path*', '/owner/:path*', '/kitchen/:path*', '/staff/:path*', '/api/:path*', '/'],
 };

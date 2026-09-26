@@ -26,6 +26,7 @@ import toast from 'react-hot-toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useCrossTableRefresh } from '@/hooks/useCrossTableRefresh';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 26 } as const;
 const POLL_MS = 5000;
@@ -165,6 +166,13 @@ export default function BDSPage() {
     tickRef.current = setInterval(fetchBds, POLL_MS);
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
   }, [fetchBds]);
+
+  // 2026-09-26 (Task 53 P0-2 realtime): BDS board was the last poll-only
+  // ops surface (5s). Row changes on orders/order_items now push a debounced
+  // refetch (1.5s coalescing) — courier status flips + new delivery orders
+  // appear on the board sub-second across terminals. POLL_MS stays as
+  // safety fallback (defense-in-depth, same pattern as pos-sync).
+  useCrossTableRefresh('bds-board', ['orders', 'order_items'], fetchBds, 1500);
 
   const stationName = (sid: string | null | undefined) => {
     const fallback = stations.find(s => s.name === 'Main Kitchen')?.id || stations[0]?.id;

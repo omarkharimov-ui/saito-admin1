@@ -364,6 +364,14 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                // also now "yaranır" from transparent — same 320ms grace fade.
                : 'border-transparent';
 
+  // 2026-09-27 (owner: "yaşıl border anidən yox olur — mavi border kimi təbii
+  // fade-out olsun"): border-color lives in the GRACE band (320ms symmetric
+  // in-out) — the same easing family as the content's graceful exit, so border
+  // + numbers + pill drift away together as ONE motion, never a snap.
+  // ⚠️ NEVER put a /* comment */ INSIDE the className template below — the
+  // browser splits the class attribute on whitespace, so ANY plain word in a
+  // comment (e.g. "ring", "border", "shadow") becomes a LIVE Tailwind class.
+  // That exact bug painted a 1px white ring on every table card (2026-09-27).
   return (
          <motion.div
          onClick={() => { onTap(); }}
@@ -371,13 +379,6 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
          whileTap={{ scale: 0.97 }}
          transition={SPRING.press}
          className={`relative h-[180px] rounded-4xl p-5 text-left overflow-hidden border cursor-pointer group flex flex-col
-           /* Motion System: transition EXCLUDES transform (framer owns it).
-              2026-09-27 (owner: "yaşıl border anidən yox olur — mavi border
-              kimi təbii fade-out olsun"): border-color now lives in the GRACE
-              band (320ms, symmetric in-out) — the same duration/easing family
-              as the content's graceful exit, so border + numbers + pill drift
-              away together as ONE motion, never a snap. Enters are equally
-              soft (green "yaranır" slowly, like the blue ring he praised). */
            [transition:border-color_0.32s_cubic-bezier(0.45,0,0.55,1),background-color_0.2s_cubic-bezier(0.4,0,0.2,1),box-shadow_0.2s_cubic-bezier(0.4,0,0.2,1),opacity_0.14s_ease-out]
           ${isTransferSource
             ? (lightMode ? 'bg-zinc-100 border-transparent opacity-60' : 'bg-[#141419] border-transparent opacity-50')

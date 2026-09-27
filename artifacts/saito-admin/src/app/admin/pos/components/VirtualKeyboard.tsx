@@ -2,9 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { fastExit } from '@/lib/modal-transitions';
-import { Delete, CornerDownLeft, Keyboard, Check } from '@/components/ui/saito-icons';
+import { Delete, CornerDownLeft, Check } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 type KeyMode = 'numeric' | 'text';
 
@@ -74,6 +74,7 @@ function detectMode(target: EventTarget | null): KeyMode | 'none' {
 
 export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [activeEl, setActiveEl] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [mode, setMode] = useState<KeyMode>('text');
   const [shift, setShift] = useState(false);
@@ -262,6 +263,17 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // 2026-09-27 (owner: "klaviaturanın ümumi stilini yenilə — Apple üslubundan
+  // ilhamlanan, müasir, səliqəli, canlı"): Apple keycap language — light
+  // theme = white keycaps on a soft-gray plate; dark = frosted white/15
+  // keycaps. The done key is EMERALD (the single accent; the old amber key
+  // violated the no-yellow-accent doctrine). Press feedback = scale + the
+  // keycap brightening, like iOS.
+  const keyBase = 'touch-none select-none rounded-[12px] flex items-center justify-center font-bold transition-[transform,background-color,filter] duration-100';
+  const keyNormal = lightMode ? 'bg-white text-zinc-900 shadow-[0_1px_1px_rgba(0,0,0,0.06)]' : 'bg-white/[0.16] text-white';
+  const keyCtrl = lightMode ? 'bg-zinc-300/80 text-zinc-800' : 'bg-white/[0.09] text-white/80';
+  const keyDone = 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25';
+
   const renderKey = (k: KeyDef) => {
     const isDone = k.action === 'done';
     const isCtrl = k.action === 'backspace' || k.action === 'clear' || k.action === 'shift' || k.action === 'enter';
@@ -269,41 +281,53 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
     return (
       <motion.button
         key={k.action ?? k.value}
-        whileTap={{ scale: 0.9 }}
+        whileTap={{ scale: 0.92, filter: 'brightness(1.18)' }}
         onPointerDown={(e) => { e.preventDefault(); }}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleKeyPress(k); }}
-        className={`touch-none select-none rounded-xl border flex items-center justify-center font-bold transition-colors ${
-          k.wide ? 'flex-[2]' : 'flex-1'
-        } ${isDone
-          ? 'bg-amber-500 border-amber-400 text-white'
-          : isCtrl
-            ? 'bg-zinc-700/80 border-zinc-600/60 text-white/90'
-            : 'bg-zinc-800 border-zinc-700/50 text-white'}`}
-        style={{ height: 54 }}
+        className={`${keyBase} ${k.wide ? 'flex-[2]' : 'flex-1'} ${
+          isDone ? keyDone : isCtrl ? keyCtrl : keyNormal
+        }`}
+        style={{ height: 52 }}
       >
         {/* QA bug 8 (2026-09-22): the "done" key used the SAME 'Gizlə' label as
             the header button (two identical buttons on screen). It is now a
             distinct checkmark; the header keeps the word "Gizlə". */}
-        {k.action === 'backspace' ? <Delete size={20} /> : k.action === 'enter' ? <CornerDownLeft size={20} /> : k.action === 'done' ? <Check size={20} /> : label}
+        {k.action === 'backspace' ? <Delete size={19} /> : k.action === 'enter' ? <CornerDownLeft size={19} /> : k.action === 'done' ? <Check size={19} /> : label}
       </motion.button>
     );
   };
 
-  const keyboard = activeEl && (
-    // 2026-09-25 (owner): z raised 9999 → 10002 so the keyboard is visible
-    // ABOVE the z-[10001] PIN/security modal backdrops (PinGuard, Refund,
-    // Void, GiftCard…) — previously it opened hidden behind them. It is a
-    // bottom bar, not a full-screen backdrop, so no click swallowing.
-    <div ref={keyboardRef} data-vk-panel className="fixed bottom-0 left-0 right-0 z-[10002] bg-[#1E1E24] border-t border-white/10 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-elevated backdrop-blur-lg">
-      <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-white/30">
-          <Keyboard size={12} />
-          Virtual Keyboard
-        </div>
+  // 2026-09-27 (owner: "klaviatura blur qatının və modalın ARXASINDA açılır"):
+  // the slide-in transform used to live on a WRAPPER div around the fixed
+  // bar — a transformed ancestor becomes the containing block AND stacking
+  // context for the fixed child, so during the ~280ms entry the bar's
+  // z-[10002] was trapped inside a z-auto wrapper and painted UNDER the
+  // modal/backdrop (it "jumped" in front only after the transform cleared).
+  // Fix: the fixed+z element IS the motion element — its own transform never
+  // demotes it. (2026-09-25: z 10002 sits above the z-[10001] PIN/Refund/
+  // Void modal backdrops; it is a bottom bar, not a full-screen layer.)
+  const keyboard = activeEl ? (
+    <motion.div
+      ref={keyboardRef}
+      key="vk-keyboard"
+      initial={{ y: 400 }}
+      animate={{ y: 0 }}
+      exit={{ y: 400 }}
+      transition={{ duration: 0.28, ease: [0.45, 0, 0.55, 1] }}
+      data-vk-panel
+      className={`fixed bottom-0 left-0 right-0 z-[10002] p-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)] shadow-elevated backdrop-blur-xl ${
+        lightMode ? 'bg-[#D8D9DD]/95 border-t border-black/10' : 'bg-[#1B1B21]/95 border-t border-white/10'
+      }`}
+    >
+      {/* 2026-09-27 (E2E: "GİZLƏ pill MISSING"): minimal header restored —
+          a quiet grabber + the labeled GİZLƏ close pill (the ✓ key alone
+          was an unlabeled icon, unclear affordance). */}
+      <div className="flex items-center justify-between px-1.5 pb-1.5">
+        <span className={`w-8 h-1 rounded-full ${lightMode ? 'bg-black/15' : 'bg-white/20'}`} />
         <button
           onPointerDown={(e) => e.preventDefault()}
           onClick={() => close()}
-          className="px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest bg-white/10 text-white/70 hover:bg-white/15 active:scale-95 transition-all"
+          className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${lightMode ? 'bg-black/10 text-zinc-700 hover:bg-black/15' : 'bg-white/10 text-white/70 hover:bg-white/15'}`}
         >
           {t('hide')}
         </button>
@@ -317,13 +341,15 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
               </div>
             ))}
             <div className="grid grid-cols-2 gap-1.5 mt-1.5">
-              <button
+              <motion.button
                 onPointerDown={(e) => e.preventDefault()}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleKeyPress({ action: 'clear', label: t('clear') }); }}
-                className="h-[54px] rounded-xl border border-zinc-700/50 bg-zinc-800 text-white/70 text-xs font-bold uppercase tracking-wider active:scale-95 transition-transform"
+                whileTap={{ scale: 0.94, filter: 'brightness(1.15)' }}
+                className={`${keyBase} ${keyCtrl} flex-1 text-xs font-bold uppercase tracking-wider`}
+                style={{ height: 52 }}
               >
                 {t('clear')}
-              </button>
+              </motion.button>
               {renderKey({ action: 'done', label: t('hide') })}
             </div>
           </div>
@@ -346,25 +372,17 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
           </div>
         )}
       </div>
-    </div>
-  );
+    </motion.div>
+  ) : null;
 
   return (
     <VirtualKeyboardContext.Provider value={{ close, isOpen: !!activeEl, mode, height }}>
       {children}
-      <style>{'.vk-active { box-shadow: 0 0 0 2px rgba(245,158,11,0.9) !important; }'}</style>
+      {/* 2026-09-27 (doctrine: no yellow accent — emerald focus): the
+          active-input ring was amber (rgba(245,158,11)); now emerald. */}
+      <style>{`.vk-active { box-shadow: 0 0 0 2px ${lightMode ? 'rgba(5,150,105,0.75)' : 'rgba(16,185,129,0.85)'} !important; }`}</style>
       <AnimatePresence>
-        {keyboard && (
-          <motion.div
-            key="vk-keyboard"
-            initial={{ y: 320 }}
-            animate={{ y: 0 }}
-            exit={{ y: 320 }}
-            transition={fastExit}
-          >
-            {keyboard}
-          </motion.div>
-        )}
+        {keyboard}
       </AnimatePresence>
     </VirtualKeyboardContext.Provider>
   );

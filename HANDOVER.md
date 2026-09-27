@@ -6,7 +6,7 @@
 ## 0. STATUS QISCA
 
 - **Repo:** `/Users/mr.apple/saito-admin1/` · app: `artifacts/saito-admin/` (git path prefix `artifacts/saito-admin/`)
-- **HEAD:** `cccbffe9` (§2e tech batch) **+ §2f design-batch commit-i**. Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`. **⚠️ AÇIQ QƏRAR:** owner order-card variantı (1/2/3) seçməlidir — sonra switcher + digər 2 silinir.
+- **HEAD:** `f91f5c15` (§2f design batch) **+ §2g modal/VKB-batch commit-i**. Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`. Variant qərari verilib: **V1 "Clean list"** (switcher silindi).
   - ⚠️ Əvvəl burada "HEAD `b469f842` — 7 fayl UNCOMMITTED" yazırdı — **o qeyd KÖHNƏ idi** (§2-dəki 7 fayl həmin anda commit olunmuşdu).
 - **Dev server:** `http://localhost:3000` (adətən işləyir; yoxdursa `corepack pnpm dev` inside `artifacts/saito-admin/`)
 - **Login:** `/login` → PIN **4321** · POS: `/admin/pos`
@@ -120,6 +120,29 @@ Apple-minimal redesign) növbəti round. Dəyişən: **5 fayl** + sənədlər.
   Daxilolma; quiet secondary pair; borderless accessory row; hairline hərəkət list.
 - Detal: jurnal `MASTER_FEATURE_MAP.md` §10 (newest-first) · screenshots
   `e2e-shots/21-28-*`.
+
+## 2g. MODAL & VKB BATCH (2026-09-27) — ✅ TAMAM
+
+Owner-un 7 nöqtəlik turn: refund modalı + üfüqi balanslı modallar + scroll azaltma +
+Tarixçə qiyməti + variant qərari + Kassa label-ları + VKB stacking/stil + TableCard.
+
+- **Refund** indi **wide 2-column sheet** (summary+üsul sol, mode+məbləğ+səbəb sağ,
+  actions footer) — klaviaturada card `maxHeight: calc(100vh - vk - 48px)` ilə
+  **ekrandan çıxmayıb** (E2E top=69). Detail: **sticky footer** (Çap/Qaytarma həmişə
+  görünür) + audit log default 3 ("Bütün tarixçə (N)" expand).
+- **Variant qərari: V1 "Clean list"** — V2/V3 + switcher silindi. Tarixçə eni
+  max-w-2xl (672px, üfüqi balanslı).
+- **VKB stacking fix**: transform wrapper-dan fixed element-in özünə köçdü
+  (köhnə: z-10002 wrapper-in trapped → klaviatura modal arxasında açılırdı).
+  Apple restyle: light/dark keycap, done key EMERALD, "Virtual Keyboard" label yox →
+  grabber + GİZLƏ pill, `.vk-active` ring emerald.
+- **Kassa accessory row**: Satışsız / Nağd çekmə / Depozit / Qıfılla / Z hesabat
+  + tooltip-lər (effekti izah edir).
+- **TableCard**: group child chip-lər (16·18) bottom-left row-a; counter-lar quiet;
+  badge-li title text-lg; E2E 0 overlap.
+- **Tarixçə qərarı (qiymətləndirmə)**: SAXLANDI (reprint/refund/exceptions = core
+  kassir axını) — yığcam həll ilə (sticky footer + audit collapse).
+- Detal: jurnal `MASTER_FEATURE_MAP.md` §10 · screenshots `e2e-shots/30-40-*`.
 
 ## 3. BUG STATUS — A ✅ FIXED · B ✅ FIXED · QALAN: §3-C
 
@@ -248,4 +271,4 @@ Gallery-da 'Sil' basanda şəkillər bir anda yox olmur; yavaş və zərif fade-
 - `e2e-shots/*.png` — owner baxışı üçün saxlanıldı (13 screenshot); istəsən sil.
 
 ## 6. KOMMIT GİSİ (gələn round üçün)
-Son commits: `297e26b0` (cart body crossfade, §2d) ← `8fff6c6f` (Təmizlə/Ləğv morph bərpa, §2c) ← `4b507c5e` (60s sync verify) ← `1b5cd979` (Bug A+B, §2b) ← `080742b5` (HANDOVER §4.0) ← `b469f842` (ghost blue border fix) ← `9f4e5302` (1px ring fix) ← `9e3c50c2` / `0253c58e` (border transparent) ← `3eea7dfe` (border grace 320ms — ring bug buradan gəldi) ← `0ba5ecd0` (cart counter-roll RESTORE) ← `a3021e4a` (grace doctrine + presence fixes).
+Son commits: `cccbffe9` (tech batch: guest optimistic + SWR + blur single-clock + VKB, §2e) ← `297e26b0` (cart body crossfade, §2d) ← `8fff6c6f` (Təmizlə/Ləğv morph bərpa, §2c) ← `4b507c5e` (60s sync verify) ← `1b5cd979` (Bug A+B, §2b) ← `080742b5` (HANDOVER §4.0) ← `b469f842` (ghost blue border fix) ← `9f4e5302` (1px ring fix) ← `9e3c50c2` / `0253c58e` (border transparent) ← `3eea7dfe` (border grace 320ms — ring bug buradan gəldi) ← `0ba5ecd0` (cart counter-roll RESTORE) ← `a3021e4a` (grace doctrine + presence fixes).

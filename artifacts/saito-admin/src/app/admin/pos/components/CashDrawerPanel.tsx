@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText, CreditCard, Banknote, Landmark, Hourglass } from '@/components/ui/saito-icons';
+import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText, CreditCard, Banknote, Landmark, Receipt, Hourglass } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
@@ -655,25 +655,33 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                   )}
 
                   {/* 2026-09-23 (owner, Toast benchmark): secondary drawer actions
-                      (2026-09-24: + Z-report) — now a quiet accessory row. */}
+                      (2026-09-24: + Z-report) — a quiet accessory row.
+                      2026-09-27 (owner: "funksiyası aydın olmayan düymələr —
+                      user anlamaq lazımdır"): the opaque English/abbreviated
+                      labels (NO SALE, DROP, Z) are replaced with what they
+                      actually DO in Azerbaijani, + a tooltip (title) spelling
+                      out the effect for desktop. */}
                   {view === 'main' && (
                     <section className={`grid grid-cols-5 gap-1 pt-3 border-t ${lightMode ? 'border-zinc-100' : 'border-white/10'}`}>
                       <button
                         onClick={() => { setView('no-sale'); setNoSaleReason(''); }}
+                        title="Kassanı satışsız aç — məcburi səbəb, istisna reportlarına düşür"
                         className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
                       >
                         <FileText size={15} strokeWidth={2} />
-                        <span className="text-[9px] font-black uppercase tracking-wider">No Sale</span>
+                        <span className="text-[9px] font-black uppercase tracking-wider">Satışsız</span>
                       </button>
                       <button
                         onClick={() => { setView('cash-drop'); setCashAmount(''); setCashDesc(''); }}
+                        title="Kassadakı artıq nağdı safe-ə (çekməyə) köçür"
                         className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
                       >
                         <Landmark size={15} strokeWidth={2} />
-                        <span className="text-[9px] font-black uppercase tracking-wider">Drop</span>
+                        <span className="text-[9px] font-black uppercase tracking-wider">Nağd çekmə</span>
                       </button>
                       <button
                         onClick={openDeposit}
+                        title="Nağdı bank deponuna ödənişi qeydə al (manager PIN)"
                         className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
                       >
                         <Banknote size={15} strokeWidth={2} />
@@ -681,17 +689,19 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                       </button>
                       <button
                         onClick={() => { setView('lock'); setManagerPin(''); setManagerError(''); }}
+                        title={session.locked ? 'Kassanı aç (manager PIN)' : 'Kassanı qıfılla (manager PIN)'}
                         className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
                       >
                         {session.locked ? <Unlock size={15} strokeWidth={2} /> : <Lock size={15} strokeWidth={2} />}
-                        <span className="text-[9px] font-black uppercase tracking-wider">{session.locked ? 'Aç' : 'Qıfıl'}</span>
+                        <span className="text-[9px] font-black uppercase tracking-wider">{session.locked ? 'Aç' : 'Qıfılla'}</span>
                       </button>
                       <button
                         onClick={openZ}
+                        title="Gündəlik Z hesabatı — pullu ödənişlərin cəmi (print)"
                         className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
                       >
-                        <FileText size={15} strokeWidth={2} />
-                        <span className="text-[9px] font-black uppercase tracking-wider">Z</span>
+                        <Receipt size={15} strokeWidth={2} />
+                        <span className="text-[9px] font-black uppercase tracking-wider">Z hesabat</span>
                       </button>
                     </section>
                   )}

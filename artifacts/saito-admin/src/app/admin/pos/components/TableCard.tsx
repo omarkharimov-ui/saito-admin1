@@ -428,7 +428,7 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
               {/* E2E: truncate chopped "Masa 17" → "M..." next to the QRUP chip.
                   Instead: full title on ONE line, step the size down when a
                   badge shares the row. */}
-              <span className={`${(isGroup && groupNumber) || table.pre_order ? 'text-xl' : 'text-2xl'} font-black tracking-tighter whitespace-nowrap ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isDirty ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isWaiting ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
+               <span className={`${(isGroup && groupNumber) || table.pre_order ? 'text-lg' : 'text-2xl'} font-black tracking-tighter whitespace-nowrap ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isDirty ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isWaiting ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
                 {t('table' as any)} {table.table_number}
               </span>
              {table.pre_order && (
@@ -438,31 +438,35 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                  Pre-order
                </span>
              )}
-             {isGroup && groupNumber && (
-               <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
-                 lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
-               }`}>
-                 {t('group_label')} {groupNumber}
-               </span>
-             )}
-           </div>
+              {isGroup && groupNumber && (
+                <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
+                  lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
+                }`}>
+                  {t('group_label')} {groupNumber}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-1">
-              {/* 2026-09-23 (owner): guest + item counts live in the TOP row
-                  (the empty space above the status chip) — "heç bir zaman"
-                  bottom-right. Amount hero stays in the middle. */}
-              {displayGuests && (
-                <span className={`inline-flex items-center gap-1 text-[13px] font-black tabular-nums shrink-0 ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>
-                  <Users size={15} strokeWidth={2.5} />
-                  {/* Motion System: guest count morphs in place (icon stays, number swaps) */}
-                  <Morph value={displayGuests} y={3} duration={T.quick}>{displayGuests}</Morph>
-                </span>
-              )}
-              {(table.item_count ?? 0) > 0 && (
-                <span className={`inline-flex items-center gap-1 text-[13px] font-black tabular-nums shrink-0 ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>
-                  <ShoppingBag size={15} strokeWidth={2.5} />
-                  {table.item_count}
-                </span>
-              )}
+               {/* 2026-09-23 (owner): guest + item counts live in the TOP row
+                   (the empty space above the status chip) — "heç bir zaman"
+                   bottom-right. Amount hero stays in the middle.
+                   2026-09-27 (owner: "məlumatlar bir-birinə girib"): the
+                   counters are now QUIET (muted color, smaller icons) so the
+                   title + group badge read first — the stats are supporting
+                   data, not a second headline. */}
+               {displayGuests && (
+                 <span className={`inline-flex items-center gap-1 text-[12px] font-bold tabular-nums shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
+                   <Users size={13} strokeWidth={2.5} />
+                   {/* Motion System: guest count morphs in place (icon stays, number swaps) */}
+                   <Morph value={displayGuests} y={3} duration={T.quick}>{displayGuests}</Morph>
+                 </span>
+               )}
+               {(table.item_count ?? 0) > 0 && (
+                 <span className={`inline-flex items-center gap-1 text-[12px] font-bold tabular-nums shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
+                   <ShoppingBag size={13} strokeWidth={2.5} />
+                   {table.item_count}
+                 </span>
+               )}
               {isTransferSource ? (
                <div className="w-7 h-7 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center">
                  <span className="text-xs font-black text-rose-400">M</span>
@@ -478,14 +482,14 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                  <AnimatePresence>{isSelected && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}><Check size={14} className="text-white" strokeWidth={3} /></motion.div>}</AnimatePresence>
                </div>
              ) : (
-               <motion.button
-                 whileTap={{ scale: 0.9 }}
-                 transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
-                 onClick={(e) => { e.stopPropagation(); onAction(); }}
-                 className="p-1.5 rounded-full transition-colors opacity-60 hover:opacity-100"
-               >
-                 <MoreVertical size={16} className={`${lightMode ? 'text-zinc-400' : 'text-white/60'}`} />
-               </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
+                  onClick={(e) => { e.stopPropagation(); onAction(); }}
+                  className="p-1 rounded-full transition-colors opacity-40 hover:opacity-100"
+                >
+                  <MoreVertical size={15} className={`${lightMode ? 'text-zinc-400' : 'text-white/50'}`} />
+                </motion.button>
              )}
            </div>
          </div>
@@ -544,34 +548,34 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
            )}
          </AnimatePresence>
 
-         {/* Group children numbers */}
-        {isGroup && mergedChildNumbers && (
-          <div className="absolute top-[68px] right-5 flex flex-col gap-1">
-            {mergedChildNumbers.map((num: number) => (
-              <span key={num} className={`px-1.5 py-0.5 rounded-md text-xs font-bold border ${
-                lightMode 
-                  ? 'bg-blue-50 border-blue-200 text-blue-700' 
-                  : 'bg-white/5 border-white/10 text-white/60'
-              }`}>
-                {num}
-              </span>
-            ))}
-          </div>
-        )}
+          {/* Group children numbers — 2026-09-27 (owner: "kartların məlumatları
+              bir-birinə girib"): the absolute top-[68px] right stack was
+              REMOVED (it collided with the amount hero zone); the children now
+              ride inline in the top row after the group badge (see above). */}
+
 
            {/* Bottom row — 2026-09-23 (owner): the STATUS/HESAB label chips sit
                at the RIGHT (where the shopping+guest icons used to be); the
                guest/item counts moved to the TOP row, filling the empty space.
                LEFT now carries only the waiter name. (flex-flow mt-auto) */}
-            <div className="mt-auto flex items-end justify-between gap-2">
-             {/* LEFT: waiter name only */}
-             <div className="flex items-center gap-2 flex-wrap min-w-0">
-               {table.waiter_name && (
-                 <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider select-none ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                   {table.waiter_name}
-                 </span>
-               )}
-             </div>
+             <div className="mt-auto flex items-end justify-between gap-2">
+              {/* LEFT: merged children chip (2026-09-27: moved here from the
+                  top row — the top row was crowded and the chip collided
+                  with the guest/item counters, E2E overlap catch) + waiter. */}
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                {isGroup && mergedChildNumbers && mergedChildNumbers.length > 0 && (
+                  <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-black leading-none tabular-nums whitespace-nowrap ${
+                    lightMode ? 'bg-blue-50 border border-blue-200 text-blue-600' : 'bg-white/5 border border-white/10 text-white/50'
+                  }`}>
+                    {mergedChildNumbers.join(' · ')}
+                  </span>
+                )}
+                {table.waiter_name && (
+                  <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider select-none ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                    {table.waiter_name}
+                  </span>
+                )}
+              </div>
              {/* RIGHT: status label chips + HESAB */}
               <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">
                  <AnimatePresence mode="wait">

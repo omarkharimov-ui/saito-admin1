@@ -124,11 +124,10 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   // were visible — voided/refunded orders could not be audited from the POS.
   const [statusFilter, setStatusFilter] = useState<'paid' | 'refunded' | 'cancelled' | 'all'>('paid');
   const [sheetTab, setSheetTab] = useState<'orders' | 'exceptions'>('orders');
-  // 2026-09-27 (owner: "çirkin şablonlardan üç variant hazırla") — TEMPORARY
-  // owner-review switcher for the 3 order-card variants (1/2/3 in the modal
-  // header). The winning variant stays; switcher + the other two are removed
-  // in the next round once he picks.
-  const [cardVariant, setCardVariant] = useState<1 | 2 | 3>(1);
+  // 2026-09-27 (owner pick): the 3-card-variant review is DONE — variant 1
+  // ("Clean list") won and is now the ONLY order card; variants 2/3 and the
+  // temporary 1/2/3 header switcher were removed this round.
+  const [auditExpanded, setAuditExpanded] = useState(false);
   const [loadedCount, setLoadedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -231,6 +230,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
 
   const handleSelectOrder = (order: PaidOrder) => {
     setSelectedOrder(order);
+    setAuditExpanded(false);
     fetchOrderDetail(order);
   };
 
@@ -239,10 +239,9 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
     setDetailData(null);
   };
 
-  // 2026-09-27 (owner: "çirkin şablonlardan üç variant hazırla — daha estetik
-  // və müasir"): THREE order-card variants, selected by the temporary
-  // cardVariant switcher. All keep the same data + actions (tap → detail,
-  // reprint, tabular amounts, source semantics).
+  // 2026-09-27 (owner pick, variant 1 of the 3-way review) — "Clean list"
+  // order card: no card fills, hairline separators, round source glyph,
+  // title + meta left, amount + ghost reprint right. Tap → detail.
   const renderOrderCard = (order: PaidOrder) => {
     const isDine = !!order.table_number;
     const src = order.order_source || 'dine_in';
@@ -262,7 +261,6 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
       : src === 'delivery'
         ? (lightMode ? 'bg-blue-500/10 text-blue-600' : 'bg-blue-500/15 text-blue-400')
         : (lightMode ? 'bg-emerald-500/10 text-emerald-600' : 'bg-emerald-500/15 text-emerald-400');
-    const accentBar = src === 'takeaway' ? 'bg-amber-500' : src === 'delivery' ? 'bg-blue-500' : 'bg-emerald-500';
     const meta = lightMode ? 'text-zinc-400' : 'text-white/35';
     const reprintBtn = (
       <button
@@ -279,78 +277,23 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
       </button>
     );
 
-    if (cardVariant === 1) {
-      // V1 — "Clean list" (Apple history style): no card fills, hairline
-      // separators, round source glyph, title + meta left, amount right.
-      return (
-        <div
-          key={order.id}
-          onClick={() => handleSelectOrder(order)}
-          className={`flex items-center gap-3 px-2 py-3 rounded-xl cursor-pointer select-none transition-colors border-b last:border-0 ${lightMode ? 'border-zinc-100 hover:bg-zinc-50' : 'border-white/[0.06] hover:bg-white/[0.03]'}`}
-        >
-          <span className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${iconWrap}`}>
-            <Icon size={15} />
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold truncate leading-tight">{title}</p>
-            <p className={`text-[11px] font-bold tabular-nums truncate mt-0.5 ${meta}`}>{date} · {time}{guests}</p>
-          </div>
-          <span className="text-[13px] font-black tabular-nums flex-shrink-0">{total}</span>
-          {reprintBtn}
-        </div>
-      );
-    }
-    if (cardVariant === 2) {
-      // V2 — "Ledger card" (bank-app style): one quiet surface per row,
-      // square glyph, title/total on one baseline, dot-separated meta.
-      return (
-        <div
-          key={order.id}
-          onClick={() => handleSelectOrder(order)}
-          className={`rounded-2xl border px-4 py-3 cursor-pointer select-none transition-all active:scale-[0.99] ${lightMode ? 'bg-white border-zinc-200/70 hover:border-zinc-300' : 'bg-white/[0.04] border-white/[0.06] hover:bg-white/[0.06]'}`}
-        >
-          <div className="flex items-center gap-3">
-            <span className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconWrap}`}>
-              <Icon size={16} />
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="text-[13px] font-bold truncate">{title}</p>
-                <p className="text-sm font-black tabular-nums flex-shrink-0">{total}</p>
-              </div>
-              <p className={`text-[11px] font-bold tabular-nums truncate mt-0.5 ${meta}`}>
-                {srcLabel} · {date} · {time}{guests}
-              </p>
-            </div>
-            <div className="flex items-center gap-0.5 flex-shrink-0">
-              {reprintBtn}
-              <ChevronRight size={14} className={lightMode ? 'text-zinc-300' : 'text-white/20'} />
-            </div>
-          </div>
-        </div>
-      );
-    }
-    // V3 — "Accent receipt" (POS-native): source-colored accent bar, uppercase
-    // title, larger tabular total; the quietest surface of the three.
+    // V1 — "Clean list" (Apple history style): no card fills, hairline
+    // separators, round source glyph, title + meta left, amount right.
     return (
       <div
         key={order.id}
         onClick={() => handleSelectOrder(order)}
-        className={`relative overflow-hidden rounded-2xl border px-4 py-3 pl-5 cursor-pointer select-none transition-all active:scale-[0.99] ${lightMode ? 'bg-white/[0.6] border-zinc-200/60 hover:bg-white' : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]'}`}
+        className={`flex items-center gap-3 px-2 py-3 rounded-xl cursor-pointer select-none transition-colors border-b last:border-0 ${lightMode ? 'border-zinc-100 hover:bg-zinc-50' : 'border-white/[0.06] hover:bg-white/[0.03]'}`}
       >
-        <span className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full ${accentBar}`} />
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[12px] font-black uppercase tracking-wide truncate leading-tight">{title}</p>
-            <p className={`text-[10px] font-bold uppercase tracking-wider tabular-nums truncate mt-1 ${meta}`}>
-              {srcLabel} · {date} {time}{guests}
-            </p>
-          </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <p className="text-base font-black tabular-nums leading-none">{total}</p>
-            {reprintBtn}
-          </div>
+        <span className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${iconWrap}`}>
+          <Icon size={15} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-bold truncate leading-tight">{title}</p>
+          <p className={`text-[11px] font-bold tabular-nums truncate mt-0.5 ${meta}`}>{date} · {time}{guests}</p>
         </div>
+        <span className="text-[13px] font-black tabular-nums flex-shrink-0">{total}</span>
+        {reprintBtn}
       </div>
     );
   };
@@ -511,7 +454,10 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
       >
         <motion.div
           {...centerModal}
-          className={`relative w-full max-w-xl rounded-[32px] shadow-overlay border ${
+          // 2026-09-27 (owner: "bütün modalları üfüqi düzbucaqlı, balanslı"):
+          // max-w-xl → max-w-2xl — a balanced, horizontal sheet (with the
+          // VKB-fit height logic below), not a narrow tall rectangle.
+          className={`relative w-full max-w-2xl rounded-[32px] shadow-overlay border ${
             lightMode ? 'bg-white/95 border-zinc-200' : 'bg-zinc-900/95 border-white/10'
           } overflow-hidden flex flex-col`}
           // 2026-09-27 (E2E collapse catch): LIST mode needs a DEFINITE height —
@@ -562,29 +508,13 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {/* TEMPORARY owner-review switcher for the 3 card variants —
-                  removed in the next round once he picks (2026-09-27). */}
-              <div className="flex items-center gap-1">
-                {([1, 2, 3] as const).map(n => (
-                  <button
-                    key={n}
-                    onClick={() => setCardVariant(n)}
-                    title={`Kart variantı ${n} (seçim üçün)`}
-                    className={`w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center transition-all active:scale-90 ${cardVariant === n ? 'bg-emerald-500 text-white' : lightMode ? 'bg-zinc-100 text-zinc-400 hover:text-zinc-600' : 'bg-white/5 text-white/40 hover:text-white/70'}`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={onClose}
-                className={`flex-shrink-0 w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 ${lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80'}`}
-                title={t('close')}
-              >
-                <X size={16} />
-              </button>
-            </div>
+            <button
+              onClick={onClose}
+              className={`flex-shrink-0 w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 ${lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80'}`}
+              title={t('close')}
+            >
+              <X size={16} />
+            </button>
           </div>
 
           {/* 2026-09-27 BUG A FIX (TARİXÇƏ): list ↔ detail is now a real STATE
@@ -665,7 +595,10 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                       (layoutId) = a clear active indicator per group. The
                       duplicated "Hamısı" (status=all) is labeled "Bütün" so
                       the two all-filters can't be confused. */}
-                  <div className="px-5 pt-2.5 space-y-1.5">
+                  {/* 2026-09-27 (owner: "inputların bir-birinin içinə girməsi"):
+                      the rows got real breathing room — the filter tracks no
+                      longer touch the segmented control or the search field. */}
+                  <div className="px-5 pt-3 space-y-2">
                     <div className={`rounded-xl p-0.5 flex ${lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'}`}>
                       {filters.map(f => (
                         <button
@@ -717,9 +650,9 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     </div>
                   </div>
 
-               {/* Search + collapsed date range (2026-09-27 premium pass:
-                   the always-visible date row removed one header level) */}
-               <div className="px-5 pb-3 space-y-2">
+                {/* Search + collapsed date range (2026-09-27 premium pass:
+                    the always-visible date row removed one header level) */}
+                <div className="px-5 pt-1 pb-3 space-y-2">
                  <div className="flex gap-2">
                    <div className="relative flex-1">
                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
@@ -775,10 +708,9 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                  </AnimatePresence>
                </div>
 
-                  {/* Order list — 2026-09-27: the row markup now lives in
-                      renderOrderCard() (3 variants, temporary 1/2/3 switcher
-                      in the modal header for owner review). */}
-                  <div className={`flex-1 overflow-y-auto px-5 py-3 ${cardVariant === 1 ? '' : 'space-y-2'}`}>
+                  {/* Order list — row markup in renderOrderCard() (owner
+                      picked variant 1 "Clean list" 2026-09-27). */}
+                  <div className="flex-1 overflow-y-auto px-5 py-3">
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
@@ -851,20 +783,25 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
               </div>
              </motion.div>
            ) : (
-             <motion.div
-               key="oh-detail"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-              className="w-full flex-1 overflow-y-auto"
-            >
-              {detailLoading ? (
-                <div className="flex items-center justify-center py-16">
-                  <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                </div>
-              ) : detailOrder ? (
-                <div className="px-5 py-4 space-y-4">
+              <motion.div
+                key="oh-detail"
+               initial={{ opacity: 0, y: 8 }}
+               animate={{ opacity: 1, y: 0 }}
+               exit={{ opacity: 0, y: -8 }}
+               transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+               className="w-full flex-1 min-h-0 flex flex-col"
+             >
+               {detailLoading ? (
+                 <div className="flex items-center justify-center py-16">
+                   <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                 </div>
+               ) : detailOrder ? (
+                 <>
+                 {/* 2026-09-27 (owner: "Refund düyməsini tapmaq üçün həddən
+                     artıq aşağı sürüşdürmə") — the actions are a STICKY FOOTER:
+                     they live OUTSIDE the scroller and stay visible no matter
+                     how long the order's audit log is. Space trimmed 4→3. */}
+                 <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
 
                   {/* Order info badges */}
                   <div className="flex flex-wrap gap-2">
@@ -1073,10 +1010,13 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                       <p className={`text-[9px] font-black uppercase tracking-widest mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
                         {t('timeline') || 'Tarixçə'}
                       </p>
+                      {/* 2026-09-27 (owner: "lazımsız uzun məzmunu və scroll-u
+                          azalt"): the audit log is COLLAPSED to the 3 newest
+                          entries by default — a busy order had 100 rows pushing
+                          the action buttons off-screen. "Bütün tarixçə (N)"
+                          expands the full log (AUDIT 2026-09-23 §4.6 kept). */}
                       <div className="space-y-2">
-                        {/* AUDIT 2026-09-23 §4.6: the API returns up to 100 — the
-                            old UI cap of 20 hid the rest of busy orders' history. */}
-                        {auditLogs.slice(0, 100).map((log) => (
+                        {auditLogs.slice(0, auditExpanded ? 100 : 3).map((log) => (
                           <div key={log.id} className="flex items-start gap-2">
                             <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
                             <div className="flex-1 min-w-0">
@@ -1100,6 +1040,14 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                           </div>
                         ))}
                       </div>
+                      {auditLogs.length > 3 && (
+                        <button
+                          onClick={() => setAuditExpanded(v => !v)}
+                          className={`mt-2.5 w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white/40 hover:bg-white/5'}`}
+                        >
+                          {auditExpanded ? 'Yığcam göstər' : `Bütün tarixçə (${auditLogs.length})`}
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -1113,8 +1061,13 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     </div>
                   )}
 
-                  {/* Detail actions */}
-                  <div className="flex gap-2 pb-4">
+                 </div>
+
+                 {/* Detail actions — STICKY FOOTER (always visible, outside
+                     the scroller): reprint + the refund button the owner said
+                     should never require scrolling to find. */}
+                 <div className={`flex-shrink-0 px-5 py-3 border-t ${lightMode ? 'border-zinc-100' : 'border-white/10'}`}>
+                   <div className="flex gap-2">
                     <button
                       onClick={() => guardAction(() => doReprint(detailOrder), 'reprint')}
                       disabled={reprinting === detailOrder.id}
@@ -1134,15 +1087,15 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     >
                       <RefreshCw size={14} /> {t('refund') || 'Geri ödəniş'}
                     </button>
+                   </div>
+                 </div>
+                 </>
+                ) : (
+                  <div className="py-16 text-center">
+                    <p className="text-xs opacity-40">Sifariş tapılmadı</p>
                   </div>
-
-                 </div>
-               ) : (
-                 <div className="py-16 text-center">
-                   <p className="text-xs opacity-40">Sifariş tapılmadı</p>
-                 </div>
-               )}
-            </motion.div>
+                )}
+             </motion.div>
           )}
           </AnimatePresence>
 
@@ -1353,27 +1306,47 @@ function RefundView({
     }
   };
 
+  // 2026-09-27 (owner: "refund modalı klaviatura açıldıqda ekrandan yuxarı
+  // çıxmasın... bütün modalları üfüqi düzbucaqlı, balanslı"): LAYOUT REDESIGN —
+  // a WIDE two-column sheet (summary + method left, mode + amount + reason
+  // right, warning + actions as a full-width footer) so the whole flow fits
+  // in ~450px of height instead of a 700px+ single column. The card is also
+  // capped against BOTH the in-app virtual keyboard (--vk-height) and the
+  // native VKB (useKeyboardHeight) so it can never ride above the visible
+  // area when a keyboard opens.
+  const keyboardHeight = useKeyboardHeight();
+
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       transition={fastExit}
       className="fixed inset-0 z-[140] flex items-end sm:items-center justify-center bg-black/25 backdrop-blur-sm"
-      style={{ paddingBottom: 'calc(var(--vk-height, 0px) + 16px)' }}
+      style={{ paddingBottom: `calc(var(--vk-height, 0px) + ${keyboardHeight}px + 16px)` }}
       onClick={onClose}
     >
       <motion.div
         {...slideUp}
         onClick={e => e.stopPropagation()}
-        className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl p-5 shadow-elevated border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+        className={`w-full max-w-2xl overflow-y-auto rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-elevated border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+        style={{ maxHeight: `calc(100vh - var(--vk-height, 0px) - ${keyboardHeight}px - 48px)` }}
       >
+        <div className="sm:grid sm:grid-cols-2 sm:gap-x-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-black">{t('refund') || 'Geri ödəniş'}</h3>
-          <button onClick={onClose} className={`p-1.5 rounded-xl transition-all ${lightMode ? 'hover:bg-zinc-100' : 'hover:bg-white/10'}`}>
+        <div className="flex items-center justify-between mb-4 sm:col-span-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <RefreshCw size={14} className="text-amber-500 flex-shrink-0" />
+            <h3 className="text-sm font-black truncate">
+              {t('refund') || 'Geri ödəniş'}
+              {order.table_number ? ` · ${t('table_label')} ${order.table_number}` : order.order_number ? ` · ${order.order_number}` : ''}
+            </h3>
+          </div>
+          <button onClick={onClose} className={`p-1.5 rounded-xl transition-all flex-shrink-0 ${lightMode ? 'hover:bg-zinc-100' : 'hover:bg-white/10'}`}>
             <X size={16} />
           </button>
         </div>
 
+        {/* LEFT COLUMN: paid summary + refund method */}
+        <div>
         {/* Paid info */}
         <div className={`p-3 rounded-2xl border mb-4 ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'}`}>
           <div className="flex justify-between">
@@ -1390,34 +1363,10 @@ function RefundView({
           </div>
         </div>
 
-        {/* Mode selector */}
-        <div className="flex gap-2 mb-4">
-          {[
-            { key: 'full' as const, label: t('full_refund') || 'Tam', desc: remaining.toFixed(2) + ' ₼' },
-            { key: 'partial' as const, label: t('partial_refund') || 'Qismən', desc: '' },
-            { key: 'item' as const, label: t('item_refund') || 'Məhsul', desc: '' },
-          ].map(m => (
-            <button
-              key={m.key}
-              onClick={() => setMode(m.key)}
-              className={`flex-1 py-2.5 rounded-2xl border text-center transition-all ${
-                mode === m.key
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
-                  : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/40'
-              }`}
-            >
-              <p className="text-[10px] font-black uppercase tracking-wider">{m.label}</p>
-              {m.desc && <p className="text-[9px] mt-0.5 opacity-60">{m.desc}</p>}
-            </button>
-          ))}
-        </div>
-
-        {/* 2026-09-26 (owner): REFUND METHOD — defaults to the method the
-            order was paid with; the operator can pick another (real case:
-            kartla ödədi → nağd geri verdi). Persisted on the refund ledger
-            row and drives the physical-step hint below. The deployment runs
-            a HANDHELD (mobile) card terminal — the physical card refund is
-            performed on that device against the original transaction. */}
+        {/* 2026-09-26 (owner): REFUND METHOD — moved to the LEFT column of the
+            two-column layout (defaults to the method the order was paid with;
+            the operator can pick another — real case: kartla ödədi → nağd geri
+            verdi). Persisted on the refund ledger row. */}
         <div className="mb-4">
           <p className={`mb-2 text-[9px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Qaytarılma üsulu</p>
           <div className="grid grid-cols-2 gap-2">
@@ -1441,6 +1390,31 @@ function RefundView({
               Nağd qaytarış kassadan çıxır — Z-report-da drawer hesabatına daxil olur.
             </div>
           )}
+        </div>
+        </div>
+
+        {/* RIGHT COLUMN: mode + amount/items + reason */}
+        <div>
+        {/* Mode selector */}
+        <div className="flex gap-2 mb-4">
+          {[
+            { key: 'full' as const, label: t('full_refund') || 'Tam', desc: remaining.toFixed(2) + ' ₼' },
+            { key: 'partial' as const, label: t('partial_refund') || 'Qismən', desc: '' },
+            { key: 'item' as const, label: t('item_refund') || 'Məhsul', desc: '' },
+          ].map(m => (
+            <button
+              key={m.key}
+              onClick={() => setMode(m.key)}
+              className={`flex-1 py-2.5 rounded-2xl border text-center transition-all ${
+                mode === m.key
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                  : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/40'
+              }`}
+            >
+              <p className="text-[10px] font-black uppercase tracking-wider">{m.label}</p>
+              {m.desc && <p className="text-[9px] mt-0.5 opacity-60">{m.desc}</p>}
+            </button>
+          ))}
         </div>
 
         {/* Amount input for full/partial */}
@@ -1586,9 +1560,13 @@ function RefundView({
             className={`w-full rounded-2xl px-4 py-3 text-sm font-medium outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black placeholder:text-zinc-300 focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-400/50'}`} />
         </div>
 
+        </div>
+
+        {/* FOOTER (full width): warning + the confirm/cancel actions */}
+        <div className="mt-4 sm:mt-5 sm:col-span-2">
         {/* Full refund warning */}
         {isFullRefund && (
-          <div className={`p-3 rounded-2xl border mb-4 ${lightMode ? 'bg-amber-50 border-amber-200' : 'bg-amber-500/10 border-amber-500/20'}`}>
+          <div className={`p-3 rounded-2xl border mb-3 ${lightMode ? 'bg-amber-50 border-amber-200' : 'bg-amber-500/10 border-amber-500/20'}`}>
             <p className={`text-[10px] font-bold ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
               ⚠ {t('full_refund_warning') || 'Tam geri ödəniş — əməliyyat geri alınamaz'}
             </p>
@@ -1613,6 +1591,8 @@ function RefundView({
               </span>
             ) : t('confirm_refund') || 'Geri qaytar'}
           </button>
+        </div>
+        </div>
         </div>
       </motion.div>
     </motion.div>

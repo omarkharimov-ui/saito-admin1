@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -82,10 +82,14 @@ export function TableActionSheet({ open, onClose, title, subtitle, badge, guestC
     return () => { document.body.style.overflow = 'unset'; };
   }, [open]);
 
-  if (!open) return null;
-
+  // 2026-09-27 (iOS-27-trash doctrine): keyed child inside a persistent
+  // AnimatePresence — closing plays slideUp's graceful exit (was an early
+  // `return null` = instant unmount).
   return (
+    <AnimatePresence>
+      {open && (
     <motion.div
+      key="table-action-sheet"
       {...slideUp}
       transition={fastExit}
       className="fixed bottom-0 left-0 right-0 z-[120] flex items-center justify-center p-4 pointer-events-none"
@@ -104,5 +108,7 @@ export function TableActionSheet({ open, onClose, title, subtitle, badge, guestC
         </button>
       </div>
     </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

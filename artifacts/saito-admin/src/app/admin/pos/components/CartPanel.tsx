@@ -1115,7 +1115,7 @@ export function CartPanel({
                 layout={!voidMode}
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
+                exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.26, ease: [0.45, 0, 0.55, 1] } }}
                 transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                 data-cart-item
                 onClick={() => {
@@ -1143,10 +1143,10 @@ export function CartPanel({
                    {voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 && (
                      <motion.div
                        key="void-lines"
-                       initial={{ opacity: 0 }}
-                       animate={{ opacity: 1 }}
-                       exit={{ opacity: 0, transition: { duration: 0.35, ease: 'easeOut' } }}
-                       className="pointer-events-none absolute inset-0"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, transition: { duration: 0.32, ease: [0.45, 0, 0.55, 1] } }}
+                        className="pointer-events-none absolute inset-0"
                      >
                        <motion.span
                          initial={{ scaleX: 0 }}
@@ -1303,7 +1303,7 @@ export function CartPanel({
             key="void-footer"
             initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
+            exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.26, ease: [0.45, 0, 0.55, 1] } }}
             transition={{ type: 'spring', stiffness: 380, damping: 32 }}
             className="flex-shrink-0 pt-4 pb-6 border-t border-[var(--theme-border)] px-1"
           >
@@ -1333,7 +1333,7 @@ export function CartPanel({
             key="std-footer"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
+            exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.26, ease: [0.45, 0, 0.55, 1] } }}
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
              className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]"
            >
@@ -1532,7 +1532,7 @@ export function CartPanel({
               className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[9998]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
               onClick={closeNoteEditor}
             />
           )}

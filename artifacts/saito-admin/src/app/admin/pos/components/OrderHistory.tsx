@@ -355,8 +355,6 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
     }
   };
 
-  if (!open) return null;
-
   const filters = [
     { id: 'all', labelKey: 'all_products' },
     { id: 'dine_in', labelKey: 'dine_in' },
@@ -369,9 +367,14 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const payments = detail?.payments || [];
   const auditLogs = detail?.auditLogs || [];
 
+  // 2026-09-27 (iOS-27-trash doctrine): the `open` condition lives INSIDE
+  // AnimatePresence (keyed child) instead of an early `return null` — the
+  // component stays mounted so the graceful 280ms exit can actually play.
   return (
     <AnimatePresence>
+      {open && (
       <motion.div
+        key="order-history"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         transition={fastExit}
         className="fixed inset-0 z-[125] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
@@ -947,6 +950,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
           />
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 }

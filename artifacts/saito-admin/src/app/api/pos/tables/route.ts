@@ -196,7 +196,11 @@ export async function GET() {
           const cFloor = floorByNumber.get(ctn);
           const cOrders = ordersByTable[ctn] || [];
           const cSum = openOrderSums(cOrders as any);
+          // 2026-09-27 (E2E probe: "mg-undefined" key collision + unmerge 400):
+          // children MUST carry their table_number — the ActionSheet chips and
+          // the unmerge payload (child_table_numbers) read it directly.
           return {
+            table_number: ctn,
             floor: cFloor,
             guest_count: cFloor?.guest_count ?? (cSum.guests || null),
             total_amount: cSum.total,

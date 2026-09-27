@@ -171,6 +171,13 @@ export default function POSPage() {
   const [transferTarget, setTransferTarget] = useState<number | null>(null);
   const [transferConfirm, setTransferConfirm] = useState(false);
   const [reservationArrival, setReservationArrival] = useState<{ table_number: number; reservation_id: string | null; name: string | null; guests: number; phone?: string | null; time?: string | null; is_vip?: boolean | null; deposit_amount?: number | string | null } | null>(null);
+  // 2026-09-27 (iOS-27-trash doctrine): the reservation arrival sheet must stay
+  // MOUNTED while its graceful exit plays. `reservationArrival` is the LIVE
+  // open-flag source (null = closed); `lastReservationArrival` retains the
+  // data until the next arrival overwrites it — the sheet renders from it and
+  // animates closed instead of vanishing in one frame.
+  const [lastReservationArrival, setLastReservationArrival] = useState<typeof reservationArrival>(null);
+  useEffect(() => { if (reservationArrival) setLastReservationArrival(reservationArrival); }, [reservationArrival]);
 
   const [unmergeMode, setUnmergeMode] = useState(false);
   const [selectedForUnmerge, setSelectedForUnmerge] = useState<number[]>([]);
@@ -2297,12 +2304,12 @@ export default function POSPage() {
                 >
                 <AnimatePresence mode="wait" initial={false}>
                 {cleanMode ? (
-                   <motion.div
-                     key="clean-toolbar"
-                     initial={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
-                     animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                     exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
-                     transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+                    <motion.div
+                      key="clean-toolbar"
+                      initial={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
+                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, y: -12, filter: 'blur(4px)', transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
+                      transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
                      // QA bug 17 (2026-09-22): pinned header — flex-shrink-0 so
                      // the toolbar can never be squeezed by the scroll region.
                      className="flex-shrink-0 flex items-center justify-end gap-3 mb-6"
@@ -2367,12 +2374,12 @@ export default function POSPage() {
                      </div>
                    </motion.div>
                 ) : (
-                   <motion.div
-                     key="normal-toolbar"
-                     initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
-                     animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                     exit={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
-                     transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+                    <motion.div
+                      key="normal-toolbar"
+                      initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, y: 12, filter: 'blur(4px)', transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
+                      transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
                      className="flex-shrink-0"
                    >
                       <div className="flex items-center justify-end gap-3 mb-6">
@@ -2436,31 +2443,31 @@ export default function POSPage() {
                 )}
                 </AnimatePresence>
 
-                  {reservationArrival && (
+                  {lastReservationArrival && (
                    <ReservationActionSheet
                      open={!!reservationArrival}
                      onClose={() => setReservationArrival(null)}
                      table={{
-                       table_number: reservationArrival.table_number,
-                       reservation_id: reservationArrival.reservation_id,
-                       reservation_name: reservationArrival.name,
-                       reservation_phone: reservationArrival.phone,
-                       reservation_time: reservationArrival.time,
-                        guest_count: reservationArrival.guests,
+                       table_number: lastReservationArrival.table_number,
+                       reservation_id: lastReservationArrival.reservation_id,
+                       reservation_name: lastReservationArrival.name,
+                       reservation_phone: lastReservationArrival.phone,
+                       reservation_time: lastReservationArrival.time,
+                        guest_count: lastReservationArrival.guests,
                         status: 'reserved',
-                        is_vip: reservationArrival.is_vip,
-                        deposit_amount: reservationArrival.deposit_amount ?? null,
+                        is_vip: lastReservationArrival.is_vip,
+                        deposit_amount: lastReservationArrival.deposit_amount ?? null,
                       }}
-                      onGuestArrived={() => handleGuestArrived(reservationArrival)}
+                      onGuestArrived={() => handleGuestArrived(lastReservationArrival)}
                      onEditReservation={() => {
                        setReservationArrival(null);
-                       if (reservationArrival.reservation_id) {
-                         router.push(`/admin/reservations?edit=${reservationArrival.reservation_id}`);
+                       if (lastReservationArrival.reservation_id) {
+                         router.push(`/admin/reservations?edit=${lastReservationArrival.reservation_id}`);
                        }
                      }}
                      onMoveTable={async () => {
                        setReservationArrival(null);
-                       if (reservationArrival && reservationArrival.reservation_id) {
+                       if (lastReservationArrival && lastReservationArrival.reservation_id) {
                          const targetTable = prompt(t('target_table_prompt'));
                          if (!targetTable) return;
                          const targetNum = parseInt(targetTable, 10);
@@ -2473,8 +2480,8 @@ export default function POSPage() {
                              method: 'POST',
                              headers: { 'Content-Type': 'application/json' },
                              body: JSON.stringify({
-                               reservation_id: reservationArrival.reservation_id,
-                               from_table: reservationArrival.table_number,
+                               reservation_id: lastReservationArrival.reservation_id,
+                               from_table: lastReservationArrival.table_number,
                                to_table: targetNum,
                                terminal_id: pos.terminalId,
                              }),
@@ -2493,7 +2500,7 @@ export default function POSPage() {
                      }}
                      onMergeTable={async () => {
                        setReservationArrival(null);
-                       if (reservationArrival && reservationArrival.reservation_id) {
+                       if (lastReservationArrival && lastReservationArrival.reservation_id) {
                           const extraTables = prompt(t('merge_tables_prompt'));
                          if (!extraTables) return;
                          const tableNums = extraTables.split(',').map((t) => parseInt(t.trim(), 10)).filter((n) => !isNaN(n));
@@ -2501,13 +2508,13 @@ export default function POSPage() {
                            toast.error(t('invalid_table_numbers'));
                            return;
                          }
-                         tableNums.unshift(reservationArrival.table_number);
+                         tableNums.unshift(lastReservationArrival.table_number);
                          try {
                            const res = await apiFetch('/api/reservations/merge-tables', {
                              method: 'POST',
                              headers: { 'Content-Type': 'application/json' },
                              body: JSON.stringify({
-                               reservation_id: reservationArrival.reservation_id,
+                               reservation_id: lastReservationArrival.reservation_id,
                                table_numbers: tableNums,
                                terminal_id: pos.terminalId,
                              }),
@@ -2526,12 +2533,12 @@ export default function POSPage() {
                      }}
                      onCancelReservation={async () => {
                        setReservationArrival(null);
-                       if (reservationArrival.reservation_id) {
+                       if (lastReservationArrival.reservation_id) {
                          try {
                            const res = await apiFetch('/api/reservations/cancel', {
                              method: 'POST',
                              headers: { 'Content-Type': 'application/json' },
-                             body: JSON.stringify({ reservation_id: reservationArrival.reservation_id, terminal_id: pos.terminalId }),
+                             body: JSON.stringify({ reservation_id: lastReservationArrival.reservation_id, terminal_id: pos.terminalId }),
                            });
                            if (res.ok) {
                               toast.success(t('reservation_cancelled'));
@@ -2546,12 +2553,12 @@ export default function POSPage() {
                      }}
                      onMarkNoShow={async () => {
                        setReservationArrival(null);
-                       if (reservationArrival.reservation_id) {
+                       if (lastReservationArrival.reservation_id) {
                          try {
                            const res = await apiFetch('/api/reservations/no-show', {
                              method: 'POST',
                              headers: { 'Content-Type': 'application/json' },
-                             body: JSON.stringify({ reservation_id: reservationArrival.reservation_id, terminal_id: pos.terminalId }),
+                             body: JSON.stringify({ reservation_id: lastReservationArrival.reservation_id, terminal_id: pos.terminalId }),
                            });
                            if (res.ok) {
                               toast.success(t('no_show_recorded'));
@@ -2566,7 +2573,7 @@ export default function POSPage() {
                      }}
                      onPrintReservation={async () => {
                        setReservationArrival(null);
-                       if (!reservationArrival?.reservation_id) return;
+                       if (!lastReservationArrival?.reservation_id) return;
                        try {
                          const settings = await getReceiptSettings();
                          await printReservation({
@@ -2577,13 +2584,13 @@ export default function POSPage() {
                            serviceFeePct: settings.serviceFeePct,
                            showServiceFee: false,
                            footerText: settings.footerText,
-                           tableNumber: reservationArrival.table_number,
-                           reservationId: reservationArrival.reservation_id,
-                           guestName: reservationArrival.name || '',
-                           phone: reservationArrival.phone || '',
-                           guests: reservationArrival.guests || 0,
-                           time: reservationArrival.time || '',
-                           isVip: reservationArrival.is_vip || false,
+                           tableNumber: lastReservationArrival.table_number,
+                           reservationId: lastReservationArrival.reservation_id,
+                           guestName: lastReservationArrival.name || '',
+                           phone: lastReservationArrival.phone || '',
+                           guests: lastReservationArrival.guests || 0,
+                           time: lastReservationArrival.time || '',
+                           isVip: lastReservationArrival.is_vip || false,
                            paperWidth: settings.paperWidth,
                            copies: settings.copies,
                          });
@@ -2608,12 +2615,12 @@ export default function POSPage() {
                    const orderCount = mergeTables.filter((t: any) => ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(t.status)).length;
                    return (
                      <AnimatePresence>
-                       <motion.div
-                         key="merge-preview"
-                         initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                        <motion.div
+                          key="merge-preview"
+                          initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                           exit={{ opacity: 0, y: -8, scale: 0.96, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
+                           transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                           className="flex-shrink-0 mb-4"
                         >
                            <div className={`flex items-center gap-3 px-4 py-3 rounded-4xl border shadow-lg ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>

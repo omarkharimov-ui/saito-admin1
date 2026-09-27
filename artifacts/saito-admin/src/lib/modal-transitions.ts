@@ -6,22 +6,24 @@ export const appleBackdrop = {
   ease: 'easeOut' as const,
 };
 
+/** 2026-09-27 (owner, iOS-27-trash doctrine): EXITS are graceful — symmetric
+    ease-in-out, ~280ms: the surface drifts away slowly. Enters stay snappy. */
+const gracefulExit = { duration: 0.28, ease: [0.45, 0, 0.55, 1] as Easing };
+
 /** Outer modal: slide from bottom / exit down */
 export const slideUp = {
   initial: { opacity: 0, y: 48 },
-  animate: { opacity: 1, y: 0 },
-  exit:    { opacity: 0, y: 48 },
-  transition: { duration: 0.26, ease: [0.4, 0, 0.2, 1] as Easing },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.26, ease: [0.4, 0, 0.2, 1] as Easing } },
+  exit:    { opacity: 0, y: 32, transition: gracefulExit },
 };
 
 /** 2026-09-27 (owner: "tarixce/kassa popup yenidən yaz — centered modal"):
-    centered dialog entrance — the house "kəsəy" spring (500/26): a hair of
-    overshoot, lands fast. Used for TARİXÇƏ + Kassa modals. */
+    centered dialog — spring entrance (500/26 "kəsəy"), graceful exit.
+    Used for TARİXÇƏ + Kassa modals. */
 export const centerModal = {
   initial: { opacity: 0, scale: 0.94, y: 16 },
-  animate: { opacity: 1, scale: 1, y: 0 },
-  exit:    { opacity: 0, scale: 0.97, y: 8 },
-  transition: { type: 'spring' as const, stiffness: 500, damping: 26 },
+  animate: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring' as const, stiffness: 500, damping: 26 } },
+  exit:    { opacity: 0, scale: 0.97, y: 8, transition: gracefulExit },
 };
 
 /** Inner view morph — smooth scale + radius */
@@ -32,10 +34,13 @@ export const morphView = {
   transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as Easing },
 };
 
-/** Fast exit for back/close */
+/** 2026-09-27 (owner, iOS-27-trash doctrine): "fast" no longer means instant.
+    Backdrops, view wrappers, and morph views that leave drift away gracefully
+    (symmetric in-out, 280ms) — the same curve as gracefulExit. Enters through
+    this token stay under 300ms, so nothing ever blocks the next tap. */
 export const fastExit = {
-  duration: 0.2,
-  ease: 'easeOut' as const,
+  duration: 0.28,
+  ease: [0.45, 0, 0.55, 1] as Easing,
 };
 
 /** Legacy aliases */

@@ -118,6 +118,11 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
 
   const setStatus = async (entry: WaitlistEntry, status: string, label: string) => {
     setBusyId(entry.id);
+    // 2026-09-27 (iOS-27-trash doctrine): OPTIMISTIC removal — the row starts
+    // its graceful exit the instant of the tap; the server round-trip only
+    // reconciles afterwards. If the PATCH fails, load() re-adds the row.
+    const leavesQueue = ['no_show', 'seated', 'cancelled', 'left'].includes(status);
+    if (leavesQueue) setEntries((prev) => prev.filter((e) => e.id !== entry.id));
     try {
       const res = await apiFetch('/api/waitlist', {
         method: 'PATCH',
@@ -130,11 +135,17 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
       load();
     } catch (e: any) {
       toast.error(e.message || label);
+      load();
     } finally { setBusyId(null); }
   };
 
   const removeEntry = async (entry: WaitlistEntry) => {
     setBusyId(entry.id);
+    // 2026-09-27 (iOS-27-trash doctrine): OPTIMISTIC removal — the row fades
+    // away the instant of the tap (E2E probe showed the exit waited ~1.5s for
+    // the DELETE round-trip; that is NOT the trash feel). load() reconciles;
+    // on failure the row simply returns.
+    setEntries((prev) => prev.filter((e) => e.id !== entry.id));
     try {
       const res = await apiFetch(`/api/waitlist?id=${entry.id}`, { method: 'DELETE' });
       if (!res.ok) {
@@ -144,39 +155,57 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
       load();
     } catch (e: any) {
       toast.error(e.message || 'Silinmədi');
+      load();
     } finally { setBusyId(null); }
   };
 
   const seatEntry = async (entry: WaitlistEntry, tableNumber: number) => {
     setBusyId(entry.id);
+    setSeatingId(null);
+    // 2026-09-27 (iOS-27-trash doctrine): optimistic — the guest leaves the
+    // queue the moment the table is picked; load() reconciles afterwards.
+    setEntries((prev) => prev.filter((e) => e.id !== entry.id));
     try {
       const res = await apiFetch('/api/waitlist/seat', {
         method: 'POST',
         body: JSON.stringify({ waitlist_id: entry.id, table_number: tableNumber }),
       });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j.error || 'Oturduulmadı');
+      if (!res.ok) throw new Error(j.error || 'Oturdulmadı');
       toast.success(`${entry.name} → Masa ${tableNumber} · order açıldı`);
       setSeatingId(null);
       load();
       onSeated();
     } catch (e: any) {
-      toast.error(e.message || 'Oturduulmadı');
+      toast.error(e.message || 'Oturdulmadı');
     } finally { setBusyId(null); }
   };
-
-  if (!open) return null;
 
   const muted = lightMode ? 'text-zinc-500' : 'text-white/45';
   const field = lightMode
     ? 'bg-zinc-100 border-zinc-200 text-zinc-800 placeholder:text-zinc-400'
     : 'bg-white/[0.06] border-white/10 text-white placeholder:text-white/25';
 
+  // 2026-09-27 (iOS-27-trash doctrine): the panel is a KEYED motion child
+  // inside a persistent AnimatePresence — closing it fades the veil + sinks
+  // the card gracefully instead of unmounting in one frame (the old
+  // `if (!open) return null` killed the exit).
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60" style={{ paddingBottom: 'var(--vk-height, 0px)' }} onClick={onClose}>
+    <AnimatePresence>
+      {open && (
+      <motion.div
+        key="waitlist-overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
+        className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60"
+        style={{ paddingBottom: 'var(--vk-height, 0px)' }}
+        onClick={onClose}
+      >
       <motion.div
         initial={{ opacity: 0, y: 18, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 18, scale: 0.97, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
         transition={SPRING}
         onClick={(e) => e.stopPropagation()}
         className={`w-full max-w-[520px] max-h-[86vh] rounded-3xl border flex flex-col overflow-hidden ${
@@ -239,33 +268,47 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
           <div className={`mx-5 mt-3 rounded-xl border px-3 py-2.5 flex items-center gap-2 ${lightMode ? 'border-amber-200 bg-amber-50' : 'border-amber-500/25 bg-amber-500/10'}`}>
             <AlertTriangle size={13} className={`shrink-0 ${lightMode ? 'text-amber-600' : 'text-amber-400'}`} />
             <span className={`text-[11px] font-semibold ${lightMode ? 'text-amber-700' : 'text-amber-300/90'}`}>
-              Hazırda boş masa yoxdur — qonaqlar növbədə qalır, masa boşalanda bu paneli xəbər verəcək və "Oturduul" aktiv olacaq.
+              Hazırda boş masa yoxdur — qonaqlar növbədə qalır, masa boşalanda bu paneli xəbər verəcək və "Oturdul" aktiv olacaq.
             </span>
           </div>
         )}
 
-        {/* Queue */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2.5 min-h-[180px]">
+        {/* Queue — 2026-09-27 (owner, iOS-27-trash doctrine): AnimatePresence
+            stays mounted ACROSS the list↔empty flip. Previously the empty
+            state was the 2nd branch of a ternary, so removing the LAST entry
+            unmounted AnimatePresence before the row's exit could play (instant
+            vanish). Now the last row fades away gracefully while "Növbə boştur"
+            fades in over it — the empty state is absolute so it never pushes
+            the exiting row. */}
+        <div className="relative flex-1 overflow-y-auto p-4 space-y-2.5 min-h-[180px]">
           {loading ? (
             <div className={`h-full flex items-center justify-center text-xs font-semibold ${muted}`}>Yüklənir…</div>
-          ) : entries.length === 0 ? (
-            <div className={`h-full flex flex-col items-center justify-center gap-2 ${muted}`}>
-              <Hourglass size={26} />
-              <span className="text-xs font-bold">Növbə boştur</span>
-            </div>
           ) : (
             <AnimatePresence>
+              {entries.length === 0 && (
+                <motion.div
+                  key="__queue-empty__"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
+                  transition={{ duration: 0.3, ease: [0.45, 0, 0.55, 1] }}
+                  className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${muted}`}
+                >
+                  <Hourglass size={26} />
+                  <span className="text-xs font-bold">Növbə boştur</span>
+                </motion.div>
+              )}
               {entries.map((e, idx) => {
                 const mins = queueMinutes(e.created_at, now);
                 return (
                   <motion.div
                     key={e.id}
                     layout
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.96 }}
-                    transition={SPRING}
-                    className={`rounded-2xl border p-3 flex items-center gap-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.03] border-white/10'}`}
+                     initial={{ opacity: 0, y: 12 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.32, ease: [0.45, 0, 0.55, 1] } }}
+                     transition={SPRING}
+                     className={`rounded-2xl border p-3 flex items-center gap-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.03] border-white/10'}`}
                   >
                     <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black tabular-nums shrink-0 ${lightMode ? 'bg-indigo-50 text-indigo-600' : 'bg-indigo-500/15 text-indigo-400'}`}>
                       {idx + 1}
@@ -290,7 +333,7 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
                         className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-35 text-white text-[11px] font-black uppercase tracking-wide transition-colors"
                       >
                         <Armchair size={13} />
-                        Oturduul
+                        Oturdul
                       </button>
                       <button
                         onClick={() => setStatus(e, 'no_show', 'No-show qeydə alınmadı')}
@@ -353,6 +396,8 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
           )}
         </AnimatePresence>
       </motion.div>
-    </div>
+      </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

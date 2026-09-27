@@ -76,11 +76,15 @@ export default function ReservationActionSheet({
     </ActionGrid>
   );
 
-  const secondaryActions = showActions ? (
+   const secondaryActions = (
+    <AnimatePresence initial={false}>
+      {showActions && (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mt-4 space-y-3"
+      initial={{ opacity: 0, y: 10, height: 0 }}
+      animate={{ opacity: 1, y: 0, height: 'auto' }}
+      exit={{ opacity: 0, y: 6, height: 0, transition: { duration: 0.28, ease: [0.45, 0, 0.55, 1] } }}
+      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+      className="mt-4 space-y-3 overflow-hidden"
     >
       <ActionGrid cols={2}>
         <ActionCard
@@ -123,22 +127,31 @@ export default function ReservationActionSheet({
         onClick={() => { setShowActions(false); onCancelReservation?.(); }}
       />
     </motion.div>
-  ) : null;
+      )}
+    </AnimatePresence>
+  );
 
+  // 2026-09-27 (iOS-27-trash doctrine): the backdrop is a DIRECT keyed motion
+  // child of AnimatePresence (a fragment is not tracked → it used to unmount
+  // instantly). TableActionSheet is a self-managing sibling (its own
+  // AnimatePresence) so the sheet + veil both play their graceful exits.
   return (
-    <AnimatePresence>
-      {open && (
-        <>
+    <>
+      <AnimatePresence>
+        {open && (
           <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={fastExit}
+            key="ra-backdrop"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
             className="fixed inset-0 z-[119] pointer-events-auto bg-black/10 dark:bg-black/30"
             onClick={onClose}
           />
-          <TableActionSheet
-            open={open}
-            onClose={onClose}
-            title={`Masa ${table.table_number}`}
+        )}
+      </AnimatePresence>
+      <TableActionSheet
+        open={open}
+        onClose={onClose}
+        title={`Masa ${table.table_number}`}
             subtitle={
               <span className="inline-flex flex-col items-center gap-1">
                 {table.reservation_name && <span>{table.reservation_name}</span>}
@@ -154,24 +167,23 @@ export default function ReservationActionSheet({
                 </span>
               </span>
             }
-             badge={
-               table.is_vip ? (
-                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-black uppercase tracking-widest bg-amber-500/15 border-amber-500/25 text-amber-400">
-                   <Star size={10} /> VIP
-                 </span>
-               ) : undefined
-             }
-             guestCount={
-               <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-black">
-                 <Users size={18} /> {table.guest_count} Nəfər
-               </span>
-             }
+              badge={
+                /* 2026-09-27 (NO YELLOW rule): VIP = platinum, guest chip neutral */
+                table.is_vip ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-black uppercase tracking-widest bg-white/10 border-white/30 text-white shadow-[0_0_16px_rgba(255,255,255,0.08)]">
+                    <Star size={10} className="text-emerald-300" /> VIP
+                  </span>
+                ) : undefined
+              }
+              guestCount={
+                <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm font-black">
+                  <Users size={18} /> {table.guest_count} Nəfər
+                </span>
+              }
           >
-            {primaryActions}
-            {secondaryActions}
-          </TableActionSheet>
-        </>
-      )}
-    </AnimatePresence>
+        {primaryActions}
+        {secondaryActions}
+      </TableActionSheet>
+    </>
   );
 }

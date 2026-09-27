@@ -488,7 +488,7 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
              key="table-content"
              initial={{ opacity: 0, y: 6, filter: 'blur(3px)' }}
              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-             exit={{ opacity: 0, y: -6, filter: 'blur(3px)' }}
+             exit={{ opacity: 0, y: -8, scale: 0.985, filter: 'blur(4px)', transition: { duration: T.grace, ease: EASE.graceful } }}
              transition={{ duration: T.standard, ease: EASE.exit }}
              className="mt-2.5 min-h-0 overflow-hidden">
               {/* Amount as hero element — Motion System: in-place morph
@@ -570,7 +570,7 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                     key="kitchen"
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
+                    exit={{ opacity: 0, y: -4, transition: { duration: 0.28, ease: [0.45, 0, 0.55, 1] } }}
                     transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
                       className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${
                         ['preparing', 'cooking', 'partially_ready'].includes(String(kitchenStatus).toLowerCase())
@@ -591,7 +591,7 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                    key="status"
                    initial={{ opacity: 0, y: 4 }}
                    animate={{ opacity: 1, y: 0 }}
-                   exit={{ opacity: 0, y: -4 }}
+                   exit={{ opacity: 0, y: -4, transition: { duration: 0.28, ease: [0.45, 0, 0.55, 1] } }}
                    transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
                     className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${
                       seatedNoOrder

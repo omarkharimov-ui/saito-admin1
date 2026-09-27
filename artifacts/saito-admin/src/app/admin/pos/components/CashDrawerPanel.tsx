@@ -372,8 +372,6 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
     finally { setZLoading(false); }
   };
 
-  if (!open) return null;
-
   const formatTime = (iso: string) => {
     const d = new Date(iso);
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -420,7 +418,18 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
       {/* 2026-09-27 (owner: "kassa popup yenidən yaz — centered modal"):
           bottom sheet → centered dialog. The VKB pad-bottom keeps the modal
           centered in the visible area above an open keyboard. */}
-      <div className="fixed inset-0 z-[130] flex items-center justify-center pointer-events-none p-4" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
+      {/* 2026-09-27 (iOS-27-trash doctrine): the WHOLE layer is a keyed motion
+          child inside AnimatePresence (was a plain div — the early
+          `return null` unmounted the panel in one frame, no exit could play).
+          Closing now fades the veil + settles the card over 300ms. */}
+      {open && (
+      <motion.div
+        key="kassa-root"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
+        className="fixed inset-0 z-[130] flex items-center justify-center pointer-events-none p-4"
+        style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
+      >
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit}
           className="fixed inset-0 z-0 pointer-events-auto bg-black/20 backdrop-blur-sm"
@@ -1097,11 +1106,12 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                    })}
                  </div>
                </div>
-             )}
-           </div>
-         </motion.div>
-       </div>
-     </AnimatePresence>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+      </AnimatePresence>
      {/* 2026-09-24 (owner "bizde error ekranlarımız yoxdurmu"): custom error
          screen for OPEN_SHIFT_REQUIRED. The POS has NO permanent clock
          button (removed 2026-09-21 by owner request) — so the clock-in

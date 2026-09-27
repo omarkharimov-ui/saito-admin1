@@ -33,6 +33,14 @@ export const T = {
   emphasis: 0.28,
   /** complex: sheet/modal enter (the one place we allow >280ms) */
   complex: 0.36,
+  /**
+   * GRACE — the iOS-27-trash principle (owner, 2026-09-27): when content
+   * LEAVES (deleted items, dismissed tables, cleared carts, completed
+   * orders) it never vanishes in a frame. It fades out slowly and
+   * gracefully over this window while the layout settles. Enters stay
+   * snappy; exits are where "premium" lives.
+   */
+  grace: 0.32,
 } as const;
 
 // ── 2. EASING ────────────────────────────────────────────────────────────────
@@ -43,6 +51,12 @@ export const EASE = {
   exit: [0.4, 0, 0.55, 1] as const,
   /** in-place morph — gentle S, the house default */
   morph: [0.4, 0, 0.2, 1] as const,
+  /**
+   * GRACEFUL EXIT — symmetric in-out. Slow to start, slow to finish: the
+   * content "drifts away" the way iOS trash-delete photos fade. Paired with
+   * T.grace (320ms) for every exit that should be felt, not noticed.
+   */
+  graceful: [0.45, 0, 0.55, 1] as const,
   settle: 'easeOut' as const,
   continuous: 'linear' as const,
 } as const;
@@ -134,14 +148,17 @@ export interface TransitionChoreo {
 
 function choreo(
   level: MotionLevel,
-  opts: { cardSettle?: number; cardExit?: { scale: number; duration: number }; updateBlur?: number } = {},
+  opts: { cardSettle?: number; cardExit?: { scale: number; duration: number } } = {},
 ): TransitionChoreo {
   const L = LEVEL[level];
+  // EXITS are always graceful (iOS-trash doctrine): T.grace + EASE.graceful
+  // + a hair of scale-down. Enters keep their level's snappy timing.
+  const exitDur = Math.max(L.duration, T.grace * 0.85);
   return {
     level,
     enter:  { opacity: 0, y: L.y, scale: L.scale, blur: L.blur, duration: L.duration, ease: L.ease },
     update: { duration: L.duration, ease: L.ease, y: L.y },
-    exit:   { opacity: 0, y: -Math.max(2, L.y / 2), scale: 1, blur: opts.updateBlur ?? L.blur, duration: L.duration * 0.75, ease: EASE.exit },
+    exit:   { opacity: 0, y: -Math.max(2, L.y / 2), scale: 0.985, blur: L.blur, duration: exitDur, ease: EASE.graceful },
     cardSettle: opts.cardSettle != null ? { from: opts.cardSettle } : undefined,
     cardExit: opts.cardExit
       ? { scale: opts.cardExit.scale, opacity: 0, duration: opts.cardExit.duration }
@@ -156,7 +173,9 @@ export const CHOREO: Record<TransitionKind, TransitionChoreo> = {
   emphasize: choreo('primary',  { cardSettle: 0.99 }),
   replace:   choreo('secondary',{ cardSettle: 0.995 }),
   settle:    choreo('micro',    { cardSettle: 0.995 }),
-  collapse:  choreo('micro',    { cardExit: { scale: 0.985, duration: T.quick } }),
+  // collapse = the iOS-trash moment: the leaving card drifts down while
+  // fading (300ms graceful), then the layout glides the neighbors in.
+  collapse:  choreo('micro',    { cardExit: { scale: 0.97, duration: T.grace } }),
 };
 
 /**

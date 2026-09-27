@@ -437,18 +437,33 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
         />
         <motion.div
           {...centerModal}
-          className={`relative z-10 pointer-events-auto w-full max-w-md rounded-3xl shadow-overlay border ${
-            lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'
-          } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-lg`}
+          className={`relative z-10 pointer-events-auto w-full max-w-lg rounded-[32px] shadow-overlay border ${
+            lightMode ? 'bg-white/90 border-zinc-200' : 'bg-zinc-900/90 border-white/10'
+          } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-xl`}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 pb-4">
-            <div className="flex items-center gap-2">
-              <Wallet size={20} className="text-emerald-400" />
-              <h2 className="text-lg font-black tracking-tight">Kassa</h2>
+          {/* Header — 2026-09-27 premium pass (owner: same doctrine as TARİXÇƏ):
+              icon chip + title + live status subtitle, circular ghost close. */}
+          <div className={`flex items-center justify-between gap-3 px-5 py-4 border-b ${lightMode ? 'border-zinc-100' : 'border-white/10'}`}>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`flex-shrink-0 w-9 h-9 rounded-2xl flex items-center justify-center ${lightMode ? 'bg-emerald-500/10 text-emerald-500' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                <Wallet size={16} />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-black tracking-tight leading-tight">Kassa</h2>
+                <p className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                  {session
+                    ? `${session.locked ? 'Qıfıllandırılıb' : (t('open') || 'Açıq')} · ${session.staff_name || session.opened_by?.name || 'Kassir'}`
+                    : (t('closed') || 'Bağlı')
+                  }
+                </p>
+              </div>
             </div>
-            <button onClick={onClose} className={`p-2 rounded-xl ${lightMode ? 'hover:bg-zinc-100' : 'hover:bg-white/5'}`}>
-              <X size={18} />
+            <button
+              onClick={onClose}
+              className={`flex-shrink-0 w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 ${lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80'}`}
+              title={t('close')}
+            >
+              <X size={16} />
             </button>
           </div>
 
@@ -581,10 +596,24 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                    </div>
                 </div>
 
-                 {/* Actions — 2026-09-27 (E2E: bottom row clipped): 8 buttons
-                     in 4×2 (was 3×3) so the main view fits the dialog. */}
-                 {view === 'main' && (
-                   <div className="grid grid-cols-4 gap-2.5">
+                  {/* 2026-09-27 premium pass: the view region (main actions ↔
+                      cash-in/out ↔ no-sale ↔ drop ↔ deposit ↔ lock ↔ close)
+                      swaps as a STATE TRANSITION — 220ms fade + 8px drift,
+                      wait-mode, so the old view settles out before the new one
+                      lands. Movement log below stays persistent. */}
+                  <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={`kassa-view-${view}`}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                    className="space-y-4"
+                  >
+                  {/* Actions — 2026-09-27 (E2E: bottom row clipped): primary 3 +
+                      secondary 5 so the main view fits the dialog. */}
+                  {view === 'main' && (
+                    <div className="grid grid-cols-3 gap-2.5">
                      <button
                        onClick={() => { setView('cash-in'); setCashAmount(''); setCashDesc(''); }}
                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-green-50 border-green-200 text-green-600' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}
@@ -915,8 +944,11 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                   </div>
                 )}
 
-                {/* Movement log */}
-                {movements.length > 0 && (
+                  </motion.div>
+                  </AnimatePresence>
+
+                  {/* Movement log */}
+                  {movements.length > 0 && (
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('transactions')}</p>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">

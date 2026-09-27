@@ -817,6 +817,13 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - **Qeyd (design)**: 'cleaning' status hazırda isOccupied family-dədır → emerald border + amber TƏMİZLƏNMƏLİ chip. Owner soruşarsa: cleaning-ə öz amber border-i ayrıca qərardır.
 - Verify: tsc 0 error · 1 file.
 
+### Jurnal sətiri — 2026-09-27 (GHOST BLUE BORDER FIX — tab dəyişib geri qayıtda masa "seçili" görünürdü)
+- **Owner turn**: "sene dediyim mavi border var idi — 1 masaya girdim, başqa tab-a kecdim (takeaway/delivery), dine-in girende hemin masada eyni borderi görürəm".
+- **Root cause**: 09-27 "sebet itir" fix-i dine-in draft-ını tab-geri qayıtda yalnız data deyil, **SELECTION ilə bərabər** restore edirdi (`pendingTableRestoreRef` → `setSelectedTable(tbl)` + `setActiveView('order')`) → operator-un tap etmədiyi masa mavi "seçili" border ilə geri gəlirdi (ghost).
+- **Fix (data-only restore)**: (1) restore indi YALNIZ `setCart(parsed.cart)` edir — selection/view toxunulmur, floor TEMİZ qayıdır (tab handler artıq `setActiveView('floor')` etdiyi üçün panel də açılmır); (2) `selectTable`-də `switchingToDifferentTable` indi `cart.table_number`-a da baxır → restored draft-ı olan masaya tap etdikdə itemlər "başqa masa" sanilib silinmir (no-primary pathdə `draftsAreThisTables` guard-ı da əlavə olundu); (3) occupancy guard saxlanıldı (masanı başqa terminal tutduqda draft düşürülür, floors gecikəndə `pendingTableGuardRef` ilə deferred).
+- **E2E (Masa 14/15)**: tap+item (₼100) → TAKEAWAY tab → İÇƏRİDƏ: **0 ghost border** (bütün kartlar neutral) ✅ · tap → panel: eyni item+amount (silinməyib) ✅ · başqa masa (15) tap → draft düşürülür (0 item) ✅ · console errors: 0.
+- Verify: tsc 0 error · 1 file (usePos.tsx).
+
 ### Jurnal sətiri — 2026-09-27 (P0 FIX: bütün masa kartlarındakı 1px AĞ RİNG — owner "ag borderler... men ele bir sey istemememem")
 - **Owner turn**: "ag borderler gormursenn, ala kartin borderleri, onu nie elave etdin ki, men ele bir sey istemememem" — sən haklı idi, əlavə mən etmişdim (doğrudan da, özümdən).
 - **Root cause (nadir JS footgun)**: 3eea7dfe (border grace turn) zamanı TableCard-ın `className={` şablonu İÇİNƏ yazdığım `/* comment */`-in içində **"ring" sözü ayrı token** idi ("like the blue ring he praised"). Brauzer class attribute-ı boşluqla bölür → comment mətni LİVƏ CLASSƏ çevrilir → Tailwind v4-un `.ring` utility-si (1px, default rəng = currentColor = **ağ**) bütün masa kartlarına 1px ağ contour çəkirdi. Bu ring 16:29-dakı ilk "ag ag" şikayətindən İTİBARƏN var idi; keçən 2 fix (border-white/10→transparent, zinc-200→transparent) border-color-u düzəlsə də ring box-shadow-da olduğu üçün görünürdü.

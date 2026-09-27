@@ -270,6 +270,27 @@ export function usePos() {
     }
   }, []);
 
+  // 2026-09-27 (owner: "stok yeniləndikdə avtomatik yenilənib-yenilənmədiyini
+  // yoxla; sistemin məntiqini düzgün və ardıcıl şəkildə qur"):
+  // STOCK SSOT = products.is_in_stock / products.is_available (admin flags,
+  // managed in Admin → Məhsullar). The POS derives its out-of-stock Set from
+  // this catalog. The catalog used to load ONCE on mount — an admin flipping
+  // a product's stock in a different tab was invisible to the terminal until
+  // a manual reload. Now: every 60s (visible tabs only) the catalog quietly
+  // re-syncs, so OOS cards / prices / availability follow the admin without
+  // touching the cart or the floor.
+  const catalogSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    catalogSyncRef.current = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return; // background tab: skip
+      fetchCatalog();
+    }, 60000);
+    return () => {
+      if (catalogSyncRef.current) clearInterval(catalogSyncRef.current);
+      catalogSyncRef.current = null;
+    };
+  }, [fetchCatalog]);
+
   // Combined initial load (catalog + floor).
   const fetchData = useCallback(async () => {
     try {

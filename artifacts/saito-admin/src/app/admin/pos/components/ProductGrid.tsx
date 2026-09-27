@@ -98,41 +98,11 @@ const FILTER_TABS = [
   { id: 'popular' as const, labelKey: 'popular', icon: Star },
 ];
 
-// 2026-09-25 (owner): GLOBAL kitchen summary — the MƏTBƏX button in the
-// filter row replaces the old per-cart chip (removed: "cirkın tooltip").
-// Counts ALL open orders' portions: hazırlanır / hazır / draft — same
-// semantics as the old cart statusCounts (served_quantity + kitchen_status).
-function useKitchenSummary() {
-  const [summary, setSummary] = useState<{ ready: number; prep: number; draft: number } | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        // 2026-09-26: dedicated aggregation RPC (3 ints, ~60 bytes) instead of
-        // polling /api/orders (~1.5 MB per tick, and the un-scoped status-only
-        // variant reliably 500s in the dev-server fetch layer).
-        const res = await apiFetch('/api/rpc/get_kitchen_summary', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: '{}',
-        });
-        if (!res.ok) return;
-        const d: any = await res.json();
-        if (!cancelled) {
-          setSummary({
-            ready: Number(d?.ready) || 0,
-            prep: Number(d?.prep) || 0,
-            draft: Number(d?.draft) || 0,
-          });
-        }
-      } catch { /* best effort — kitchen hint is auxiliary */ }
-    };
-    load();
-    const iv = window.setInterval(load, 5000);
-    return () => { cancelled = true; window.clearInterval(iv); };
-  }, []);
-  return summary;
-}
+// 2026-09-27 (owner): the GLOBAL kitchen summary (all open orders) is REMOVED
+// from the MƏTBƏX pill/popover — "bütün sifarişləri göstərməməlidir. Yalnız
+// seçilmiş masanın mətbəx statusunu göstərsin". The pill + popover now read
+// the `currentTableKitchen` prop (the selected table's own cart lines).
+// This also kills a 5s RPC poll that ran even when the popover was closed.
 
 type GridItem = PosProduct & { _isCombo?: boolean; _raw?: any; variants?: any[]; modifiers?: any[]; modifier_groups?: any[] };
 
@@ -166,12 +136,15 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const { height: vkHeight } = useVirtualKeyboard();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  // 2026-09-27 (owner: OOS kartların "yanıb-sönməsi"): a failed image is marked
+  // failed IMMEDIATELY — the old `?t=Date.now()` re-fetch swapped the src
+  // mid-frame and the card flashed (img → blank → img). A fresh catalog load
+  // (60s auto-sync) resets the set so every URL gets one clean chance.
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
-  const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
-  const [retryCount, setRetryCount] = useState<Record<string, number>>({});
+  useEffect(() => { setFailedImages(new Set()); }, [products]);
   const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'popular'>('all');
-  // 2026-09-25 (owner): MƏTBƏX button + hint (global kitchen summary).
-  const kitchen = useKitchenSummary();
+  // 2026-09-27 (owner): MƏTBƏX button + hint now reflect the SELECTED TABLE
+  // only (the currentTableKitchen prop), not all open orders.
   const [kitchenHintOpen, setKitchenHintOpen] = useState(false);
   // 2026-09-26: the hint is rendered as a FIXED-position panel anchored to the
   // button's rect. It used to be `absolute` inside the filter row, but that row
@@ -179,6 +152,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   // ARIA, invisible in pixels). Fixed positioning escapes the scroll container.
   const kitchenBtnRef = useRef<HTMLButtonElement>(null);
   const [kitchenHintPos, setKitchenHintPos] = useState<{ top: number; left: number } | null>(null);
+  // 2026-09-27 (owner): pill highlight + badge = the SELECTED TABLE's active
+  // kitchen load (draft excluded — unsent lines aren't in the kitchen yet).
+  const tkCount = currentTableKitchen ? currentTableKitchen.ready + currentTableKitchen.prep : 0;
+  const tkActive = tkCount > 0;
   // The hint is a glanceable popover — auto-close after 8s so a stray open
   // can never leave the full-screen click-away backdrop up over the POS.
   useEffect(() => {
@@ -582,7 +559,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 // (fixed escapes the row's overflow-x-auto clipping).
                 const r = kitchenBtnRef.current?.getBoundingClientRect();
                 if (r) {
-                  const panelW = 240; // w-60
+                  const panelW = 256; // w-64
                   setKitchenHintPos({
                     top: r.bottom + 8,
                     left: Math.min(Math.max(8, r.left), window.innerWidth - panelW - 8),
@@ -592,113 +569,109 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
               }}
                whileTap={{ scale: 0.94 }}
                transition={TAP}
-               className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap border transition-colors ${
-                 kitchenHintOpen
-                   ? (lightMode ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-950 border-white')
-                   : kitchen && kitchen.ready + kitchen.prep > 0
-                     ? (lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-800 hover:bg-zinc-200' : 'bg-white/8 border-white/20 text-white/85 hover:bg-white/12')
-                     : (lightMode ? 'bg-white border-zinc-200 text-zinc-400 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-500 hover:bg-white/10')
-               }`}
-             >
-               <span className={`relative inline-flex items-center justify-center ${kitchen && kitchen.ready + kitchen.prep > 0 ? 'saito-flame-wrap' : ''}`}>
-                 <Flame size={12} className={kitchen && kitchen.ready + kitchen.prep > 0 ? 'saito-flame text-orange-400' : ''} />
-                 {kitchen && kitchen.ready + kitchen.prep > 0 && <span className="saito-flame-glow" aria-hidden />}
-               </span>
-               {t('tab_kitchen') || 'Mətbəx'}
-               {kitchen && kitchen.ready + kitchen.prep > 0 && (
-                 <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-zinc-900 text-white text-[10px] font-black tabular-nums flex items-center justify-center leading-none border border-white/20">
-                   {kitchen.ready + kitchen.prep}
-                 </span>
-               )}
-             </motion.button>
+                className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap border transition-colors ${
+                  kitchenHintOpen
+                    ? (lightMode ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-950 border-white')
+                    : tkActive
+                      ? (lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-800 hover:bg-zinc-200' : 'bg-white/8 border-white/20 text-white/85 hover:bg-white/12')
+                      : (lightMode ? 'bg-white border-zinc-200 text-zinc-400 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-500 hover:bg-white/10')
+                }`}
+              >
+                <span className={`relative inline-flex items-center justify-center ${tkActive ? 'saito-flame-wrap' : ''}`}>
+                  <Flame size={12} className={tkActive ? 'saito-flame text-orange-400' : ''} />
+                  {tkActive && <span className="saito-flame-glow" aria-hidden />}
+                </span>
+                {t('tab_kitchen') || 'Mətbəx'}
+                {tkActive && (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-zinc-900 text-white text-[10px] font-black tabular-nums flex items-center justify-center leading-none border border-white/20">
+                    {tkCount}
+                  </span>
+                )}
+              </motion.button>
           </div>
        </div>
 
        {/* MƏTBƏX hint — rendered OUTSIDE the overflow-x-auto filter row (2026-09-26):
            absolute positioning inside the row was clipped by the scroll container
            (present in DOM/ARIA, invisible in pixels). Fixed + backdrop as siblings. */}
-        {/* 2026-09-27 (owner: "canlı alov"): pure-CSS flame flicker for the
-            MƏTBƏX pill — scale/skew jitter + ember glow pulse. No canvas,
-            no images, GPU-cheap (transform/opacity only). */}
-        <style>{`
-          @keyframes saito-flame-flick {
-            0%   { transform: scale(1) skewX(0deg); opacity: .95; }
-            25%  { transform: scale(1.12) skewX(-4deg); opacity: 1; }
-            50%  { transform: scale(.94) skewX(3deg); opacity: .85; }
-            75%  { transform: scale(1.08) skewX(-2deg); opacity: 1; }
-            100% { transform: scale(1) skewX(0deg); opacity: .95; }
-          }
-          .saito-flame { animation: saito-flame-flick 1.4s ease-in-out infinite; transform-origin: 50% 90%; }
-          @keyframes saito-glow-pulse {
-            0%, 100% { opacity: .25; transform: scale(1); }
-            50%      { opacity: .6;  transform: scale(1.5); }
-          }
-          .saito-flame-glow {
-            position: absolute; inset: -4px; border-radius: 9999px; pointer-events: none;
-            background: radial-gradient(circle, rgba(251,146,60,.55) 0%, rgba(251,146,60,0) 70%);
-            animation: saito-glow-pulse 1.4s ease-in-out infinite;
-          }
-        `}</style>
+         {/* 2026-09-27 (owner: the jittery flame was "çirkin" → refined): the
+             icon stays STILL; only a soft ember glow breathes (opacity-only,
+             2.4s — the same slow cadence as the motion system's state
+             transitions). No scale, no skew, no jitter. */}
+         <style>{`
+           @keyframes saito-flame-breathe {
+             0%, 100% { opacity: .55; }
+             50%      { opacity: 1; }
+           }
+           .saito-flame { animation: saito-flame-breathe 2.4s ease-in-out infinite; }
+           @keyframes saito-glow-breathe {
+             0%, 100% { opacity: .16; }
+             50%      { opacity: .45; }
+           }
+           .saito-flame-glow {
+             position: absolute; inset: -5px; border-radius: 9999px; pointer-events: none;
+             background: radial-gradient(circle, rgba(251,146,60,.5) 0%, rgba(251,146,60,0) 70%);
+             animation: saito-glow-breathe 2.4s ease-in-out infinite;
+           }
+         `}</style>
         {kitchenHintOpen && <div className="fixed inset-0 z-[60]" onClick={() => setKitchenHintOpen(false)} />}
-       <AnimatePresence>
-         {kitchenHintOpen && kitchen && kitchenHintPos && (
-           <motion.div
-             initial={{ opacity: 0, y: -6, scale: 0.97 }}
-             animate={{ opacity: 1, y: 0, scale: 1 }}
-             exit={{ opacity: 0, y: -6, scale: 0.97 }}
-             transition={{ type: 'spring', stiffness: 500, damping: 26 }}
-             className="fixed z-[70] w-60 rounded-2xl border p-4 shadow-elevated backdrop-blur-lg"
-             style={{
-               top: kitchenHintPos.top,
-               left: kitchenHintPos.left,
-               ...(lightMode ? { background: '#ffffff', borderColor: '#e4e4e7' } : { background: 'rgba(24,24,28,0.97)', borderColor: 'rgba(255,255,255,0.12)' }),
-             }}
-           >
+        <AnimatePresence>
+          {kitchenHintOpen && kitchenHintPos && (
+            <motion.div
+              initial={{ opacity: 0, y: -6, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+              className="fixed z-[70] w-64 rounded-2xl border p-4 shadow-elevated backdrop-blur-lg"
+              style={{
+                top: kitchenHintPos.top,
+                left: kitchenHintPos.left,
+                ...(lightMode ? { background: '#ffffff', borderColor: '#e4e4e7' } : { background: 'rgba(24,24,28,0.97)', borderColor: 'rgba(255,255,255,0.12)' }),
+              }}
+            >
+              {/* 2026-09-27 (owner): SELECTED TABLE ONLY — "bütün sifarişləri
+                  göstərməməlidir. Yalnız seçilmiş masanın mətbəx statusunu
+                  göstərsin... aydın, səliqəli, peşəkar". */}
               <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
                 {t('kitchen_status') || 'Mətbəx statusu'}
               </p>
-              {/* 2026-09-27 (owner): current table first — "current masanın
-                  statusunu göstərsin" */}
-              {currentTableKitchen && (
-                <div className={`rounded-xl border p-3 mb-2.5 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.04] border-white/10'}`}>
-                  <p className={`text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5 ${lightMode ? 'text-zinc-500' : 'text-white/45'}`}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {currentTableKitchen.label} — bu masa
-                  </p>
-                  <div className="flex items-center gap-2 text-[11px] font-bold">
-                    <span className="px-2 py-0.5 rounded-md bg-zinc-400/15 text-zinc-500 tabular-nums">{currentTableKitchen.draft} draft</span>
-                    <span className="px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-500 tabular-nums">{currentTableKitchen.prep} hazırlanır</span>
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-500 tabular-nums">{currentTableKitchen.ready} hazır</span>
+              {currentTableKitchen ? (
+                <>
+                  <div className={`flex items-center gap-2 mb-3 px-3 py-2.5 rounded-xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.04] border-white/10'}`}>
+                    <span className="relative flex w-2 h-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      {(tkActive) && <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />}
+                    </span>
+                    <span className={`text-xs font-black ${lightMode ? 'text-zinc-800' : 'text-white/85'}`}>{currentTableKitchen.label}</span>
+                    <span className={`ml-auto text-[9px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Seçilmiş</span>
                   </div>
-                </div>
+                  {tkCount + currentTableKitchen.draft === 0 ? (
+                    <p className={`text-xs font-bold py-3 text-center ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                      Bu sifarişdə mətbəxə göndərilən hissə yoxdur
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { n: currentTableKitchen.draft, label: t('st_draft') || 'draft', cls: lightMode ? 'bg-zinc-100 text-zinc-600' : 'bg-white/[0.06] text-white/70' },
+                        { n: currentTableKitchen.prep, label: t('st_preparing') || 'hazırlanır', cls: 'bg-orange-500/10 text-orange-500' },
+                        { n: currentTableKitchen.ready, label: t('st_ready') || 'hazır', cls: 'bg-emerald-500/10 text-emerald-500' },
+                      ].map((s) => (
+                        <div key={s.label} className={`rounded-xl px-2 py-2.5 text-center ${s.cls}`}>
+                          <p className="text-xl font-black tabular-nums leading-none">{s.n}</p>
+                          <p className={`text-[9px] font-black uppercase tracking-widest mt-1.5 ${s.n === 0 ? 'opacity-40' : ''}`}>{s.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className={`text-xs font-bold py-3 text-center ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                  Sifariş seçilməyib
+                </p>
               )}
-              <p className={`text-[9px] font-black uppercase tracking-widest mb-1.5 ${lightMode ? 'text-zinc-400' : 'text-white/25'}`}>Bütün sifarişlər</p>
-              <div className="space-y-2">
-               <div className="flex items-center justify-between">
-                 <span className="flex items-center gap-2 text-xs font-bold text-amber-500">
-                   <span className="w-2 h-2 rounded-full bg-amber-500" />
-                   {t('st_preparing') || 'hazırlanır'}
-                 </span>
-                 <span className={`text-base font-black tabular-nums ${lightMode ? 'text-zinc-800' : 'text-white'}`}>{kitchen.prep}</span>
-               </div>
-               <div className="flex items-center justify-between">
-                 <span className="flex items-center gap-2 text-xs font-bold text-emerald-500">
-                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                   {t('st_ready') || 'hazır'}
-                 </span>
-                 <span className={`text-base font-black tabular-nums ${lightMode ? 'text-zinc-800' : 'text-white'}`}>{kitchen.ready}</span>
-               </div>
-               <div className={`flex items-center justify-between ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
-                 <span className="flex items-center gap-2 text-xs font-bold">
-                   <span className={`w-2 h-2 rounded-full ${lightMode ? 'bg-zinc-400' : 'bg-white/40'}`} />
-                   {t('st_draft') || 'draft'}
-                 </span>
-                 <span className={`text-base font-black tabular-nums ${lightMode ? 'text-zinc-800' : 'text-white'}`}>{kitchen.draft}</span>
-               </div>
-             </div>
-           </motion.div>
-         )}
-       </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       {/* Categories */}
       <div className="mb-4 flex-shrink-0">
@@ -822,16 +795,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                    >
                     <div className="aspect-square w-full overflow-hidden rounded-3xl bg-white/50 dark:bg-black/20">
                       {item.image_url && !failedImages.has(item.image_url) ? (
-                        <img src={retryingImages.has(item.image_url) ? `${item.image_url}?t=${Date.now()}` : item.image_url} alt={name}
+                        <img src={item.image_url} alt={name}
                           onError={() => {
                             const url = item.image_url!;
-                            const cnt = (retryCount[url] || 0) + 1;
-                            setRetryCount(prev => ({ ...prev, [url]: cnt }));
-                            if (cnt >= 2) { setFailedImages(prev => new Set(prev).add(url)); }
-                            else { setRetryingImages(prev => new Set(prev).add(url)); }
-                          }}
-                          onLoad={() => {
-                            if (retryingImages.has(item.image_url!)) { setRetryingImages(prev => { const s = new Set(prev); s.delete(item.image_url!); return s; }); }
+                            setFailedImages(prev => (prev.has(url) ? prev : new Set(prev).add(url)));
                           }}
                            className="w-full h-full object-cover group-hover:scale-110" loading="lazy" decoding="async" />
                       ) : (
@@ -917,7 +884,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 <div className="flex items-center gap-4 min-w-0">
                   <div className={`w-[72px] h-[72px] rounded-3xl overflow-hidden shrink-0 ${lightMode ? 'bg-zinc-100' : 'bg-white/10'}`}>
                     {expandedItem.image_url && !failedImages.has(expandedItem.image_url) ? (
-                      <img src={retryingImages.has(expandedItem.image_url) ? `${expandedItem.image_url}?t=${Date.now()}` : expandedItem.image_url} alt={modalName} className="w-full h-full object-cover" loading="lazy" />
+                      <img src={expandedItem.image_url} alt={modalName} className="w-full h-full object-cover" loading="lazy" />
                     ) : (
                       <div className={`w-full h-full flex items-center justify-center text-2xl font-black opacity-20 uppercase ${expandedText}`}>{(modalName || '?').slice(0, 2)}</div>
                     )}

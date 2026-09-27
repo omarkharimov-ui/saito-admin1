@@ -336,6 +336,25 @@ export default function POSPage() {
   const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
   const [deliveryOrders, setDeliveryOrders] = useState<any[]>([]);
 
+  // 2026-09-27 (owner: "stokda olmayan məhsul kartlarının yanıb-sönməsi bug
+  // kimi görünür"): STABLE PROP IDENTITIES for ProductGrid. The old inline
+  // Set / reduce object was rebuilt on EVERY page render (the 3s floor poll),
+  // invalidating the grid's `filtered` memo and re-running the full card list
+  // — the OOS cards visibly flickered as a result. Both now change only when
+  // their source data actually changes (catalog reload / cart mutation).
+  const outOfStockSet = useMemo(
+    () => new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id)),
+    [pos.products],
+  );
+  const posCartCounts = useMemo(
+    () => (pos.cart?.items ?? []).reduce((acc: Record<string, number>, item: any) => {
+      const id = item.product_id;
+      acc[id] = (acc[id] || 0) + (item.quantity || 0);
+      return acc;
+    }, {}),
+    [pos.cart],
+  );
+
   // NOTE (M2 removed): a `checkoutTotal` useMemo lived here with a hardcoded
   // 18% tax-INCLUSIVE VAT formula — it diverged from the server SSOT
   // (calculate_order_total_v3, tax-EXCLUSIVE) and was unused (dead landmine).
@@ -2900,27 +2919,26 @@ export default function POSPage() {
                            combos={pos.combos}
                            variantsByProduct={pos.variantsByProduct}
                            onAddProduct={(p) => handleProductTap(p)}
-                          onAddCombo={(c) => pos.addComboToCart(c)}
-                          cartCounts={(pos.cart?.items ?? []).reduce((acc: Record<string, number>, item: any) => {
-                            const id = item.product_id;
-                            acc[id] = (acc[id] || 0) + (item.quantity || 0);
-                            return acc;
-                          }, {})}
-                            outOfStock={new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id))}
-                            // 2026-09-27 (owner): MƏTBƏX popup — current table state
-                            currentTableKitchen={(() => {
-                              const items = pos.cart?.items ?? [];
-                              const sent = items.filter((i: any) => (i.sentQuantity ?? 0) > 0);
-                              const label = posMode === 'dine_in'
-                                ? `Masa ${pos.cart?.table_number ?? ''}`.trim()
-                                : posMode === 'takeaway' ? 'Takeaway' : 'Çatdırılma';
-                              return {
-                                label,
-                                draft: items.reduce((s: number, i: any) => s + Math.max(0, (i.quantity ?? 0) - (i.sentQuantity ?? 0)), 0),
-                                prep: sent.filter((i: any) => ['pending', 'accepted', 'sent', 'preparing'].includes(i.kitchen_status || 'pending')).length,
-                                ready: sent.filter((i: any) => ['ready', 'served'].includes(i.kitchen_status || '')).length,
-                              };
-                            })()}
+                           onAddCombo={(c) => pos.addComboToCart(c)}
+                           cartCounts={posCartCounts}
+                             outOfStock={outOfStockSet}
+                             // 2026-09-27 (owner): MƏTBƏX popup — SELECTED TABLE
+                             // state ONLY (no more all-orders section). null while
+                             // no cart is bound → the popover shows "Sifariş
+                             // seçilməyib" instead of fake zeros.
+                             currentTableKitchen={pos.cart ? (() => {
+                               const items = pos.cart?.items ?? [];
+                               const sent = items.filter((i: any) => (i.sentQuantity ?? 0) > 0);
+                               const label = posMode === 'dine_in'
+                                 ? (pos.cart?.table_number ? `Masa ${pos.cart.table_number}` : (t('order_history') || 'Sifariş'))
+                                 : posMode === 'takeaway' ? 'Takeaway' : 'Çatdırılma';
+                               return {
+                                 label,
+                                 draft: items.reduce((s: number, i: any) => s + Math.max(0, (i.quantity ?? 0) - (i.sentQuantity ?? 0)), 0),
+                                 prep: sent.filter((i: any) => ['pending', 'accepted', 'sent', 'preparing'].includes(i.kitchen_status || 'pending')).length,
+                                 ready: sent.filter((i: any) => ['ready', 'served'].includes(i.kitchen_status || '')).length,
+                               };
+                             })() : null}
                             catalogError={pos.catalogLoadFailed}
                             onRetryCatalog={() => pos.fetchData()}
                             filterData={filterData}

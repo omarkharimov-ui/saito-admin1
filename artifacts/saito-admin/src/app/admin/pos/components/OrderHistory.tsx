@@ -383,48 +383,70 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
       >
         <motion.div
           {...centerModal}
-          className={`relative w-full max-w-lg rounded-3xl shadow-overlay border ${
-            lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'
-          } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-lg`}
+          className={`relative w-full max-w-xl rounded-[32px] shadow-overlay border ${
+            lightMode ? 'bg-white/90 border-zinc-200' : 'bg-zinc-900/90 border-white/10'
+          } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-xl`}
           onClick={e => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-            <div className="flex items-center gap-3">
+          {/* Header — 2026-09-27 premium pass (owner: "modal düzbucaqlı forma...
+              ölçülərini, künclərini, yerləşimini, animasiyasını və ümumi vizual
+              iyerarxiyasını təkmilləşdir"): icon chip + title + live subtitle,
+              circular ghost close. */}
+          <div className={`flex items-center justify-between gap-3 px-5 py-4 border-b ${lightMode ? 'border-zinc-100' : 'border-white/10'}`}>
+            <div className="flex items-center gap-3 min-w-0">
               {selectedOrder ? (
-                <button onClick={handleBackToList} className="p-2 rounded-xl hover:bg-white/10 transition-all">
-                  <ChevronLeft size={18} />
+                <button
+                  onClick={handleBackToList}
+                  className={`flex-shrink-0 w-9 h-9 rounded-2xl border flex items-center justify-center transition-all active:scale-95 ${lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'}`}
+                  title={t('back')}
+                >
+                  <ChevronLeft size={16} />
                 </button>
               ) : (
-                <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 transition-all">
-                  <ChevronLeft size={18} />
-                </button>
+                <div className={`flex-shrink-0 w-9 h-9 rounded-2xl flex items-center justify-center ${lightMode ? 'bg-emerald-500/10 text-emerald-500' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                  <Clock size={16} />
+                </div>
               )}
-              <h2 className="text-base font-black tracking-tight">
-                {selectedOrder
-                  ? (selectedOrder.table_number ? `${t('table_label')} ${selectedOrder.table_number}` : selectedOrder.order_source === 'takeaway' ? `${t('takeaway')}` : selectedOrder.order_source === 'delivery' ? `${t('delivery')}` : t('order_history'))
-                  : t('order_history')
-                }
-              </h2>
+              <div className="min-w-0">
+                <h2 className="text-base font-black tracking-tight leading-tight truncate">
+                  {selectedOrder
+                    ? (selectedOrder.table_number ? `${t('table_label')} ${selectedOrder.table_number}` : selectedOrder.order_source === 'takeaway' ? `${t('takeaway')}` : selectedOrder.order_source === 'delivery' ? `${t('delivery')}` : t('order_history'))
+                    : t('order_history')
+                  }
+                </h2>
+                <p className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                  {selectedOrder
+                    ? `${new Date(selectedOrder.created_at).toLocaleDateString('az')} · ${new Date(selectedOrder.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}`
+                    : `${totalCount} ${t('orders') || 'sifariş'}`
+                  }
+                </p>
+              </div>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 transition-all">
-              <X size={18} />
+            <button
+              onClick={onClose}
+              className={`flex-shrink-0 w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 ${lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80'}`}
+              title={t('close')}
+            >
+              <X size={16} />
             </button>
           </div>
 
           {/* ═══════ LIST VIEW ═══════ */}
           {!selectedOrder && (
             <>
-              {/* 2026-09-23 (owner, Toast "Sales Exception Report"): Sifarişlər / İstisnalar */}
-              <div className={`flex gap-2 px-5 pt-3 pb-1`}>
+              {/* 2026-09-23 (owner, Toast "Sales Exception Report"): Sifarişlər / İstisnalar.
+                  2026-09-27 premium pass: true segmented control — one quiet
+                  surface, the active segment is the solid pill (no more two
+                  floating buttons, one always screaming emerald). */}
+              <div className={`mx-5 mt-3 mb-1 rounded-2xl p-1 flex ${lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'}`}>
                 {([['orders', t('orders') || 'Sifarişlər'], ['exceptions', t('exceptions') || 'İstisnalar']] as const).map(([id, label]) => (
                   <button
                     key={id}
                     onClick={() => setSheetTab(id)}
                     className={`flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                       sheetTab === id
-                        ? 'bg-emerald-500 text-white'
-                        : lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'
+                        ? (lightMode ? 'bg-white text-zinc-900 shadow-sm' : 'bg-white text-zinc-950 shadow-sm')
+                        : (lightMode ? 'text-zinc-500 hover:text-zinc-700' : 'text-white/40 hover:text-white/70')
                     }`}
                   >
                     {label}{id === 'exceptions' && exceptions.length > 0 ? ` (${exceptions.length})` : ''}
@@ -537,57 +559,64 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     {searchQuery || dateFrom || dateTo ? t('no_search_results') : t('no_paid_orders')}
                   </p>
                 ) : (
-                  filteredOrders.map(order => (
-                    <div
-                      key={order.id}
-                      onClick={() => handleSelectOrder(order)}
-                      className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer ${
-                        lightMode ? 'bg-zinc-50 border-zinc-100 hover:border-zinc-200' : 'bg-white/5 border-white/5 hover:border-white/10'
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-black tabular-nums">
-                            {order.table_number ? `${t('table_label')} ${order.table_number}` : order.order_source === 'takeaway' ? `${t('takeaway_short')} ${order.order_number || ''}` : order.order_source === 'delivery' ? `${t('delivery_short')} ${order.order_number || ''}` : `#${order.order_number || order.id.slice(0, 8)}`}
-                          </span>
-                          <span className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded ${
-                            order.order_source === 'takeaway' ? 'bg-amber-500/10 text-amber-500' :
-                            order.order_source === 'delivery' ? 'bg-blue-500/10 text-blue-500' :
-                            'bg-emerald-500/10 text-emerald-500'
-                          }`}>
-                            {order.order_source === 'takeaway' ? t('takeaway') : order.order_source === 'delivery' ? t('delivery') : t('dine_in')}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs opacity-40 flex items-center gap-1">
-                            <Clock size={10} />
-                            {new Date(order.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                          <span className="text-xs opacity-40">
-                            {new Date(order.created_at).toLocaleDateString('az')}
-                          </span>
-                          <span className="text-xs font-black tabular-nums">
-                            ₼{(Number(order.paid_amount || order.total_amount) || 0).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 ml-3">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); guardAction(() => doReprint(order), 'reprint'); }}
-                          disabled={reprinting === order.id}
-                          className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 transition-all disabled:opacity-30"
-                          title={t('reprint')}
-                        >
-                          {reprinting === order.id ? (
-                            <div className="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
-                          ) : (
-                            <Printer size={14} />
-                          )}
-                        </button>
-                        <ChevronRight size={16} className={lightMode ? 'text-zinc-300' : 'text-white/20'} />
-                      </div>
-                    </div>
-                    ))
+                   filteredOrders.map(order => (
+                     <div
+                       key={order.id}
+                       onClick={() => handleSelectOrder(order)}
+                       className={`flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl border cursor-pointer transition-all ${
+                         lightMode ? 'bg-zinc-50/80 border-zinc-100 hover:border-zinc-300 hover:bg-white' : 'bg-white/[0.04] border-white/5 hover:border-white/15 hover:bg-white/[0.07]'
+                       }`}
+                     >
+                       <div className="flex-1 min-w-0">
+                         <div className="flex items-center gap-2">
+                           <span className="text-[13px] font-black tabular-nums truncate">
+                             {order.table_number ? `${t('table_label')} ${order.table_number}` : order.order_source === 'takeaway' ? `${t('takeaway_short')} ${order.order_number || ''}` : order.order_source === 'delivery' ? `${t('delivery_short')} ${order.order_number || ''}` : `#${order.order_number || order.id.slice(0, 8)}`}
+                           </span>
+                           <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md flex-shrink-0 ${
+                             order.order_source === 'takeaway' ? 'bg-amber-500/10 text-amber-500' :
+                             order.order_source === 'delivery' ? 'bg-blue-500/10 text-blue-500' :
+                             'bg-emerald-500/10 text-emerald-500'
+                           }`}>
+                             {order.order_source === 'takeaway' ? t('takeaway') : order.order_source === 'delivery' ? t('delivery') : t('dine_in')}
+                           </span>
+                         </div>
+                         <div className={`flex items-center gap-3 mt-1 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                           <span className="text-[11px] font-bold tabular-nums flex items-center gap-1">
+                             <Clock size={10} />
+                             {new Date(order.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}
+                           </span>
+                           <span className="text-[11px] font-bold tabular-nums">
+                             {new Date(order.created_at).toLocaleDateString('az')}
+                           </span>
+                           {order.guest_count ? (
+                             <span className="text-[11px] font-bold tabular-nums flex items-center gap-1">
+                               <Users size={10} />{order.guest_count}
+                             </span>
+                           ) : null}
+                         </div>
+                       </div>
+                       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                         <span className="text-sm font-black tabular-nums leading-none">
+                           ₼{(Number(order.paid_amount || order.total_amount) || 0).toFixed(2)}
+                         </span>
+                         <div className="flex items-center gap-1">
+                           <button
+                             onClick={(e) => { e.stopPropagation(); guardAction(() => doReprint(order), 'reprint'); }}
+                             disabled={reprinting === order.id}
+                             className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 transition-all disabled:opacity-30"
+                             title={t('reprint')}
+                           >
+                             {reprinting === order.id ? (
+                               <div className="w-3.5 h-3.5 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                             ) : (
+                               <Printer size={13} />
+                             )}
+                           </button>
+                           <ChevronRight size={14} className={lightMode ? 'text-zinc-300' : 'text-white/20'} />
+                         </div>
+                       </div>
+                     </div>
+                     ))
                  )}
                  {/* 2026-09-23 (owner): "load more" — the list was hard-capped
                      at 100 orders; busy days lost their older orders. */}

@@ -120,9 +120,32 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     if (id) return syntheticJson({ queued: true, queueId: id }, 202);
   }
 
+  // 2026-09-27 (owner "mexaniki problem": Dismiss / order cards need a SECOND
+  // click — the first one silently 403s). Root cause: the per-tab CSRF
+  // singleton goes stale when ANOTHER tab (or the login flow) rewrites the
+  // shared `saito_csrf` cookie — our `X-CSRF-Token` header no longer EQUALS
+  // the cookie the server sends back, so the double-submit check rejects the
+  // FIRST mutation. The user's second click often lands after the cookie has
+  // settled → it passes. Self-heal: on a 403 for a mutation, re-read the
+  // cookie; if it drifted, update the singleton and retry ONCE. The CSRF
+  // check runs BEFORE any route handler, so a 403 never executed side
+  // effects — the retry is safe.
   let res: Response;
+  const doFetch = (h: Record<string, string>) => fetch(url, { ...options, headers: h });
   try {
-    res = await fetch(url, { ...options, headers });
+    res = await doFetch(headers);
+    if (res.status === 403 && method !== 'GET') {
+      const sent = headers['X-CSRF-Token'];
+      const fresh = readCookie(COOKIE_NAME);
+      if (fresh && sent && fresh !== sent) {
+        __csrfSingleton = fresh;
+        try {
+          res = await doFetch({ ...headers, 'X-CSRF-Token': fresh });
+        } catch {
+          /* retry died on the network — surface the original 403 */
+        }
+      }
+    }
   } catch (err) {
     // Network dead (navigator still "online" — server-side outage): same
     // offline policy, but only for mutation routes we know how to replay.

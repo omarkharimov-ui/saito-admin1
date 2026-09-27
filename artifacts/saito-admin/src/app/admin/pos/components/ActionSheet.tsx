@@ -637,7 +637,7 @@ export function ActionSheet({
                             <div className="relative flex-1">
                               <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-black ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>₼</span>
                               <input type="number" step="0.01" min="0" value={tipAmount} onChange={e => setTipAmount(e.target.value)} placeholder="0"
-                                className={`w-full rounded-lg pl-5 pr-2 py-1.5 text-xs font-black outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`} />
+                                className={`w-full rounded-lg pl-5 pr-2 py-1.5 text-xs font-black outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white focus:border-emerald-400/50'}`} />
                             </div>
                             {[5, 10, 15].map(pct => {
                               const val = Math.round((table?.total_amount || 0) * pct / 100 * 100) / 100;

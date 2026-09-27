@@ -18,10 +18,13 @@
 //
 // Flex-flow layout (no absolute stacking) → text overlap is structurally
 // impossible; rows truncate; middle block is overflow-hidden.
+import { AnimatePresence, motion } from 'framer-motion';
 import { User, Phone, MapPin, Bike, Clock, MoreVertical, Route, CheckCircle2 } from 'lucide-react';
 import { partnerMeta, type PartnerId } from '../lib/partners';
 import { PartnerLogo } from './PartnerBadge';
 import type { OrderStage } from '@/lib/order-stage';
+import { T, EASE } from '@/lib/motion/system';
+import { Morph } from '@/lib/motion/Morph';
 
 /** Accent text variants readable on dark surfaces (chip / icons). */
 const TEXT_ON_DARK: Record<PartnerId, string> = {
@@ -203,15 +206,42 @@ export default function BoardOrderCard({ order, kind, stage, status, lightMode, 
         )}
       </div>
 
-      {/* ── Bottom: status pill + total (NEVER yellow: white / near-black) ── */}
+      {/* ── Bottom: status pill + total (NEVER yellow: white / near-black) ──
+          Motion System: the pill's label MORPHS in place when the stage
+          changes (new→kitchen→ready→paid); the pill surface crossfades its
+          color via CSS; the total crossfades as a value morph. */}
       <div className="relative mt-auto flex items-center justify-between gap-2">
-        <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${lightMode ? status.bg : status.bgDark}`}>
+        <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${lightMode ? status.bg : status.bgDark}`}>
           <span className={`w-1.5 h-1.5 rounded-full ${lightMode ? status.dot : status.dotDark}`} />
-          <span className={lightMode ? status.text : status.textDark}>{t(status.labelKey as any)}</span>
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={status.labelKey}
+              initial={{ opacity: 0, y: 3, filter: 'blur(2px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -3, filter: 'blur(2px)' }}
+              transition={{ duration: T.standard, ease: EASE.morph }}
+              className={`inline-flex whitespace-nowrap ${lightMode ? status.text : status.textDark}`}
+            >
+              {t(status.labelKey as any)}
+            </motion.span>
+          </AnimatePresence>
         </span>
         <span className={`inline-flex items-center gap-1 text-[15px] font-black tabular-nums tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>
-          {(stage === 'paid' || stage === 'ready') && <CheckCircle2 size={13} strokeWidth={2.5} className={lightMode ? 'text-emerald-500' : 'text-emerald-400'} />}
-          ₼{Number(order.total_amount || 0).toFixed(2)}
+          {(stage === 'paid' || stage === 'ready') && (
+            <AnimatePresence>
+              <motion.span
+                key="paid-check"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+                className="inline-flex"
+              >
+                <CheckCircle2 size={13} strokeWidth={2.5} className={lightMode ? 'text-emerald-500' : 'text-emerald-400'} />
+              </motion.span>
+            </AnimatePresence>
+          )}
+          <Morph value={order.total_amount} y={3} duration={T.quick}>₼{Number(order.total_amount || 0).toFixed(2)}</Morph>
         </span>
       </div>
     </div>

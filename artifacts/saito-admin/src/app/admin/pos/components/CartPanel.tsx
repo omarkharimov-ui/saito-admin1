@@ -20,6 +20,9 @@ import { useVirtualKeyboard } from './VirtualKeyboard';
 import { TAP } from '../lib/pos-motion';
 
 interface CartPanelProps {
+  // 2026-09-27 (owner): global EDV switch (Settings → Payment → auto_apply_vat).
+  // VAT line is HIDDEN when the switch is off (was hardcoded 18% always).
+  vatEnabled?: boolean;
   cart: PosCart | null;
   cartHydrating?: boolean;
   onUpdateQty: (index: number, delta: number) => void;
@@ -162,6 +165,7 @@ export function CartPanel({
     partnerSource,
     partnerOrder,
     feeCalculating,
+    vatEnabled = true,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -1352,11 +1356,15 @@ export function CartPanel({
                     <NumberRoll value={cartDiscountAmount} prefix="−" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-emerald-400" />
                   </div>
                 )}
-                 {/* VAT */}
-                 <div className="flex items-center justify-between">
-                    <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('vat')}</span>
-                    <NumberRoll value={vatAmount} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
-                 </div>
+                  {/* VAT — 2026-09-27 (owner): only when the global EDV switch
+                      is ON; the line was rendered (hardcoded 18%) even with
+                      VAT disabled in Settings. */}
+                  {vatEnabled && (
+                  <div className="flex items-center justify-between">
+                     <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('vat')}</span>
+                     <NumberRoll value={vatAmount} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
+                  </div>
+                  )}
                  {/* Delivery fee (2026-09-23: now charged — shows the amount
                      or the free state from zone threshold / campaign) */}
                   {posMode === 'delivery' && cart.delivery_zone && (
@@ -1497,12 +1505,16 @@ export function CartPanel({
         }}
       />
 
+      {/* 2026-09-27 (owner: "qeyd pill-i sexy yuxarı açılsın, eyni animasiya
+          çıxış, klaviye avtomatik açılsın və bağlansa"): floating pill —
+          spring 500/26 (kəsəy), grows from the "Qeyd alava et" pill upward,
+          autofocus = VKB auto-opens, close = VKB auto-closes (closeVk()). */}
       {createPortal(
         <AnimatePresence>
           {isNoteOpen && (
             <motion.div
               key="note-backdrop"
-              className="fixed inset-0 bg-black/20 z-[9998]"
+              className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[9998]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1511,38 +1523,60 @@ export function CartPanel({
           )}
           {isNoteOpen && (
             <motion.div
-              key="note-bar"
-              className={`fixed z-[10000] left-0 right-0 p-4 border-t shadow-elevated flex flex-col gap-3 max-w-2xl mx-auto rounded-t-2xl backdrop-blur-lg ${lightMode ? 'bg-white border-zinc-200' : 'bg-[#25252D] border-white/10'}`}
-              style={{ bottom: vkHeight }}
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 50, opacity: 0 }}
-              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+              key="note-pill"
+              className={`fixed z-[10000] left-1/2 -translate-x-1/2 w-[min(92vw,420px)] rounded-[1.75rem] border shadow-elevated backdrop-blur-xl overflow-hidden ${lightMode ? 'bg-white/95 border-zinc-200' : 'bg-[#1D1D24]/97 border-white/12'}`}
+              style={{ bottom: vkHeight > 0 ? vkHeight + 14 : 18 }}
+              initial={{ y: 46, opacity: 0, scale: 0.92 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 34, opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 26 }}
             >
-              <textarea
-                ref={noteInputRef}
-                autoFocus
-                value={globalNote}
-                onChange={e => { setGlobalNote(e.target.value); onUpdateGlobalNote?.(e.target.value); }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); closeNoteEditor(); } }}
-                placeholder={t('note_placeholder') || 'Qeyd yaz...'}
-                className={`w-full h-24 text-lg p-3 rounded-xl border focus:outline-none resize-none ${lightMode ? 'bg-zinc-50 text-gray-900 border-zinc-200 focus:border-amber-500 placeholder:text-zinc-400' : 'bg-[#18181C] text-white border-white/10 focus:border-amber-500'}`}
-              />
-              <div className="flex items-center justify-end gap-2">
+              {/* header */}
+              <div className={`flex items-center gap-2 px-4 pt-3.5 pb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/8'}`}>
+                <span className={`w-7 h-7 rounded-xl flex items-center justify-center ${lightMode ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-500/12 text-emerald-400'}`}>
+                  <Tag size={13} />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[11px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>Sifariş qeydi</p>
+                  <p className={`text-[9px] font-semibold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>kitchen + receipt-ə düşür</p>
+                </div>
                 <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={discardNote}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-                >
-                  GİZLƏ / LƏĞV ET
-                </button>
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseDown={e => e.preventDefault()}
                   onClick={closeNoteEditor}
-                  className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-500 text-black hover:bg-emerald-400 transition-colors"
+                  aria-label="Bağla"
+                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${lightMode ? 'text-zinc-400 hover:bg-zinc-100' : 'text-white/40 hover:bg-white/10'}`}
                 >
-                  TƏSDİQLƏ
+                  <X size={14} />
                 </button>
+              </div>
+              {/* body */}
+              <div className="p-4 pt-3">
+                <textarea
+                  ref={noteInputRef}
+                  autoFocus
+                  value={globalNote}
+                  onChange={e => { setGlobalNote(e.target.value); onUpdateGlobalNote?.(e.target.value); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); closeNoteEditor(); } if (e.key === 'Escape') { e.preventDefault(); closeNoteEditor(); } }}
+                  placeholder={t('note_placeholder') || 'Qeyd yaz...'}
+                  rows={3}
+                  className={`w-full text-[15px] leading-relaxed p-3.5 rounded-2xl border-2 focus:outline-none resize-none transition-colors ${lightMode ? 'bg-zinc-50 text-gray-900 border-zinc-200 focus:border-emerald-400 placeholder:text-zinc-400' : 'bg-[#15151A] text-white border-white/10 focus:border-emerald-400/70 placeholder:text-white/25'}`}
+                />
+                <div className="flex items-center justify-end gap-2 mt-3">
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={discardNote}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-white/8 text-white/60 hover:bg-white/15'}`}
+                  >
+                    Ləğv et
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={closeNoteEditor}
+                    className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-500 text-[#04211a] hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-colors"
+                  >
+                    Təsdiqlə
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}

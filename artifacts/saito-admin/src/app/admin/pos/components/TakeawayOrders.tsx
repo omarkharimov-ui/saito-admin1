@@ -1,9 +1,11 @@
 'use client';
 
+import { AnimatePresence } from 'framer-motion';
 import { Plus, Phone, User, Clock, ShoppingBag, UserCheck, MoreVertical, Wallet, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
+import { GridCell } from '@/lib/motion/GridCell';
 import BoardOrderCard from './BoardOrderCard';
 
 interface TakeawayOrdersProps {
@@ -58,7 +60,10 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto pr-1">
+          {/* Motion System: completed orders collapse + neighbors glide —
+              the list feels like a queue, not a re-render. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <AnimatePresence>
              {orders.map((order) => {
                // 2026-09-22: status is now DERIVED (payment + kitchen + status),
                // not the raw DB status string — it updates automatically.
@@ -72,22 +77,24 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                 // family (title rule 2026-09-23: in-house reads "Gel-Al 44",
                 // partner reads "#2812"). All in-house rows kept (QA bug 5:
                 // name + phone rows always render, "—" placeholders).
-                return (
-                  <BoardOrderCard
-                    key={order.id}
-                    order={order}
-                    kind="takeaway"
-                    stage={stage}
-                    status={status}
-                    lightMode={lightMode}
-                    t={t}
-                    onSelect={onSelectOrder}
-                    onAction={onOpenActionSheet}
-                  />
-                );
-             })}
-          </div>
-        </div>
+                 return (
+                   <GridCell key={order.id} className="col-span-1">
+                     <BoardOrderCard
+                       order={order}
+                       kind="takeaway"
+                       stage={stage}
+                       status={status}
+                       lightMode={lightMode}
+                       t={t}
+                       onSelect={onSelectOrder}
+                       onAction={onOpenActionSheet}
+                     />
+                   </GridCell>
+                 );
+                })}
+            </AnimatePresence>
+           </div>
+         </div>
       )}
     </div>
   );

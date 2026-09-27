@@ -7,7 +7,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
-import { fastExit, slideUp } from '@/lib/modal-transitions';
+import { fastExit, slideUp, centerModal } from '@/lib/modal-transitions';
 import { PinGuard } from './PinGuard';
 import { requiresPin } from '@/lib/pos-permissions';
 import { toast } from '@/lib/toast';
@@ -369,14 +369,14 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         transition={fastExit}
-        className="fixed inset-0 z-[125] flex items-end justify-center bg-black/20 backdrop-blur-sm"
+        className="fixed inset-0 z-[125] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
         onClick={onClose}
       >
         <motion.div
-          {...slideUp}
-          className={`relative w-full max-w-lg rounded-t-6xl shadow-overlay border ${
+          {...centerModal}
+          className={`relative w-full max-w-lg rounded-3xl shadow-overlay border ${
             lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'
-          } overflow-hidden max-h-[90vh] flex flex-col backdrop-blur-lg`}
+          } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-lg`}
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
@@ -1206,7 +1206,7 @@ function RefundView({
                 type="number" step="0.01" min="0" max={remaining}
                 value={amount} onChange={e => setAmount(e.target.value)}
                 placeholder="0.00"
-                className={`w-full rounded-2xl pl-9 pr-5 py-3.5 text-lg font-black outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                className={`w-full rounded-2xl pl-9 pr-5 py-3.5 text-lg font-black outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white focus:border-emerald-400/50'}`}
               />
             </div>
             {mode === 'partial' && (
@@ -1334,7 +1334,7 @@ function RefundView({
           </p>
           <input type="text" value={reason} onChange={e => setReason(e.target.value)}
             placeholder={t('refund_reason_placeholder') || 'Müştəri şikayəti...'}
-            className={`w-full rounded-2xl px-4 py-3 text-sm font-medium outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black placeholder:text-zinc-300 focus:border-amber-400' : 'bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-amber-400/50'}`} />
+            className={`w-full rounded-2xl px-4 py-3 text-sm font-medium outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black placeholder:text-zinc-300 focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-400/50'}`} />
         </div>
 
         {/* Full refund warning */}

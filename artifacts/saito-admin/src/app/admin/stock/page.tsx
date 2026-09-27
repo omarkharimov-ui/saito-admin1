@@ -278,7 +278,7 @@ export default function StockPage() {
                       <input 
                         value={search} onChange={e => setSearch(e.target.value)}
                         placeholder="Xammal axtar..." 
-                        className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-2xl pl-12 pr-4 py-3 text-sm outline-none focus:border-gold/30 text-[var(--theme-text)]"
+                        className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-2xl pl-12 pr-4 py-3 text-sm outline-none focus:border-emerald-400/40 text-[var(--theme-text)]"
                       />
                     </div>
                     <div className="flex bg-[var(--theme-bg)] p-1.5 rounded-2xl border border-[var(--theme-border)]">
@@ -408,7 +408,7 @@ export default function StockPage() {
                       <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Faktiki say ({UNIT_LABELS[selectedRow.unit]})</label>
                       <input 
                         type="number" autoFocus value={qtyInput} onChange={e => setQtyInput(e.target.value)}
-                        className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-3xl px-8 py-5 text-3xl font-black text-[var(--theme-text)] outline-none focus:border-amber-500/40 transition-all shadow-inner"
+                        className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-3xl px-8 py-5 text-3xl font-black text-[var(--theme-text)] outline-none focus:border-emerald-400/40 transition-all shadow-inner"
                         placeholder={String(selectedRow.current_stock)}
                       />
                     </div>
@@ -427,7 +427,7 @@ export default function StockPage() {
                       <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Miqdar ({UNIT_LABELS[selectedRow.unit]})</label>
                       <input 
                         type="number" autoFocus value={qtyInput} onChange={e => setQtyInput(e.target.value)}
-                        className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-3xl px-8 py-5 text-3xl font-black text-[var(--theme-text)] outline-none focus:border-gold/40 transition-all shadow-inner"
+                        className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-3xl px-8 py-5 text-3xl font-black text-[var(--theme-text)] outline-none focus:border-emerald-400/50 transition-all shadow-inner"
                         placeholder="0.0"
                       />
                     </div>
@@ -435,7 +435,7 @@ export default function StockPage() {
                       <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Qeyd (Səbəb)</label>
                       <input 
                         type="text" value={reasonInput} onChange={e => setReasonInput(e.target.value)}
-                        className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-6 py-4 text-sm text-[var(--theme-text)] outline-none focus:border-gold/20 transition-all shadow-inner"
+                        className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-6 py-4 text-sm text-[var(--theme-text)] outline-none focus:border-emerald-400/30 transition-all shadow-inner"
                         placeholder="Məs: Təzə mal gəldi"
                       />
                     </div>
@@ -553,7 +553,7 @@ export default function StockPage() {
                     value={quickStockSearch}
                     onChange={e => setQuickStockSearch(e.target.value)}
                     placeholder="Xammal axtar..."
-                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl pl-12 pr-4 py-3 text-sm outline-none focus:border-gold/30 text-[var(--theme-text)]"
+                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl pl-12 pr-4 py-3 text-sm outline-none focus:border-emerald-400/40 text-[var(--theme-text)]"
                     autoFocus
                   />
                 </div>
@@ -613,7 +613,7 @@ export default function StockPage() {
                     value={newIngredient.name}
                     onChange={e => setNewIngredient({ ...newIngredient, name: e.target.value })}
                     placeholder="Məs: Domates"
-                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-5 py-3.5 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-5 py-3.5 text-sm text-[var(--theme-text)] outline-none focus:border-emerald-400/40 transition-all"
                     autoFocus
                     required
                   />
@@ -625,7 +625,7 @@ export default function StockPage() {
                     <select
                       value={newIngredient.unit}
                       onChange={e => setNewIngredient({ ...newIngredient, unit: e.target.value as any })}
-                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-emerald-400/40 transition-all"
                     >
                       <option value="gram">Gram</option>
                       <option value="kg">Kilogram</option>
@@ -641,7 +641,7 @@ export default function StockPage() {
                       step="0.01"
                       value={newIngredient.current_stock}
                       onChange={e => setNewIngredient({ ...newIngredient, current_stock: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-emerald-400/40 transition-all"
                     />
                   </div>
                 </div>
@@ -654,7 +654,7 @@ export default function StockPage() {
                       step="0.01"
                       value={newIngredient.critical_limit}
                       onChange={e => setNewIngredient({ ...newIngredient, critical_limit: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-emerald-400/40 transition-all"
                     />
                   </div>
                   <div className="space-y-2">
@@ -664,7 +664,7 @@ export default function StockPage() {
                       step="0.01"
                       value={newIngredient.average_cost_per_unit}
                       onChange={e => setNewIngredient({ ...newIngredient, average_cost_per_unit: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-emerald-400/40 transition-all"
                     />
                   </div>
                 </div>
@@ -676,7 +676,7 @@ export default function StockPage() {
                     step="0.01"
                     value={newIngredient.purchase_price}
                     onChange={e => setNewIngredient({ ...newIngredient, purchase_price: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-emerald-400/40 transition-all"
                   />
                 </div>
 

@@ -75,7 +75,7 @@ export default function ClearTablePinModal({ open, tableNumber, onClose, onConfi
                 value={pin}
                 onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setError(''); }}
                 placeholder="••••"
-                className={`w-full text-center text-2xl font-black tracking-[0.5em] rounded-xl px-3 py-3 outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 focus:border-amber-500 text-black' : 'bg-white/5 border-white/10 focus:border-amber-500 text-white'}`}
+                className={`w-full text-center text-2xl font-black tracking-[0.5em] rounded-xl px-3 py-3 outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 focus:border-emerald-400 text-black' : 'bg-white/5 border-white/10 focus:border-emerald-400 text-white'}`}
               />
               <input
                 type="text"

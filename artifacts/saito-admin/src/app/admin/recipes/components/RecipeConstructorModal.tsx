@@ -308,7 +308,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                     <select
                       value={selectedProductId}
                       onChange={e => handleProductChange(e.target.value)}
-                      className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                      className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-400/50 transition-colors text-sm"
                     >
                       <option value="" className="bg-[#111]">Menyudan məhsul seç...</option>
                       {products.map(p => (
@@ -363,7 +363,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                               <select
                                 value={row.ingredient_id}
                                 onChange={e => updateRowIngredient(idx, e.target.value)}
-                                className="w-full bg-white/[0.04] border border-white/[0.07] rounded-lg px-2.5 py-2 text-sm text-white outline-none focus:border-gold/30"
+                                className="w-full bg-white/[0.04] border border-white/[0.07] rounded-lg px-2.5 py-2 text-sm text-white outline-none focus:border-emerald-400/40"
                               >
                                 <option value="" className="bg-[#111]">Xammal seç...</option>
                                 {ingredients.map(ing => (
@@ -380,7 +380,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                                   value={row.quantity || ''}
                                   onChange={e => updateRowQuantity(idx, parseFloat(e.target.value) || 0)}
                                   placeholder="Miqdar (netto)"
-                                  className="w-28 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/30 text-right tabular-nums"
+                                  className="w-28 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-emerald-400/40 text-right tabular-nums"
                                 />
                                 <span className="text-[9px] text-white/25">{row.unit || 'vahid'}</span>
                                 {row.ingredient_id && coldPct > 0 && row.quantity_brutto > 0 && (

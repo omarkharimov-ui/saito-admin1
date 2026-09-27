@@ -147,7 +147,7 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
                   value={amount}
                   onChange={e => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className={`w-full rounded-2xl pl-9 pr-5 py-4 text-lg font-black outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                  className={`w-full rounded-2xl pl-9 pr-5 py-4 text-lg font-black outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white focus:border-emerald-400/50'}`}
                 />
               </div>
               {/* Quick buttons */}
@@ -214,7 +214,7 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
                 value={reason}
                 onChange={e => setReason(e.target.value)}
                 placeholder={t('refund_reason_placeholder') || 'Müştəri şikayəti...'}
-                className={`w-full rounded-2xl px-5 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black placeholder:text-zinc-300 focus:border-amber-400' : 'bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-amber-400/50'}`}
+                className={`w-full rounded-2xl px-5 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black placeholder:text-zinc-300 focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-400/50'}`}
               />
             </div>
 

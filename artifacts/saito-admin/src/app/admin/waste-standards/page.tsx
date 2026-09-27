@@ -189,7 +189,7 @@ export default function WasteStandardsPage() {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Axtar..."
-            className="w-full pl-9 pr-3 py-2 rounded-xl text-sm bg-white/[0.04] border border-white/[0.07] text-white placeholder:text-white/20 outline-none focus:border-gold/30 transition-colors"
+            className="w-full pl-9 pr-3 py-2 rounded-xl text-sm bg-white/[0.04] border border-white/[0.07] text-white placeholder:text-white/20 outline-none focus:border-emerald-400/40 transition-colors"
           />
         </div>
 
@@ -248,7 +248,7 @@ export default function WasteStandardsPage() {
                         if (e.key === 'Enter') saveInlineEdit(s);
                         if (e.key === 'Escape') setEditingId(null);
                       }}
-                      className="w-20 text-right bg-white/[0.06] border border-white/[0.1] rounded-lg px-2 py-1 text-sm text-white outline-none focus:border-gold/30 tabular-nums"
+                      className="w-20 text-right bg-white/[0.06] border border-white/[0.1] rounded-lg px-2 py-1 text-sm text-white outline-none focus:border-emerald-400/40 tabular-nums"
                       autoFocus
                     />
                   ) : (
@@ -359,7 +359,7 @@ export default function WasteStandardsPage() {
                       </label>
                       <input name="keyword" required
                         defaultValue={modal.data?.keyword || ''}
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-400/50 transition-colors text-sm"
                       />
                     </div>
 
@@ -369,7 +369,7 @@ export default function WasteStandardsPage() {
                       </label>
                       <input name="keyword_en"
                         defaultValue={modal.data?.keyword_en || ''}
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-400/50 transition-colors text-sm"
                       />
                     </div>
 
@@ -379,7 +379,7 @@ export default function WasteStandardsPage() {
                       </label>
                       <input name="waste_percentage" type="number" min="0" max="99" step="0.1" required
                         defaultValue={modal.data?.waste_percentage ?? ''}
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-400/50 transition-colors text-sm"
                       />
                     </div>
 
@@ -389,7 +389,7 @@ export default function WasteStandardsPage() {
                       </label>
                       <input name="note"
                         defaultValue={modal.data?.note || ''}
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-400/50 transition-colors text-sm"
                       />
                     </div>
 
@@ -400,7 +400,7 @@ export default function WasteStandardsPage() {
                       <input name="category"
                         defaultValue={modal.data?.category || ''}
                         placeholder="məs: tərəvəz, meyvə, ət..."
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-400/50 transition-colors text-sm"
                       />
                     </div>
                   </div>

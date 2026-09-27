@@ -87,7 +87,7 @@ export function PinInputDialog({ open, onClose, onConfirm, title, description, l
                       value={pin}
                       onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                       placeholder="0000"
-                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-gold/30 px-4 py-3 text-center text-2xl font-black tracking-[0.5em] text-[var(--theme-text)] placeholder:text-white/10 outline-none rounded-2xl transition-all"
+                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-emerald-400/40 px-4 py-3 text-center text-2xl font-black tracking-[0.5em] text-[var(--theme-text)] placeholder:text-white/10 outline-none rounded-2xl transition-all"
                     />
                     <p className="text-[10px] text-[var(--theme-text-muted)] text-center">4 rəqəmli PIN daxil edin</p>
                   </div>

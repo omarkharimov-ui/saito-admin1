@@ -1,12 +1,14 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
 import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2, Utensils, X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosTable } from '../types/shared';
 import { playHapticSound } from '@/lib/haptic';
+import { T, EASE, SPRING, tableStateOf, tableTransition, type TableState } from '@/lib/motion/system';
+import { Morph } from '@/lib/motion/Morph';
 
 interface TableCardProps {
   table: PosTable;
@@ -28,9 +30,35 @@ interface TableCardProps {
   flashNonce?: number;
   /** G8 floor batch: 150ms pre-navigation selection pulse (table tap → order). */
   tapPulseNonce?: number;
+  /** 2026-09-27 (owner: "butun emeliyyat ucun micro-interactions"): 1.6s
+      tone-colored op label overlay, driven by usePos.flashTable. */
+  opFlash?: { nonce: number; label: string; tone: 'emerald' | 'blue' | 'rose' | 'zinc' } | null;
 }
 
-export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, kitchenStatus, flashNonce, tapPulseNonce }: TableCardProps) {
+const OP_FLASH_STYLES: Record<'emerald' | 'blue' | 'rose' | 'zinc', { dark: string; light: string; pill: string }> = {
+  emerald: {
+    dark: 'bg-emerald-500/15 border-emerald-400/70',
+    light: 'bg-emerald-500/15 border-emerald-500/70',
+    pill: 'bg-emerald-500 text-white',
+  },
+  blue: {
+    dark: 'bg-blue-500/15 border-blue-400/70',
+    light: 'bg-blue-500/15 border-blue-500/70',
+    pill: 'bg-blue-500 text-white',
+  },
+  rose: {
+    dark: 'bg-rose-500/15 border-rose-400/70',
+    light: 'bg-rose-500/15 border-rose-500/70',
+    pill: 'bg-rose-500 text-white',
+  },
+  zinc: {
+    dark: 'bg-white/10 border-white/40',
+    light: 'bg-zinc-500/15 border-zinc-400',
+    pill: 'bg-zinc-900 text-white',
+  },
+};
+
+export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, kitchenStatus, flashNonce, tapPulseNonce, opFlash }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
@@ -122,9 +150,12 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
     return () => clearTimeout(t);
   }, [seatRingNonce]);
 
+  // 2026-09-27 (owner: "masa acilanda 1.5 saniyelik gorsensin user anlamaq
+  // ucin"): the open-ring now holds 1.5s with a soft glow so the operator
+  // clearly sees WHICH table the cart panel belongs to.
   useEffect(() => {
     if (!openRingNonce) return;
-    const t = setTimeout(() => setOpenRingNonce(0), 450);
+    const t = setTimeout(() => setOpenRingNonce(0), 1500);
     return () => clearTimeout(t);
   }, [openRingNonce]);
 
@@ -312,6 +343,27 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
   const displayGuests = table.guest_count && table.guest_count > 0 ? table.guest_count : null;
   const showContent = isReserved || isWaiting || isOccupied || displayAmount || displayGuests;
 
+  // ── Saito Motion System (2026-09-27): card SETTLE on STATE change ──
+  // The card never "dies and re-renders". When its lifecycle state changes
+  // (EMPTY→NEW_SESSION, →PAID, →CLEANING...), the tableTransition map picks
+  // the choreography; cardSettle types get a 0.99→1 breath. The operator
+  // feels "something happened here" without watching an animation.
+  const currentState = tableStateOf(table.status, !!table.current_order_id, isDirty);
+  const prevStateRef = useRef<TableState | null>(null);
+  const cardControls = useAnimationControls();
+  useEffect(() => {
+    const prev = prevStateRef.current;
+    prevStateRef.current = currentState;
+    if (prev === null || prev === currentState) return;
+    const tr = tableTransition(prev, currentState);
+    if (tr.cardSettle) {
+      void cardControls.start({
+        scale: [tr.cardSettle.from, 1],
+        transition: { duration: T.emphasis, ease: EASE.enter },
+      });
+    }
+  }, [currentState, cardControls]);
+
   // 2026-09-25 (owner: "dine-in kartlarini duzelde, biraz daha seliqeli
   // forma"): TableCard joins the board-card family — ONE calm surface
   // (#141419 dark / white light) with a STATUS ACCENT BORDER instead of
@@ -332,9 +384,15 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
               : (lightMode ? 'border-zinc-200' : 'border-white/10');
 
   return (
-         <div
+         <motion.div
          onClick={() => { onTap(); }}
-         className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 overflow-hidden border cursor-pointer group active:scale-[0.97] flex flex-col
+         animate={cardControls}
+         whileTap={{ scale: 0.97 }}
+         transition={SPRING.kessey}
+         className={`relative h-[180px] rounded-4xl p-5 text-left overflow-hidden border cursor-pointer group flex flex-col
+          /* Motion System: transition EXCLUDES transform (framer owns it); border
+             color still crossfades in T.standard (200ms) — the border "yaranır". */
+          [transition:border-color_0.2s_cubic-bezier(0.4,0,0.2,1),background-color_0.2s_cubic-bezier(0.4,0,0.2,1),box-shadow_0.2s_cubic-bezier(0.4,0,0.2,1),opacity_0.14s_ease-out]
           ${isTransferSource
             ? (lightMode ? 'bg-zinc-100 border-transparent opacity-60' : 'bg-[#141419] border-transparent opacity-50')
             : isTransferTarget
@@ -348,25 +406,49 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
             isGroup ? 'border-l-[3px] border-l-blue-500' : ''
           }`}
          style={isGroup ? { borderLeftWidth: '3px', borderLeftColor: '#007AFF' } : {}}
-       >
+        >
         {/* Transition ring — seat (FREE→OCCUPIED, ~1s) or tap-open selection (~0.4s).
             Overlay-only, pointer-events-none; the card itself stays calm at rest. */}
         {(seatRingNonce > 0 || openRingNonce > 0) && (
           <motion.div
             key={`pulse-${seatRingNonce || openRingNonce}`}
-            className={`absolute inset-0 rounded-4xl border-2 pointer-events-none ${
-              openRingNonce > 0 ? 'border-blue-400/80' : 'border-emerald-400/80'
+            className={`absolute inset-0 rounded-4xl border-2 pointer-events-none z-10 ${
+              openRingNonce > 0
+                ? (lightMode ? 'border-blue-500/90 shadow-[0_0_24px_rgba(59,130,246,0.35)]' : 'border-blue-400/90 shadow-[0_0_24px_rgba(59,130,246,0.35)]')
+                : 'border-emerald-400/80'
             }`}
             initial={{ opacity: 0, scale: 0.985 }}
-            animate={{ opacity: [0, 1, 0], scale: [0.985, 1.004, 1.008] }}
+            animate={{ opacity: [0, 1, 1, 0], scale: [0.985, 1.004, 1.004, 1.006] }}
             exit={{ opacity: 0 }}
             transition={{
-              duration: openRingNonce > 0 ? 0.4 : 1,
+              duration: openRingNonce > 0 ? 1.5 : 1,
               ease: 'easeOut',
-              times: [0, 0.15, 1],
+              times: [0, 0.12, 0.75, 1],
             }}
           />
         )}
+
+        {/* 2026-09-27 (owner: micro-interactions for ALL operations): 1.6s
+            tone-tinted overlay + centered label pill (spring pop, DNA 500/26).
+            Driven by usePos.flashTable → opFlash prop. */}
+        <AnimatePresence>
+          {opFlash && (
+            <motion.div
+              key={opFlash.nonce}
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+              className={`absolute inset-0 z-20 rounded-4xl flex items-center justify-center border-2 pointer-events-none backdrop-blur-[2px] ${
+                lightMode ? OP_FLASH_STYLES[opFlash.tone].light : OP_FLASH_STYLES[opFlash.tone].dark
+              }`}
+            >
+              <span className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider whitespace-nowrap shadow-lg ${OP_FLASH_STYLES[opFlash.tone].pill}`}>
+                {opFlash.label}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Top row: Table number + action (flex-flow, was absolute) */}
         <div className="flex items-start justify-between">
@@ -396,7 +478,8 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
               {displayGuests && (
                 <span className={`inline-flex items-center gap-1 text-[13px] font-black tabular-nums shrink-0 ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>
                   <Users size={15} strokeWidth={2.5} />
-                  {displayGuests}
+                  {/* Motion System: guest count morphs in place (icon stays, number swaps) */}
+                  <Morph value={displayGuests} y={3} duration={T.quick}>{displayGuests}</Morph>
                 </span>
               )}
               {(table.item_count ?? 0) > 0 && (
@@ -435,12 +518,16 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
         {/* Main content: Amount hero + guests (flex-flow, was absolute) */}
         {showContent && (
           <div className="mt-2.5 min-h-0 overflow-hidden">
-              {/* Amount as hero element */}
+              {/* Amount as hero element — Motion System: in-place morph
+                  (old ₼13.00 drifts up+blurs out, ₼17.00 settles in).
+                  No counter roll, no full-card re-render. */}
               {displayAmount && (
                 <div className="mb-2">
-                  <p className={`text-[32px] font-black tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>
-                    ₼{displayAmount.toFixed(2)}
-                  </p>
+                  <Morph value={displayAmount} y={5}>
+                    <span className={`block text-[32px] font-black tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>
+                      ₼{displayAmount.toFixed(2)}
+                    </span>
+                  </Morph>
                 </div>
               )}
              
@@ -511,9 +598,9 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                     className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${
-                      ['preparing', 'cooking', 'partially_ready'].includes(String(kitchenStatus).toLowerCase())
-                        ? lightMode ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-blue-500/25 border-blue-400/50 text-blue-300'
+                      className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${
+                        ['preparing', 'cooking', 'partially_ready'].includes(String(kitchenStatus).toLowerCase())
+                          ? lightMode ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-blue-500/25 border-blue-400/50 text-blue-300'
                         : String(kitchenStatus).toLowerCase() === 'ready'
                           ? lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-700' : 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300'
                           : lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-600' : 'bg-white/10 border-white/20 text-zinc-300'
@@ -532,7 +619,7 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                    animate={{ opacity: 1, y: 0 }}
                    exit={{ opacity: 0, y: -4 }}
                    transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                    className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${
+                    className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${
                       seatedNoOrder
                         ? (lightMode ? 'bg-orange-100 border-orange-400 text-orange-700' : 'bg-orange-500/25 border-orange-400/60 text-orange-300')
                         : currentStatus.bg
@@ -573,8 +660,8 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                   <X size={11} strokeWidth={3} />
                 </button>
               )}
-             </div>
-           </div>
-       </div>
-   );
+              </div>
+            </div>
+        </motion.div>
+    );
 }

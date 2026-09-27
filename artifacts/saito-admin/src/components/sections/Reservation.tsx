@@ -180,11 +180,11 @@ const Reservation = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   <div className="space-y-3">
                     <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] font-black">{t('res.name')}</label>
-                    <input type="text" className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] px-6 py-5 rounded-2xl focus:border-gold outline-none text-[var(--theme-text)] font-bold transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                    <input type="text" className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] px-6 py-5 rounded-2xl focus:border-emerald-400 outline-none text-[var(--theme-text)] font-bold transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] font-black">{t('res.phone')}</label>
-                    <input type="tel" className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] px-6 py-5 rounded-2xl focus:border-gold outline-none text-[var(--theme-text)] font-bold transition-all" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                    <input type="tel" className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] px-6 py-5 rounded-2xl focus:border-emerald-400 outline-none text-[var(--theme-text)] font-bold transition-all" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                   </div>
                   <div className="md:col-span-2 space-y-5">
                      <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] font-black">Tarix və Saat</label>

@@ -14,6 +14,16 @@ export const slideUp = {
   transition: { duration: 0.26, ease: [0.4, 0, 0.2, 1] as Easing },
 };
 
+/** 2026-09-27 (owner: "tarixce/kassa popup yenidən yaz — centered modal"):
+    centered dialog entrance — the house "kəsəy" spring (500/26): a hair of
+    overshoot, lands fast. Used for TARİXÇƏ + Kassa modals. */
+export const centerModal = {
+  initial: { opacity: 0, scale: 0.94, y: 16 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit:    { opacity: 0, scale: 0.97, y: 8 },
+  transition: { type: 'spring' as const, stiffness: 500, damping: 26 },
+};
+
 /** Inner view morph — smooth scale + radius */
 export const morphView = {
   initial: { opacity: 0, scale: 0.96, borderRadius: 32 },

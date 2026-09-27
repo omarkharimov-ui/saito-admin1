@@ -1214,7 +1214,7 @@ export default function ReservationsPage() {
                 value={cancelReason}
                 onChange={e => setCancelReason(e.target.value)}
                 placeholder="Səbəb (məs: qonaq zəng etdi, gecikir...)"
-                className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/40"
+                className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-emerald-400/50"
               />
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button

@@ -96,7 +96,7 @@ export default function AdminOrdersPage() {
                   placeholder={t('search_placeholder' as any) || 'Masa və ya ID axtar...'}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/30 transition-all"
+                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-emerald-400/40 transition-all"
                 />
              </div>
           </div>

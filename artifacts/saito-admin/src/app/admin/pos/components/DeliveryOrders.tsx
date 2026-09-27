@@ -1,9 +1,11 @@
 'use client';
 
+import { AnimatePresence } from 'framer-motion';
 import { Plus, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical, Navigation, UserCheck, Route, Wallet, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
+import { GridCell } from '@/lib/motion/GridCell';
 import BoardOrderCard from './BoardOrderCard';
 
 interface DeliveryOrdersProps {
@@ -60,9 +62,11 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto pr-1">
+          {/* Motion System: delivered orders collapse + neighbors glide. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <AnimatePresence>
              {orders.map((order) => {
-               // 2026-09-22: status is now DERIVED (payment + kitchen + status).
+                // 2026-09-22: status is now DERIVED (payment + kitchen + status).
                const stage = deriveOrderStage(order);
                const DELIVERY_STAGE_MAP: Record<OrderStage, string> = {
                  new: 'pending', confirmed: 'confirmed', kitchen: 'preparing',
@@ -76,21 +80,23 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                 // (customer+phone / address / zone / courier+ETA), total text
                 // white on dark & near-black on light (NEVER yellow).
                 // Title rule (2026-09-23): in-house cards read "Çatdırılma 41".
-                return (
-                  <BoardOrderCard
-                    key={order.id}
-                    order={order}
-                    kind="delivery"
-                    stage={stage}
-                    status={status}
-                    lightMode={lightMode}
-                    t={t}
-                    onSelect={onSelectOrder}
-                    onAction={onOpenActionSheet}
-                  />
-                );
-             })}
-          </div>
+                 return (
+                   <GridCell key={order.id} className="col-span-1">
+                     <BoardOrderCard
+                       order={order}
+                       kind="delivery"
+                       stage={stage}
+                       status={status}
+                       lightMode={lightMode}
+                       t={t}
+                       onSelect={onSelectOrder}
+                       onAction={onOpenActionSheet}
+                     />
+                   </GridCell>
+                 );
+              })}
+            </AnimatePresence>
+           </div>
         </div>
       )}
     </div>

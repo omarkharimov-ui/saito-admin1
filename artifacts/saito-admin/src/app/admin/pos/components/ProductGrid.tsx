@@ -76,6 +76,8 @@ interface ProductGridProps {
   categories: { id: string; name: string }[];
   /** Son/Məşur tab data (server-computed; favorites live in localStorage). */
   filterData?: { recent: { id: string; name: string }[]; popular: { id: string; name: string; qty: number }[] } | null;
+  // 2026-09-27 (owner): the MƏTBƏX popup also shows the CURRENT table's state.
+  currentTableKitchen?: { label: string; draft: number; prep: number; ready: number } | null;
   onAddProduct: (product: PosProduct) => void;
   onAddCombo?: (combo: any) => void;
   cartCounts: Record<string, number>;
@@ -155,7 +157,7 @@ function AllergenBadges({ item }: { item: GridItem | undefined; lightMode?: bool
 
 export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function ProductGrid({
   products, combos, categories, onAddProduct, onAddCombo, cartCounts, outOfStock, variantsByProduct,
-  catalogError, onRetryCatalog, filterData
+  catalogError, onRetryCatalog, filterData, currentTableKitchen
 }, ref) {
   const { language, t } = useLanguage();
   const { lightMode } = useTheme();
@@ -551,17 +553,17 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
       {/* Filter Tabs */}
       <div className="mb-3 flex-shrink-0 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          {FILTER_TABS.map(tab => (
-            <motion.button
-              key={tab.id}
-              onClick={() => { setActiveFilter(tab.id); setCategoryFilter(null); }}
-              whileHover={{ y: -1 }} whileTap={{ scale: 0.94 }}
-              transition={TAP}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap border ${
-                activeFilter === tab.id
-                  ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/25'
-                  : lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
-              }`}
+           {FILTER_TABS.map(tab => (
+             <motion.button
+               key={tab.id}
+               onClick={() => { setActiveFilter(tab.id); setCategoryFilter(null); }}
+               whileHover={{ y: -1 }} whileTap={{ scale: 0.94 }}
+               transition={TAP}
+               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap border transition-colors ${
+                 activeFilter === tab.id
+                   ? (lightMode ? 'bg-zinc-900 text-white border-zinc-900 shadow-lg shadow-zinc-900/20' : 'bg-white text-zinc-950 border-white shadow-lg shadow-white/10')
+                   : lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
+               }`}
             >
              <tab.icon size={12} />
               {t(tab.labelKey as any)}
@@ -588,31 +590,56 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 }
                 setKitchenHintOpen(true);
               }}
-              whileTap={{ scale: 0.94 }}
-              transition={TAP}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap border ${
-                kitchenHintOpen
-                  ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/25'
-                  : kitchen && kitchen.ready + kitchen.prep > 0
-                    ? (lightMode ? 'bg-orange-50 border-orange-300 text-orange-600 hover:bg-orange-100' : 'bg-orange-500/15 border-orange-500/40 text-orange-300 hover:bg-orange-500/25')
-                    : (lightMode ? 'bg-white border-zinc-200 text-zinc-400 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-500 hover:bg-white/10')
-              }`}
-            >
-              <Flame size={12} />
-              {t('tab_kitchen') || 'Mətbəx'}
-              {kitchen && kitchen.ready + kitchen.prep > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-black tabular-nums flex items-center justify-center leading-none">
-                  {kitchen.ready + kitchen.prep}
-                </span>
-              )}
-            </motion.button>
+               whileTap={{ scale: 0.94 }}
+               transition={TAP}
+               className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap border transition-colors ${
+                 kitchenHintOpen
+                   ? (lightMode ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-950 border-white')
+                   : kitchen && kitchen.ready + kitchen.prep > 0
+                     ? (lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-800 hover:bg-zinc-200' : 'bg-white/8 border-white/20 text-white/85 hover:bg-white/12')
+                     : (lightMode ? 'bg-white border-zinc-200 text-zinc-400 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-500 hover:bg-white/10')
+               }`}
+             >
+               <span className={`relative inline-flex items-center justify-center ${kitchen && kitchen.ready + kitchen.prep > 0 ? 'saito-flame-wrap' : ''}`}>
+                 <Flame size={12} className={kitchen && kitchen.ready + kitchen.prep > 0 ? 'saito-flame text-orange-400' : ''} />
+                 {kitchen && kitchen.ready + kitchen.prep > 0 && <span className="saito-flame-glow" aria-hidden />}
+               </span>
+               {t('tab_kitchen') || 'Mətbəx'}
+               {kitchen && kitchen.ready + kitchen.prep > 0 && (
+                 <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-zinc-900 text-white text-[10px] font-black tabular-nums flex items-center justify-center leading-none border border-white/20">
+                   {kitchen.ready + kitchen.prep}
+                 </span>
+               )}
+             </motion.button>
           </div>
        </div>
 
        {/* MƏTBƏX hint — rendered OUTSIDE the overflow-x-auto filter row (2026-09-26):
            absolute positioning inside the row was clipped by the scroll container
            (present in DOM/ARIA, invisible in pixels). Fixed + backdrop as siblings. */}
-       {kitchenHintOpen && <div className="fixed inset-0 z-[60]" onClick={() => setKitchenHintOpen(false)} />}
+        {/* 2026-09-27 (owner: "canlı alov"): pure-CSS flame flicker for the
+            MƏTBƏX pill — scale/skew jitter + ember glow pulse. No canvas,
+            no images, GPU-cheap (transform/opacity only). */}
+        <style>{`
+          @keyframes saito-flame-flick {
+            0%   { transform: scale(1) skewX(0deg); opacity: .95; }
+            25%  { transform: scale(1.12) skewX(-4deg); opacity: 1; }
+            50%  { transform: scale(.94) skewX(3deg); opacity: .85; }
+            75%  { transform: scale(1.08) skewX(-2deg); opacity: 1; }
+            100% { transform: scale(1) skewX(0deg); opacity: .95; }
+          }
+          .saito-flame { animation: saito-flame-flick 1.4s ease-in-out infinite; transform-origin: 50% 90%; }
+          @keyframes saito-glow-pulse {
+            0%, 100% { opacity: .25; transform: scale(1); }
+            50%      { opacity: .6;  transform: scale(1.5); }
+          }
+          .saito-flame-glow {
+            position: absolute; inset: -4px; border-radius: 9999px; pointer-events: none;
+            background: radial-gradient(circle, rgba(251,146,60,.55) 0%, rgba(251,146,60,0) 70%);
+            animation: saito-glow-pulse 1.4s ease-in-out infinite;
+          }
+        `}</style>
+        {kitchenHintOpen && <div className="fixed inset-0 z-[60]" onClick={() => setKitchenHintOpen(false)} />}
        <AnimatePresence>
          {kitchenHintOpen && kitchen && kitchenHintPos && (
            <motion.div
@@ -627,10 +654,26 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                ...(lightMode ? { background: '#ffffff', borderColor: '#e4e4e7' } : { background: 'rgba(24,24,28,0.97)', borderColor: 'rgba(255,255,255,0.12)' }),
              }}
            >
-             <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-               {t('kitchen_status') || 'Mətbəx statusu'} — BÜTÜN SİFARİŞLƏR
-             </p>
-             <div className="space-y-2">
+              <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                {t('kitchen_status') || 'Mətbəx statusu'}
+              </p>
+              {/* 2026-09-27 (owner): current table first — "current masanın
+                  statusunu göstərsin" */}
+              {currentTableKitchen && (
+                <div className={`rounded-xl border p-3 mb-2.5 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.04] border-white/10'}`}>
+                  <p className={`text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5 ${lightMode ? 'text-zinc-500' : 'text-white/45'}`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    {currentTableKitchen.label} — bu masa
+                  </p>
+                  <div className="flex items-center gap-2 text-[11px] font-bold">
+                    <span className="px-2 py-0.5 rounded-md bg-zinc-400/15 text-zinc-500 tabular-nums">{currentTableKitchen.draft} draft</span>
+                    <span className="px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-500 tabular-nums">{currentTableKitchen.prep} hazırlanır</span>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-500 tabular-nums">{currentTableKitchen.ready} hazır</span>
+                  </div>
+                </div>
+              )}
+              <p className={`text-[9px] font-black uppercase tracking-widest mb-1.5 ${lightMode ? 'text-zinc-400' : 'text-white/25'}`}>Bütün sifarişlər</p>
+              <div className="space-y-2">
                <div className="flex items-center justify-between">
                  <span className="flex items-center gap-2 text-xs font-bold text-amber-500">
                    <span className="w-2 h-2 rounded-full bg-amber-500" />

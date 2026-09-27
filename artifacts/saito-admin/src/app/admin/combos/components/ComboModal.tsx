@@ -262,7 +262,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                          else setForm(prev => ({ ...prev, name_en: val }));
                        }}
                        placeholder={language === 'az' ? 'Məs: Ailə Paketi' : language === 'ru' ? 'Название...' : 'Name...'}
-                       className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-4 text-base font-bold text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-gold/40 transition-all shadow-inner"
+                       className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-4 text-base font-bold text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-emerald-400/50 transition-all shadow-inner"
                      />
                    </div>
                    <div>
@@ -271,7 +271,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                        type="number" step="0.01" min="0" value={form.price}
                        onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))}
                        placeholder="0.00"
-                       className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-4 text-xl font-black text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-gold/40 transition-all shadow-inner"
+                       className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-4 text-xl font-black text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-emerald-400/50 transition-all shadow-inner"
                      />
                    </div>
                  </div>
@@ -290,7 +290,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                    }}
                    placeholder={language === 'az' ? 'Kombo haqqında qısa məlumat...' : language === 'ru' ? 'Описание...' : 'Description...'}
                    rows={3}
-                   className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-4 text-base font-bold text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-gold/40 transition-all resize-none shadow-inner"
+                   className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-4 text-base font-bold text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-emerald-400/50 transition-all resize-none shadow-inner"
                  />
                </div>
 

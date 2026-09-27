@@ -107,7 +107,7 @@ export function InspectorPanel({ row, onClose, UNIT_LABELS, onStockIn, onWaste, 
                    <input 
                     value={editForm.name} 
                     onChange={e => setEditForm({...editForm, name: e.target.value})}
-                    className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-lg font-bold text-white outline-none focus:border-gold/50 transition-all w-full"
+                    className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-lg font-bold text-white outline-none focus:border-emerald-400/60 transition-all w-full"
                    />
                 ) : (
                   <h2 className="text-xl font-black text-white tracking-tight truncate">{row.name}</h2>
@@ -146,15 +146,15 @@ export function InspectorPanel({ row, onClose, UNIT_LABELS, onStockIn, onWaste, 
                    <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-2">
                         <label className="text-[10px] text-white/30 uppercase tracking-widest ml-1">Kritik Limit ({UNIT_LABELS[row.unit]})</label>
-                        <input type="number" value={editForm.critical_limit} onChange={e => setEditForm({...editForm, critical_limit: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-gold/50" />
+                        <input type="number" value={editForm.critical_limit} onChange={e => setEditForm({...editForm, critical_limit: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-emerald-400/60" />
                       </div>
                       <div className="space-y-2">
                         <label className="text-[10px] text-white/30 uppercase tracking-widest ml-1">Maya Dəyəri (₼)</label>
-                        <input type="number" step="0.01" value={editForm.purchase_price} onChange={e => setEditForm({...editForm, purchase_price: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-gold/50" />
+                        <input type="number" step="0.01" value={editForm.purchase_price} onChange={e => setEditForm({...editForm, purchase_price: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-emerald-400/60" />
                       </div>
                       <div className="space-y-2">
                         <label className="text-[10px] text-white/30 uppercase tracking-widest ml-1">Soyuq İtki (%)</label>
-                        <input type="number" value={editForm.cold_waste_percentage} onChange={e => setEditForm({...editForm, cold_waste_percentage: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-gold/50" />
+                        <input type="number" value={editForm.cold_waste_percentage} onChange={e => setEditForm({...editForm, cold_waste_percentage: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-emerald-400/60" />
                       </div>
                       <button onClick={handleSave} disabled={saving} className="w-full py-4 rounded-2xl bg-gold text-black font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 mt-4">
                         {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}

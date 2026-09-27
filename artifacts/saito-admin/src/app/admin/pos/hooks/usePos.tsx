@@ -456,18 +456,34 @@ export function usePos() {
     prevSelectedTableStatusRef.current = currentStatus;
   }, [floors, selectedTable, selectedTable?.table_number, resetCart]);
 
+  // 2026-09-27 (owner: "sebet itmesinde nie itir"): drafts now cover
+  // DINE-IN too — a table cart is no longer destroyed by a mode switch.
+  // dine-in restore also re-selects the table (only if it is still empty —
+  // an occupied/waiting table means someone else has it; the draft is dropped).
+  const pendingTableRestoreRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (posMode !== 'takeaway' && posMode !== 'delivery') return;
-    if (!cart) return;
-    if (cart.order_id) return;
+    if (cart?.order_id) return;
     if (draftRestoredForRef.current.has(posMode)) return;
-    const isEmpty = !(cart.items?.length) && !cart.customer_name && !cart.customer_phone && !cart.delivery_address;
-    if (!isEmpty) return;
+    const hasData = (c: any) => !!(c && ((c.items?.length || 0) > 0 || c.customer_name || c.customer_phone || c.delivery_address));
+    if (hasData(cart)) return; // live cart already has work — nothing to restore
     try {
       const draft = sessionStorage.getItem(`pos_draft_${posMode}`);
       if (draft) {
         const parsed = JSON.parse(draft);
-        if (parsed.posMode === posMode && parsed.version === 1 && parsed.cart) {
+        if (parsed.posMode === posMode && parsed.version === 1 && parsed.cart && hasData(parsed.cart)) {
+          if (posMode === 'dine_in' && parsed.cart.table_number) {
+            // Table must still be free; otherwise another terminal owns it.
+            const tbl = floors
+              .flatMap((f: any) => f.tables || [])
+              .find((x: any) => x.table_number === parsed.cart.table_number);
+            if (tbl && !['empty', 'free'].includes(tbl.status)) {
+              draftRestoredForRef.current.add(posMode);
+              sessionStorage.removeItem(`pos_draft_${posMode}`);
+              return;
+            }
+            pendingTableRestoreRef.current = parsed.cart.table_number;
+          }
           setCart(parsed.cart);
           draftRestoredForRef.current.add(posMode);
         }
@@ -475,10 +491,28 @@ export function usePos() {
     } catch {
       // ignore draft restore errors
     }
-  }, [posMode, cart]);
+  }, [posMode, cart, floors]);
+
+  // dine-in table re-selection after draft restore (floors may arrive late)
+  useEffect(() => {
+    const tn = pendingTableRestoreRef.current;
+    if (tn == null) return;
+    if (selectedTable?.table_number === tn) { pendingTableRestoreRef.current = null; return; }
+    const tbl = floors
+      .flatMap((f: any) => f.tables || [])
+      .find((x: any) => x.table_number === tn);
+    if (!tbl) return;
+    if (!['empty', 'free'].includes(tbl.status)) {
+      // table got occupied meanwhile — keep the restored cart but no table
+      pendingTableRestoreRef.current = null;
+      return;
+    }
+    setSelectedTable(tbl);
+    setActiveView('order');
+    pendingTableRestoreRef.current = null;
+  }, [floors, selectedTable]);
 
   useEffect(() => {
-    if (posMode !== 'takeaway' && posMode !== 'delivery') return;
     if (!cart) return;
     if (cart.order_id) {
       // Order was sent (or loaded): the mode's draft is consumed.
@@ -492,8 +526,8 @@ export function usePos() {
       return;
     }
     try {
-      // Per-mode key (2026-09-22): takeaway and delivery drafts no longer
-      // overwrite each other in the single shared slot.
+      // Per-mode key (2026-09-22; dine-in extended 2026-09-27): each mode's
+      // unsent work survives a tab switch and comes back on return.
       sessionStorage.setItem(`pos_draft_${posMode}`, JSON.stringify({ posMode, cart, version: 1 }));
     } catch {
       // ignore storage errors
@@ -726,9 +760,12 @@ export function usePos() {
       }
       // Interpolate {tables} — the raw key leaked verbatim into the toast
       // (E2E 2026-09-21: "Masalar birləşdirildi: {tables}").
-      const mergeToast = t('tables_merged').replace('{tables}', tableNumbers.join(' + '));
-      setLastUndo({ action: 'merge', data: data.data?.undo, message: mergeToast });
-      fetchFloor();
+        const mergeToast = t('tables_merged').replace('{tables}', tableNumbers.join(' + '));
+        setLastUndo({ action: 'merge', data: data.data?.undo, message: mergeToast });
+        // Parent gets the merged-in flash; children are hidden on the floor
+        // (visibleTables filters them), so flash the parent with all numbers.
+        flashTable(tableNumbers[0], `BİRLƏŞDİ: ${tableNumbers.join(' + ')}`, 'blue');
+        fetchFloor();
       return { action: 'merge' as const, data: data.data?.undo, message: mergeToast };
     });
   };
@@ -749,6 +786,8 @@ export function usePos() {
       if (res.ok) {
         const data = await res.json();
         setLastUndo({ action: 'transfer', data: data.undo, message: `Masa ${from} → ${to}` });
+        flashTable(from, `→ MASA ${to}`, 'blue');
+        flashTable(to, `MASA ${from} GELDİ`, 'emerald');
         fetchFloor();
       } else {
         const err = await res.json().catch(() => ({}));
@@ -786,6 +825,28 @@ export function usePos() {
     })));
   }, []);
 
+  // 2026-09-27 (owner: "butun emeliyyat ucun micro-interactions"): short,
+  // tone-colored label overlay on the affected table card(s) — 1.6s, auto-clear.
+  // One entry per table number (multi-table ops flash every table at once).
+  const [tableOpFlashes, setTableOpFlashes] = useState<Record<number, { nonce: number; label: string; tone: 'emerald' | 'blue' | 'rose' | 'zinc' }>>({});
+  const opFlashTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const flashTable = useCallback((tableNumber: number, label: string, tone: 'emerald' | 'blue' | 'rose' | 'zinc' = 'emerald') => {
+    setTableOpFlashes(prev => ({ ...prev, [tableNumber]: { nonce: Date.now(), label, tone } }));
+    const old = opFlashTimersRef.current.get(tableNumber);
+    if (old) clearTimeout(old);
+    opFlashTimersRef.current.set(tableNumber, setTimeout(() => {
+      setTableOpFlashes(prev => {
+        const next = { ...prev };
+        delete next[tableNumber];
+        return next;
+      });
+      opFlashTimersRef.current.delete(tableNumber);
+    }, 1600));
+  }, []);
+  useEffect(() => () => {
+    opFlashTimersRef.current.forEach(t => clearTimeout(t));
+  }, []);
+
   const seatTable = async (num: number, guestCount: number) => {
     return withOperationLock(`seat_${num}`, async () => {
       const res = await apiFetch('/api/tables/seat', {
@@ -797,6 +858,7 @@ export function usePos() {
         markTableSeatedLocal([num], guestCount);
         setSelectedTable((prev: any) => (prev && prev.table_number === num ? { ...prev, status: 'occupied', guest_count: guestCount } : prev));
         toast.success(t('guest_seated'));
+        flashTable(num, 'OVRULDU', 'emerald');
         setLastUndo({ action: 'seat', data: { table_number: num }, message: t('guest_seated') });
       } else {
         const err = await res.json().catch(() => ({ error: 'Seat failed' }));
@@ -820,6 +882,7 @@ export function usePos() {
         markTableEmptyLocal([num]);
         fetchFloor();
         toast.success(t('table_cleared').replace('{table}', String(num)), { id: `release_${num}` });
+        flashTable(num, 'MASA BOŞALDI', 'zinc');
         return { ok: true as const };
       }
       const raw = data?.error || 'Release failed';
@@ -850,6 +913,8 @@ export function usePos() {
         }
         markTableEmptyLocal([num, ...childNums]);
         toast.success(t('table_cleared').replace('{table}', String(num)));
+        flashTable(num, 'MASA BOŞALDI', 'zinc');
+        childNums.forEach(c => flashTable(c, 'MASA BOŞALDI', 'zinc'));
         setLastUndo({ action: 'dismiss', data: { table_number: num, child_tables: childNums }, message: t('table_cleared').replace('{table}', String(num)) });
       } else {
         const err = await res.json().catch(() => ({ error: 'Dismiss failed' }));
@@ -873,6 +938,7 @@ export function usePos() {
       if (res.ok) {
         markTableEmptyLocal([num]);
         toast.success(t('table_cleared').replace('{table}', String(num)));
+        flashTable(num, 'TƏMİZLƏNDİ', 'zinc');
         setLastUndo({ action: 'clear', data: { table_number: num, terminal_id: terminalId }, message: t('table_cleared').replace('{table}', String(num)) });
       } else {
         const err = await res.json().catch(() => ({ error: 'Clear failed' }));
@@ -1547,12 +1613,19 @@ export function usePos() {
   };
 
   const switchMode = (mode: 'dine_in' | 'takeaway' | 'delivery') => {
-    setPosMode(mode);
     // QA bug 3 (2026-09-22): the old code carried the PREVIOUS mode's cart
     // (items + order_id!) across the tab switch, so a takeaway session could
     // silently keep a dine-in order bound (or vice versa). Each mode now
-    // starts clean; per-mode unsent work is preserved by the
-    // pos_takeaway_draft sessionStorage mechanism (takeaway/delivery).
+    // starts clean; per-mode unsent work is preserved by the pos_draft_*
+    // sessionStorage mechanism — 2026-09-27 (owner: "sebet itir"): ALL modes
+    // incl. dine-in (the draft is saved by the persistence effect BEFORE the
+    // cart is cleared, so the switch itself never loses items).
+    // 2026-09-27: allow re-restore when the user comes BACK to a mode
+    // (the one-shot guard is cleared for the mode being left).
+    setPosMode(prev => {
+      if (prev !== mode) draftRestoredForRef.current.delete(prev);
+      return mode;
+    });
     setSelectedTable(null);
     setCart(null);
   };
@@ -1898,6 +1971,7 @@ export function usePos() {
     return {
       floors, products, categories, combos, variantsByProduct, loading, floorLoadFailed, catalogLoadFailed, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode,
       fetchData, selectTable, mergeTables, transferTable, dismissTable, releaseTable, clearTable, performUndo, seatTable,
+      tableOpFlashes, flashTable,
       setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, resetCart, updateGuestCount,
       updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
       reservationMode, reservationId, reservationPreOrderItems, reservationInfo,

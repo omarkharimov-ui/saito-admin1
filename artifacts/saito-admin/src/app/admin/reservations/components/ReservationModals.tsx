@@ -141,7 +141,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
             <input
               required
               type="text"
-              className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-gold/50 text-white text-sm"
+              className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-emerald-400/60 text-white text-sm"
               value={formData.customer_name}
               onChange={e => setFormData({ ...formData, customer_name: e.target.value })}
             />
@@ -154,7 +154,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
             <input
               required
               type="tel"
-              className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-gold/50 text-white text-sm"
+              className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-emerald-400/60 text-white text-sm"
               value={formData.phone}
               onChange={e => setFormData({ ...formData, phone: e.target.value })}
             />
@@ -168,7 +168,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
             </label>
             <input
               type="email"
-              className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-gold/50 text-white text-sm"
+              className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-emerald-400/60 text-white text-sm"
               value={formData.email}
               onChange={e => setFormData({ ...formData, email: e.target.value })}
               placeholder="qonaq@mail.com"
@@ -183,7 +183,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
               <input
                 required
                 type="date"
-                className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-gold/50 text-white text-sm"
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-emerald-400/60 text-white text-sm"
                 value={formData.date}
                 onChange={e => setFormData({ ...formData, date: e.target.value })}
               />
@@ -195,7 +195,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
               <input
                 required
                 type="time"
-                className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-gold/50 text-white text-sm"
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-emerald-400/60 text-white text-sm"
                 value={formData.time}
                 onChange={e => setFormData({ ...formData, time: e.target.value })}
               />
@@ -210,7 +210,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
               required
               type="number"
               min="1"
-              className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-gold/50 text-white text-sm"
+              className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-emerald-400/60 text-white text-sm"
               value={formData.guests}
               onChange={e => setFormData({ ...formData, guests: parseInt(e.target.value) })}
             />
@@ -241,7 +241,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
                 min="0"
                 step="5"
                 placeholder="0"
-                className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-gold/50 text-white text-sm"
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-emerald-400/60 text-white text-sm"
                 value={formData.deposit_amount}
                 onChange={e => setFormData({ ...formData, deposit_amount: e.target.value })}
               />
@@ -253,7 +253,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
               <MessageSquare size={12} /> {t('note')}
             </label>
             <textarea
-              className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-gold/50 text-white text-sm h-20 resize-none"
+              className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl outline-none focus:border-emerald-400/60 text-white text-sm h-20 resize-none"
               value={formData.notes}
               onChange={e => setFormData({ ...formData, notes: e.target.value })}
             />

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
+import { GridCell } from '@/lib/motion/GridCell';
 import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, Hourglass } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -212,6 +213,9 @@ export default function POSPage() {
   // 2026-09-25 (owner: "toggle olsun ayarlarda"): waitlist master switch from
   // Settings → General (fail-open: read error = enabled, same as delivery gates).
   const [waitlistEnabled, setWaitlistEnabled] = useState(true);
+  // 2026-09-27 (owner: "vat ayarlardan bağlıdırsa niyə göstərir"): the VAT
+  // line in the cart now follows the global EDV switch (Settings → Payment).
+  const [vatEnabled, setVatEnabled] = useState(true);
   useEffect(() => {
     let active = true;
     (async () => {
@@ -221,9 +225,11 @@ export default function POSPage() {
         const j = await res.json();
         const v = j?.settings?.waitlist_enabled;
         if (typeof v === 'boolean') setWaitlistEnabled(v);
+        const vat = j?.settings?.auto_apply_vat;
+        if (typeof vat === 'boolean') setVatEnabled(vat);
       } catch { /* fail-open */ }
     })();
-    return () => { active = false; };
+    return () => { active = false; }
   }, []);
   const waitlistCount = useWaitlistCount(posMode === 'dine_in' && waitlistEnabled);
   const setPosMode = pos.setPosMode;
@@ -490,6 +496,24 @@ export default function POSPage() {
     return () => { supabase.removeChannel(channel); };
   }, [posMode, fetchTakeawayOrders, fetchDeliveryOrders]);
 
+  // 2026-09-27 (owner: "stokda yoxdur real işləyirmi"): LIVE catalog —
+  // the DB 86-cycle (auto 86 on depletion / auto-reactivate on restock)
+  // updates products.is_in_stock; this channel pushes it to the grid
+  // within seconds (throttled 10s) instead of waiting for a manual refresh.
+  useEffect(() => {
+    let lastRefetch = 0;
+    const channel = supabase
+      .channel('pos-products-availability')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'products', filter: 'is_in_stock=not.is.null' }, () => {
+        const now = Date.now();
+        if (now - lastRefetch < 10_000) return;
+        lastRefetch = now;
+        pos.fetchData();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [pos.fetchData]);
+
   useEffect(() => {
     // 1) Try localStorage first (instant)
     const saved = localStorage.getItem('pos_session');
@@ -615,19 +639,35 @@ export default function POSPage() {
 
   useEffect(() => {
     const onUnauthorized = async () => {
-      if (posSession) {
-        setPosSession(null);
-        setPosRole(null);
-        localStorage.removeItem('pos_session');
-        try {
-          await fetch('/api/auth/logout', { method: 'POST' });
-        } catch {}
-        window.location.href = '/staff/login?returnTo=/admin/pos';
-      }
+      if (!posSession) return;
+      // 2026-09-27 (owner: "kassa öz-özünə bağlanır"): ONE last-chance
+      // keepalive before the hard redirect — a transient cookie slip or
+      // clock skew should not bounce a cashier (and drop the Kassa modal).
+      try {
+        const keep = await fetch('/api/auth/keepalive', { method: 'POST' });
+        if (keep.ok) return; // session is fine — do NOT logout/redirect
+      } catch { /* fall through to the canonical redirect */ }
+      setPosSession(null);
+      setPosRole(null);
+      localStorage.removeItem('pos_session');
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch {}
+      window.location.href = '/staff/login?returnTo=/admin/pos';
     };
     window.addEventListener('pos:unauthorized', onUnauthorized);
     return () => window.removeEventListener('pos:unauthorized', onUnauthorized);
   }, [posSession]);
+
+  // 2026-09-27: session keepalive — sliding 12h window while the POS tab is
+  // actively visible (a working shift never expires mid-session).
+  useEffect(() => {
+    const id = setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+      try { await fetch('/api/auth/keepalive', { method: 'POST' }); } catch {}
+    }, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Pre-fetch takeaway & delivery orders on mount so they're instant when switching tabs
   useEffect(() => {
@@ -1061,6 +1101,7 @@ export default function POSPage() {
         }
 
         toast.success(t('order_paid'), { id: 'action-toast' });
+        if (specificOrder.table_number) pos.flashTable(specificOrder.table_number, 'ÖDƏNDDİ', 'emerald');
         const receiptSettings = await getReceiptSettings().catch(() => null);
         const paymentNow = new Date();
         setReceiptView({
@@ -1183,6 +1224,12 @@ export default function POSPage() {
         setPayOfflinePending(false);
         toast.success(t('all_orders_paid'), { id: 'action-toast' });
       }
+
+      // 2026-09-27 (owner: micro-interactions): flash every dine-in table that
+      // was just paid so the operator sees the change on the floor instantly.
+      tableNumbers.forEach((n: number) => {
+        if (typeof n === 'number') pos.flashTable(n, 'ÖDƏNDDİ', 'emerald');
+      });
 
       setPaymentView(false);
       setActionSheetOpen(false);
@@ -1370,6 +1417,7 @@ export default function POSPage() {
         return;
       }
       toast.success(t('split_payment_complete'), { id: 'action-toast' });
+      tableNumbers.forEach((n: number) => { if (typeof n === 'number') pos.flashTable(n, 'BÖLÜNDÜ', 'blue'); });
 
       setPaymentView(false);
       setActionSheetOpen(false);
@@ -1417,6 +1465,8 @@ export default function POSPage() {
       }
       if (pos.selectedTable && pos.selectedTable.table_number === parent) pos.resetCart();
       toast.success(t('group_cleared').replace('{table}', String(parent)), { id: 'action-toast' });
+      const flashTablesGroup = [parent, ...children];
+      flashTablesGroup.forEach((n: number) => pos.flashTable(n, 'MASA BOŞALDI', 'zinc'));
     } catch {
       toast.error(t('table_clear_failed'), { id: 'action-toast' });
     }
@@ -2312,7 +2362,7 @@ export default function POSPage() {
              key={`action-pill-${label}`}
               layoutId="action-mode-pill-clean"
               className={`absolute inset-0 rounded-full z-0 ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
-                                   transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
+                                   transition={{ type: 'spring', stiffness: 500, damping: 26, mass: 0.4 }}
                                  />
                                </AnimatePresence>
                               )}
@@ -2379,7 +2429,7 @@ export default function POSPage() {
              key={`action-pill-${label}`}
               layoutId="action-mode-pill-light"
               className={`absolute inset-0 rounded-full z-0 ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
-                                   transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
+                                   transition={{ type: 'spring', stiffness: 500, damping: 26, mass: 0.4 }}
                                  />
                                </AnimatePresence>
                              )}
@@ -2656,16 +2706,20 @@ export default function POSPage() {
                      exit={{ opacity: 0 }}
                      transition={fastExit}
                    >
+                  {/* Motion System (2026-09-27): the grid is ALIVE — a table
+                      that leaves (floor-plan change / unmerge) collapses and
+                      its neighbors GLIDE into the gap (framer layout). */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                   {visibleTables?.map((table: any, _tableIdx: number) => {
-                     const groupInfo = tableGroupInfo[table.table_number];
-                     const isGroup = groupInfo && groupInfo.children.length > 0;
-                     
-                     return (
-                       <div
-                         key={`tbl-${table.table_number ?? table.id ?? _tableIdx}`}
-                         className="col-span-1"
-                       >
+                    <AnimatePresence>
+                    {visibleTables?.map((table: any, _tableIdx: number) => {
+                      const groupInfo = tableGroupInfo[table.table_number];
+                      const isGroup = groupInfo && groupInfo.children.length > 0;
+
+                      return (
+                        <GridCell
+                          key={`tbl-${table.table_number ?? table.id ?? _tableIdx}`}
+                          className="col-span-1"
+                        >
                         <TableCard 
                           table={table}
                           onTap={() => handleTableTap(table)}
@@ -2679,12 +2733,14 @@ export default function POSPage() {
                          mergedChildNumbers={groupInfo?.children}
                          isMergedChild={false}
                          kitchenStatus={table.kitchen_status}
-                        flashNonce={flashInfo?.tableNumber === table.table_number ? (flashInfo?.nonce ?? 0) : 0}
-                        tapPulseNonce={tableTapPulse && tableTapPulse.tableNumber === table.table_number ? tableTapPulse.nonce : 0}
-                      />
-                       </div>
-                     );
-                   })}
+                         flashNonce={flashInfo?.tableNumber === table.table_number ? (flashInfo?.nonce ?? 0) : 0}
+                         tapPulseNonce={tableTapPulse && tableTapPulse.tableNumber === table.table_number ? tableTapPulse.nonce : 0}
+                          opFlash={pos.tableOpFlashes[table.table_number] || null}
+                        />
+                        </GridCell>
+                      );
+                    })}
+                    </AnimatePresence>
                   </div>
                   </motion.div>
                    </AnimatePresence>
@@ -2851,6 +2907,20 @@ export default function POSPage() {
                             return acc;
                           }, {})}
                             outOfStock={new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id))}
+                            // 2026-09-27 (owner): MƏTBƏX popup — current table state
+                            currentTableKitchen={(() => {
+                              const items = pos.cart?.items ?? [];
+                              const sent = items.filter((i: any) => (i.sentQuantity ?? 0) > 0);
+                              const label = posMode === 'dine_in'
+                                ? `Masa ${pos.cart?.table_number ?? ''}`.trim()
+                                : posMode === 'takeaway' ? 'Takeaway' : 'Çatdırılma';
+                              return {
+                                label,
+                                draft: items.reduce((s: number, i: any) => s + Math.max(0, (i.quantity ?? 0) - (i.sentQuantity ?? 0)), 0),
+                                prep: sent.filter((i: any) => ['pending', 'accepted', 'sent', 'preparing'].includes(i.kitchen_status || 'pending')).length,
+                                ready: sent.filter((i: any) => ['ready', 'served'].includes(i.kitchen_status || '')).length,
+                              };
+                            })()}
                             catalogError={pos.catalogLoadFailed}
                             onRetryCatalog={() => pos.fetchData()}
                             filterData={filterData}
@@ -2873,10 +2943,11 @@ export default function POSPage() {
                                     REJECTED — it ate the whole cart column top. The
                                     binding identity now lives as a compact chip inside
                                     the CartPanel header (boundOrderLabel prop). */}
-                         <CartPanel
-                           cart={pos.cart}
-                           cartHydrating={pos.cartHydrating}
-                           onPlaceOrder={sendCurrentOrder}
+                        <CartPanel
+                          cart={pos.cart}
+                          cartHydrating={pos.cartHydrating}
+                          vatEnabled={vatEnabled}
+                          onPlaceOrder={sendCurrentOrder}
                             onBack={() => {
                               // Owner UX (2026-09-21): exiting the cart keeps
                               // the items as a DRAFT — no guard modal, nothing
@@ -2940,7 +3011,10 @@ export default function POSPage() {
                           }}
                           isDirty={(pos.cart?.items ?? []).some(i => (i.sentQuantity ?? 0) === 0 && i.quantity > 0)}
                           onVoidSuccess={() => {
-                            if (pos.selectedTable) pos.selectTable(pos.selectedTable, { force: true });
+                            if (pos.selectedTable) {
+                              pos.flashTable(pos.selectedTable.table_number, 'LƏĞV EDİLDİ', 'rose');
+                              pos.selectTable(pos.selectedTable, { force: true });
+                            }
                           }}
                           onUpdateDeliveryFields={(fields) => {
                            if (!pos.cart) return;

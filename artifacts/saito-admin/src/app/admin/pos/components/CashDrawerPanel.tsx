@@ -7,7 +7,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
-import { appleBackdrop, slideUp, fastExit } from '@/lib/modal-transitions';
+import { appleBackdrop, fastExit, centerModal } from '@/lib/modal-transitions';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 interface CashDrawerSession {
@@ -417,22 +417,25 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
   return (
     <>
     <AnimatePresence>
-      <div className="fixed inset-0 z-[130] flex items-end justify-center pointer-events-none" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
+      {/* 2026-09-27 (owner: "kassa popup yenidən yaz — centered modal"):
+          bottom sheet → centered dialog. The VKB pad-bottom keeps the modal
+          centered in the visible area above an open keyboard. */}
+      <div className="fixed inset-0 z-[130] flex items-center justify-center pointer-events-none p-4" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit}
           className="fixed inset-0 z-0 pointer-events-auto bg-black/20 backdrop-blur-sm"
           onClick={onClose}
         />
         <motion.div
-          {...slideUp}
-          className={`relative z-10 pointer-events-auto w-full max-w-md rounded-t-6xl shadow-overlay border ${
+          {...centerModal}
+          className={`relative z-10 pointer-events-auto w-full max-w-md rounded-3xl shadow-overlay border ${
             lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'
           } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-lg`}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 pb-4">
             <div className="flex items-center gap-2">
-              <Wallet size={20} className="text-gold" />
+              <Wallet size={20} className="text-emerald-400" />
               <h2 className="text-lg font-black tracking-tight">Kassa</h2>
             </div>
             <button onClick={onClose} className={`p-2 rounded-xl ${lightMode ? 'hover:bg-zinc-100' : 'hover:bg-white/5'}`}>
@@ -744,7 +747,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                        type="password" inputMode="numeric" maxLength={6} value={managerPin}
                        onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
                        placeholder="Manager PIN"
-                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-amber-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-amber-400/50'}`}
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
                      />
                      {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
                      <div className="flex gap-2">
@@ -764,7 +767,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                        type="password" inputMode="numeric" maxLength={6} value={managerPin}
                        onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
                        placeholder="Manager PIN"
-                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-amber-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-amber-400/50'}`}
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
                      />
                      {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
                      <div className="flex gap-2">
@@ -863,7 +866,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                           value={managerPin}
                           onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
                           placeholder={t('manager_pin')}
-                          className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-amber-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-amber-400/50'}`}
+                          className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
                         />
                         {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
                       </div>
@@ -1017,7 +1020,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                     type="password" inputMode="numeric" maxLength={6} value={managerPin}
                     onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
                     placeholder="Manager PIN"
-                    className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-amber-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-amber-400/50'}`}
+                    className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
                   />
                   {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
                   <div className="flex gap-2">

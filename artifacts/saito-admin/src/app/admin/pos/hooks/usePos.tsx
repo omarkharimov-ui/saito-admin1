@@ -764,7 +764,6 @@ export function usePos() {
         setLastUndo({ action: 'merge', data: data.data?.undo, message: mergeToast });
         // Parent gets the merged-in flash; children are hidden on the floor
         // (visibleTables filters them), so flash the parent with all numbers.
-        flashTable(tableNumbers[0], `BİRLƏŞDİ: ${tableNumbers.join(' + ')}`, 'blue');
         fetchFloor();
       return { action: 'merge' as const, data: data.data?.undo, message: mergeToast };
     });
@@ -786,8 +785,6 @@ export function usePos() {
       if (res.ok) {
         const data = await res.json();
         setLastUndo({ action: 'transfer', data: data.undo, message: `Masa ${from} → ${to}` });
-        flashTable(from, `→ MASA ${to}`, 'blue');
-        flashTable(to, `MASA ${from} GELDİ`, 'emerald');
         fetchFloor();
       } else {
         const err = await res.json().catch(() => ({}));
@@ -825,27 +822,9 @@ export function usePos() {
     })));
   }, []);
 
-  // 2026-09-27 (owner: "butun emeliyyat ucun micro-interactions"): short,
-  // tone-colored label overlay on the affected table card(s) — 1.6s, auto-clear.
-  // One entry per table number (multi-table ops flash every table at once).
-  const [tableOpFlashes, setTableOpFlashes] = useState<Record<number, { nonce: number; label: string; tone: 'emerald' | 'blue' | 'rose' | 'zinc' }>>({});
-  const opFlashTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
-  const flashTable = useCallback((tableNumber: number, label: string, tone: 'emerald' | 'blue' | 'rose' | 'zinc' = 'emerald') => {
-    setTableOpFlashes(prev => ({ ...prev, [tableNumber]: { nonce: Date.now(), label, tone } }));
-    const old = opFlashTimersRef.current.get(tableNumber);
-    if (old) clearTimeout(old);
-    opFlashTimersRef.current.set(tableNumber, setTimeout(() => {
-      setTableOpFlashes(prev => {
-        const next = { ...prev };
-        delete next[tableNumber];
-        return next;
-      });
-      opFlashTimersRef.current.delete(tableNumber);
-    }, 1600));
-  }, []);
-  useEffect(() => () => {
-    opFlashTimersRef.current.forEach(t => clearTimeout(t));
-  }, []);
+  // 2026-09-27 (owner: "OVERLAY NEVER"): op-flash removed — the table card
+  // IS the operation feedback (border crossfade + label morph + settle +
+  // layout glide). No label slaps onto the card.
 
   const seatTable = async (num: number, guestCount: number) => {
     return withOperationLock(`seat_${num}`, async () => {
@@ -858,7 +837,6 @@ export function usePos() {
         markTableSeatedLocal([num], guestCount);
         setSelectedTable((prev: any) => (prev && prev.table_number === num ? { ...prev, status: 'occupied', guest_count: guestCount } : prev));
         toast.success(t('guest_seated'));
-        flashTable(num, 'OVRULDU', 'emerald');
         setLastUndo({ action: 'seat', data: { table_number: num }, message: t('guest_seated') });
       } else {
         const err = await res.json().catch(() => ({ error: 'Seat failed' }));
@@ -882,7 +860,6 @@ export function usePos() {
         markTableEmptyLocal([num]);
         fetchFloor();
         toast.success(t('table_cleared').replace('{table}', String(num)), { id: `release_${num}` });
-        flashTable(num, 'MASA BOŞALDI', 'zinc');
         return { ok: true as const };
       }
       const raw = data?.error || 'Release failed';
@@ -913,8 +890,6 @@ export function usePos() {
         }
         markTableEmptyLocal([num, ...childNums]);
         toast.success(t('table_cleared').replace('{table}', String(num)));
-        flashTable(num, 'MASA BOŞALDI', 'zinc');
-        childNums.forEach(c => flashTable(c, 'MASA BOŞALDI', 'zinc'));
         setLastUndo({ action: 'dismiss', data: { table_number: num, child_tables: childNums }, message: t('table_cleared').replace('{table}', String(num)) });
       } else {
         const err = await res.json().catch(() => ({ error: 'Dismiss failed' }));
@@ -938,7 +913,6 @@ export function usePos() {
       if (res.ok) {
         markTableEmptyLocal([num]);
         toast.success(t('table_cleared').replace('{table}', String(num)));
-        flashTable(num, 'TƏMİZLƏNDİ', 'zinc');
         setLastUndo({ action: 'clear', data: { table_number: num, terminal_id: terminalId }, message: t('table_cleared').replace('{table}', String(num)) });
       } else {
         const err = await res.json().catch(() => ({ error: 'Clear failed' }));
@@ -1971,7 +1945,6 @@ export function usePos() {
     return {
       floors, products, categories, combos, variantsByProduct, loading, floorLoadFailed, catalogLoadFailed, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode,
       fetchData, selectTable, mergeTables, transferTable, dismissTable, releaseTable, clearTable, performUndo, seatTable,
-      tableOpFlashes, flashTable,
       setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, resetCart, updateGuestCount,
       updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
       reservationMode, reservationId, reservationPreOrderItems, reservationInfo,

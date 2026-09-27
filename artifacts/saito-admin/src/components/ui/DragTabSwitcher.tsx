@@ -28,10 +28,12 @@ interface DragTabSwitcherProps {
 }
 
 const HOLD_THRESHOLD = 120;
-// 2026-09-27 (Saito Motion System): capsule travel + settle now use the house
-// DNA spring (500/26 "kəsəy") — the sliding pill snaps with the rest of POS.
-const TRAVEL_SPRING = { stiffness: 500, damping: 26, mass: 0.38 };
-const SETTLE_SPRING = { stiffness: 500, damping: 26, mass: 0.36 };
+// 2026-09-27 (owner audit, "OVERLAY NEVER" turn): REVERTED to the owner-tuned
+// values from 2026-09-21 — "500 = çox kəskin, snap istəmirəm". Capsules glide:
+// quick start, gentle settle, no snap. (The 500/26 "kəsəy" DNA stays for the
+// note pill / dialog surfaces the owner tuned separately.)
+const TRAVEL_SPRING = { stiffness: 420, damping: 28, mass: 0.38 };
+const SETTLE_SPRING = { stiffness: 480, damping: 24, mass: 0.36 };
 
 export function DragTabSwitcher({ items, value, onChange, containerClassName, activeStyle }: DragTabSwitcherProps) {
   const { lightMode } = useTheme();

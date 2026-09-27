@@ -1101,7 +1101,6 @@ export default function POSPage() {
         }
 
         toast.success(t('order_paid'), { id: 'action-toast' });
-        if (specificOrder.table_number) pos.flashTable(specificOrder.table_number, 'ÖDƏNDDİ', 'emerald');
         const receiptSettings = await getReceiptSettings().catch(() => null);
         const paymentNow = new Date();
         setReceiptView({
@@ -1223,13 +1222,7 @@ export default function POSPage() {
       } else {
         setPayOfflinePending(false);
         toast.success(t('all_orders_paid'), { id: 'action-toast' });
-      }
-
-      // 2026-09-27 (owner: micro-interactions): flash every dine-in table that
-      // was just paid so the operator sees the change on the floor instantly.
-      tableNumbers.forEach((n: number) => {
-        if (typeof n === 'number') pos.flashTable(n, 'ÖDƏNDDİ', 'emerald');
-      });
+       }
 
       setPaymentView(false);
       setActionSheetOpen(false);
@@ -1417,7 +1410,6 @@ export default function POSPage() {
         return;
       }
       toast.success(t('split_payment_complete'), { id: 'action-toast' });
-      tableNumbers.forEach((n: number) => { if (typeof n === 'number') pos.flashTable(n, 'BÖLÜNDÜ', 'blue'); });
 
       setPaymentView(false);
       setActionSheetOpen(false);
@@ -1465,8 +1457,6 @@ export default function POSPage() {
       }
       if (pos.selectedTable && pos.selectedTable.table_number === parent) pos.resetCart();
       toast.success(t('group_cleared').replace('{table}', String(parent)), { id: 'action-toast' });
-      const flashTablesGroup = [parent, ...children];
-      flashTablesGroup.forEach((n: number) => pos.flashTable(n, 'MASA BOŞALDI', 'zinc'));
     } catch {
       toast.error(t('table_clear_failed'), { id: 'action-toast' });
     }
@@ -2362,7 +2352,7 @@ export default function POSPage() {
              key={`action-pill-${label}`}
               layoutId="action-mode-pill-clean"
               className={`absolute inset-0 rounded-full z-0 ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
-                                   transition={{ type: 'spring', stiffness: 500, damping: 26, mass: 0.4 }}
+                                   transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
                                  />
                                </AnimatePresence>
                               )}
@@ -2429,7 +2419,7 @@ export default function POSPage() {
              key={`action-pill-${label}`}
               layoutId="action-mode-pill-light"
               className={`absolute inset-0 rounded-full z-0 ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
-                                   transition={{ type: 'spring', stiffness: 500, damping: 26, mass: 0.4 }}
+                                   transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
                                  />
                                </AnimatePresence>
                              )}
@@ -2735,7 +2725,6 @@ export default function POSPage() {
                          kitchenStatus={table.kitchen_status}
                          flashNonce={flashInfo?.tableNumber === table.table_number ? (flashInfo?.nonce ?? 0) : 0}
                          tapPulseNonce={tableTapPulse && tableTapPulse.tableNumber === table.table_number ? tableTapPulse.nonce : 0}
-                          opFlash={pos.tableOpFlashes[table.table_number] || null}
                         />
                         </GridCell>
                       );
@@ -3012,7 +3001,6 @@ export default function POSPage() {
                           isDirty={(pos.cart?.items ?? []).some(i => (i.sentQuantity ?? 0) === 0 && i.quantity > 0)}
                           onVoidSuccess={() => {
                             if (pos.selectedTable) {
-                              pos.flashTable(pos.selectedTable.table_number, 'LƏĞV EDİLDİ', 'rose');
                               pos.selectTable(pos.selectedTable, { force: true });
                             }
                           }}

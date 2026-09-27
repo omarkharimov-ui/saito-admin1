@@ -30,35 +30,9 @@ interface TableCardProps {
   flashNonce?: number;
   /** G8 floor batch: 150ms pre-navigation selection pulse (table tap → order). */
   tapPulseNonce?: number;
-  /** 2026-09-27 (owner: "butun emeliyyat ucun micro-interactions"): 1.6s
-      tone-colored op label overlay, driven by usePos.flashTable. */
-  opFlash?: { nonce: number; label: string; tone: 'emerald' | 'blue' | 'rose' | 'zinc' } | null;
 }
 
-const OP_FLASH_STYLES: Record<'emerald' | 'blue' | 'rose' | 'zinc', { dark: string; light: string; pill: string }> = {
-  emerald: {
-    dark: 'bg-emerald-500/15 border-emerald-400/70',
-    light: 'bg-emerald-500/15 border-emerald-500/70',
-    pill: 'bg-emerald-500 text-white',
-  },
-  blue: {
-    dark: 'bg-blue-500/15 border-blue-400/70',
-    light: 'bg-blue-500/15 border-blue-500/70',
-    pill: 'bg-blue-500 text-white',
-  },
-  rose: {
-    dark: 'bg-rose-500/15 border-rose-400/70',
-    light: 'bg-rose-500/15 border-rose-500/70',
-    pill: 'bg-rose-500 text-white',
-  },
-  zinc: {
-    dark: 'bg-white/10 border-white/40',
-    light: 'bg-zinc-500/15 border-zinc-400',
-    pill: 'bg-zinc-900 text-white',
-  },
-};
-
-export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, kitchenStatus, flashNonce, tapPulseNonce, opFlash }: TableCardProps) {
+export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, kitchenStatus, flashNonce, tapPulseNonce }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
@@ -388,7 +362,7 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
          onClick={() => { onTap(); }}
          animate={cardControls}
          whileTap={{ scale: 0.97 }}
-         transition={SPRING.kessey}
+         transition={SPRING.press}
          className={`relative h-[180px] rounded-4xl p-5 text-left overflow-hidden border cursor-pointer group flex flex-col
           /* Motion System: transition EXCLUDES transform (framer owns it); border
              color still crossfades in T.standard (200ms) — the border "yaranır". */
@@ -428,27 +402,9 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
           />
         )}
 
-        {/* 2026-09-27 (owner: micro-interactions for ALL operations): 1.6s
-            tone-tinted overlay + centered label pill (spring pop, DNA 500/26).
-            Driven by usePos.flashTable → opFlash prop. */}
-        <AnimatePresence>
-          {opFlash && (
-            <motion.div
-              key={opFlash.nonce}
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 26 }}
-              className={`absolute inset-0 z-20 rounded-4xl flex items-center justify-center border-2 pointer-events-none backdrop-blur-[2px] ${
-                lightMode ? OP_FLASH_STYLES[opFlash.tone].light : OP_FLASH_STYLES[opFlash.tone].dark
-              }`}
-            >
-              <span className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider whitespace-nowrap shadow-lg ${OP_FLASH_STYLES[opFlash.tone].pill}`}>
-                {opFlash.label}
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Motion System (2026-09-27, owner "OVERLAY NEVER"): no label overlay
+            on operations. The card IS the feedback — border crossfades, labels
+            morph, content fades, card settles. The state change speaks. */}
 
         {/* Top row: Table number + action (flex-flow, was absolute) */}
         <div className="flex items-start justify-between">

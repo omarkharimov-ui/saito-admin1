@@ -47,14 +47,25 @@ export const EASE = {
   continuous: 'linear' as const,
 } as const;
 
-// ── 3. SPRINGS (house DNA: "kəsəy" = hair of overshoot) ─────────────────────
+// ── 3. SPRINGS — two families, per the 2026-09-27 owner audit ───────────────
+// STATE TRANSITIONS (content: pills, labels, amounts) = TIME-BASED EASING
+// (fade/morph, zero overshoot — "yavaşca fade, yavaşca morph").
+// PHYSICAL OBJECTS (capsules, sheets, presses) = SPRINGS (owner-tuned).
+//
+// ⚠ OWNER TUNING RECORD (2026-09-21, pos-motion.ts): "500 = çox kəskin" for
+// steppers/capsules — the glide below is what he approved. The 500/26 "kəsəy"
+// applies only to the dialog surfaces he tuned separately (note pill, modals).
 export const SPRING = {
-  /** the owner DNA — buttons, pills, flashes */
+  /** dialog surfaces / note pill — the owner DNA, hair of overshoot */
   kessey: { type: 'spring' as const, stiffness: 500, damping: 26 },
-  /** larger surfaces (capsules, cards) — same snap, slightly more mass */
-  travel: { type: 'spring' as const, stiffness: 500, damping: 28, mass: 0.38 },
+  /** tap/press feedback — owner-tuned (was: pos-motion TAP) */
+  press:  { type: 'spring' as const, stiffness: 420, damping: 28, mass: 0.7 },
+  /** micro: buttons, pills, +/− steppers, back — owner-tuned glide */
+  micro:  { type: 'spring' as const, stiffness: 280, damping: 22, mass: 0.9 },
+  /** sliding capsules / sheet settle — owner-tuned, no snap */
+  surface:{ type: 'spring' as const, stiffness: 480, damping: 24, mass: 0.36 },
   /** layout reflow (neighbors gliding) — calm, no overshoot */
-  soft: { type: 'spring' as const, stiffness: 320, damping: 32 },
+  soft:   { type: 'spring' as const, stiffness: 320, damping: 32 },
 } as const;
 
 // ── 4. MOTION HIERARCHY ──────────────────────────────────────────────────────

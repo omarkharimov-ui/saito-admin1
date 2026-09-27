@@ -58,6 +58,45 @@
 
 ## 4. UI QAYDALARI — DETALLI (BINDING, owner-final)
 
+### 4.0 STATE MACHINE QURULUŞU (owner doctrine — ƏVƏLCƏ oxu)
+Owner: "Mənim istədiyim çox yumşaq, təbii və premium state transition-lardır. iOS 27
+Gallery-da 'Sil' basanda şəkillər bir anda yox olmur; yavaş və zərif fade-out ekrandan
+çıxır. Eyni prinsipi POS-un BÜTÜN state dəyişikliklərinə tətbiq et."
+
+**Ümumi qanun (hər state machine üçün):**
+1. Hər state change = **animasiyalı transition** — HEÇ BİR şey snap/instan yox olmur, HEÇ BİR şey anidən peyda olunmur.
+2. **Enter: snappy** (spring 420/28 press, yaxud 200–280ms). **Exit: graceful** (280–360ms, `ease [0.45,0,0.55,1]`, **zero overshoot**).
+3. Value/label/amount dəyişikliyi = **time-based morph/fade** (80–360ms) — spring YOX (4.1-də).
+4. Token-lər `src/lib/motion/system.ts`-dən — raw framer qiyməti İCXETMƏ.
+5. Implementasiya qaydaları (4.2 + 4.3): persistent AnimatePresence, keyed `motion.div` child, `if (!open) return null` YASAQ, fragment YASAQ, `backdrop-blur` ancestor-də child opacity donur (bug A).
+6. Test: frame sampling ilə (opacity intermediate value-ları görməlisən) + HƏR İKİ tema.
+
+**M1 — Table card (floor) state machine:**
+- States: `EMPTY(BOŞ) → OCCUPIED → COOKING → WAITING_BILL → PAID → DIRTY/CLEANING → EMPTY`; + seçiliq: **blue selection border**.
+- Border qaydaları: empty kart = `border-transparent` (HƏR iki tema — ağ border QAYTARMA, 4.6); occupied = `border-emerald-500/45` (dark).
+- **Model transition (owner-approved): blue selection border-in fade-out (Dismiss zamanı).** Green border (occupied) da Sərbəst burax / Hesabı bağla / Dismiss-da **eyni zərif fade-out** — `transition: border-color 0.32s cubic-bezier(0.45,0,0.55,1)` `TableCard.tsx` card base-də. Border-color transition HƏMİŞƏ 320ms symmetric — kənarda 200ms-ə salma (yaxın state-də border "snap" olurdu, `3eea7dfe` lesson-i).
+- Kartın içi (label/chip/amount) = content fade/morph; OVERLAY NEVER (4.5): operation = kartın ÖZÜNÜN transformu: border crossfade + label morph + settle 0.99→1 + grid layout glide.
+- State DATA-sı server-dən (`/api/pos/tables` 3s poll + realtime `pos-sync`) → kart yeni state-ə animasiya edir; lokal optimistic snap YOX (stale-guard: generation token, `usePos.fetchFloor`).
+
+**M2 — Cart (order phase) state machine:**
+- `EMPTY → DRAFT (unsent items) → SENT (kitchen) → (partial: hər sətirin öz state-i: draft/hazırlanır/hazır via kitchen_status)`; + **void mode** (cart daxilində sub-state: `voidMode` flag, sətirlər voidable olur, LƏĞV ET morph).
+- Sətir enter: snappy (spring press 420/28). **Sətir exit: graceful 0.26s** — `exit={{opacity:0, scale:0.98, transition:{duration:0.26, ease:[0.45,0,0.55,1]}}}` (CartPanel rows).
+- **Təmizlə: DRAFT → EMPTY** — sətirlər graceful exit → empty state **fade-in 320ms** (data bir anda YOX OLMUR — owner: "aydın və zərif keçid"). Təmizlə yeri: cart header SAĞ YUXARI ghost pill (full-width bar YOX — owner "çox pis yerləşdirilib" dedi).
+- Footer totals = **COUNTER-ROLL** (4.1 exception) — hər state change-də rəqəmlər roll olur, fade YOX.
+- `hasDraft`/`isEmpty`/`hasVoidableItems` derived flags — UI state-ləri bunlardan törəyir; yeni sub-state əlavə edəndə eyni pattern.
+
+**M3 — Modal/sheet (TARİXÇƏ, KASSA, ActionSheet, PinGuard...):**
+- `CLOSED → OPEN`: `centerModal` spring (500/26 "kəsəy" — owner-tuned dialog surface) + backdrop 220ms fade.
+- `OPEN → CLOSED`: `fastExit` 280ms `[0.45,0,0.55,1]` (`src/lib/modal-transitions.ts`) — graceful, HEÇ VAXT instant close.
+- **Modal İÇİ view swap** (TARİXÇƏ list↔detail; KASSA main↔sub-view) = da state transition-dir: keyed motion child + 220ms fade+8px drift. ⚠️ hazırda QIŞIRI (bug A: KASSA opacity donub + 215ms boşluq; TARİXÇƏ list↔detail anidən) — fix §3-A.
+- Pattern (4.2): `{open && <motion.div key="...">}` daimi AnimatePresence içində; ReservationActionSheet fragment lesson-i.
+
+**M4 — Phase/tab switching:**
+- products ↔ customer phase, dine-in ↔ takeaway ↔ delivery tab: **sync AnimatePresence + keyed motion.div** (page.tsx-də İŞLƏYƏN pattern — oradan kopyala, 220ms fade + 8-10px drift).
+- `switchMode`: selectedTable + cart sıfırlanır (state reset) — view transition animated; qəhvə-draft restore = DATA-ONLY (səth re-select ETMƏ — ghost border lesson-i, `b469f842`).
+
+**New state machine əlavə edəndə checklist:** [ ] states enum/flags tap → [ ] hər transition-ın enter (snappy) + exit (graceful) təyin olunub → [ ] token-lər system.ts-dən → [ ] AnimatePresence qaydaları (4.2) → [ ] backdrop-blur ancestor yoxdursa → [ ] frame sampling E2E + iki tema → [ ] overlay YOX (4.5).
+
 ### 4.1 Motion doctrine — İKİ fəsilə
 1. **STATE TRANSITIONS** (label/amount/pill/view swap): time-based easing, **ZERO overshoot**, 80–360ms, symmetric `ease [0.45,0,0.55,1]` ("yavaşca fade, yavaşca morph"). Hiç bir şey birdən yox olmamalı (iOS 27 Gallery trash doctrine).
 2. **PHYSICAL OBJECTS** (capsule/sheet/press): owner-tuned spring-lər — **press 420/28, micro 280/22, surface 480/24**. `500/26` "kəsəy" YALNIZ owner-un özü tuned etdiyi dialog surface-ləri (note pill, modals).

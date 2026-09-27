@@ -6,7 +6,7 @@
 ## 0. STATUS QISCA
 
 - **Repo:** `/Users/mr.apple/saito-admin1/` · app: `artifacts/saito-admin/` (git path prefix `artifacts/saito-admin/`)
-- **HEAD:** `49fa87a0` (§2h morph/cart/DB-hygiene batch) + üzərində 1 kiçik docs commit (§6 chain fix). Əvvəlki: `a1dacd86` (§2g). Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`. Variant qərari: **V1 "Clean list"**. **⏳ AÇIQ:** §3-D Tarixçə modal-girişi bug (brauzer reproduksiya növbəti round — bu turn-də browser relay fail oldu).
+- **HEAD:** `50e0fb63` (entry-bug fix: mount-prefetch SWR + primeCache 500-catch + morph visibility) + üstündə **MORPH V2 batch** (deterministik manual ghost — layoutId bir-istiqamətli çıxdı) + 1 docs commit. Zəncir: `git log --oneline -7`. Variant qərari: **V1 "Clean list"**. **BÜTÜN owner nöqtələri (a-e) TAMAMDIR** — §3-D də ✅ FIXED (E2E rAF trace, dark+light, 0 console error). Repo **TƏMİZDİR**, `origin/main` ilə sinxron.
   - ⚠️ Əvvəl burada "HEAD `b469f842` — 7 fayl UNCOMMITTED" yazırdı — **o qeyd KÖHNƏ idi** (§2-dəki 7 fayl həmin anda commit olunmuşdu).
 - **Dev server:** `http://localhost:3000` (adətən işləyir; yoxdursa `corepack pnpm dev` inside `artifacts/saito-admin/`)
 - **Login:** `/login` → PIN **4321** · POS: `/admin/pos`
@@ -149,9 +149,10 @@ Tarixçə qiyməti + variant qərari + Kassa label-ları + VKB stacking/stil + T
 - **(a) Mərtəbə çipi ⇄ tab pill morph** (WhatsApp-style shared element): `layoutId="pos-floor-chip"` — İÇƏRİDƏ-da `LiquidDropdown` trigger (yeni `layoutId` prop), TAKEAWAY/ÇATDIRILMA-da `DragTabSwitcher`-in aktiv pill-in MƏRKƏZİNƏ `pillOverlay` (yeni optional prop) ilə dot; Framer layoutId projection = çip pill-ə uçub əriyir / geri çıxır (260ms `[0.45,0,0.55,1]`, zero overshoot). `floors>1` şərti ilə fəaliyyət göstərir (DB-də 2 floor).
 - **(b) Səbət Customer Info-da qalır**: `page.tsx`-də `{posPhase !== 'customer' && (cart)}` gate SİLİNDİ — 440px column həmişə mounted. Phase exit-ləri enter-in exact reverse-etdi (customer `y:14 scale:0.99`, products `y:10`) — "açılış bizə doğru, bağlanış eyni yol əksinə".
 - **(c) Owner təsdiqi**: Tarixçə modal (ş4) + detail (ş5) + refund (ş6) dizaynları **qəbul olundu — toxunulmadı**.
-- **(d) ⏳ Tarixçə modal-girişi bug** → §3-D (açıq, brauzer reproduksiya).
+- **(d) ✅ Tarixçə modal-girişi bug DÜZƏLDİLDİ** (E2E-reproduksiya olundu: mount-prefetch SWR + "Yüklenir..." subtitle + `primeCache` 500-catch — detal §3-D).
 - **(e) DB HYGIENE**: orders 849→0 (bütün data dev/test: 2026-03-19→09-27, Admin Updated/superadmin/test staff) + uşaqlar (items 891, payments 161+2, events 54, cancelled 25, kitchen 24+3, logs 351+392+130, inventory 64). Immutable trigger-lər (`order_payments`, `inventory_logs`) transaction içində disable/enable; `table_floors` (107 masa) + floors + staff + customers + reservations + Kassa saxlanıldı. Detal: jurnal §10.
-- **E2E**: ⏳ browser relay fail (circuit breaker: stale fused-ref + tab-loss) — növbəti round-da 41-54 screenshot protocolu (jurnalda).
+- **E2E**: ✅ TAMAM (2 browser round, rAF rect trace + frame sampling, dark+light): entry anında (flash YOX), 500 badge YOX (`__errs=[]`), morph OUT 253ms chip-box→pill-center (start **bayer-bayer** chip box), IN 334ms pill-center→chip-box, console errors 0, layout breakage 0. Screenshotlar: `e2e-shots/41-65, 55-58, 70/80-final`.
+- **⚠️ MORPH V2 (möhüm)**: layoutId projection E2E-də yalnız chip→pill istiqamətində işlədi (opacity-0-da bitən elementdən framer project etmir) → morph indi **deterministik manual ghost**dur (`page.tsx` `handleTabMorph` + `fixed left-0 top-0` ghost; `DragTabSwitcher.onBeforeChange` klik anında fırlanır). **CRITICAL PITFALL:** fixed element + Framer x/y = flow pozisiyasına transform — `left-0 top-0` olmadan +346/+68 offset (E2E ölçdü). Ghost semantika: qaytış çipin SONUNCU BİRLƏŞDİYİ pill-dən (məs. TAKEAWAY-dan İÇƏRİDƏ-yə → ghost TAKEAWAY pillindən çıxır).
 
 ## 3. BUG STATUS — A ✅ FIXED · B ✅ FIXED · C ⏳ (owner qərarı) · D ⏳ AÇIQ
 

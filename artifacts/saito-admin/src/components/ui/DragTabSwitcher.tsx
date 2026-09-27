@@ -25,11 +25,11 @@ interface DragTabSwitcherProps {
     labelColor?: string;
     boxShadow?: string;
   };
-  /** 2026-09-27 (owner): a node rendered INSIDE the sliding pill, centered
-      (wrapper is absolute inset-0 flex, pointer-events-none). The POS page uses
-      it as the landing spot for the floor-chip layoutId morph — the chip flies
-      into the active tab's pill and dissolves there. */
-  pillOverlay?: React.ReactNode;
+  /** 2026-09-27 (owner, floor-chip morph): fired the moment a tab switch
+      STARTS — for CLICKS, before the pill travel begins; for DRAGS, right
+      before the value commits. The POS page uses it to launch the floor-chip
+      ⇄ tab-pill ghost flight while both source and target are measurable. */
+  onBeforeChange?: (next: string) => void;
 }
 
 const HOLD_THRESHOLD = 120;
@@ -40,7 +40,7 @@ const HOLD_THRESHOLD = 120;
 const TRAVEL_SPRING = { stiffness: 420, damping: 28, mass: 0.38 };
 const SETTLE_SPRING = { stiffness: 480, damping: 24, mass: 0.36 };
 
-export function DragTabSwitcher({ items, value, onChange, containerClassName, activeStyle, pillOverlay }: DragTabSwitcherProps) {
+export function DragTabSwitcher({ items, value, onChange, containerClassName, activeStyle, onBeforeChange }: DragTabSwitcherProps) {
   const { lightMode } = useTheme();
   const [isDragging, setIsDragging] = useState(false);
   const [previewTab, setPreviewTab] = useState<string | null>(null);
@@ -188,6 +188,7 @@ export function DragTabSwitcher({ items, value, onChange, containerClassName, ac
             dragState.current.hasMoved = false;
             animationRef.current = null;
             if (targetId !== value) {
+              onBeforeChange?.(targetId);
               onChange(targetId);
             }
           },
@@ -206,6 +207,11 @@ export function DragTabSwitcher({ items, value, onChange, containerClassName, ac
       return;
     }
     if (tabId === value) return;
+
+    // 2026-09-27 (floor-chip morph): the POS ghost flight must launch AT THE
+    // CLICK — before the ~340ms pill travel — because the floor chip is only
+    // mounted + measurable now (onChange fires when the pill ARRIVES).
+    onBeforeChange?.(tabId);
 
     const target = measureTab(tabId);
     if (!target) return;
@@ -336,22 +342,13 @@ export function DragTabSwitcher({ items, value, onChange, containerClassName, ac
                ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.18)'
                : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 3px rgba(0,0,0,0.08)'),
         }}
-        transition={{
+         transition={{
           type: 'spring',
           stiffness: SETTLE_SPRING.stiffness,
           damping: SETTLE_SPRING.damping,
           mass: SETTLE_SPRING.mass,
         }}
-      >
-        {/* Floor-chip morph landing spot: a plain centered wrapper (NOT a
-            motion element) so the layoutId anchor inside it gets projected
-            from the chip's box without fighting the pill's own transforms. */}
-        {pillOverlay && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-            {pillOverlay}
-          </div>
-        )}
-      </motion.div>
+      />
 
       {/* QA bug 15 (2026-09-22): this sliding layer re-renders every label as a
           visual mirror of the base buttons — the duplicated text was exposed to

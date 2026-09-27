@@ -16,14 +16,9 @@ interface LiquidDropdownProps {
   activeId: string;
   onChange: (id: string) => void;
   className?: string;
-  /** 2026-09-27 (owner): shared-element identity for the WhatsApp-style floor-chip
-      morph — when this dropdown unmounts (tab switch to Takeaway/Delivery) the
-      matching layoutId anchor in the active tab pill projects from THIS box,
-      so the chip visibly "flies into" the pill instead of vanishing. */
-  layoutId?: string;
 }
 
-export const LiquidDropdown = React.memo(function LiquidDropdown({ options, activeId, onChange, className = '', layoutId }: LiquidDropdownProps) {
+export const LiquidDropdown = React.memo(function LiquidDropdown({ options, activeId, onChange, className = '' }: LiquidDropdownProps) {
   const { lightMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -55,21 +50,12 @@ export const LiquidDropdown = React.memo(function LiquidDropdown({ options, acti
     <div ref={dropdownRef} className={`relative select-none ${className}`}>
       {/* ── TRIGGER PILL ── */}
       <motion.div
-        data-floor-chip={layoutId ? 'pos' : undefined}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
         whileTap={{ scale: 0.98 }}
-        layoutId={layoutId}
-        initial={layoutId ? { opacity: 0 } : false}
-        animate={layoutId ? { opacity: 1 } : undefined}
-        transition={layoutId ? {
-          layout: { duration: 0.26, ease: [0.45, 0, 0.55, 1] },
-          opacity: { duration: 0.26, ease: [0.45, 0, 0.55, 1] },
-          ...springConfig,
-        } : undefined}
         className={`relative flex items-center justify-between gap-3 px-6 py-2.5 rounded-full border cursor-pointer transition-all duration-300 z-30 min-w-[120px] ${
           isOpen 
             ? lightMode ? 'bg-zinc-900 text-white border-transparent shadow-xl' : 'bg-white text-black border-transparent shadow-xl'

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
@@ -240,6 +240,63 @@ export default function POSPage() {
   }, []);
   const waitlistCount = useWaitlistCount(posMode === 'dine_in' && waitlistEnabled);
   const setPosMode = pos.setPosMode;
+  /* ═══ 2026-09-27 (owner: "mərtəbə çipi aktiv tab pill-ə uçub onunla
+     birləşsin — WhatsApp-style") ═══
+     Deterministic manual shared-element flight. (First try used a framer
+     layoutId projection — E2E proved it fires ONE direction only: the
+     chip→pill fly worked, pill→chip did not, because the handoff source had
+     finished at opacity 0. So the flight is now measured + animated by
+     hand: a chip-styled fixed-position ghost animates box→point (OUT) or
+     point→box (IN) over 260/340ms [0.45,0,0.55,1] (zero overshoot); the
+     real chip dims over 150ms so there is never a double image.) */
+  type FloorMorphRect = { x: number; y: number; w: number; h: number };
+  const tabGroupRef = useRef<HTMLDivElement>(null);
+  const chipWrapRef = useRef<HTMLDivElement>(null);
+  const chipRectRef = useRef<FloorMorphRect | null>(null);
+  const [morphGhost, setMorphGhost] = useState<{ id: number; dir: 'out' | 'in'; from: FloorMorphRect; to: FloorMorphRect } | null>(null);
+  const [chipDimmed, setChipDimmed] = useState(false);
+
+  // Keep the chip's last known box fresh (window resize / floor count change).
+  useLayoutEffect(() => {
+    if (posMode === 'dine_in' && chipWrapRef.current) {
+      const r = chipWrapRef.current.getBoundingClientRect();
+      chipRectRef.current = { x: r.x, y: r.y, w: r.width, h: r.height };
+    }
+  }, [posMode, pos.floors.length, lightMode]);
+
+  // Safety: the chip must never be left invisible if a flight is lost.
+  useEffect(() => {
+    if (posMode === 'dine_in' && chipDimmed) {
+      const t = setTimeout(() => setChipDimmed(false), 600);
+      return () => clearTimeout(t);
+    }
+  }, [posMode, chipDimmed]);
+
+  // Called by DragTabSwitcher the moment a tab switch STARTS (before the
+  // pill travel) — the only point where both the chip (OUT) / the current
+  // pill rest position (IN) and the target tab are measurable.
+  const handleTabMorph = useCallback((next: string) => {
+    if (pos.floors.length < 2) return; // single floor → no chip → no morph
+    const container = tabGroupRef.current;
+    if (!container) return;
+    const btns = Array.from(container.querySelectorAll('button'));
+    const idx = (id: string) => ['dine_in', 'takeaway', 'delivery'].indexOf(id);
+    const pointAt = (r: DOMRect): FloorMorphRect => ({ x: r.left + r.width / 2 - 4, y: r.top + r.height / 2 - 4, w: 8, h: 8 });
+    if (next !== 'dine_in') {
+      const chipRect = chipRectRef.current;
+      const target = btns[idx(next)];
+      if (!chipRect || !target) return;
+      setMorphGhost({ id: Date.now(), dir: 'out', from: { x: chipRect.x, y: chipRect.y, w: chipRect.w, h: chipRect.h }, to: pointAt(target.getBoundingClientRect()) });
+      setChipDimmed(true); // chip fades 150ms while the ghost flies from its box
+    } else {
+      const from = btns[idx(pos.posMode)];
+      const chipRect = chipRectRef.current;
+      if (!from || !chipRect) return;
+      setMorphGhost({ id: Date.now(), dir: 'in', from: pointAt(from.getBoundingClientRect()), to: { x: chipRect.x, y: chipRect.y, w: chipRect.w, h: chipRect.h } });
+      setChipDimmed(true); // the incoming chip mounts dimmed; fades in on ghost landing
+    }
+  }, [pos.floors.length, pos.posMode]);
+
   const [posRole, setPosRole] = useState<string | null>(null);
   const posRoleNorm = posRole?.toLowerCase() || '';
   const isCashierOrAdmin = ['cashier', 'superadmin'].includes(posRoleNorm);
@@ -2226,6 +2283,7 @@ export default function POSPage() {
        {/* MODE SWITCHER — always visible */}
            <div className="flex items-center gap-4 px-6 pt-2 pb-2">
             <h1 className="text-2xl font-black tracking-tighter">POS</h1>
+            <div ref={tabGroupRef} className="flex-shrink-0">
             <DragTabSwitcher
               items={[
                 { id: 'dine_in', label: t('dine_in'), icon: Utensils, dotColor: '#10b981' },
@@ -2233,39 +2291,7 @@ export default function POSPage() {
                 { id: 'delivery', label: t('delivery'), icon: Bike, dotColor: '#3b82f6' },
               ]}
               value={posMode}
-              // 2026-09-27 (owner: "mərtəbə çipi tab dəyişəndə bir anda yox
-              // olmasın — aktiv tab pill-ə doğru uçup onunla birləşsin"): the
-              // floor chip (LiquidDropdown, layoutId="pos-floor-chip") is
-              // absent on Takeaway/Delivery. While it's absent, this tiny dot
-              // sits centered inside the active sliding pill with the SAME
-              // layoutId — Framer projects it from the chip's last box (chip
-              // "flies in" and dissolves into the pill) and back on the return
-              // (chip emerges from the pill). 260ms in-out ease, zero
-              // overshoot — same family as the sheet pills.
-              pillOverlay={
-                pos.floors.length > 1 && posMode !== 'dine_in' ? (
-                  // 2026-09-27 (E2E catch): a 12px faint dot read as "no
-                  // morph" — the landing spot is now CHIP-STYLED (same idle
-                  // surface/border as the chip) and sized w-16 h-6, so the
-                  // projected flight from the chip's box is clearly visible:
-                  // the chip silhouette shrinks into the pill and dissolves.
-                  <motion.div
-                    data-floor-chip-ghost
-                    layoutId="pos-floor-chip"
-                    initial={{ opacity: 1 }}
-                    animate={{ opacity: 0 }}
-                    transition={{
-                      layout: { duration: 0.26, ease: [0.45, 0, 0.55, 1] },
-                      opacity: { duration: 0.26, ease: [0.45, 0, 0.55, 1] },
-                    }}
-                    className={`h-6 w-16 rounded-full border ${
-                      lightMode
-                        ? 'bg-[#efeff4] border-black/[0.06] shadow-sm'
-                        : 'bg-white/[0.08] border-white/[0.12]'
-                    }`}
-                  />
-                ) : null
-              }
+              onBeforeChange={handleTabMorph}
               onChange={(mode) => {
                 // Delivery Phase 2: master switch off → the delivery mode is
                 // not reachable from the chip (settings.delivery_enabled).
@@ -2277,18 +2303,49 @@ export default function POSPage() {
                 pos.setActiveView('floor');
               }}
             />
+            </div>
             {pos.floors.length > 1 && posMode === 'dine_in' ? (
-            <LiquidDropdown
-              options={pos.floors.map((f: any) => ({ id: f.name, label: f.name }))}
-              activeId={activeFloor?.name}
-              onChange={setSelectedFloor}
-              // Same layoutId as the pillOverlay dot above — the shared-element
-              // identity behind the floor-chip ⇄ tab-pill morph (2026-09-27).
-              layoutId="pos-floor-chip"
-            />
+              // Wrapper carries the dim (150ms) during the ghost flight and
+              // exposes data-floor-chip for the E2E rect trace.
+              <div
+                ref={chipWrapRef}
+                data-floor-chip
+                style={{ opacity: chipDimmed ? 0 : 1, transition: 'opacity 150ms ease' }}
+              >
+                <LiquidDropdown
+                  options={pos.floors.map((f: any) => ({ id: f.name, label: f.name }))}
+                  activeId={activeFloor?.name}
+                  onChange={setSelectedFloor}
+                />
+              </div>
           ) : pos.floors.length > 1 ? (
             <div className="w-[120px]" />
           ) : null}
+            {/* The morph GHOST (2026-09-27): chip-styled fixed-position flight
+                between the chip slot and the active tab pill. OUT = box→point
+                + fade out (chip dissolves into the pill); IN = point→box +
+                fade in (chip emerges from the pill). 'in' runs 340ms so it
+                lands exactly when the pill arrival flips posMode. */}
+            {morphGhost && (
+              <motion.div
+                key={morphGhost.id}
+                data-floor-chip-ghost
+                // left-0 top-0 is CRITICAL: this is a fixed element and Framer
+                // x/y are TRANSFORMS added to the element's flow position.
+                // Without the origin anchor the flight renders offset by the
+                // element's own flow slot (E2E measured +346/+68 — the ghost
+                // flew from the wrong corner). Anchored at (0,0), the traced
+                // viewport rects land EXACTLY on the chip box / pill center.
+                className={`fixed left-0 top-0 z-[150] pointer-events-none rounded-full border ${lightMode ? 'bg-[#efeff4] border-black/[0.06] shadow-sm' : 'bg-white/[0.08] border-white/[0.12]'}`}
+                initial={{ x: morphGhost.from.x, y: morphGhost.from.y, width: morphGhost.from.w, height: morphGhost.from.h, opacity: morphGhost.dir === 'out' ? 1 : 0 }}
+                animate={{ x: morphGhost.to.x, y: morphGhost.to.y, width: morphGhost.to.w, height: morphGhost.to.h, opacity: morphGhost.dir === 'out' ? 0 : 1 }}
+                transition={{ duration: morphGhost.dir === 'in' ? 0.34 : 0.26, ease: [0.45, 0, 0.55, 1] }}
+                onAnimationComplete={() => {
+                  setMorphGhost(null);
+                  if (morphGhost.dir === 'in') setChipDimmed(false);
+                }}
+              />
+            )}
            <div className="flex-1" />
            {/* pr v1 — print queue badge (queued jobs for this location) */}
            {(printQueue.queued > 0 || printQueue.claimed > 0) && (

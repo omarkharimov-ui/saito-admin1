@@ -6,7 +6,7 @@
 ## 0. STATUS QISCA
 
 - **Repo:** `/Users/mr.apple/saito-admin1/` · app: `artifacts/saito-admin/` (git path prefix `artifacts/saito-admin/`)
-- **HEAD:** `a1dacd86` (§2g modal/VKB batch) **+ §2h morph/cart/DB-hygiene batch commit-i**. Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`. Variant qərari: **V1 "Clean list"**. **⏳ AÇIQ:** §3-D Tarixçə modal-girişi bug (brauzer reproduksiya növbəti round — bu turn-də browser relay fail oldu).
+- **HEAD:** `49fa87a0` (§2h morph/cart/DB-hygiene batch) + üzərində 1 kiçik docs commit (§6 chain fix). Əvvəlki: `a1dacd86` (§2g). Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`. Variant qərari: **V1 "Clean list"**. **⏳ AÇIQ:** §3-D Tarixçə modal-girişi bug (brauzer reproduksiya növbəti round — bu turn-də browser relay fail oldu).
   - ⚠️ Əvvəl burada "HEAD `b469f842` — 7 fayl UNCOMMITTED" yazırdı — **o qeyd KÖHNƏ idi** (§2-dəki 7 fayl həmin anda commit olunmuşdu).
 - **Dev server:** `http://localhost:3000` (adətən işləyir; yoxdursa `corepack pnpm dev` inside `artifacts/saito-admin/`)
 - **Login:** `/login` → PIN **4321** · POS: `/admin/pos`
@@ -286,4 +286,4 @@ Gallery-da 'Sil' basanda şəkillər bir anda yox olmur; yavaş və zərif fade-
 - `e2e-shots/*.png` — owner baxışı üçün saxlanıldı (13 screenshot); istəsən sil.
 
 ## 6. KOMMIT GİSİ (gələn round üçün)
-Son commits: `f91f5c15` (design batch: tabs crossfade + 3 variants + ORD sil + Kassa Apple-minimal, §2f) ← `cccbffe9` (tech batch: guest optimistic + SWR + blur single-clock + VKB, §2e) ← `297e26b0` (cart body crossfade, §2d) ← `8fff6c6f` (Təmizlə/Ləğv morph bərpa, §2c) ← `4b507c5e` (60s sync verify) ← `1b5cd979` (Bug A+B, §2b) ← `080742b5` (HANDOVER §4.0) ← `b469f842` (ghost blue border fix) ← `9f4e5302` (1px ring fix) ← `9e3c50c2` / `0253c58e` (border transparent) ← `3eea7dfe` (border grace 320ms — ring bug buradan gəldi) ← `0ba5ecd0` (cart counter-roll RESTORE) ← `a3021e4a` (grace doctrine + presence fixes).
+Son commits: `49fa87a0` (morph + cart-persist + DB hygiene, §2h — ⏳ E2E + §3-D pending) ← `a1dacd86` (modal/VKB batch: refund 2-col + VKB stacking/Apple restyle + Kassa label + TableCard, §2g) ← `f91f5c15` (design batch: tabs crossfade + 3 variants + ORD sil + Kassa Apple-minimal, §2f) ← `cccbffe9` (tech batch: guest optimistic + SWR + blur single-clock + VKB, §2e) ← `297e26b0` (cart body crossfade, §2d) ← `8fff6c6f` (Təmizlə/Ləğv morph bərpa, §2c) ← `4b507c5e` (60s sync verify) ← `1b5cd979` (Bug A+B, §2b) ← `080742b5` (HANDOVER §4.0) ← `b469f842` (ghost blue border fix) ← `9f4e5302` (1px ring fix) ← `9e3c50c2` / `0253c58e` (border transparent) ← `3eea7dfe` (border grace 320ms — ring bug buradan gəldi) ← `0ba5ecd0` (cart counter-roll RESTORE) ← `a3021e4a` (grace doctrine + presence fixes).

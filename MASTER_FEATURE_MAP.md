@@ -809,6 +809,14 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-27 (FLOOR CLEAN — "borderleri hamisi agdir nie": boş masalardan border götürüldü)
+- **Owner turn**: screenshot + "bunedir ag ag" / "borderleri hamisi agdir nie".
+- **Cause**: 2026-09-25 board-card redesign-də HƏR kart status-accent border aldı; empty dark = `border-white/10`. 1-ci mərtəbədə 95 masanın 90-ı boş → bütün floor ağ çərçivəli grid kimi görünürdü (grace fade border-ləri diqqət çəkdikdən sonra owner bunu daha aydın gördü).
+- **Fix (1 sətir, TableCard stateBorder)**: empty dark → **`border-transparent`** (kart səthi #141419 öz kənarını verir). State accent-lər (emerald/indigo/amber/rose) toxunulmadı. Bonus: yeşil border indi transparent-dan "yaranır" — 320ms grace fade ilə daha təmiz birth.
+- **E2E visual proof**: 12 kart dump — BOŞ (15, 98, 99, 471, 472) = `rgba(0,0,0,0)` ✅ · occupied/seated/cleaning (14, 17, 401, 502, 901, 97, 511) = emerald 0.45 ✅ · screenshot `saito-pos-floor.png` (workspace).
+- **Qeyd (design)**: 'cleaning' status hazırda isOccupied family-dədır → emerald border + amber TƏMİZLƏNMƏLİ chip. Owner soruşarsa: cleaning-ə öz amber border-i ayrıca qərardır.
+- Verify: tsc 0 error · 1 file.
+
 ### Jurnal sətiri — 2026-09-27 (TABLE BORDER GRACE — "mavi border kimi" yaşıl border fade-out: Dismiss / Sərbəst burax / Hesabı bağla)
 - **Owner turn**: "Masadan çıxanda mavi border-in fade-out çox uğurludur. Eyni zərif fade-out-u 'Dismiss table', 'Sərbəst burax', 'Hesabı bağla' state machine-lərində də tətbiq et — yaşıl border anidən yox olur."
 - **Təhlil**: 3 axının hamısı green(emerald) border-i mənbəyidir — occupied→empty (Masanı boşalt), paid→empty (Sərbəst burax), occupied→paid (Hesabı Bağla — burada border eyni emerald kalır, yox olma Sərbəst burax-da olur). Root cause: card-ın `border-color` CSS transition-u **200ms decel**-idi, content isə **320ms blur drift** edir → border content-ən əvvəl "snap" edirdi; mavi ring (1.5s) isə uğurlu referens idi. Node remount DEYİLDİ (probe: data-probe-tag 1801+876 frame boyu keçdi, 0 REMOVED/WRONGNODE).

@@ -355,13 +355,14 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
             ? (lightMode ? 'border-amber-300' : 'border-amber-500/40')
             : isOccupied
               ? (lightMode ? 'border-emerald-400/70' : 'border-emerald-500/45')
-              // 2026-09-27 (owner: "borderleri hamisi agdir nie"): an EMPTY
-              // table shows NO border in dark mode — 90/95 cards at white/10
-              // made the whole floor look like a glowing grid. The card
-              // surface (#141419) already defines the edge; only tables with
-              // a REAL state get the accent border. Green also now "yaranır"
-              // from transparent — cleaner birth, same 320ms grace fade.
-              : (lightMode ? 'border-zinc-200' : 'border-transparent');
+               // 2026-09-27 (owner: "borderleri hamisi agdir nie"): an EMPTY
+               // table shows NO border in EITHER theme. Dark: the surface
+               // (#141419) already defines the edge. Light: shadow-sm (in the
+               // base classes) defines the white card — a zinc-200 "white line
+               // on white card" across 90+ tables read as a washed-out grid.
+               // Only tables with a REAL state get the accent border. Green
+               // also now "yaranır" from transparent — same 320ms grace fade.
+               : 'border-transparent';
 
   return (
          <motion.div

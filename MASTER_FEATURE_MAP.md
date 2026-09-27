@@ -809,6 +809,19 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-27 (GUEST OPTİMİSTİK + MODAL STALE-WHILE-REVALIDATE + KASSA BLUR SINGLE-CLOCK + VKB FIT)
+
+- **Owner turn**: 6 nöqtəlik batch — (1) guest confirm gecikir; (2) 3 order-card variantı + ORD chip sil; (3) Tarixçə tabs qarışıq görünür — hamar transition + aktiv indikator; (4) VKB-açıldıqda modal balanssız/qalın düzbucaqlı; (5) Kassa "sadə şablon"dan çıxarmaq — Apple minimal/premium; (6) Kassa + Tarixçə gec açılır + "Tarixçə bluru möhtəşəm, Kassa-da modal açılır BLUR SONRA olur". Bu sətir **texniki batch** (1, 4, 6 + blur fix)-in nəticəsidir; dizayn nöqtələri (2, 3, 5) növbəti round-da.
+- **Task 1 — Guest OPTİMİSTİK update** (`CartPanel.tsx` + `page.tsx` + `usePos.tsx`): kök səbəb — köhnə kod `await POST` (server: 1 SELECT + N table PATCH + 1 order PATCH) edib, **sonra** `pos.fetchData()` TAM fan-out (floor + catalog + per-table prefetch) gözləyirdi. Fix: `onGuestCountSaved` **TAP-da** fırlanır (page.tsx optimistic `setCart({...cart, guest_count})`), POST background-da gedir; yalnız **COMMIT-də** `onGuestCountPersisted` → `pos.fetchFloor()` (yalnız floor card, catalog YOX — stale flash yox). `fetchFloor` hook-dan exposed olundu (1 sətir).
+- **Task 2 — Modal STALE-WHILE-REVALIDATE** (`CashDrawerPanel.tsx` + `OrderHistory.tsx`): hər iki modal blank mount edib spinner-da network-gözləyirdi. `hasLoadedOnce` ref: **yalnız ilk yük** spinner gate-i göstərir; re-open cache-dəki session/orders **dərhal** render olur, refresh background-da.
+- **Task 3 — Kassa blur SINGLE-CLOCK** (`CashDrawerPanel.tsx`): kök səbəb — Kassa `backdrop-blur-sm`-i **nested veil child** (z-0, `pointer-events-none` root-də, transition-siz) üzərinə qoyurdu → blur card-dan SONRA composite olundu. Tarixçə-nin quruluşuna köçdü: **root** = clickable blurred backdrop (`bg-black/20 backdrop-blur-sm`) `fastExit` clock-da; **card** = child (`stopPropagation`). Ayrı veil YOX.
+- **Task 4 — VKB FIT** (hər iki modal): köhnə `calc(var(--vk-height, 0px) + 16px)` **heç vaxt təyin olunmamış** CSS var idi (dead code). İndi hər ikisi `useKeyboardHeight()` (visualViewport): keyboardHeight>0 → card `maxHeight: calc(100vh - keyboardHeight - 32px)` + backdrop `paddingBottom: keyboardHeight+16` → modal görünən sahəyə balanslı uyğunlaşır, input kəsilir YOX. (Desktop-də VKB yoxdur — code-only fix, mobil E2E lazımdır.)
+- **E2E (Chrome :3000, rAF sampling, real DB-yə 0 yazı)**:
+  - **Task 1**: guest +/− instant (**~31ms**); ✓ confirm **52ms** (köhnə: 1500ms+ network+fanout gözləmə); "3 Nəfər" chip persist oldu; masa 15 empty-ya restore.
+  - **Task 2**: Kassa ilk-open **4333ms** → re-open **65–68ms** · Tarixçə ilk-open **1115ms** → re-open **179ms** — re-open instant (cached).
+  - **Task 3**: hər iki modal `backdrop-filter: blur(8px)` **animated root**-da, ~280ms opacity ramp **SYNC**, nested veil yox → "Kassa blur sonraydı" ARDAN QALDIRILDI.
+- Verify: `tsc --noEmit` app-scope **0 xəta** · **5 fayl** (`CartPanel.tsx`, `CashDrawerPanel.tsx`, `OrderHistory.tsx`, `usePos.tsx`, `page.tsx`) · screenshots `e2e-shots/20-kassa-blur-sync.png`, `20-kassa-reopen-instant.png`.
+
 ### Jurnal sətiri — 2026-09-27 (CART BODY STATE MACHINE — empty↔items CROSSFADE, ~320ms blank gap aradan qaldırıldı)
 
 - **Owner turn**: "sebet instant deyisiklik gosterir (hem elave, hem Təmizlə); masa bos olanda Təmizlə button/placeholder desync; webde arastirsan gorersen STATE MACHINE ne duseren".

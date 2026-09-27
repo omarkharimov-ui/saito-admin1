@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Printer, X, ChevronLeft, Search, CalendarDays, RefreshCw, Split, Receipt, User, Users, Wallet, CreditCard, Package, AlertTriangle, ChevronRight, Minus } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -106,6 +107,8 @@ interface OrderHistoryProps {
 export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const { lightMode } = useTheme();
   const { t } = useLanguage();
+  const keyboardHeight = useKeyboardHeight();
+  const hasLoadedOnce = useRef(false); // stale-while-revalidate gate (Task 2)
   const [orders, setOrders] = useState<PaidOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [reprinting, setReprinting] = useState<string | null>(null);
@@ -148,7 +151,11 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   }, [statusFilter, filter, dateFrom, dateTo]);
 
   const fetchOrders = useCallback(async () => {
-    setLoading(true);
+    // 2026-09-27 (owner: "Tarixçə çox gec açılır") — STALE-WHILE-REVALIDATE:
+    // only the very first load gates on a spinner; re-opens / filter changes
+    // show the cached list immediately and refresh in the background.
+    if (!hasLoadedOnce.current) setLoading(true);
+    hasLoadedOnce.current = true;
     setLoadedCount(0);
     try {
       const res = await apiFetch(`/api/orders/history?${buildParams(0)}`);
@@ -378,14 +385,15 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         transition={fastExit}
         className="fixed inset-0 z-[125] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
-        style={{ paddingBottom: 'calc(var(--vk-height, 0px) + 16px)' }}
+        style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
         onClick={onClose}
       >
         <motion.div
           {...centerModal}
           className={`relative w-full max-w-xl rounded-[32px] shadow-overlay border ${
             lightMode ? 'bg-white/95 border-zinc-200' : 'bg-zinc-900/95 border-white/10'
-          } overflow-hidden max-h-[85vh] flex flex-col`}
+          } overflow-hidden flex flex-col`}
+          style={{ maxHeight: keyboardHeight > 0 ? `calc(100vh - ${keyboardHeight + 32}px)` : '85vh' }}
           onClick={e => e.stopPropagation()}
         >
           {/* Header — 2026-09-27 premium pass (owner: "modal düzbucaqlı forma...

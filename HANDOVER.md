@@ -6,7 +6,7 @@
 ## 0. STATUS QISCA
 
 - **Repo:** `/Users/mr.apple/saito-admin1/` · app: `artifacts/saito-admin/` (git path prefix `artifacts/saito-admin/`)
-- **HEAD:** `080742b5` (HANDOVER §4.0 state-machine quruluşu) **+ BUG A/B fix commit-i** (§2b). Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`.
+- **HEAD:** `297e26b0` (Cart body crossfade, §2d) **+ §2e tech-batch commit-i**. Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`.
   - ⚠️ Əvvəl burada "HEAD `b469f842` — 7 fayl UNCOMMITTED" yazırdı — **o qeyd KÖHNƏ idi** (§2-dəki 7 fayl həmin anda commit olunmuşdu).
 - **Dev server:** `http://localhost:3000` (adətən işləyir; yoxdursa `corepack pnpm dev` inside `artifacts/saito-admin/`)
 - **Login:** `/login` → PIN **4321** · POS: `/admin/pos`
@@ -81,6 +81,28 @@ Təmizlə/placeholder **desync**; state machine düşün".
   items-lə birlikdə fade olur. Primary CTA (MASANI TUT/Sifariş) + modallar sibling, toxunulmadı.
 - E2E: ADD/CLEAR dark+light — **0 blank frame**, max overlap ~0.4–0.67, row body ilə fade.
 - Detal: jurnal `MASTER_FEATURE_MAP.md` §10 (newest-first) · screenshots `e2e-shots/19-crossfade-*.png`.
+
+## 2e. TECH BATCH (2026-09-27, owner 6-nöqtəlik turn) — ✅ TAMAM
+
+Owner turn-un **texniki** hissəsi (guest confirm, modal açılış performansı, blur
+sync, VKB fit). Dizayn hissəsi (3 order-card variantı, Tarixçə tabs, Kassa
+Apple-minimal redesign) növbəti round. Dəyişən: **5 fayl** + sənədlər.
+
+- **Guest OPTİMİSTİK**: `commitGuestCount` tap-da `onGuestCountSaved` fırladır (cart
+  chip **instant**), POST background-da; commit-də `onGuestCountPersisted` →
+  `pos.fetchFloor()` (yalnız floor, `fetchData()` fan-out YOX). E2E: +/− ~31ms,
+  ✓ confirm **52ms** (köhnə 1500ms+).
+- **Modal STALE-WHILE-REVALIDATE**: `hasLoadedOnce` ref — spinner yalnız İLK
+  yükdə; re-open cache-dən instant + background refresh. E2E: Kassa 4333ms→
+  **65ms**, Tarixçə 1115ms→**179ms**.
+- **Kassa blur SINGLE-CLOCK**: blur nested veil-dən **animated root**-a köçdü
+  (`bg-black/20 backdrop-blur-sm` + `fastExit`), card child `stopPropagation` —
+  Tarixçə ilə eyni quruluş; "Kassa açılır, blur sonra olur" aradan qaldırıldı.
+- **VKB FIT**: hər iki modal `useKeyboardHeight()` (köhnə `var(--vk-height)`
+  DEAD idi); keyboardHeight>0 → card `maxHeight: calc(100vh - kh - 32px)` —
+  balanslı, input kəsilmir. Desktop E2E-olunmayıb (mobil lazımdır).
+- Detal: jurnal `MASTER_FEATURE_MAP.md` §10 (newest-first) · screenshots
+  `e2e-shots/20-*.png` (18-*-lərlə birlikdə bu round-un).
 
 ## 3. BUG STATUS — A ✅ FIXED · B ✅ FIXED · QALAN: §3-C
 
@@ -209,4 +231,4 @@ Gallery-da 'Sil' basanda şəkillər bir anda yox olmur; yavaş və zərif fade-
 - `e2e-shots/*.png` — owner baxışı üçün saxlanıldı (13 screenshot); istəsən sil.
 
 ## 6. KOMMIT GİSİ (gələn round üçün)
-Son commits: `b469f842` (ghost blue border fix) ← `9f4e5302` (1px ring fix) ← `9e3c50c2` / `0253c58e` (border transparent) ← `3eea7dfe` (border grace 320ms — ring bug buradan gəldi) ← `0ba5ecd0` (cart counter-roll RESTORE) ← `a3021e4a` (grace doctrine + presence fixes).
+Son commits: `297e26b0` (cart body crossfade, §2d) ← `8fff6c6f` (Təmizlə/Ləğv morph bərpa, §2c) ← `4b507c5e` (60s sync verify) ← `1b5cd979` (Bug A+B, §2b) ← `080742b5` (HANDOVER §4.0) ← `b469f842` (ghost blue border fix) ← `9f4e5302` (1px ring fix) ← `9e3c50c2` / `0253c58e` (border transparent) ← `3eea7dfe` (border grace 320ms — ring bug buradan gəldi) ← `0ba5ecd0` (cart counter-roll RESTORE) ← `a3021e4a` (grace doctrine + presence fixes).

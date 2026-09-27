@@ -2979,9 +2979,13 @@ export default function POSPage() {
                          onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
                           onEditGuestCount={() => { setActionSheetOpen(true); }}
                           onGuestCountSaved={(count) => {
+                              // 2026-09-27 (owner: guest confirm slow) — OPTIMISTIC: the cart
+                              // chip updates INSTANTLY on the tap. No heavy pos.fetchData()
+                              // fan-out here (that was the delay); the floor card refreshes
+                              // only after the POST commits (onGuestCountPersisted).
                               if (pos.cart) pos.setCart({ ...pos.cart, guest_count: count });
-                              pos.fetchData();
                             }}
+                          onGuestCountPersisted={() => pos.fetchFloor()}
                           onUpdateCustomer={(name) => pos.updateCartCustomer(pos.cart?.customer_id || null, name)}
                           onSelectCustomer={handleSelectCustomer}
                            onOpenCustomerPhase={() => {

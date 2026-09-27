@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText, CreditCard, Banknote, Landmark, Hourglass } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -88,7 +88,12 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
   const [zData, setZData] = useState<any>(null);
   const [zLoading, setZLoading] = useState(false);
 
+  // 2026-09-27 (owner: "Kassa çox gec açılır") — STALE-WHILE-REVALIDATE gate:
+  // the loading spinner only shows on the very first load; re-opens render the
+  // cached session/movements immediately and refresh in the background.
+  const hasLoadedOnce = useRef(false);
   const fetchData = useCallback(async () => {
+    hasLoadedOnce.current = true;
     try {
       const res = await apiFetch('/api/cash-drawer');
       if (res.ok) {
@@ -104,7 +109,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
 
   useEffect(() => {
     if (open) {
-      setLoading(true);
+      if (!hasLoadedOnce.current) setLoading(true);
       fetchData();
     }
   }, [open, fetchData]);
@@ -422,24 +427,30 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
           child inside AnimatePresence (was a plain div — the early
           `return null` unmounted the panel in one frame, no exit could play).
           Closing now fades the veil + settles the card over 300ms. */}
+      {/* 2026-09-27 (owner: "Tarixçə mohtəşəm blur, Kassa blur SONRA olur"): the
+          backdrop blur is on the ANIMATED ROOT (single `fastExit` clock, like
+          TARİXÇƏ) so blur ramps in SYNC with the fade. Root click = close; the
+          card stops propagation. VKB: card max-height follows the visible area. */}
       {open && (
       <motion.div
         key="kassa-root"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
-        className="fixed inset-0 z-[130] flex items-center justify-center pointer-events-none p-4"
+        exit={{ opacity: 0 }}
+        transition={fastExit}
+        className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
         style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
+        onClick={onClose}
       >
-        <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit}
-          className="fixed inset-0 z-0 pointer-events-auto bg-black/20 backdrop-blur-sm"
-          onClick={onClose}
-        />
+        {/* 2026-09-27 (owner: "klaviatura açılanda modal balanslı olsun") — with the
+            VKB up, max-height is relative to the VISIBLE area (above the keyboard),
+            not the full viewport, so the input stays visible (no clipped tall box). */}
         <motion.div
           {...centerModal}
-          className={`relative z-10 pointer-events-auto w-full max-w-lg rounded-[32px] shadow-overlay border ${
+          className={`relative w-full max-w-lg rounded-[32px] shadow-overlay border ${
             lightMode ? 'bg-white/95 border-zinc-200' : 'bg-zinc-900/95 border-white/10'
-          } overflow-hidden max-h-[85vh] flex flex-col`}
+          } overflow-hidden flex flex-col`}
+          style={{ maxHeight: keyboardHeight > 0 ? `calc(100vh - ${keyboardHeight + 32}px)` : '85vh' }}
+          onClick={e => e.stopPropagation()}
         >
           {/* Header — 2026-09-27 premium pass (owner: same doctrine as TARİXÇƏ):
               icon chip + title + live status subtitle, circular ghost close. */}

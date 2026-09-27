@@ -2013,7 +2013,7 @@ export function usePos() {
 
     return {
       floors, products, categories, combos, variantsByProduct, loading, floorLoadFailed, catalogLoadFailed, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode,
-      fetchData, selectTable, mergeTables, transferTable, dismissTable, releaseTable, clearTable, performUndo, seatTable,
+      fetchData, fetchFloor, selectTable, mergeTables, transferTable, dismissTable, releaseTable, clearTable, performUndo, seatTable,
       setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, resetCart, updateGuestCount,
       updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
       reservationMode, reservationId, reservationPreOrderItems, reservationInfo,

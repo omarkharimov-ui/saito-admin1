@@ -64,6 +64,8 @@ interface CartPanelProps {
   posMode?: 'dine_in' | 'takeaway' | 'delivery';
   onEditGuestCount?: () => void;
   onGuestCountSaved?: (count: number) => void;
+  /** Called AFTER the guest-count POST commits to the DB — refresh the floor card then (avoids a stale flash). */
+  onGuestCountPersisted?: () => void;
   onUpdateDeliveryFields?: (fields: {
     customer_phone?: string | null; customer_name?: string | null;
     delivery_address?: string | null; delivery_district?: string | null;
@@ -154,6 +156,7 @@ export function CartPanel({
   posMode = 'dine_in',
   onEditGuestCount,
   onGuestCountSaved,
+  onGuestCountPersisted,
   onUpdateDeliveryFields,
   onUpdateGlobalNote,
   onOpenModifiers,
@@ -329,29 +332,29 @@ export function CartPanel({
 
 
   const commitGuestCount = useCallback(async (count: number): Promise<boolean> => {
+    // 2026-09-27 (owner: "Guest təsdiqi çox gecikir, prosesi uzun çəkir") —
+    // OPTIMISTIC: the UI (cart chip) updates on the TAP, not after the network
+    // round-trip. The old code did `await POST` (1 SELECT + N PATCH + 1 PATCH on
+    // the server) and THEN a full pos.fetchData() fan-out (floor + catalog +
+    // per-table prefetch) before the UI updated — that was the delay. Now: the
+    // optimistic callback fires immediately, the POST persists in the background,
+    // and only when it COMMITS do we refresh the floor card (no stale flash).
+    onGuestCountSaved?.(count);
     setGuestSaving(true);
-    try {
-      const res = await apiFetch('/api/orders/guest-count', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_number: cart?.table_number, guest_count: count }),
-      });
-      if (res.ok) {
-        onGuestCountSaved?.(count);
-        return true;
-      } else {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err?.error || 'Qonaq sayı yenilənə bilmədi', { id: 'guest-count-error' });
-        return false;
-      }
-    } catch (e: any) {
-      console.error('[guest-count] save failed:', e);
-      toast.error(e?.message || 'Qonaq sayı yenilənə bilmədi', { id: 'guest-count-error' });
-      return false;
-    } finally {
-      setGuestSaving(false);
-    }
-  }, [cart?.table_number, onGuestCountSaved]);
+    apiFetch('/api/orders/guest-count', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table_number: cart?.table_number, guest_count: count }),
+    })
+      .then(res => {
+        if (res.ok) { onGuestCountPersisted?.(); return; }
+        res.json().catch(() => ({}))
+          .then(err => toast.error(err?.error || 'Qonaq sayı yenilənə bilmədi', { id: 'guest-count-error' }));
+      })
+      .catch((e: any) => toast.error(e?.message || 'Qonaq sayı yenilənə bilmədi', { id: 'guest-count-error' }))
+      .finally(() => setGuestSaving(false));
+    return true;
+  }, [cart?.table_number, onGuestCountSaved, onGuestCountPersisted]);
 
   const handleGuestSave = useCallback(async () => {
     const success = await commitGuestCount(localGuestCount);

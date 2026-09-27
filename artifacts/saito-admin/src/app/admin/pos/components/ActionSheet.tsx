@@ -583,7 +583,7 @@ export function ActionSheet({
 
                    {isDeliveryOnly ? (
                     <>
-                      <button onClick={() => setCardConfirmView(true)} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
+                      <button onClick={() => { /* 2026-09-27 (owner: terminal qoşulmayıb — tap-wait deaktiv): kart birbaşa capture */ onPaymentMethodSelect?.('card', undefined, parseFloat(tipAmount) || 0); }} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
                         <CreditCard size={20} strokeWidth={2.5} />
                         <span className="text-sm font-black tracking-wide">{t('card') || 'Kart'}</span>
                       </button>
@@ -604,7 +604,7 @@ export function ActionSheet({
                         <span className="text-sm font-black tracking-wide">{t('cash')}</span>
                       </button>
                       {/* Primary: Kart */}
-                      <button onClick={() => setCardConfirmView(true)} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
+                      <button onClick={() => { /* 2026-09-27 (owner: terminal qoşulmayıb — tap-wait deaktiv): kart birbaşa capture */ onPaymentMethodSelect?.('card', undefined, parseFloat(tipAmount) || 0); }} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
                         <CreditCard size={20} strokeWidth={2.5} />
                         <span className="text-sm font-black tracking-wide">{t('card') || 'Kart'}</span>
                       </button>

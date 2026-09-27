@@ -1287,10 +1287,14 @@ export default function POSPage() {
   };
 
   const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge' | string, tenderedAmount?: number, tipAmount?: number) => {
-    // 2026-09-26 (owner, Q7): card → terminal adapter first (simulator today;
-    // real PSP on owner decision — same interface, M wave).
+    // 2026-09-27 (owner: "kart seçəndə terminal modali gəlir — deaktiv et,
+    // terminal hələ qoşulmayıb"): the tap-to-handheld step is SKIPPED.
+    // Card captures directly (same ledger reference, same as the split flow).
+    // TerminalTapModal stays mounted + dormant — a real PSP (Harbon/SkyPay,
+    // M wave) re-introduces the tap step through terminalState.
     if (method === 'card') {
-      setTerminalState({ amount: cartTotalNow(), method, tendered: tenderedAmount, tip: tipAmount });
+      const code = `SIM-${Math.floor(100000 + Math.random() * 900000)}`;
+      await runPaymentFlow(method, tenderedAmount, tipAmount, code);
       return;
     }
     await runPaymentFlow(method, tenderedAmount, tipAmount);

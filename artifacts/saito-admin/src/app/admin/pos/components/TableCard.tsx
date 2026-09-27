@@ -406,27 +406,30 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
             on operations. The card IS the feedback — border crossfades, labels
             morph, content fades, card settles. The state change speaks. */}
 
-        {/* Top row: Table number + action (flex-flow, was absolute) */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <span className={`text-2xl font-black tracking-tighter ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isDirty ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isWaiting ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
-              {t('table' as any)} {table.table_number}
-            </span>
-            {table.pre_order && (
-              <span className={`px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
-                lightMode ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-white/10 text-white/70 border border-white/20'
-              }`}>
-                Pre-order
-              </span>
-            )}
-            {isGroup && groupNumber && (
-              <span className={`px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
-                lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
-              }`}>
-                {t('group_label')} {groupNumber}
-              </span>
-            )}
-          </div>
+         {/* Top row: Table number + action (flex-flow, was absolute).
+             2026-09-27 (E2E: "kartlar bir-birinə girib"): the title never
+             wraps onto two lines next to the QRUP/pre-order badges — nowrap +
+             truncate keeps the row at a single height on every viewport. */}
+         <div className="flex items-start justify-between gap-2 min-w-0">
+           <div className="flex items-center gap-1.5 min-w-0">
+             <span className={`text-2xl font-black tracking-tighter whitespace-nowrap truncate ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isDirty ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isWaiting ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
+               {t('table' as any)} {table.table_number}
+             </span>
+             {table.pre_order && (
+               <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
+                 lightMode ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-white/10 text-white/70 border border-white/20'
+               }`}>
+                 Pre-order
+               </span>
+             )}
+             {isGroup && groupNumber && (
+               <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
+                 lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
+               }`}>
+                 {t('group_label')} {groupNumber}
+               </span>
+             )}
+           </div>
             <div className="flex items-center gap-1">
               {/* 2026-09-23 (owner): guest + item counts live in the TOP row
                   (the empty space above the status chip) — "heç bir zaman"
@@ -471,9 +474,20 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
            </div>
          </div>
 
-        {/* Main content: Amount hero + guests (flex-flow, was absolute) */}
-        {showContent && (
-          <div className="mt-2.5 min-h-0 overflow-hidden">
+         {/* Main content: Amount hero + guests (flex-flow, was absolute).
+             Motion System — dismiss/clear choreography (owner: "reqemler,
+             border aniden yox olmasin, yavas fade out"): content drifts up +
+             blurs out over T.standard while the border crossfades in the
+             SAME 200ms window. On reveal (table opens) it settles in. */}
+         <AnimatePresence initial={false}>
+         {showContent && (
+           <motion.div
+             key="table-content"
+             initial={{ opacity: 0, y: 6, filter: 'blur(3px)' }}
+             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+             exit={{ opacity: 0, y: -6, filter: 'blur(3px)' }}
+             transition={{ duration: T.standard, ease: EASE.exit }}
+             className="mt-2.5 min-h-0 overflow-hidden">
               {/* Amount as hero element — Motion System: in-place morph
                   (old ₼13.00 drifts up+blurs out, ₼17.00 settles in).
                   No counter roll, no full-card re-render. */}
@@ -510,10 +524,11 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                </div>
              )}
 
-            </div>
-          )}
+             </motion.div>
+           )}
+         </AnimatePresence>
 
-        {/* Group children numbers */}
+         {/* Group children numbers */}
         {isGroup && mergedChildNumbers && (
           <div className="absolute top-[68px] right-5 flex flex-col gap-1">
             {mergedChildNumbers.map((num: number) => (

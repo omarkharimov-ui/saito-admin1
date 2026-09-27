@@ -102,7 +102,10 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
           transition={fastExit}
           className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/25 backdrop-blur-sm"
           onClick={onClose}
-          style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight : undefined }}
+          // 2026-09-27 (owner: "klavye popup-ın üstünə çıxır, yazmaq olmaz"):
+          // lift above BOTH the native keyboard and the in-app VirtualKeyboard
+          // (--vk-height is set globally on <html> while the VKB is open).
+          style={{ paddingBottom: `calc(var(--vk-height, 0px) + ${keyboardHeight > 0 ? keyboardHeight : 0}px + 16px)` }}
         >
           <motion.div
             {...appleCard}

@@ -23,10 +23,14 @@ export async function GET(req: Request) {
     const q = url.searchParams.get('q')?.toLowerCase().trim();
 
     if (q) {
+      // 2026-09-28 (fix): the old .or(keyword.ilike, keyword_en.ilike) 400'd
+      // because the `keyword_en` column does not exist in waste_standards —
+      // so the cache NEVER hit and every lookup hit the AI path. The table
+      // only has: id, keyword, waste_percentage, category, created_at.
       const { data: cached } = await supabase
         .from('waste_standards')
         .select('*')
-        .or(`keyword.ilike.${q},keyword_en.ilike.${q}`)
+        .ilike('keyword', q)
         .limit(1);
 
       if (cached && cached.length > 0) {

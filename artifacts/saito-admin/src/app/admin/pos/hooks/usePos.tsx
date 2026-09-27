@@ -1094,35 +1094,34 @@ export function usePos() {
         return;
       }
     }
-    const existing = items.find(
-      i => String(i.product_id) === String(p.id)
-        && (i.variant_id ?? null) === variantId
-        && JSON.stringify(i.modifiers || []) === JSON.stringify(opts?.modifiers || [])
-        && (i.special_notes || '') === (opts?.notes || '')
-    );
-    if (existing) {
-      existing.quantity += addQty;
-      existing.total_price = existing.unit_price * existing.quantity;
-      setCart({ ...base, items });
-      return;
-    }
+    // 2026-09-28 (owner: "modifikatorları hər məhsul instansiyası üçün
+    // ayrıca idarə et"): NO auto-merge anymore — every tap creates its OWN
+    // line instance with its own modifiers/notes/state. Tapping the same
+    // product 3× = 3 independent lines (e.g. 3× Filadelfiya where only the
+    // 2nd gets a modifier stays exactly that). The +/- stepper grows the
+    // instance's quantity; the per-line editor (editOf) rewrites ONLY that
+    // instance. The old merge (same product+variant+mods+notes → qty +=) is
+    // gone on purpose: it made per-instance modifier state impossible.
     const newItem = {
+      // client-side instance identity (stable React key + per-instance
+      // targeting); server order_items ids are assigned on send.
+      instance_id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `inst-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       product_id: p.id,
       product_name: p.name,
       unit_price: unitPrice,
       original_unit_price: originalWithMods,
       quantity: addQty,
       total_price: Math.round(unitPrice * addQty * 100) / 100,
-       modifiers: opts?.modifiers ?? [],
-       variant_id: variantId,
-       special_notes: opts?.notes ?? '',
-       allergens: opts?.allergens ?? [],
-       campaign_id: campaignId,
-       campaign_discount_amount: campaignDiscount,
-       campaign_discount_type: campaignDiscountType,
-       is_pre_order: reservationMode,
-       pre_order_id: null,
-     };
+        modifiers: opts?.modifiers ?? [],
+        variant_id: variantId,
+        special_notes: opts?.notes ?? '',
+        allergens: opts?.allergens ?? [],
+        campaign_id: campaignId,
+        campaign_discount_amount: campaignDiscount,
+        campaign_discount_type: campaignDiscountType,
+        is_pre_order: reservationMode,
+        pre_order_id: null,
+      };
     const newIndex = items.length;
     items.push(newItem);
     setCart({ ...base, items });

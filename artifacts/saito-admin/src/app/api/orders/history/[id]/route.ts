@@ -41,8 +41,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // audit rows are written with the order id in `record_id` (table_name
     // = 'orders'), while the `order_id` column is NULL on all 440 rows.
     // Querying order_id only → the timeline was ALWAYS empty.
+    // AUDIT 2026-09-28 (E2E-verified fix): the old `?or(order_id.eq.X,
+    // record_id.eq.X)` template was MISSING THE '=' — PostgREST silently
+    // ignores unknown/malformed query params, so the timeline showed the
+    // GLOBAL newest 100 rows under every order (foreign dismiss/waiting
+    // rows from other orders). The app's audit convention is record_id for
+    // order-scoped rows, so a plain eq filter is both correct and simple.
+    // (Rule: raw fetch URLs must always be `key=op.value`; or-filters need
+    // `or=(...)` — supabase-js builds these correctly.)
     const auditRes = await fetch(
-      `${s.url}/rest/v1/audit_logs?or(order_id.eq.${id},record_id.eq.${id})&order=created_at.asc&limit=100`,
+      `${s.url}/rest/v1/audit_logs?record_id=eq.${id}&order=created_at.asc&limit=100`,
       { headers: s.headers }
     );
     let auditLogs: any[] = auditRes.ok ? await auditRes.json() : [];

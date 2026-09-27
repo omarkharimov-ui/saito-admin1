@@ -2313,6 +2313,7 @@ export default function POSPage() {
                 style={{ opacity: chipDimmed ? 0 : 1, transition: 'opacity 150ms ease' }}
               >
                 <LiquidDropdown
+                  floorChip
                   options={pos.floors.map((f: any) => ({ id: f.name, label: f.name }))}
                   activeId={activeFloor?.name}
                   onChange={setSelectedFloor}
@@ -2336,7 +2337,10 @@ export default function POSPage() {
                 // element's own flow slot (E2E measured +346/+68 — the ghost
                 // flew from the wrong corner). Anchored at (0,0), the traced
                 // viewport rects land EXACTLY on the chip box / pill center.
-                className={`fixed left-0 top-0 z-[150] pointer-events-none rounded-full border ${lightMode ? 'bg-[#efeff4] border-black/[0.06] shadow-sm' : 'bg-white/[0.08] border-white/[0.12]'}`}
+                // Silhouette MUST mirror the floorChip trigger (px-4 → dot at
+                // 16px from the left edge; overflow-hidden clips the dot into
+                // the point as the pill shrinks).
+                className={`fixed left-0 top-0 z-[150] pointer-events-none rounded-full border overflow-hidden ${lightMode ? 'bg-zinc-100 border-zinc-200/70' : 'bg-white/[0.06] border-white/[0.10]'}`}
                 initial={{ x: morphGhost.from.x, y: morphGhost.from.y, width: morphGhost.from.w, height: morphGhost.from.h, opacity: morphGhost.dir === 'out' ? 1 : 0 }}
                 animate={{ x: morphGhost.to.x, y: morphGhost.to.y, width: morphGhost.to.w, height: morphGhost.to.h, opacity: morphGhost.dir === 'out' ? 0 : 1 }}
                 transition={{ duration: morphGhost.dir === 'in' ? 0.34 : 0.26, ease: [0.45, 0, 0.55, 1] }}
@@ -2344,7 +2348,14 @@ export default function POSPage() {
                   setMorphGhost(null);
                   if (morphGhost.dir === 'in') setChipDimmed(false);
                 }}
-              />
+              >
+                {/* floor dot travels with the ghost (clipped into the point on shrink) */}
+                <span
+                  aria-hidden
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: lightMode ? '#10b981' : 'rgba(52,211,153,0.9)' }}
+                />
+              </motion.div>
             )}
            <div className="flex-1" />
            {/* pr v1 — print queue badge (queued jobs for this location) */}

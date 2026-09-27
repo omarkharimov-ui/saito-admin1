@@ -719,6 +719,23 @@ export function CartPanel({
     onUpdateItem?.(idx, { course: next } as any);
   };
 
+  /* ═══ HOLD / RESUME — per-INSTANCE state machine (2026-09-28, owner) ═══
+     Line states: DRAFT ──hold──► DRAFT_HELD ──resume──► DRAFT ──send──► SENT
+     - hold/resume is per line INSTANCE (its own is_hold; identical products
+       are separate lines since the auto-merge was removed) — a change on
+       one instance never touches the others.
+     - modifier / note / course edits are allowed in DRAFT and DRAFT_HELD
+       (both are pre-kitchen); they rewrite ONLY this instance (editOf
+       lineIndex), so a held instance can be re-specced and still go out
+       unchanged-by-others on resume.
+     - SENT lines are frozen: hold toggle hidden, stepper blocked, course
+       read-only — kitchen changes flow through void/return, not hold.
+     - "Send to Kitchen" (placeOrder) sends every line with
+       delta = quantity − sentQuantity > 0 AND NOT is_hold, carrying each
+       instance's CURRENT modifiers/notes/course/allergens — so resume →
+       next send is lossless. All-held cart → "no_new_products" toast.
+     - is_hold persists in the draft (localStorage) and, for lines that
+       already exist server-side, syncs via /api/orders/item-hold. */
   const toggleHold = (item: any, idx: number) => {
     if (item.sentQuantity) return;
     const next = !item.is_hold;
@@ -1008,10 +1025,15 @@ export function CartPanel({
            opacity, 280ms, no snap); the two buttons morph their flex share with
            a spring so the split reads as one continuous morph. Təmizlə clears
            the unsent draft (onClearDraft — first-tap race fixed in usePos). */}
-       <AnimatePresence initial={false}>
-         {!isEmpty && (hasDraft || hasVoidableItems) && (
-           <motion.div
-             key="quick-actions"
+        {/* 2026-09-28 (owner: "Void funksiyasını tapıb bərpa et"): LƏĞV ET is
+            ALWAYS present with the cart (never collapses to invisible) — the
+            old flex-0 collapse hid the whole feature from all-draft carts,
+            which is how the owner lost it. With nothing voidable yet it
+            renders as a disabled affordance and explains itself on tap. */}
+        <AnimatePresence initial={false}>
+          {!isEmpty && (
+            <motion.div
+              key="quick-actions"
              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
              animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
@@ -1039,24 +1061,30 @@ export function CartPanel({
                      {t('clear')}
                    </button>
                  </motion.div>
-                 <motion.div
-                   initial={false}
-                   animate={{ flex: hasVoidableItems ? '1 1 0%' : '0 0 0%', opacity: hasVoidableItems ? 1 : 0, scale: hasVoidableItems ? 1 : 0.9 }}
-                   transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
-                   style={{ overflow: 'hidden', minWidth: 0 }}
-                 >
-                   <button
-                     onClick={() => {
-                       if (voidMode) {
-                         setVoidMode(false);
-                         setVoidSelection({});
-                       } else {
-                         setVoidMode(true);
-                       }
-                     }}
-                     title={t('void_items') || 'Ləğv et'}
-                     tabIndex={hasVoidableItems ? 0 : -1}
-                     style={{ pointerEvents: hasVoidableItems ? 'auto' : 'none', width: '100%' }}
+                  <motion.div
+                    initial={false}
+                    animate={{ flex: '1 1 0%', opacity: hasVoidableItems ? 1 : 0.45, scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+                    style={{ overflow: 'hidden', minWidth: 0 }}
+                  >
+                    <button
+                      onClick={() => {
+                        if (!hasVoidableItems && !voidMode) {
+                          // nothing sent to the kitchen yet → explain, don't
+                          // open a mode with zero selectable rows.
+                          toast(t('hint_void_not_sent') || 'Ləğv üçün əvvəlcə məhsulu mətbəxə göndərin', { id: 'pos-hint', duration: 3500 });
+                          return;
+                        }
+                        if (voidMode) {
+                          setVoidMode(false);
+                          setVoidSelection({});
+                        } else {
+                          setVoidMode(true);
+                        }
+                      }}
+                      title={hasVoidableItems ? (t('void_items') || 'Ləğv et') : (t('hint_void_not_sent') || 'Ləğv üçün mətbəxə göndərilmiş məhsul lazımdır')}
+                      tabIndex={hasVoidableItems ? 0 : -1}
+                      style={{ pointerEvents: 'auto', width: '100%', cursor: hasVoidableItems ? 'pointer' : 'not-allowed' }}
                      className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border transition-all ${
                        voidMode
                          ? lightMode
@@ -1118,7 +1146,10 @@ export function CartPanel({
           <AnimatePresence initial={false}>
           {filteredItems.map((item, idx) => {
             const originalIdx = cart.items.indexOf(item);
-            const lineKey = item.id ?? `${item.product_id}|${item.variant_id ?? ''}|${(item.modifiers ?? []).map(m => `${m.id}:${m.name}`).join(',')}|${item.special_notes ?? ''}`;
+            // 2026-09-28 (per-instance lines): identical-config lines are now
+            // possible (no auto-merge), so the key must be the instance id —
+            // the config hash alone would collide.
+            const lineKey = item.id ?? (item as any).instance_id ?? `${item.product_id}|${item.variant_id ?? ''}|${(item.modifiers ?? []).map(m => `${m.id}:${m.name}`).join(',')}|${item.special_notes ?? ''}|${originalIdx}`;
             const ks = (item as any).kitchen_status || 'pending';
             const isVoidableItem = voidMode && (item.sentQuantity ?? 0) > 0 && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
             // 2026-09-24 (owner, FINAL): the ✓ badge marks the served state;
@@ -1186,16 +1217,14 @@ export function CartPanel({
                  </AnimatePresence>
                 <div className="flex items-center gap-2.5">
                    <div className="flex-1 min-w-0">
-                     <p className="text-sm font-semibold truncate text-[var(--theme-text)] flex items-center gap-1.5">
-                       {item.product_name}
-                       {/* 2026-09-24 (owner, FINAL): the served-state badge
-                           is the return affordance — tap the row to return. */}
-                       {isReturnableRow && (
-                         <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-black flex-shrink-0 ${lightMode ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-500/15 text-emerald-400'}`}>
-                           <Check size={9} strokeWidth={3} /> SƏRV
-                         </span>
-                       )}
-                     </p>
+                      <p className="text-sm font-semibold truncate text-[var(--theme-text)] flex items-center gap-1.5">
+                        {item.product_name}
+                        {/* 2026-09-28 (owner, REJECTED the "SƏRV" badge): the
+                            served-state chip is REMOVED. The served state is
+                            still expressed by the read-only course chip + the
+                            details-panel "Geri qaytar" action (isReturnableRow
+                            below keeps working for the void-mode hint). */}
+                      </p>
                     {item.modifiers?.length ? (
                       <p className="text-xs truncate text-[var(--theme-text-secondary)]">{(item.modifiers ?? []).map(m => m.name).join(', ')}</p>
                     ) : null}
@@ -1218,9 +1247,16 @@ export function CartPanel({
                            </button>
                          )
                        )}
-                       {(item.hold_until || (item as any).is_hold) && (
-                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-[10px] font-semibold tracking-normal text-orange-600 dark:text-orange-300/80"><Pause size={9} />Saxlanılıb</span>
-                       )}
+                        {(item.hold_until || (item as any).is_hold) && (
+                          /* tappable = RESUME (second affordance next to the
+                             line's orange ▶) — keeps the machine one-tap in
+                             either direction (2026-09-28, owner screenshot 2) */
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleHold(item, originalIdx); }}
+                            title="Bərpa et"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-[10px] font-semibold tracking-normal text-orange-600 dark:text-orange-300/80 transition-transform active:scale-95"
+                          ><Pause size={9} />Saxlanılıb</button>
+                        )}
                        {/* Allergen flags (customer allergy → kitchen warning),
                            set in the product modal; persisted in order_items.allergens */}
                        {(item as any).allergens?.length > 0 && (

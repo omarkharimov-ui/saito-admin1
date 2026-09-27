@@ -29,11 +29,15 @@ export async function GET(req: NextRequest) {
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const today = now.toISOString().slice(0, 10);
 
+    // 2026-09-28 (simplify): the old .or(end_date.lt, and(end_date.is.null,
+    // end_date.lt)) second branch was contradictory (NULL is never < today),
+    // so the effective filter was just end_date < today. Null end_date =
+    // open-ended campaign → never auto-expires.
     await supabase
       .from('campaigns')
       .update({ status: 'expired', is_active: false })
       .eq('is_active', true)
-      .or(`end_date.lt.${today},and(end_date.is.null,end_date.lt.${today})`);
+      .lt('end_date', today);
 
     let query = supabase
       .from('campaigns')

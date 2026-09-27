@@ -559,7 +559,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 // (fixed escapes the row's overflow-x-auto clipping).
                 const r = kitchenBtnRef.current?.getBoundingClientRect();
                 if (r) {
-                  const panelW = 256; // w-64
+                  const panelW = 272; // w-[272px] (2026-09-28 Apple-feel card)
                   setKitchenHintPos({
                     top: r.bottom + 8,
                     left: Math.min(Math.max(8, r.left), window.innerWidth - panelW - 8),
@@ -614,64 +614,79 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
              animation: saito-glow-breathe 2.4s ease-in-out infinite;
            }
          `}</style>
-        {kitchenHintOpen && <div className="fixed inset-0 z-[60]" onClick={() => setKitchenHintOpen(false)} />}
-        <AnimatePresence>
-          {kitchenHintOpen && kitchenHintPos && (
-            <motion.div
-              initial={{ opacity: 0, y: -6, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 26 }}
-              className="fixed z-[70] w-64 rounded-2xl border p-4 shadow-elevated backdrop-blur-lg"
-              style={{
-                top: kitchenHintPos.top,
-                left: kitchenHintPos.left,
-                ...(lightMode ? { background: '#ffffff', borderColor: '#e4e4e7' } : { background: 'rgba(24,24,28,0.97)', borderColor: 'rgba(255,255,255,0.12)' }),
-              }}
-            >
-              {/* 2026-09-27 (owner): SELECTED TABLE ONLY — "bütün sifarişləri
-                  göstərməməlidir. Yalnız seçilmiş masanın mətbəx statusunu
-                  göstərsin... aydın, səliqəli, peşəkar". */}
-              <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                {t('kitchen_status') || 'Mətbəx statusu'}
-              </p>
-              {currentTableKitchen ? (
-                <>
-                  <div className={`flex items-center gap-2 mb-3 px-3 py-2.5 rounded-xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.04] border-white/10'}`}>
-                    <span className="relative flex w-2 h-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      {(tkActive) && <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />}
-                    </span>
-                    <span className={`text-xs font-black ${lightMode ? 'text-zinc-800' : 'text-white/85'}`}>{currentTableKitchen.label}</span>
-                    <span className={`ml-auto text-[9px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Seçilmiş</span>
-                  </div>
-                  {tkCount + currentTableKitchen.draft === 0 ? (
-                    <p className={`text-xs font-bold py-3 text-center ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                      Bu sifarişdə mətbəxə göndərilən hissə yoxdur
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { n: currentTableKitchen.draft, label: t('st_draft') || 'draft', cls: lightMode ? 'bg-zinc-100 text-zinc-600' : 'bg-white/[0.06] text-white/70' },
-                        { n: currentTableKitchen.prep, label: t('st_preparing') || 'hazırlanır', cls: 'bg-orange-500/10 text-orange-500' },
-                        { n: currentTableKitchen.ready, label: t('st_ready') || 'hazır', cls: 'bg-emerald-500/10 text-emerald-500' },
-                      ].map((s) => (
-                        <div key={s.label} className={`rounded-xl px-2 py-2.5 text-center ${s.cls}`}>
-                          <p className="text-xl font-black tabular-nums leading-none">{s.n}</p>
-                          <p className={`text-[9px] font-black uppercase tracking-widest mt-1.5 ${s.n === 0 ? 'opacity-40' : ''}`}>{s.label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className={`text-xs font-bold py-3 text-center ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                  Sifariş seçilməyib
-                </p>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+         {kitchenHintOpen && <div className="fixed inset-0 z-[60]" onClick={() => setKitchenHintOpen(false)} />}
+         <AnimatePresence>
+           {kitchenHintOpen && kitchenHintPos && (
+             /* 2026-09-27 (owner): SELECTED TABLE ONLY.
+                2026-09-28 (owner: "sablon kimi etmə, Apple feyzi ilə qəşəng et"):
+                frosted single-surface card — no colored tile chips; hierarchy
+                comes from BIG tabular numbers (color on the number, not the
+                fill), small-caps labels, hairline dividers, soft depth. */
+             <motion.div
+               initial={{ opacity: 0, y: -8, scale: 0.98 }}
+               animate={{ opacity: 1, y: 0, scale: 1 }}
+               exit={{ opacity: 0, y: -6, scale: 0.98, transition: { duration: 0.28, ease: [0.45, 0, 0.55, 1] } }}
+               transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+               className="fixed z-[70] w-[272px] rounded-[28px] border overflow-hidden backdrop-blur-xl"
+               style={{
+                 top: kitchenHintPos.top,
+                 left: kitchenHintPos.left,
+                 ...(lightMode
+                   ? { background: 'rgba(255,255,255,0.92)', borderColor: 'rgba(0,0,0,0.07)', boxShadow: '0 20px 55px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)' }
+                   : { background: 'rgba(20,20,24,0.94)', borderColor: 'rgba(255,255,255,0.09)', boxShadow: '0 24px 70px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)' }),
+               }}
+             >
+               <div className="pt-4 pb-4 px-5">
+                 <div className="flex items-center justify-between mb-3">
+                   <p className={`text-[10px] font-black uppercase tracking-[0.16em] ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                     {t('kitchen_status') || 'Mətbəx statusu'}
+                   </p>
+                   <span className={`w-1.5 h-1.5 rounded-full ${tkActive ? 'bg-orange-400' : lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
+                 </div>
+                 {currentTableKitchen ? (
+                   <>
+                     <div className={`flex items-center gap-2.5 px-3.5 py-3 rounded-2xl border mb-3 ${lightMode ? 'bg-white border-zinc-200/70 shadow-sm' : 'bg-white/[0.045] border-white/[0.07]'}`}>
+                       <span className="relative flex w-2 h-2">
+                         <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                         {(tkActive) && <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />}
+                       </span>
+                       <span className={`text-[13px] font-bold tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white/90'}`}>{currentTableKitchen.label}</span>
+                       <span className={`ml-auto text-[9px] font-black uppercase tracking-[0.16em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Seçilmiş</span>
+                     </div>
+                     {tkCount + currentTableKitchen.draft === 0 ? (
+                       <p className={`text-xs font-semibold py-4 text-center ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                         Bu sifarişdə mətbəxə göndərilən hissə yoxdur
+                       </p>
+                     ) : (
+                       <div
+                         className={`grid grid-cols-3 rounded-2xl border overflow-hidden ${lightMode ? 'border-zinc-200/70' : 'border-white/[0.07]'}`}
+                         style={{
+                           background: lightMode ? 'rgba(24,24,27,0.02)' : 'rgba(255,255,255,0.02)',
+                           ['--div' as any]: lightMode ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)',
+                         }}
+                       >
+                         {[
+                           { n: currentTableKitchen.draft, label: t('st_draft') || 'draft', num: lightMode ? 'text-zinc-800' : 'text-white/80' },
+                           { n: currentTableKitchen.prep, label: t('st_preparing') || 'hazırlanır', num: lightMode ? 'text-orange-600' : 'text-orange-400' },
+                           { n: currentTableKitchen.ready, label: t('st_ready') || 'hazır', num: lightMode ? 'text-emerald-600' : 'text-emerald-400' },
+                         ].map((s, i) => (
+                           <div key={s.label} className="px-1 py-3.5 text-center" style={i > 0 ? { boxShadow: 'inset 1px 0 0 var(--div)' } : undefined}>
+                             <p className={`text-[24px] font-black tabular-nums leading-none tracking-tight ${s.num} ${s.n === 0 ? 'opacity-25' : ''}`}>{s.n}</p>
+                             <p className={`text-[9px] font-black uppercase tracking-[0.14em] mt-2 ${lightMode ? 'text-zinc-400' : 'text-white/35'} ${s.n === 0 ? 'opacity-50' : ''}`}>{s.label}</p>
+                           </div>
+                         ))}
+                       </div>
+                     )}
+                   </>
+                 ) : (
+                   <p className={`text-xs font-semibold py-4 text-center ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                     Sifariş seçilməyib
+                   </p>
+                 )}
+               </div>
+             </motion.div>
+           )}
+         </AnimatePresence>
 
       {/* Categories */}
       <div className="mb-4 flex-shrink-0">

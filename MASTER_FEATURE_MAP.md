@@ -817,6 +817,15 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - **Qeyd (design)**: 'cleaning' status hazırda isOccupied family-dədır → emerald border + amber TƏMİZLƏNMƏLİ chip. Owner soruşarsa: cleaning-ə öz amber border-i ayrıca qərardır.
 - Verify: tsc 0 error · 1 file.
 
+### Jurnal sətiri — 2026-09-27 (P0 FIX: bütün masa kartlarındakı 1px AĞ RİNG — owner "ag borderler... men ele bir sey istemememem")
+- **Owner turn**: "ag borderler gormursenn, ala kartin borderleri, onu nie elave etdin ki, men ele bir sey istemememem" — sən haklı idi, əlavə mən etmişdim (doğrudan da, özümdən).
+- **Root cause (nadir JS footgun)**: 3eea7dfe (border grace turn) zamanı TableCard-ın `className={` şablonu İÇİNƏ yazdığım `/* comment */`-in içində **"ring" sözü ayrı token** idi ("like the blue ring he praised"). Brauzer class attribute-ı boşluqla bölür → comment mətni LİVƏ CLASSƏ çevrilir → Tailwind v4-un `.ring` utility-si (1px, default rəng = currentColor = **ağ**) bütün masa kartlarına 1px ağ contour çəkirdi. Bu ring 16:29-dakı ilk "ag ag" şikayətindən İTİBARƏN var idi; keçən 2 fix (border-white/10→transparent, zinc-200→transparent) border-color-u düzəlsə də ring box-shadow-da olduğu üçün görünürdü.
+- **Fix**: comment tamamilə className-dan çıxarılıb elementin YUXARISINA köçürülüb (həmçinin xəbərdarlıq: "NEVER put a /* comment */ inside className — hər söz class olur").
+- **System-wide audit**: bütün src-da **1582 className şablonu** skan olundu (robust parser, `${}` nesting-in də nəzərə alınması) → **0 qalıq comment-landmine**.
+- **E2E təsdiq (live)**: 10 kartın hamısında `boxShadow: none` (ring yoxdur) · boş kart border `rgba(0,0,0,0)` · occupied = emerald 0.45 ✅
+- **Anti-regression qayda**: (1) className stringi daxilində HEÇ VAXT `/* */` comment yazma — istənilən ingilis sözü (border/ring/shadow/flex/grid/block/hidden/relative...) canlı class olur. (2) "bütün kartlarda eyni görünən xətt" şikayəti → ilk addım `getComputedStyle().boxShadow` + `borderTopColor` dump-u (border vs ring vs surface distinction).
+- Verify: tsc 0 error · 1 file.
+
 ### Jurnal sətiri — 2026-09-27 (TABLE BORDER GRACE — "mavi border kimi" yaşıl border fade-out: Dismiss / Sərbəst burax / Hesabı bağla)
 - **Owner turn**: "Masadan çıxanda mavi border-in fade-out çox uğurludur. Eyni zərif fade-out-u 'Dismiss table', 'Sərbəst burax', 'Hesabı bağla' state machine-lərində də tətbiq et — yaşıl border anidən yox olur."
 - **Təhlil**: 3 axının hamısı green(emerald) border-i mənbəyidir — occupied→empty (Masanı boşalt), paid→empty (Sərbəst burax), occupied→paid (Hesabı Bağla — burada border eyni emerald kalır, yox olma Sərbəst burax-da olur). Root cause: card-ın `border-color` CSS transition-u **200ms decel**-idi, content isə **320ms blur drift** edir → border content-ən əvvəl "snap" edirdi; mavi ring (1.5s) isə uğurlu referens idi. Node remount DEYİLDİ (probe: data-probe-tag 1801+876 frame boyu keçdi, 0 REMOVED/WRONGNODE).

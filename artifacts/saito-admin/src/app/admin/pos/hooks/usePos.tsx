@@ -458,9 +458,13 @@ export function usePos() {
 
   // 2026-09-27 (owner: "sebet itmesinde nie itir"): drafts now cover
   // DINE-IN too — a table cart is no longer destroyed by a mode switch.
-  // dine-in restore also re-selects the table (only if it is still empty —
-  // an occupied/waiting table means someone else has it; the draft is dropped).
-  const pendingTableRestoreRef = useRef<number | null>(null);
+  // 2026-09-27 (owner: "tab-a kecib geri qayitdim, masada eyni mavi border
+  // qalib"): the restore is DATA-ONLY now. No re-selection, no auto-opened
+  // order view — the floor comes back CLEAN (no ghost blue border); the
+  // restored cart sits in state and the operator taps the table to
+  // reconnect it (selectTable keeps the drafts — see below). The occupancy
+  // guard stays: a table taken by another terminal invalidates the draft.
+  const pendingTableGuardRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (cart?.order_id) return;
@@ -482,7 +486,7 @@ export function usePos() {
               sessionStorage.removeItem(`pos_draft_${posMode}`);
               return;
             }
-            pendingTableRestoreRef.current = parsed.cart.table_number;
+            if (!tbl) pendingTableGuardRef.current = parsed.cart.table_number;
           }
           setCart(parsed.cart);
           draftRestoredForRef.current.add(posMode);
@@ -493,24 +497,22 @@ export function usePos() {
     }
   }, [posMode, cart, floors]);
 
-  // dine-in table re-selection after draft restore (floors may arrive late)
+  // Deferred occupancy guard (floors may arrive after the draft was
+  // restored): if the table got taken by another terminal meanwhile, the
+  // stale draft is dropped — but NO table is ever auto-selected.
   useEffect(() => {
-    const tn = pendingTableRestoreRef.current;
+    const tn = pendingTableGuardRef.current;
     if (tn == null) return;
-    if (selectedTable?.table_number === tn) { pendingTableRestoreRef.current = null; return; }
     const tbl = floors
       .flatMap((f: any) => f.tables || [])
       .find((x: any) => x.table_number === tn);
     if (!tbl) return;
+    pendingTableGuardRef.current = null;
     if (!['empty', 'free'].includes(tbl.status)) {
-      // table got occupied meanwhile — keep the restored cart but no table
-      pendingTableRestoreRef.current = null;
-      return;
+      setCart((prev: any) => (prev && prev.table_number === tn && !prev.order_id ? null : prev));
+      try { sessionStorage.removeItem(`pos_draft_${posMode}`); } catch {}
     }
-    setSelectedTable(tbl);
-    setActiveView('order');
-    pendingTableRestoreRef.current = null;
-  }, [floors, selectedTable]);
+  }, [floors, posMode]);
 
   useEffect(() => {
     if (!cart) return;
@@ -551,7 +553,13 @@ export function usePos() {
       return;
     }
 
-    const switchingToDifferentTable = selectedTable?.table_number !== table.table_number;
+    // 2026-09-27 (owner: ghost border after tab switch): "different table"
+    // must also look at the CART (it is the item owner). After a data-only
+    // draft restore (selectedTable=null, cart.table_number=1), tapping table
+    // 1 is NOT a switch — its drafts must survive, not be discarded.
+    const switchingToDifferentTable =
+      selectedTable?.table_number !== table.table_number
+      && cart?.table_number !== table.table_number;
     const reqId = ++selectTableReqId.current;
 
     // Opening a normal (non-reserved) table always exits reservation mode —
@@ -697,9 +705,13 @@ export function usePos() {
             };
           });
         } else {
-          // No active server order for this table — clear cart (drafts belong to previous table)
+          // No active server order for this table. If the CART already holds
+          // THIS table's drafts (data-only restore + tap), keep them — they
+          // belong here. Only drafts of a DIFFERENT table get cleared.
+          const draftsAreThisTables = cart?.table_number === table.table_number;
           setCart(prev => {
             if (!prev) return null;
+            if (draftsAreThisTables) return prev;
             // Keep only sent (server-synced) items, drop all drafts
             const kept = prev.items.filter(i => (i.sentQuantity ?? 0) > 0);
             if (kept.length === prev.items.length) return prev; // nothing to clear

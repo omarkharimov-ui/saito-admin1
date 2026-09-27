@@ -959,25 +959,29 @@ export function CartPanel({
             ) : null}
            </div>
          </div>
-       </div>
+        </div>
 
-      {/* ═══ Empty state body ═══ (2026-09-27: fades IN over 320ms — the
-          graceful tail of the clear animation; the rows above exit first) */}
-      {isEmpty && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.32, ease: [0.45, 0, 0.55, 1] }}
-          className="flex-1 flex flex-col items-center justify-center text-[var(--theme-text-muted)]"
-        >
-          <ShoppingBag size={56} className="mb-4 opacity-15" />
-          <p className="text-sm font-black uppercase tracking-widest mb-1">{t('no_products')}</p>
-          <p className="text-xs mb-6 opacity-60">{t('add_items_hint')}</p>
-        </motion.div>
-      )}
-
-      {/* ═══ Non-empty state body ═══ */}
-      {!isEmpty && (<>
+       {/* ═══ Cart BODY — STATE MACHINE (2026-09-27 owner: "sebet instant deyisiklik
+           gosterir; masa bos olanda button/placeholder desync; state machine ol").
+           Before: empty and non-empty were TWO independent branches — the non-empty
+           body hard-unmounted (items + Təmizlə/Ləğv row + totals vanished in ONE frame)
+           while the empty placeholder faded in over 320ms → a ~320ms BLANK gap.
+           Now: ONE AnimatePresence crossfades the two states. The non-empty body is
+           in-flow and exits GRACEFULLY (opacity, no snap); the empty placeholder is an
+           absolute overlay that fades in on top, so there is never a blank frame.
+           Enter = snappy, exit = graceful (~280ms). The Təmizlə/Ləğv morph row lives
+           INSIDE the non-empty body, so it fades in/out WITH the items as one unit. */}
+       <div className="relative flex-1 min-h-0 overflow-hidden">
+         <AnimatePresence initial={false}>
+           {!isEmpty && (
+             <motion.div
+               key="cart-body-items"
+               initial={{ opacity: 0, y: 10 }}
+               animate={{ opacity: 1, y: 0 }}
+               exit={{ opacity: 0 }}
+               transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+               className="flex flex-col h-full min-h-0"
+             >
       {/* Compact customer info summary — takeaway/delivery (name shown in header, only show phone/address here) */}
       {(posMode === 'takeaway' || posMode === 'delivery') && (cart.customer_phone || cart.delivery_street) && (
         <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 mb-2 rounded-xl text-xs font-semibold ${lightMode ? 'bg-zinc-50 border border-zinc-100 text-zinc-500' : 'bg-white/5 border border-white/5 text-white/40'}`}>
@@ -1427,11 +1431,28 @@ export function CartPanel({
               </button>
             </div>
           )}
-         {/* Footer actions removed from here */}
-      </motion.div>
-        )}
-      </AnimatePresence>
-      </>)}
+          {/* Footer actions removed from here */}
+       </motion.div>
+         )}
+       </AnimatePresence>
+       </motion.div>
+           )}
+           {isEmpty && (
+             <motion.div
+               key="cart-body-empty"
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               transition={{ duration: 0.28, ease: [0.45, 0, 0.55, 1] }}
+               className="absolute inset-0 flex flex-col items-center justify-center text-[var(--theme-text-muted)]"
+             >
+               <ShoppingBag size={56} className="mb-4 opacity-15" />
+               <p className="text-sm font-black uppercase tracking-widest mb-1">{t('no_products')}</p>
+               <p className="text-xs mb-6 opacity-60">{t('add_items_hint')}</p>
+             </motion.div>
+           )}
+         </AnimatePresence>
+       </div>
 
       {/* ═══ Unified morph action button — stable morph, no blink ═══ */}
       {(() => {

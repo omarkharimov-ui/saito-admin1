@@ -69,6 +69,19 @@ bərpa olundu. `CartPanel.tsx`-də:
   TEST C 192/192/8 (50/50, ~210ms smooth split) · light eyni · **0 console error, 0 DB yazı**.
 - Detal: jurnal `MASTER_FEATURE_MAP.md` §10 (newest-first) · screenshots `e2e-shots/17-morph-*.png`.
 
+## 2d. CART BODY STATE MACHINE (2026-09-27, "sebet instant; button/placeholder desync") — ✅ TAMAM
+
+Owner: "sebet eləmədə/təmizləmədə **instant** dəyişir, amma masa boş olanda
+Təmizlə/placeholder **desync**; state machine düşün".
+- **Kök səbəb**: empty + non-empty cart **iki müstəqil JSX budağı** idi → non-empty
+  bədən 1 frame-də **instant unmount**, empty placeholder **320ms fade-in** = ~320ms **boş frame**.
+- **Fix**: kart bədəni **tək `AnimatePresence` crossfade**-inə çevrildi — non-empty
+  (in-flow, graceful enter/exit 280ms) + empty placeholder (absolute overlay, graceful)
+  üst-üstə fade olur → **boş frame YOX**. Təmizlə/Ləğv morph row bədənin içindədir,
+  items-lə birlikdə fade olur. Primary CTA (MASANI TUT/Sifariş) + modallar sibling, toxunulmadı.
+- E2E: ADD/CLEAR dark+light — **0 blank frame**, max overlap ~0.4–0.67, row body ilə fade.
+- Detal: jurnal `MASTER_FEATURE_MAP.md` §10 (newest-first) · screenshots `e2e-shots/19-crossfade-*.png`.
+
 ## 3. BUG STATUS — A ✅ FIXED · B ✅ FIXED · QALAN: §3-C
 
 ### A. ✅ FIXED (2026-09-27) — KASSA view-swap opacity donmuş (visually: 215ms boş ekran + snap)

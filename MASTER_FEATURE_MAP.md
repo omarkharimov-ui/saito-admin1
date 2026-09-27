@@ -809,6 +809,23 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-27 (CART BODY STATE MACHINE — empty↔items CROSSFADE, ~320ms blank gap aradan qaldırıldı)
+
+- **Owner turn**: "sebet instant deyisiklik gosterir (hem elave, hem Təmizlə); masa bos olanda Təmizlə button/placeholder desync; webde arastirsan gorersen STATE MACHINE ne duseren".
+- **Kök səbəb (E2E frame-sampling ilə sübut olundu)**: empty + non-empty cart **iki müstəqil JSX budağı** idi. Non-empty bədən (items + Təmizlə/Ləğv row + totals) `!isEmpty` **hard-unmount** ilə **BİR FRAME-də** yox olurdu (instant-out), empty placeholder isə **320ms fade-in** → ~320ms **BOŞ frame** (item yox, button yox, placeholder ~görünməz). Add-da da **single-frame jump** (items 0→1 + Təmizlə 0→383px eyni frame).
+- **Fix (state machine)**: kart bədəni **tək `AnimatePresence` crossfade**-inə çevrildi:
+  - **non-empty bədən** → in-flow keyed `motion.div` (`cart-body-items`, `flex flex-col h-full min-h-0`), graceful **enter** (opacity 0→1, y 10→0) + **exit** (opacity 1→0), 280ms.
+  - **empty placeholder** → absolute overlay keyed `motion.div` (`cart-body-empty`, `absolute inset-0`), graceful enter/exit (opacity), 280ms.
+  - Container `relative flex-1 min-h-0 overflow-hidden`. İki state eyni AnimatePresence-də → **crossfade** (bir-birinin üstünə, **boş frame YOX**).
+  - **Təmizlə/Ləğv morph row non-empty bədənin İÇİNDƏDİR** → items-lə BİRLİKDƏ fade in/out (artıq instant pop/vanish YOX).
+- **E2E (Chrome :3000, rAF opacity sampling, real DB-yə 0 yazı)**:
+  - **ADD** (dark ~265ms): bodyOp 0→1 ∥ emptyOp 1→0 **overlap** (max 0.63/0.66).
+  - **CLEAR** (dark ~261ms): bodyOp 1→0 ∥ emptyOp 0→1 **overlap**. **BLANK frame (bodyOp<0.1 AND emptyOp<0.1) = 0** (dark ×2 + light).
+  - **Təmizlə/Ləğv row**: `temizleW` bütün exit fade-də 383px sabit, body unmount olduqda null → row body ilə birlikdə fade olur ✅.
+  - Light mode: eyni (ADD overlap 0.61/0.68, CLEAR 0.42/0.30), 0 blank. Console errors **0**. Table 15 empty-ya restore olundu.
+- Verify: `tsc --noEmit` app-scope **0 xəta** · 1 fayl (`CartPanel.tsx`) · screenshots `e2e-shots/19-crossfade-add-dark.png`, `19-crossfade-clear-dark.png`.
+- **Qeyd**: primary CTA (MASANI TUT / Sifariş et / Ləğv — "Unified morph action button") və modallar bu bədənin **SIBLING**-ıdır, toxunulmadı — onlar ayrı always-rendered morph-dur.
+
 ### Jurnal sətiri — 2026-09-27 (TƏMİZLƏ ↔ LƏĞV ET MORPH BƏRPA — header pill geri qaytarıldı, eyni sətirdə split)
 
 - **Owner turn**: "'Təmizlə' gedib en yuxarıya düşüb — LƏĞV ET ilə **EYNI SƏTİRDƏ** olmalıdır. Əvvəlki commit-lərdəki morph geri qaytar: draft yoxdur → LƏĞV ET **full**; draft var → TƏMİZLƏ **solda** görünür, LƏĞV ET bölünər."

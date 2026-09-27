@@ -36,7 +36,13 @@ export function cachedFetch<T>(url: string, ttlMs: number = DEFAULT_TTL, opts?: 
 
 /** Fire a background fetch so the cache is warm for the next real read. */
 export function primeCache(url: string, ttlMs: number = DEFAULT_TTL): void {
-  void cachedFetch(url, ttlMs);
+  // 2026-09-27 (owner, E2E "1 Issue" badge): a prime is a pure warm-up. A
+  // failed prime (e.g. the known cold-pooler 500 flake on /api/orders, QF9)
+  // used to escape as an UNHANDLED promise rejection → Next dev overlay
+  // "Runtime Error 500 — data-cache.ts @ run". Swallow it: the real read
+  // path (cachedFetch on a miss) re-fetches independently with its own
+  // error handling — a warm-up failing is never user-visible.
+  cachedFetch(url, ttlMs).catch(() => { /* warm-up failed; real reads re-fetch */ });
 }
 
 /** Prime several URLs on the next idle window (no main-thread pressure). */

@@ -2244,7 +2244,13 @@ export default function POSPage() {
               // overshoot — same family as the sheet pills.
               pillOverlay={
                 pos.floors.length > 1 && posMode !== 'dine_in' ? (
+                  // 2026-09-27 (E2E catch): a 12px faint dot read as "no
+                  // morph" — the landing spot is now CHIP-STYLED (same idle
+                  // surface/border as the chip) and sized w-16 h-6, so the
+                  // projected flight from the chip's box is clearly visible:
+                  // the chip silhouette shrinks into the pill and dissolves.
                   <motion.div
+                    data-floor-chip-ghost
                     layoutId="pos-floor-chip"
                     initial={{ opacity: 1 }}
                     animate={{ opacity: 0 }}
@@ -2252,7 +2258,11 @@ export default function POSPage() {
                       layout: { duration: 0.26, ease: [0.45, 0, 0.55, 1] },
                       opacity: { duration: 0.26, ease: [0.45, 0, 0.55, 1] },
                     }}
-                    className={`h-3 w-3 rounded-full ${lightMode ? 'bg-[#efeff4] shadow-sm' : 'bg-white/10'}`}
+                    className={`h-6 w-16 rounded-full border ${
+                      lightMode
+                        ? 'bg-[#efeff4] border-black/[0.06] shadow-sm'
+                        : 'bg-white/[0.08] border-white/[0.12]'
+                    }`}
                   />
                 ) : null
               }

@@ -211,6 +211,20 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
     }
   }, [open, fetchOrders, fetchExceptions]);
 
+  /* 2026-09-27 (owner: "modal girişi zamani bug var" — E2E reproduced):
+     first open showed "0 sifariş" + a ~1s spinner (cold pooler) and then
+     ALL rows popped in at once. Prefetch the default view ONCE on mount —
+     the same stale-while-revalidate doctrine as the Kassa modal — so the
+     FIRST open already has data and paints instantly; later opens
+     revalidate in the background behind the stale paint. */
+  const mountPrefetched = useRef(false);
+  useEffect(() => {
+    if (mountPrefetched.current) return;
+    mountPrefetched.current = true;
+    void fetchOrders();
+    void fetchExceptions();
+  }, [fetchOrders, fetchExceptions]);
+
   const fetchOrderDetail = useCallback(async (order: PaidOrder) => {
     setDetailLoading(true);
     setDetailData(null);
@@ -503,7 +517,13 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                 <p className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
                   {selectedOrder
                     ? `${new Date(selectedOrder.created_at).toLocaleDateString('az')} · ${new Date(selectedOrder.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}`
-                    : `${totalCount} ${t('orders') || 'sifariş'}`
+                    /* 2026-09-27 (entry-bug): never paint "0 sifariş" while the
+                       first load is still in flight — that "0 → N" count flash
+                       read as a bug. (After the mount prefetch this is rare;
+                       the true empty state still says "0 sifariş".) */
+                    : loading && totalCount === 0 && orders.length === 0
+                      ? (t('loading') || 'Yüklenir...')
+                      : `${totalCount} ${t('orders') || 'sifariş'}`
                   }
                 </p>
               </div>

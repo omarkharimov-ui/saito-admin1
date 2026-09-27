@@ -55,6 +55,7 @@ export const LiquidDropdown = React.memo(function LiquidDropdown({ options, acti
     <div ref={dropdownRef} className={`relative select-none ${className}`}>
       {/* ── TRIGGER PILL ── */}
       <motion.div
+        data-floor-chip={layoutId ? 'pos' : undefined}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();

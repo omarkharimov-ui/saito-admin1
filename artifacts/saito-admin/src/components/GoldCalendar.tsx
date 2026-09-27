@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 

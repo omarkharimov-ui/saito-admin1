@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { FileText, Upload, AlertTriangle, CheckCircle } from 'lucide-react';
+import { FileText, Upload, AlertTriangle, CheckCircle } from '@/components/ui/saito-icons';
 
 interface Document {
   id: string;

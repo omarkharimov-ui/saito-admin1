@@ -8,7 +8,7 @@ import {
   Mail, Phone, Clock, CalendarDays, ShoppingBag, DollarSign,
   TrendingUp, Ban, RotateCcw, Tag, Activity, Timer,
   HandPlatter, ChefHat, Martini, ConciergeBell, Package, ReceiptText, Briefcase, ShieldCheck, Crown, Bike, Sparkles, AlertTriangle
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
 import { getRoleColor, getRoleIcon, getRoleName } from '@/lib/staff-utils';

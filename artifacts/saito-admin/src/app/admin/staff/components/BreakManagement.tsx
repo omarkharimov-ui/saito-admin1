@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Coffee, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import { Coffee, CheckCircle, AlertTriangle, Clock } from '@/components/ui/saito-icons';
 
 interface BreakManagementProps {
   staffId: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
-import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2, Utensils, X } from 'lucide-react';
+import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2, Utensils, X } from '@/components/ui/saito-icons';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -412,9 +412,12 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
              truncate keeps the row at a single height on every viewport. */}
          <div className="flex items-start justify-between gap-2 min-w-0">
            <div className="flex items-center gap-1.5 min-w-0">
-             <span className={`text-2xl font-black tracking-tighter whitespace-nowrap truncate ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isDirty ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isWaiting ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
-               {t('table' as any)} {table.table_number}
-             </span>
+              {/* E2E: truncate chopped "Masa 17" → "M..." next to the QRUP chip.
+                  Instead: full title on ONE line, step the size down when a
+                  badge shares the row. */}
+              <span className={`${(isGroup && groupNumber) || table.pre_order ? 'text-xl' : 'text-2xl'} font-black tracking-tighter whitespace-nowrap ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isDirty ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isWaiting ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
+                {t('table' as any)} {table.table_number}
+              </span>
              {table.pre_order && (
                <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
                  lightMode ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-white/10 text-white/70 border border-white/20'

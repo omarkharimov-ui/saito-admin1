@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Printer, CreditCard, Banknote, Loader2, Split } from 'lucide-react';
+import { X, Printer, CreditCard, Banknote, Loader2, Split } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { getSettings } from '@/lib/settings-client';

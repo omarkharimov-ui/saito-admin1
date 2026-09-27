@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Trash2, Star, Pencil, RotateCcw, MoreVertical, XCircle } from 'lucide-react';
+import { Trash2, Star, Pencil, RotateCcw, MoreVertical, XCircle } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

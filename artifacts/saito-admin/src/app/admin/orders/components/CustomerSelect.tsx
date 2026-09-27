@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Search, Plus, Phone, User, Loader2, Check } from 'lucide-react';
+import { X, Search, Plus, Phone, User, Loader2, Check } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

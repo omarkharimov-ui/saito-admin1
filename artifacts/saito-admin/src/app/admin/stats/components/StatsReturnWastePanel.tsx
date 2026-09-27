@@ -4,7 +4,7 @@
 // çünki bu bizim statistics səhifəsində lazım olacaq" — this panel renders
 // the mandatory return/waste REASON codes logged by the POS return flow
 // (audit_logs_canonical: return_to_stock / item_waste).
-import { RotateCcw, XCircle, ArchiveRestore } from 'lucide-react';
+import { RotateCcw, XCircle, ArchiveRestore } from '@/components/ui/saito-icons';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from '@/lib/i18n';
 

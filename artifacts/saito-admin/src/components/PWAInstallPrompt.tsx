@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, X, Home, Smartphone } from 'lucide-react';
+import { Download, X, Home, Smartphone } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 
 interface BeforeInstallPromptEvent extends Event {

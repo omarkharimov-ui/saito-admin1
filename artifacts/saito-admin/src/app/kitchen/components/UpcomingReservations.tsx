@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Users, ChefHat, ShoppingBag, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Users, ChefHat, ShoppingBag, ChevronDown, ChevronUp } from '@/components/ui/saito-icons';
 import { supabase } from '@/lib/supabase';
 
 interface PreOrderItem {

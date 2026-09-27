@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, X } from 'lucide-react';
+import { Shield, X } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';

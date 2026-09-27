@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, ShoppingBag, Clock, BarChart2,
   AlertTriangle, ChevronRight, Zap, Award, Sparkles,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';

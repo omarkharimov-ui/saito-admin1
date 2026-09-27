@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Split, Check, Plus, Minus, Loader2 } from 'lucide-react';
+import { X, Split, Check, Plus, Minus, Loader2 } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';

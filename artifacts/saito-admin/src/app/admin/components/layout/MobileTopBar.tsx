@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, ChevronDown } from 'lucide-react';
+import { Bell, ChevronDown } from '@/components/ui/saito-icons';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';

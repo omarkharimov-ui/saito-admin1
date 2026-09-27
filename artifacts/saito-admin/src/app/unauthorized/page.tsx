@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldAlert, ArrowLeft } from 'lucide-react';
+import { ShieldAlert, ArrowLeft } from '@/components/ui/saito-icons';
 import { motion } from 'framer-motion';
 
 export default function UnauthorizedPage() {

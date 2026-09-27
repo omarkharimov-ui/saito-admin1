@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit3, Trash2, PackagePlus, Loader2, ShoppingBag, AlertCircle, X } from 'lucide-react';
+import { Plus, Edit3, Trash2, PackagePlus, Loader2, ShoppingBag, AlertCircle, X } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { EmptyState } from '@/components/ui/primitives';

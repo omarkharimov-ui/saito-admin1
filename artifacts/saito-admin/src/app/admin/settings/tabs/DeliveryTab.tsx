@@ -13,7 +13,7 @@
  * priority ASC — lower priority number wins.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { MapPin, Plus, Trash2, Save, Loader2, Route, Settings2, CloudRain, Clock, Zap } from 'lucide-react';
+import { MapPin, Plus, Trash2, Save, Loader2, Route, Settings2, CloudRain, Clock, Zap } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
 import toast from 'react-hot-toast';

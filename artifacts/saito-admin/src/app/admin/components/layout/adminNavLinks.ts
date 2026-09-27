@@ -22,7 +22,7 @@ import {
   Wallet,
   Smartphone,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 
 import { canAccessPage, type Role } from '@/lib/permissions';
 

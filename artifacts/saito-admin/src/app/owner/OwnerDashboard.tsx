@@ -29,7 +29,7 @@ import {
   Utensils,
   Wifi,
   WifiOff,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

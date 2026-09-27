@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Loader2, Check } from 'lucide-react';
+import { Loader2, Check } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
 export default function Monobtn({

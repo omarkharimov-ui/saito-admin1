@@ -24,7 +24,7 @@ import { apiFetch } from '@/lib/api-fetch';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { getDeviceId, collectDeviceMeta } from '@/lib/device-identity';
 import { ensureNativeDeviceId, keepAwakeOn, keepAwakeOff } from '@/lib/native-bridge';
-import { MonitorOff, Lock } from 'lucide-react';
+import { MonitorOff, Lock } from '@/components/ui/saito-icons';
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Percent, Loader2 } from 'lucide-react';
+import { Percent, Loader2 } from '@/components/ui/saito-icons';
 import { getSettings, updateSettings } from '@/lib/settings-client';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

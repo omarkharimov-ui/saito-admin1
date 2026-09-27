@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Tag, X, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft, PackagePlus, ScrollText, Layers, ChefHat } from 'lucide-react';
+import { Tag, X, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft, PackagePlus, ScrollText, Layers, ChefHat } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

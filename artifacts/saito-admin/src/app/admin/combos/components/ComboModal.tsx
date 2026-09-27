@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Loader2, Upload, Trash2, ChevronDown, ChevronLeft } from 'lucide-react';
+import { X, Loader2, Upload, Trash2, ChevronDown, ChevronLeft } from '@/components/ui/saito-icons';
 import { SaveSuccessButton, ElasticSwitch } from '@/components/premium/PremiumComponents';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';

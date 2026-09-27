@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from '@/lib/toast';
-import { Wallet, Send, Download, Check, X, Loader2 } from 'lucide-react';
+import { Wallet, Send, Download, Check, X, Loader2 } from '@/components/ui/saito-icons';
 
 type WebhookConfig = {
   id: string;

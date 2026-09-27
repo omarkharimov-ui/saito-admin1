@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeftRight, X, Users } from 'lucide-react';
+import { ArrowLeftRight, X, Users } from '@/components/ui/saito-icons';
 import { useStaffApp } from '../hooks/useStaffApp';
 
 interface MySwap {

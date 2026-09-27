@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles } from '@/components/ui/saito-icons';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';

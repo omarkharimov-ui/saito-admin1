@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText, CreditCard, Banknote, Landmark, Hourglass } from 'lucide-react';
+import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText, CreditCard, Banknote, Landmark, Hourglass } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
@@ -572,26 +572,27 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                    </div>
                 </div>
 
-                 {/* Actions */}
+                 {/* Actions — 2026-09-27 (E2E: bottom row clipped): 8 buttons
+                     in 4×2 (was 3×3) so the main view fits the dialog. */}
                  {view === 'main' && (
-                   <div className="grid grid-cols-3 gap-3">
+                   <div className="grid grid-cols-4 gap-2.5">
                      <button
                        onClick={() => { setView('cash-in'); setCashAmount(''); setCashDesc(''); }}
-                       className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-green-50 border-green-200 text-green-600' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}
+                       className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-green-50 border-green-200 text-green-600' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}
                      >
                        <ArrowDownCircle size={20} strokeWidth={2.5} />
                        <span className="text-xs font-black uppercase tracking-widest">Daxilolma</span>
                      </button>
                      <button
                        onClick={() => { setView('cash-out'); setCashAmount(''); setCashDesc(''); }}
-                       className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-red-50 border-red-200 text-red-600' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}
+                       className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-red-50 border-red-200 text-red-600' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}
                      >
                        <ArrowUpCircle size={20} strokeWidth={2.5} />
                        <span className="text-xs font-black uppercase tracking-widest">{t('expense')}</span>
                      </button>
                       <button
                         onClick={() => { setClosingTarget(null); setView('close'); setCashAmount(String(currentBalance.toFixed(2))); setCashDesc(''); setBillCounts({}); setShowBillCount(false); }}
-                        className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-zinc-300'}`}
+                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-zinc-300'}`}
                       >
                         <Lock size={20} strokeWidth={2.5} />
                         <span className="text-xs font-black uppercase tracking-widest">{t('end_shift')}</span>

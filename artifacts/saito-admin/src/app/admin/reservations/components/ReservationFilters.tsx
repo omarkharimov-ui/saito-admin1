@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Search, Trash2, CheckSquare, XCircle } from 'lucide-react';
+import { Search, Trash2, CheckSquare, XCircle } from '@/components/ui/saito-icons';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';

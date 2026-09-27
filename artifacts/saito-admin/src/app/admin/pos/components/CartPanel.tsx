@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight, Lock, Bike } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight, Lock, Bike } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -11,8 +11,11 @@ import { apiFetch } from '@/lib/api-fetch';
 import type { PosCart, PosCartItem, LossItem } from '../types/shared';
 import { PinGuard } from './PinGuard';
 import type { SendOrderButtonStatus } from './SendOrderButton';
-import { NumberRoll } from './NumberRoll';
-import { RollingNumber } from './RollingNumber';
+// 2026-09-27 (owner: "pul counter kimi absurd — old fades/slides, new settles"):
+// counter-roll (NumberRoll/RollingNumber) removed from the cart — totals now
+// morph in place via the Motion System (Morph). Those components stay for the
+// admin KPI counters where "the number grew" is the intended feeling.
+import { Morph } from '@/lib/motion/Morph';
 import { Numpad } from './Numpad';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { PartnerLogo } from './PartnerBadge';
@@ -1347,13 +1350,17 @@ export function CartPanel({
                 {/* Subtotal */}
                 <div className="flex items-center justify-between">
                     <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('subtotal_label')}</span>
-                   <NumberRoll value={originalTotal} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
+                    <Morph value={originalTotal} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]">
+                      <span>{originalTotal.toFixed(2)} ₼</span>
+                    </Morph>
                 </div>
                 {/* Discount */}
                 {cartDiscountAmount > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs uppercase tracking-widest font-medium text-emerald-400">{t('discount_label')}</span>
-                    <NumberRoll value={cartDiscountAmount} prefix="−" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-emerald-400" />
+                     <Morph value={cartDiscountAmount} className="text-xs font-medium tabular-nums text-emerald-400">
+                       <span>−{cartDiscountAmount.toFixed(2)} ₼</span>
+                     </Morph>
                   </div>
                 )}
                   {/* VAT — 2026-09-27 (owner): only when the global EDV switch
@@ -1362,7 +1369,9 @@ export function CartPanel({
                   {vatEnabled && (
                   <div className="flex items-center justify-between">
                      <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('vat')}</span>
-                     <NumberRoll value={vatAmount} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
+                      <Morph value={vatAmount} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]">
+                        <span>{vatAmount.toFixed(2)} ₼</span>
+                      </Morph>
                   </div>
                   )}
                  {/* Delivery fee (2026-09-23: now charged — shows the amount
@@ -1373,7 +1382,9 @@ export function CartPanel({
                       {feeCalculating ? (
                         <span className="vk-fee-shimmer-row" />
                       ) : deliveryFeeTotal > 0 ? (
-                        <NumberRoll value={deliveryFeeTotal} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
+                         <Morph value={deliveryFeeTotal} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]">
+                           <span>{deliveryFeeTotal.toFixed(2)} ₼</span>
+                         </Morph>
                       ) : (
                         <span className="text-xs font-black text-emerald-500">{t('free') || 'Pulsuz'}</span>
                       )}
@@ -1382,7 +1393,11 @@ export function CartPanel({
                  {/* TOTAL — biggest, most prominent */}
                   <div className="flex items-center justify-between pt-1 border-t border-[var(--theme-border)]">
                     <span className="text-xs uppercase tracking-widest font-bold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
-                    <RollingNumber value={grandTotal} prefix="" suffix=" ₼" decimals={2} className="text-[32px] font-black tracking-tight tabular-nums text-[var(--theme-accent)]" duration={0.3} />
+                     {/* Motion System: the hero total morphs in place (old
+                         amount drifts up+blur, new settles) — no counter roll. */}
+                     <Morph value={grandTotal} y={5} className="text-[32px] font-black tracking-tight tabular-nums text-[var(--theme-accent)]">
+                       <span>{grandTotal.toFixed(2)} ₼</span>
+                     </Morph>
                   </div>
              </motion.div>
 

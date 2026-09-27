@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Edit3, Trash2, Search, Filter, Tag, AlertCircle, X, Sparkles, Zap, FolderPlus, ChevronDown, ChevronRight, MoreVertical, ImageOff } from 'lucide-react';
+import { Plus, Edit3, Trash2, Search, Filter, Tag, AlertCircle, X, Sparkles, Zap, FolderPlus, ChevronDown, ChevronRight, MoreVertical, ImageOff } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Product, Category } from '@/types';

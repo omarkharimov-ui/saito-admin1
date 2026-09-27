@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import { Users, Clock } from 'lucide-react';
+import { Users, Clock } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface StaffWorkspaceSwitcherProps {

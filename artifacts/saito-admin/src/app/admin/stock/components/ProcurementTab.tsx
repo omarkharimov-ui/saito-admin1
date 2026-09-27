@@ -6,7 +6,7 @@ import {
   Upload, FileText, CheckCircle, AlertTriangle, X, RefreshCw,
   Package, Image, Scale, PackageCheck, DollarSign, TrendingDown,
   Truck, Plus, Pencil, Trash2,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { TableActionBar } from '@/components/TableActionBar';
 import { EmptyState, LoadingState } from '@/components/ProcurementEmptyState';
 import { SummaryCards } from '@/components/ProcurementSummaryCards';

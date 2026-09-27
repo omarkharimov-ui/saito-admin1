@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { XCircle } from 'lucide-react';
+import { XCircle } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

@@ -6,7 +6,7 @@ import HeroBanner from './widgets/HeroBanner';
 import LiveFloorSnapshot from './widgets/LiveFloorSnapshot';
 import TerminalStatus from './widgets/TerminalStatus';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Lightbulb, Zap, AlertTriangle, BrainCircuit } from 'lucide-react';
+import { Sparkles, Lightbulb, Zap, AlertTriangle, BrainCircuit } from '@/components/ui/saito-icons';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useDeviceHeartbeat } from '@/lib/device-heartbeat';

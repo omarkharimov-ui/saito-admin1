@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Clock, CheckCircle2, ChefHat, AlertTriangle } from 'lucide-react';
+import { Clock, CheckCircle2, ChefHat, AlertTriangle } from '@/components/ui/saito-icons';
 
 interface TrackItem {
   id: string;

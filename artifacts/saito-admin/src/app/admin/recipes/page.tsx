@@ -7,7 +7,7 @@ import {
   Search, Plus, Trash2, Loader2, CookingPot, ChevronDown, ChevronUp,
   Bot, Sparkles, Check, X, FileText, Upload, BrainCircuit, Wand2,
   BookOpen, Library
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RecipeConstructorModal } from './components/RecipeConstructorModal';

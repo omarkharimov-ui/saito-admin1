@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import FormDirtyContext from '@/context/FormDirtyContext';
 

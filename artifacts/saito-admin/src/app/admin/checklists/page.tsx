@@ -37,7 +37,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Search, X, ChevronRight, ClipboardCheck, Plus, Loader2, Pencil, UserPlus, Ban, RotateCcw,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
 import { cachedFetch, cachePeek } from '@/lib/data-cache';

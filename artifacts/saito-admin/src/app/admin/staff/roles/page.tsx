@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Shield, Plus, Save, X, Check, Users, Settings2, AlertTriangle, Trash2, Lock, ChevronDown } from 'lucide-react';
+import { Search, Shield, Plus, Save, X, Check, Users, Settings2, AlertTriangle, Trash2, Lock, ChevronDown } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
 import { useFirstLoad } from '@/hooks/useFirstLoad';

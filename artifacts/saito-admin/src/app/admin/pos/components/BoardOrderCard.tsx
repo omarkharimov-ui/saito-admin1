@@ -19,7 +19,7 @@
 // Flex-flow layout (no absolute stacking) → text overlap is structurally
 // impossible; rows truncate; middle block is overflow-hidden.
 import { AnimatePresence, motion } from 'framer-motion';
-import { User, Phone, MapPin, Bike, Clock, MoreVertical, Route, CheckCircle2 } from 'lucide-react';
+import { User, Phone, MapPin, Bike, Clock, MoreVertical, Route, CheckCircle2 } from '@/components/ui/saito-icons';
 import { partnerMeta, type PartnerId } from '../lib/partners';
 import { PartnerLogo } from './PartnerBadge';
 import type { OrderStage } from '@/lib/order-stage';
@@ -84,7 +84,9 @@ export default function BoardOrderCard({ order, kind, stage, status, lightMode, 
       className={`relative h-[180px] rounded-4xl p-5 text-left cursor-pointer group overflow-hidden flex flex-col border ${
         lightMode ? 'bg-white shadow-sm' : 'bg-[#141419]'
       }`}
-      style={{ borderColor: lightMode ? accent + '59' : 'rgba(255,255,255,0.10)' }}
+      // Motion System: the stage accent crossfades over 200ms (the label
+      // morphs in place at the same time) — the card never snaps its border.
+      style={{ borderColor: lightMode ? accent + '59' : 'rgba(255,255,255,0.10)', transition: 'border-color 0.2s cubic-bezier(0.4,0,0.2,1)' }}
     >
       {/* Smoky brand glow — PARTNER CARDS ONLY (owner round 4: "tüstü"
           effekti 3-cü tərəf üçün; restoran içi kartlarda yoxdur).

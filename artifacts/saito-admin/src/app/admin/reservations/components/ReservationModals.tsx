@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Trash2, AlertCircle, Loader2, Users, Calendar, Clock, Phone, User, MessageSquare, Star, Wallet, Mail } from 'lucide-react';
+import { Trash2, AlertCircle, Loader2, Users, Calendar, Clock, Phone, User, MessageSquare, Star, Wallet, Mail } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import MobileModal from '@/components/ui/MobileModal';
 import { toast } from '@/lib/toast';

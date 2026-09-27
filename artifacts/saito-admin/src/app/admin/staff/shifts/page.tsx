@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock, Users, Calendar, Timer, ChevronRight, Play, Square,
   RefreshCw, Filter, X, Activity, Wallet, ArrowUpDown, DollarSign
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';

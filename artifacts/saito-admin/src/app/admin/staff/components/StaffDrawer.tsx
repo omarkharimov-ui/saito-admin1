@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Edit, Clock, ShieldCheck, AlertTriangle,
   Mail, Phone, UserCheck, UserX, KeyRound, LogOut
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 
 interface StaffMember {
   id: string;

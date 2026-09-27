@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Sparkles, AlertTriangle, TrendingUp, TrendingDown } from '@/components/ui/saito-icons';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Clock, Layers, Zap } from 'lucide-react';
+import { Clock, Layers, Zap } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Order, BadgeType } from '../types';

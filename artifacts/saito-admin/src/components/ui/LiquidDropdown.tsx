@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface Option {

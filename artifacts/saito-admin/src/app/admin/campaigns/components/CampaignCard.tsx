@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles, Copy, Power, PowerOff } from 'lucide-react';
+import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles, Copy, Power, PowerOff } from '@/components/ui/saito-icons';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Campaign, Product, Category } from '@/types';

@@ -11,7 +11,7 @@ import {
   Pencil, Lightbulb, Calculator, Trash2,
   Sparkles, Layers3, ArrowUpRight, Database, BarChart3, Clock3, Filter,
   Save, History, ClipboardCheck, Users
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import {

@@ -5,7 +5,7 @@
 // (audited via log_audit). The PIN doubles as the shift-lock override.
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, X } from 'lucide-react';
+import { ShieldCheck, X } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { appleCard, fastExit } from '@/lib/modal-transitions';

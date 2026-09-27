@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence, Transition } from 'framer-motion';
-import { ChevronRight, TrendingDown } from 'lucide-react';
+import { ChevronRight, TrendingDown } from '@/components/ui/saito-icons';
 
 interface HealthStats {
   total: number;

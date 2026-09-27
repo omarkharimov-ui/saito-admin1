@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { Reservation } from '@/types';
-import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, Clock, ChevronLeft, Plus, Trash2, ChefHat, Tag, Merge, Wallet, Mail } from 'lucide-react';
+import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, Clock, ChevronLeft, Plus, Trash2, ChefHat, Tag, Merge, Wallet, Mail } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { useNotifications } from '../context/NotificationContext';

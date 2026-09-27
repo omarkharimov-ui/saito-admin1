@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Plus, AlertCircle, CheckCircle, Star, Wrench } from 'lucide-react';
+import { FileText, Plus, AlertCircle, CheckCircle, Star, Wrench } from '@/components/ui/saito-icons';
 
 interface HandoverNote {
   note_id: string;

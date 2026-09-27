@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, Trash2, Edit3, X, Loader2, Percent } from 'lucide-react';
+import { Search, Plus, Trash2, Edit3, X, Loader2, Percent } from '@/components/ui/saito-icons';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';

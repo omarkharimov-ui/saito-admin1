@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2 } from '@/components/ui/saito-icons';
 
 interface EmptyStateProps {
   icon?: React.ReactNode;

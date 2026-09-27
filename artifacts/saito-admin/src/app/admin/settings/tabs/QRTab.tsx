@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { getSettings, updateSettings } from '@/lib/settings-client';
-import { Loader2, QrCode, Download, Plus, Minus, ExternalLink, X } from 'lucide-react';
+import { Loader2, QrCode, Download, Plus, Minus, ExternalLink, X } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import QRCodeLib from 'qrcode';

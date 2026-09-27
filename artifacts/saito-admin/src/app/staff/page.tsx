@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock, LogIn, LogOut, Coffee, Timer, MapPin, Wifi,
   ChevronRight, X, ArrowLeft, ShieldCheck, Download, Smartphone,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { useStaffApp } from './hooks/useStaffApp';
 import { useGeoVerification, type GeoConfig } from './hooks/useGeoVerification';
 

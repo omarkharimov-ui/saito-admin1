@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { MeshBroadcaster } from '@/lib/mesh/Broadcaster';
 import { getSettings } from '@/lib/settings-client';
-import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, FlameKindling, SendHorizonal, LogOut, GitMerge, LayoutGrid, Map as MapIcon, Sun, Moon, Scissors, CheckCircle2 } from 'lucide-react';
+import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, FlameKindling, SendHorizonal, LogOut, GitMerge, LayoutGrid, Map as MapIcon, Sun, Moon, Scissors, CheckCircle2 } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { WelcomeScreen } from '@/components/WelcomeScreen';

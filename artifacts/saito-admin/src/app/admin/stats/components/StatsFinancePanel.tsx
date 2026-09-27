@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, DollarSign,
   AlertTriangle, BarChart2, Award, Percent,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,

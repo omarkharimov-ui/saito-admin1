@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ClipboardCheck, Package, Plus, X, Loader2, Search, ChevronDown,
   Play, CheckCircle2, Ban, Save,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import type { StockCount, StockCountItem } from '@/types/inventory';
 import { PageTransition } from '@/components/PageTransition';

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Plus, Mail, MessageSquare, Bell, FileText } from 'lucide-react';
+import { Send, Plus, Mail, MessageSquare, Bell, FileText } from '@/components/ui/saito-icons';
 
 interface Message {
   message_id: string;

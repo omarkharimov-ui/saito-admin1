@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, UserCog, ChefHat, ArrowRight, BarChart2, ShoppingBag, CalendarDays, Megaphone, Utensils } from 'lucide-react';
+import { ShieldCheck, UserCog, ChefHat, ArrowRight, BarChart2, ShoppingBag, CalendarDays, Megaphone, Utensils } from '@/components/ui/saito-icons';
 
 interface WelcomeScreenProps {
   role: 'superadmin' | 'admin' | 'kitchen';

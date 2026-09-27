@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Users, UserCheck, DollarSign, AlertTriangle, TrendingUp, Clock } from 'lucide-react';
+import { Users, UserCheck, DollarSign, AlertTriangle, TrendingUp, Clock } from '@/components/ui/saito-icons';
 
 interface KpiData {
   totalStaff: number;

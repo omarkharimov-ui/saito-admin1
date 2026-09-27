@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Printer, X, ChevronLeft, Search, CalendarDays, RefreshCw, Split, Receipt, User, Users, Wallet, CreditCard, Package, AlertTriangle, ChevronRight, Minus } from 'lucide-react';
+import { Clock, Printer, X, ChevronLeft, Search, CalendarDays, RefreshCw, Split, Receipt, User, Users, Wallet, CreditCard, Package, AlertTriangle, ChevronRight, Minus } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
 import { fastExit, slideUp, centerModal } from '@/lib/modal-transitions';
+import { T, EASE } from '@/lib/motion/system';
 import { PinGuard } from './PinGuard';
 import { requiresPin } from '@/lib/pos-permissions';
 import { toast } from '@/lib/toast';
@@ -110,6 +111,10 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const [reprinting, setReprinting] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'dine_in' | 'takeaway' | 'delivery'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  // 2026-09-27 (E2E: header rows were stacked 5-deep and the 2nd filter row
+  // clipped into the search field): the date range is now COLLAPSED behind a
+  // calendar toggle, and the two filter rows merged into one.
+  const [dateOpen, setDateOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   // 2026-09-23 (owner, Toast/Square benchmark): before this, ONLY paid orders
@@ -370,6 +375,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         transition={fastExit}
         className="fixed inset-0 z-[125] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
+        style={{ paddingBottom: 'calc(var(--vk-height, 0px) + 16px)' }}
         onClick={onClose}
       >
         <motion.div
@@ -407,7 +413,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
           {!selectedOrder && (
             <>
               {/* 2026-09-23 (owner, Toast "Sales Exception Report"): Sifarişlər / İstisnalar */}
-              <div className={`flex gap-2 px-5 pt-4 pb-2`}>
+              <div className={`flex gap-2 px-5 pt-3 pb-1`}>
                 {([['orders', t('orders') || 'Sifarişlər'], ['exceptions', t('exceptions') || 'İstisnalar']] as const).map(([id, label]) => (
                   <button
                     key={id}
@@ -423,76 +429,98 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                 ))}
               </div>
 
-              {/* Filters */}
-              {sheetTab === 'orders' && (
-              <div className="flex gap-2 px-5 py-3 border-b border-white/5 overflow-x-auto">
-                {filters.map(f => (
-                  <button
-                    key={f.id}
-                    onClick={() => setFilter(f.id as any)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all ${
-                      filter === f.id
-                        ? 'bg-emerald-500 text-white'
-                        : lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'
-                    }`}
-                  >
-                    {t(f.labelKey as any)}
-                  </button>
-                ))}
-              </div>
-              )}
+               {/* 2026-09-27 (E2E premium pass): ONE filter row — source
+                   filters + a hairline divider + status filters. The two
+                   stacked rows used to clip into the search field. */}
+               {sheetTab === 'orders' && (
+               <div className="flex items-center gap-2 px-5 py-2 overflow-x-auto scrollbar-hide">
+                 {filters.map(f => (
+                   <button
+                     key={f.id}
+                     onClick={() => setFilter(f.id as any)}
+                     className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all ${
+                       filter === f.id
+                         ? 'bg-emerald-500 text-white'
+                         : lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'
+                     }`}
+                   >
+                     {t(f.labelKey as any)}
+                   </button>
+                 ))}
+                 <span className={`w-px h-4 flex-shrink-0 ${lightMode ? 'bg-zinc-200' : 'bg-white/10'}`} />
+                 {([['paid', t('status_paid') || 'Ödənilmiş'], ['refunded', t('status_refunded') || 'Qaytarılmış'], ['cancelled', t('status_cancelled') || 'Ləğv'], ['all', t('all_orders') || 'Hamısı']] as const).map(([id, label]) => (
+                   <button
+                     key={id}
+                     onClick={() => { setStatusFilter(id); setSheetTab('orders'); }}
+                     className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider whitespace-nowrap border transition-all ${
+                       statusFilter === id
+                         ? (id === 'refunded' ? 'bg-amber-500 border-amber-400 text-white' : id === 'cancelled' ? 'bg-red-500 border-red-400 text-white' : 'bg-zinc-700 border-zinc-600 text-white')
+                         : lightMode ? 'bg-white border-zinc-200 text-zinc-400' : 'bg-white/5 border-white/10 text-white/40'
+                     }`}
+                   >
+                     {label}
+                   </button>
+                 ))}
+               </div>
+               )}
 
-              {/* 2026-09-23 (owner): status filter — refunded/voided were invisible before */}
-              {sheetTab === 'orders' && (
-              <div className="flex gap-2 px-5 py-2 border-b border-white/5 overflow-x-auto">
-                {([['paid', t('status_paid') || 'Ödənilmiş'], ['refunded', t('status_refunded') || 'Qaytarılmış'], ['cancelled', t('status_cancelled') || 'Ləğv'], ['all', t('all_orders') || 'Hamısı']] as const).map(([id, label]) => (
-                  <button
-                    key={id}
-                    onClick={() => { setStatusFilter(id); setSheetTab('orders'); }}
-                    className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider whitespace-nowrap border transition-all ${
-                      statusFilter === id
-                        ? (id === 'refunded' ? 'bg-amber-500 border-amber-400 text-white' : id === 'cancelled' ? 'bg-red-500 border-red-400 text-white' : 'bg-zinc-700 border-zinc-600 text-white')
-                        : lightMode ? 'bg-white border-zinc-200 text-zinc-400' : 'bg-white/5 border-white/10 text-white/40'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              )}
-
-              {/* Search + Date Filter */}
-              <div className={`px-5 py-3 border-b space-y-2 ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
-                  <input
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    placeholder={t('search_orders')}
-                    className={`w-full rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold outline-none border transition-all ${
-                      lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'
-                    }`}
-                  />
-                  {searchQuery && (
-                    <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-                <div className="flex gap-2 items-center">
-                  <CalendarDays size={14} className="text-[var(--theme-text-muted)] flex-shrink-0" />
-                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                    className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-700' : 'bg-white/5 border-white/10 text-zinc-300'}`} />
-                  <span className={`text-xs font-bold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>→</span>
-                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                    className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-700' : 'bg-white/5 border-white/10 text-zinc-300'}`} />
-                  {(dateFrom || dateTo) && (
-                    <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-xs font-bold text-emerald-500 hover:text-emerald-600 transition-colors">
-                      {t('clear')}
-                    </button>
-                  )}
-                </div>
-              </div>
+               {/* Search + collapsed date range (2026-09-27 premium pass:
+                   the always-visible date row removed one header level) */}
+               <div className="px-5 pb-3 space-y-2">
+                 <div className="flex gap-2">
+                   <div className="relative flex-1">
+                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
+                     <input
+                       value={searchQuery}
+                       onChange={e => setSearchQuery(e.target.value)}
+                       placeholder={t('search_orders')}
+                       className={`w-full rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold outline-none border transition-all ${
+                         lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'
+                       }`}
+                     />
+                     {searchQuery && (
+                       <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
+                         <X size={14} />
+                       </button>
+                     )}
+                   </div>
+                   <button
+                     onClick={() => setDateOpen(o => !o)}
+                     title="Tarix aralığı"
+                     className={`flex-shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center transition-all ${
+                       dateOpen || dateFrom || dateTo
+                         ? 'bg-emerald-500 border-emerald-500 text-white'
+                         : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-zinc-400'
+                     }`}
+                   >
+                     <CalendarDays size={15} />
+                   </button>
+                 </div>
+                 <AnimatePresence initial={false}>
+                   {dateOpen && (
+                     <motion.div
+                       initial={{ opacity: 0, height: 0 }}
+                       animate={{ opacity: 1, height: 'auto' }}
+                       exit={{ opacity: 0, height: 0 }}
+                       transition={{ duration: T.standard, ease: EASE.morph }}
+                       className="overflow-hidden"
+                     >
+                       <div className="flex gap-2 items-center">
+                         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                           className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-700' : 'bg-white/5 border-white/10 text-zinc-300'}`} />
+                         <span className={`text-xs font-bold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>→</span>
+                         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                           className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-700' : 'bg-white/5 border-white/10 text-zinc-300'}`} />
+                         {(dateFrom || dateTo) && (
+                           <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-xs font-bold text-emerald-500 hover:text-emerald-600 transition-colors">
+                             {t('clear')}
+                           </button>
+                         )}
+                       </div>
+                     </motion.div>
+                   )}
+                 </AnimatePresence>
+               </div>
 
               {/* Order list */}
               {sheetTab === 'orders' && (
@@ -1110,6 +1138,7 @@ function RefundView({
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       transition={fastExit}
       className="fixed inset-0 z-[140] flex items-end sm:items-center justify-center bg-black/25 backdrop-blur-sm"
+      style={{ paddingBottom: 'calc(var(--vk-height, 0px) + 16px)' }}
       onClick={onClose}
     >
       <motion.div

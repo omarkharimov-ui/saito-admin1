@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PhoneCall, Clock, Users, Star, CheckCircle, Pencil, Printer, UserX, Ban, Info, Wallet } from 'lucide-react';
+import { PhoneCall, Clock, Users, Star, CheckCircle, Pencil, Printer, UserX, Ban, Info, Wallet } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { TableActionSheet, ActionCard, ActionGrid } from './TableActionSheet';

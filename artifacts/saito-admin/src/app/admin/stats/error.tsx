@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from '@/components/ui/saito-icons';
 
 export default function StatsError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Percent, Search, X, BarChart3 } from 'lucide-react';
+import { Plus, Percent, Search, X, BarChart3 } from '@/components/ui/saito-icons';
 import Link from 'next/link';
 import { toast } from '@/lib/toast';
 

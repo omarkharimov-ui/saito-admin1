@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFormDirtyCompare } from '@/hooks/useFormDirty';
 import { getSettings, updateSettings } from '@/lib/settings-client';
-import { Save, Loader2, Printer, Usb, Bluetooth, Wifi, Monitor, Copy, TestTube, Search, Receipt } from 'lucide-react';
+import { Save, Loader2, Printer, Usb, Bluetooth, Wifi, Monitor, Copy, TestTube, Search, Receipt } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { inputCls, labelCls, saveButtonCls } from './_shared';

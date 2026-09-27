@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { Grid2x2, LogOut, MoreHorizontal } from 'lucide-react';
+import { Grid2x2, LogOut, MoreHorizontal } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { filterNavByRole, getAdminNavItems, getMobilePrimaryNavIds } from './adminNavLinks';

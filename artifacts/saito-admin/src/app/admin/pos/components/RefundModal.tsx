@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCcw, Wallet, CreditCard, X } from 'lucide-react';
+import { RotateCcw, Wallet, CreditCard, X } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';

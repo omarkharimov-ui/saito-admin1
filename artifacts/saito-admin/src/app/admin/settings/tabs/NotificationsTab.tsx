@@ -6,7 +6,7 @@
 // sends until someone flips the enable switch — and even then the actual
 // provider call is the next small step. No secrets are shown back (masked).
 import { useState, useEffect } from 'react';
-import { BellRing, Loader2, Save, Send, Mail } from 'lucide-react';
+import { BellRing, Loader2, Save, Send, Mail } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Phone, Clock, Users, Star, ChevronRight, Pencil, Printer, UserX, Merge, Move, Ban, CheckCircle, PhoneCall, Wallet } from 'lucide-react';
+import { X, Phone, Clock, Users, Star, ChevronRight, Pencil, Printer, UserX, Merge, Move, Ban, CheckCircle, PhoneCall, Wallet } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

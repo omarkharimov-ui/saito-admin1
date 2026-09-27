@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Loader2, AlertTriangle, X, Clock } from 'lucide-react';
+import { Sparkles, Loader2, AlertTriangle, X, Clock } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 
 export type CalibrationSuggestion = {

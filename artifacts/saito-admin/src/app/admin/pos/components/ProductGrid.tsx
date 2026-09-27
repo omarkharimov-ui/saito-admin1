@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check, RotateCcw, Package, Trash2, ArrowLeft, Flame } from 'lucide-react';
+import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check, RotateCcw, Package, Trash2, ArrowLeft, Flame } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
@@ -785,9 +785,9 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                    layoutId={layoutId}
                    transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
                    whileTap={{ scale: 0.96, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
-                   className={`relative flex flex-col rounded-4xl border overflow-hidden cursor-pointer shadow-card ${cardBg} ${
-                     isOutOfStock ? 'opacity-50 grayscale border-rose-500/30' : ''
-                   }`}
+                    className={`relative flex flex-col rounded-4xl border overflow-hidden cursor-pointer shadow-card [transition:opacity_0.25s_ease,filter_0.25s_ease,border-color_0.25s_ease] ${cardBg} ${
+                      isOutOfStock ? 'opacity-50 grayscale border-rose-500/30' : ''
+                    }`}
                    onClick={() => { if (!isOutOfStock) { handleCardClick(item); } }}
                  >
                   {/* Cart count badge - always visible, bounces smoothly without disappearing */}

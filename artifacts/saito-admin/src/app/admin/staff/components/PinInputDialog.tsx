@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { KeyRound, X } from 'lucide-react';
+import { KeyRound, X } from '@/components/ui/saito-icons';
 
 interface PinInputDialogProps {
   open: boolean;

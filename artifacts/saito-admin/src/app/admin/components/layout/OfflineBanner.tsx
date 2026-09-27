@@ -6,7 +6,7 @@
 // last-sync result. Starts monitor + replay pump once (idempotent).
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WifiOff, RefreshCw, X, ListOrdered } from 'lucide-react';
+import { WifiOff, RefreshCw, X, ListOrdered } from '@/components/ui/saito-icons';
 import { startMonitor, useIsOffline, isForcedOffline, setForcedOffline } from '@/lib/offline/monitor';
 import {
   startReplayPump, useQueueCount, onSyncComplete, drainNow, peekQueue, QueueItem,

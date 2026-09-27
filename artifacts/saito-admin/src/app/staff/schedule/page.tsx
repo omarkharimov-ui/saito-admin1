@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeftRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeftRight } from '@/components/ui/saito-icons';
 
 interface Shift {
   schedule_id: string;

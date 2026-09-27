@@ -809,6 +809,16 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-27 (Owner turn: kart terminal bypass, VKB lift ×6, dismiss fade, E2E browser 6/6)
+- **Owner turn**: "kart seçəndə terminal modali — deaktiv et, terminal qoşulmayıb; butun state machine fade in/out sexy olsun (dismiss: reqemler/border aniden yox olmasin, yavas fade out); dine-in kartlar bir-birinə girib duzene sal; pos kart logolari webden tap; tarixce/kassa/waitlist/rezerv actionsheet UI yeniden qeseng; canliligi E2E brauzerden təsdiqlə (login 4321)".
+- **Kart terminal bypass (2 yol!)**: (1) `handlePaymentMethodSelect` — Kart → birbaşa `runPaymentFlow` (SIM code), TerminalTapModal dormant (real PSP M-wave-də terminalState ilə qayıdar); (2) E2E tapdı ki, "Hesabı bağla" yolu (ActionSheet) AİRİ terminal-wait ekranı idi ("Terminala göndərildi / Müştəri kartı terminala yaxınlaşdırsın" + TAP) — hər iki Kart düyməsi birbaşa capture-a bağlandı.
+- **VKB lift bug fix (owner: "popup klavye altda qalır yazmaq olmaz")**: VKB z=10002, 5 input-lu modal z=10001-də klavyənin ALTINDA qalırdı — RefundModal, CorporateModal, GiftCardModal, LossItemModal, RoomChargeModal-a `--vk-height` lift əlavə olundu (qlobal CSS var, hooks-sız).
+- **Dismiss fade choreography**: TableCard content bloku AnimatePresence ilə sarıldı — dismiss/clear-də amount/guests yuxarı sürüşüb blur ilə 200ms fade-out olur, border eyni pəncərədə crossfade (CHOREO cədvəlindəki "collapse/reveal" arxetipləri).
+- **Kart title wrap fix (E2E tapıntısı)**: "Masa 17" QRUP badge-i yanında 2 sətirə wrap olurdı → whitespace-nowrap + truncate + badge shrink-0.
+- **E2E browser verify (PIN 4321, 6/6 PASS)**: floor 3 viewport-da 0 overlap; dismiss flow OK; VKB+note & VKB+discount input keyboard ÜSTÜNDƏ; kart ödənişi birbaşa receipt ("SIFARIŞ ÖDƏNİLDİ ✓"). Screenshots: saito-pos-01..06.
+- **Qalıq (M2-UI wave)**: TARİXÇƏ/Kassa/Waitlist/Rezerv action sheet "daha qeseng" rewrite + kart logoları/icons web research (partner logoları artıq düzgün SVG-dir — Wolt/Uber/Glovo/Bolt Wikimedia licensed; audit-da qeyd olundu).
+- Verify: tsc 0 error · commit `6b519ad8`.
+
 ### Jurnal sətiri — 2026-09-27 (APPLE SENIOR MOTION AUDIT + "OVERLAY NEVER" + spring doctrine)
 - **Owner turn**: "1 sozle cox irgencc… apple philosophy lazimdir… overlayy nedir… OVERLAY NEVER… her operation fade in fade out kimi, dismiss bassdiq masa fade out, borderler yavassca fade olur, label yavassca morph… ilk otce butun pos-u UI audit et (sen apple senior UI muhendisisen, webden araştırdır)".
 - **OVERLAY NEVER**: op-flash label sistemi kompletdə SÖKÜLDÜ (TableCard opFlash + OP_FLASH_STYLES + render; usePos flashTable + 6 call; page 6 call). Qayda: kartın üzərinə heç vaxt operation label oturmur — kartın ÖZÜ feedback-dir (border crossfade 200ms + label morph + card settle + grid glide).

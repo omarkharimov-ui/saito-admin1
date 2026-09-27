@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, CalendarDays, Wallet, ArrowLeftRight, LogOut } from 'lucide-react';
+import { Home, CalendarDays, Wallet, ArrowLeftRight, LogOut } from '@/components/ui/saito-icons';
 
 const TABS = [
   { id: 'home', name: 'Ana', href: '/staff', icon: Home },

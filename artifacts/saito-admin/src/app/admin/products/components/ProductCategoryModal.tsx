@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Edit3, Trash2, Loader2, Tag, X, Save } from 'lucide-react';
+import { Plus, Edit3, Trash2, Loader2, Tag, X, Save } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';

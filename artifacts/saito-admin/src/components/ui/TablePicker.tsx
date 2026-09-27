@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, Table as TableIcon } from 'lucide-react';
+import { ChevronLeft, Table as TableIcon } from '@/components/ui/saito-icons';
 
 interface TableInfo {
   id: string;

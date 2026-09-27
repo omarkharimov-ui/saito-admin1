@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { getSettings } from '@/lib/settings-client';
-import { TrendingUp, BarChart3, Sparkles } from 'lucide-react';
+import { TrendingUp, BarChart3, Sparkles } from '@/components/ui/saito-icons';
 import { motion } from 'framer-motion';
 import StatsTopCards from './components/StatsTopCards';
 import StatsAIForecast from './components/StatsAIForecast';

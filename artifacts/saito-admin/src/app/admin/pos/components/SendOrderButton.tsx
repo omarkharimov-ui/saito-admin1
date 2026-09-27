@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Armchair, CheckCircle, Loader2, MoreHorizontal, PlusCircle, Send } from 'lucide-react';
+import { Armchair, CheckCircle, Loader2, MoreHorizontal, PlusCircle, Send } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 

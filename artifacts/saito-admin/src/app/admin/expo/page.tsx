@@ -6,7 +6,7 @@
 // Slick dark theme, böyük hərflər (məsafədən oxunmaq üçün).
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BellRing, Armchair, Receipt, Bike, ShoppingBag, Check } from 'lucide-react';
+import { BellRing, Armchair, Receipt, Bike, ShoppingBag, Check } from '@/components/ui/saito-icons';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { useDeviceHeartbeat } from '@/lib/device-heartbeat';

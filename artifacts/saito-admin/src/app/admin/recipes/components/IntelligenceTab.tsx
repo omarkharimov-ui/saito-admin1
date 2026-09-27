@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, TrendingUp, DollarSign, BarChart3, RefreshCw, Sparkles } from 'lucide-react';
+import { Search, TrendingUp, DollarSign, BarChart3, RefreshCw, Sparkles } from '@/components/ui/saito-icons';
 import { EmptyState, LoadingState } from '@/components/ProcurementEmptyState';
 import { SummaryCards } from '@/components/ProcurementSummaryCards';
 import type { DishMarginBreakdown, RecipeIntelligence } from '@/types/inventory';

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X, Check, ChefHat, Calendar, CreditCard, Package } from 'lucide-react';
+import { Bell, X, Check, ChefHat, Calendar, CreditCard, Package } from '@/components/ui/saito-icons';
 
 interface Notification {
   id: string;

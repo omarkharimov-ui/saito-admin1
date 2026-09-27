@@ -24,7 +24,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, User, Route, Wallet, MessageCircle, PauseCircle, CloudRain, Clock } from 'lucide-react';
+import { ArrowLeft, User, Route, Wallet, MessageCircle, PauseCircle, CloudRain, Clock } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 

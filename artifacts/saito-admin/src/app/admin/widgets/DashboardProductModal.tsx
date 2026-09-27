@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, Upload, Sparkles, Flame, ChevronLeft, Bot, X, Wand2, Plus, Trash2, Ruler, Zap, Tag, Check } from 'lucide-react';
+import { Loader2, Upload, Sparkles, Flame, ChevronLeft, Bot, X, Wand2, Plus, Trash2, Ruler, Zap, Tag, Check } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Product, Category } from '@/types';

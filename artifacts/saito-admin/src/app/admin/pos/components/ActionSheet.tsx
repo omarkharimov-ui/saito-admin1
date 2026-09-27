@@ -7,7 +7,7 @@ import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
   User, Phone, Smartphone, Building2, Gift, ArrowLeftRight,
   ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag, Star, Shield, Navigation,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';

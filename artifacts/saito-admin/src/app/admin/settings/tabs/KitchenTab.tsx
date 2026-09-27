@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getSettings, updateSettings } from '@/lib/settings-client';
-import { Save, Loader2, Timer, AlertTriangle } from 'lucide-react';
+import { Save, Loader2, Timer, AlertTriangle } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
 import { labelCls } from './_shared';

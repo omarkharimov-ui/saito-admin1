@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Lock, User, ChevronDown, Save, Loader2, Shield, ChefHat, Eye, EyeOff } from 'lucide-react';
+import { Lock, User, ChevronDown, Save, Loader2, Shield, ChefHat, Eye, EyeOff } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
 

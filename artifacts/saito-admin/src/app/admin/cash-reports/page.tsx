@@ -15,7 +15,7 @@ import {
   Wallet, Clock, Lock, Unlock, Hourglass, ArrowDownCircle, ArrowUpCircle,
   DollarSign, CreditCard, FileText, Landmark, Banknote, CheckCircle2,
   AlertTriangle, XCircle, Loader2, RefreshCw,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';

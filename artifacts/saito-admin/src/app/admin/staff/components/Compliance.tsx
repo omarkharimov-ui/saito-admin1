@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { MapPin, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import { MapPin, CheckCircle, AlertTriangle, Clock } from '@/components/ui/saito-icons';
 
 interface ComplianceProps {
   staffId: string;

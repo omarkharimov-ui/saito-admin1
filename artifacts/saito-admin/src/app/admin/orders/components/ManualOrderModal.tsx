@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Search, Plus, Minus, Send, Loader2, Trash2, Utensils, ShoppingBag, Package } from 'lucide-react';
+import { X, Search, Plus, Minus, Send, Loader2, Trash2, Utensils, ShoppingBag, Package } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';

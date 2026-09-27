@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ban, Minus, Plus, X } from 'lucide-react';
+import { Ban, Minus, Plus, X } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Zap, Loader2, Trash2, ChevronLeft, Clock, Percent } from 'lucide-react';
+import { X, Zap, Loader2, Trash2, ChevronLeft, Clock, Percent } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileModal from '@/components/ui/MobileModal';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

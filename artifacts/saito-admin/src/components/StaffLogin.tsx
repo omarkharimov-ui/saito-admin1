@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, X } from 'lucide-react';
+import { Lock, X } from '@/components/ui/saito-icons';
 
 interface StaffLoginProps {
   onLogin: (data: { success: boolean; staffId: string; name: string; role: string; canonicalRole: string; shift?: string; token: string; expiresAt: string }) => void;

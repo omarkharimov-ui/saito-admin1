@@ -6,7 +6,7 @@ import React from 'react';
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { motion } from "framer-motion";
-import { Sparkles, Heart, Award, Users } from 'lucide-react';
+import { Sparkles, Heart, Award, Users } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function AboutPage() {

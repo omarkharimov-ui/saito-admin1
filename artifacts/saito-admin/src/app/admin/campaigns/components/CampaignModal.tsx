@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, Zap, Loader2, Search, CheckCircle2, Percent, Gift, Sparkles, ChevronLeft } from 'lucide-react';
+import { X, Save, Zap, Loader2, Search, CheckCircle2, Percent, Gift, Sparkles, ChevronLeft } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Campaign, Product, Category } from '@/types';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

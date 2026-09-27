@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { Bell, ChevronDown, ChevronsLeft, ChevronsRight, Sun, Moon } from 'lucide-react';
+import { Bell, ChevronDown, ChevronsLeft, ChevronsRight, Sun, Moon } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

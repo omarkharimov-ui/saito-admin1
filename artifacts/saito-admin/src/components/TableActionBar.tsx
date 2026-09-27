@@ -1,6 +1,6 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { Search } from '@/components/ui/saito-icons';
 
 interface FilterOption {
   key: string;

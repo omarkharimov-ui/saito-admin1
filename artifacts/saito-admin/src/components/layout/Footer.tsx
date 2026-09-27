@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { getPublicSettings } from '@/lib/settings-client';
-import { Share2, Phone, MapPin, Clock } from 'lucide-react';
+import { Share2, Phone, MapPin, Clock } from '@/components/ui/saito-icons';
 import Link from 'next/link';
 
 const Footer = () => {

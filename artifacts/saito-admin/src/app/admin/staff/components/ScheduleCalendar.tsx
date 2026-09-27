@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, Plus, ChevronLeft, ChevronRight, X, Users, AlertTriangle } from 'lucide-react';
+import { Calendar, Clock, Plus, ChevronLeft, ChevronRight, X, Users, AlertTriangle } from '@/components/ui/saito-icons';
 
 interface ScheduleEntry {
   schedule_id: string;

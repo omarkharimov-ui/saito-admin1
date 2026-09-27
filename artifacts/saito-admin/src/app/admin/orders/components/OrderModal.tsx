@@ -7,7 +7,7 @@ import {
   CreditCard, MoreVertical, AlertTriangle, Trash2, XCircle, Clock,
   GitMerge, Layers, Printer, ChevronLeft, Split,
   Utensils, ShoppingBag, Package, User, Users,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';

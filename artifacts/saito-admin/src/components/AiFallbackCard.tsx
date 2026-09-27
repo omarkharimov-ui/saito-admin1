@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, AlertCircle, AlertTriangle, Sparkles, Keyboard } from 'lucide-react';
+import { Loader2, AlertCircle, AlertTriangle, Sparkles, Keyboard } from '@/components/ui/saito-icons';
 
 interface AiFallbackCardProps {
   loading: boolean;

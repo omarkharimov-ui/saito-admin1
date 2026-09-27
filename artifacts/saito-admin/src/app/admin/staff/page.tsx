@@ -10,7 +10,7 @@ import {
   CheckCircle, XCircle, FileText, Download,
   ShieldCheck, ConciergeBell, Receipt, Flame, Wine, DoorOpen, Info,
    KeyRound, Briefcase, HandPlatter, Landmark, Martini, CalendarDays, Coffee, Bike
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { DragTabSwitcher } from '@/components/ui/DragTabSwitcher';
 
 import { TimeClockPanel } from './components/TimeClockPanel';

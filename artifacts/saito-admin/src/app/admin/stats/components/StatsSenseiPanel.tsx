@@ -7,7 +7,7 @@ import {
   Lightbulb, AlertTriangle, Sprout, Users, CloudRain, Cloud, Sun, ChevronDown,
   CalendarDays, ArrowRight, ShoppingBag, Link2, Target, BarChart3, TrendingDown,
   Wind, Star, Flag, Thermometer,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
 import GoldSelect from '@/components/GoldSelect';

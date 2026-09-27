@@ -5,7 +5,7 @@
 // pulse, ~2s) → approved (code) / declined (retry).
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { CreditCard, CheckCircle2, XCircle, Loader2 } from '@/components/ui/saito-icons';
 import MobileModal from '@/components/ui/MobileModal';
 import { terminalPay } from '@/lib/terminal/simulator';
 

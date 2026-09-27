@@ -6,7 +6,7 @@ import {
   AlertTriangle, TrendingDown, TrendingUp, DollarSign,
   ShoppingBag, RotateCcw, Tag, Ban, Download,
   Shield, Users, Clock, Filter, ArrowUpRight
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
 import { PageTransition, PageHeader } from '@/components/PageTransition';

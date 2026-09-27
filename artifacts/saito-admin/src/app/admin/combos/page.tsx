@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit3, Trash2, PackagePlus, Loader2, ShoppingBag, AlertCircle } from 'lucide-react';
+import { Plus, Edit3, Trash2, PackagePlus, Loader2, ShoppingBag, AlertCircle } from '@/components/ui/saito-icons';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 import type { Combo, Product } from '@/types';
 import ComboModal from './components/ComboModal';

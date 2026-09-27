@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { ShoppingBag, TrendingUp, TrendingDown, Search, Download, Filter } from 'lucide-react';
+import { ShoppingBag, TrendingUp, TrendingDown, Search, Download, Filter } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import GoldSelect from '@/components/GoldSelect';
 import { useTheme } from '@/lib/theme/ThemeContext';

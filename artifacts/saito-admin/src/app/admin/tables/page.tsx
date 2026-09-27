@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'qrcode';
-import { QrCode, Download, Printer, Plus, Minus, X, ExternalLink, Loader2, Save } from 'lucide-react';
+import { QrCode, Download, Printer, Plus, Minus, X, ExternalLink, Loader2, Save } from '@/components/ui/saito-icons';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 import { getSettings, updateSettings } from '@/lib/settings-client';
 import { toast } from '@/lib/toast';

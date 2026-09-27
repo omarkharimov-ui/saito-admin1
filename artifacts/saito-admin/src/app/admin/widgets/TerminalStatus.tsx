@@ -4,7 +4,7 @@
 // (POS / KDS / BDS / Expo / Admin), heartbeat ilə. 60s poll; details →
 // Settings → Terminallar.
 import { useEffect, useState } from 'react';
-import { Monitor, ArrowUpRight } from 'lucide-react';
+import { Monitor, ArrowUpRight } from '@/components/ui/saito-icons';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';

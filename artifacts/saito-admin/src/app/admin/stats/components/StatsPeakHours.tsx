@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Clock } from 'lucide-react';
+import { Clock } from '@/components/ui/saito-icons';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 

@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { fastExit } from '@/lib/modal-transitions';
-import { Delete, CornerDownLeft, Keyboard, Check } from 'lucide-react';
+import { Delete, CornerDownLeft, Keyboard, Check } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 type KeyMode = 'numeric' | 'text';

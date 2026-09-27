@@ -9,7 +9,7 @@
 // Queue position = index in waiting list ordered by created_at.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Users, Phone, Hourglass, Armchair, UserX, Trash2, Check, AlertTriangle } from 'lucide-react';
+import { X, Users, Phone, Hourglass, Armchair, UserX, Trash2, Check, AlertTriangle } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';

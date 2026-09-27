@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Save, Loader2, Wifi, MapPin, Plus, X, AlertTriangle } from 'lucide-react';
+import { Save, Loader2, Wifi, MapPin, Plus, X, AlertTriangle } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { labelCls, inputCls, saveButtonCls } from './_shared';
 

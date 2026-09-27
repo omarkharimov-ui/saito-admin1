@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, AlertTriangle, CheckCircle, XCircle, Clock, User, LogIn, LogOut, Key } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, XCircle, Clock, User, LogIn, LogOut, Key } from '@/components/ui/saito-icons';
 
 interface SecurityEvent {
   id: string;

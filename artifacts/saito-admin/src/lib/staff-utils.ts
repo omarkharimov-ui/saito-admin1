@@ -1,4 +1,4 @@
-import { Shield, Clock, Phone, Mail, Calendar, Briefcase, Activity, ShoppingBag, DollarSign, TrendingUp, AlertTriangle, User, KeyRound, Timer, Users as UsersIcon, Plus, X, ChevronRight, Play, Square, RefreshCw, Search, Filter, Trash2, Ban, RotateCcw, Tag, ArrowLeft, MoreHorizontal, HandPlatter, ChefHat, Martini, ConciergeBell, Package, ReceiptText, ShieldCheck, Crown, Bike, Sparkles, Receipt } from 'lucide-react';
+import { Shield, Clock, Phone, Mail, Calendar, Briefcase, Activity, ShoppingBag, DollarSign, TrendingUp, AlertTriangle, User, KeyRound, Timer, Users as UsersIcon, Plus, X, ChevronRight, Play, Square, RefreshCw, Search, Filter, Trash2, Ban, RotateCcw, Tag, ArrowLeft, MoreHorizontal, HandPlatter, ChefHat, Martini, ConciergeBell, Package, ReceiptText, ShieldCheck, Crown, Bike, Sparkles, Receipt } from '@/components/ui/saito-icons';
 
 export type StaffMember = {
   id: string;

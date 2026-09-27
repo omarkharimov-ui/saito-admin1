@@ -3,7 +3,7 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LogOut, Activity, ChevronRight, Zap } from 'lucide-react';
+import { LogOut, Activity, ChevronRight, Zap } from '@/components/ui/saito-icons';
 import { motion } from 'framer-motion';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

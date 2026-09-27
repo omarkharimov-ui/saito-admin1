@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Armchair, Users, Clock, CheckCircle2, Utensils } from 'lucide-react';
+import { Armchair, Users, Clock, CheckCircle2, Utensils } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/lib/supabase';
 

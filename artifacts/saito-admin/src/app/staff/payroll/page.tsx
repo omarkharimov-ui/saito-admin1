@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Wallet, Clock, TrendingUp, ChevronRight, Receipt } from 'lucide-react';
+import { Wallet, Clock, TrendingUp, ChevronRight, Receipt } from '@/components/ui/saito-icons';
 import { useStaffApp } from '../hooks/useStaffApp';
 
 interface PayrollData {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings } from '@/lib/settings-client';
 import { apiFetch } from '@/lib/api-fetch';
-import { Loader2, Star, Save, Trash2 } from 'lucide-react';
+import { Loader2, Star, Save, Trash2 } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { GsLoader, inputCls, labelCls } from './_shared';

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock, ChefHat, CheckCircle2, AlertTriangle, Volume2, VolumeX,
   Package, Truck, Utensils, Flame, Timer, Bell, Printer, Coffee
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';

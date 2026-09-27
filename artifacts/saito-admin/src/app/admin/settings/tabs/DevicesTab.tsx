@@ -13,7 +13,7 @@ import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Monitor, Wifi, Loader2, Trash2, RefreshCw, TestTube, Copy, X, Printer,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { inputCls, labelCls } from './_shared';
 import TactileSwitch from '../../components/ui/TactileSwitch';
 

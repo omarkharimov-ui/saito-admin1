@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { TrendingUp, BarChart2 } from 'lucide-react';
+import { TrendingUp, BarChart2 } from '@/components/ui/saito-icons';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 

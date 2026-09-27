@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, UserPlus, Shield, Phone, Mail, Clock, KeyRound, DollarSign } from 'lucide-react';
+import { X, Plus, UserPlus, Shield, Phone, Mail, Clock, KeyRound, DollarSign } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { formatCurrency } from '@/lib/staff-utils';
 

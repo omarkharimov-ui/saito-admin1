@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Wallet, CreditCard, X } from 'lucide-react';
+import { Check, Wallet, CreditCard, X } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';

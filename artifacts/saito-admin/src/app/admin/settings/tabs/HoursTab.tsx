@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getSettings, updateSettings } from '@/lib/settings-client';
-import { Save, Loader2, Store, MapPin, Phone, Clock, Camera, QrCode, Download, Plus, Minus, X, ExternalLink, Lock, Users, Trash2, User, Briefcase, Moon, BrainCircuit, Target, Timer, TrendingUp, AlertTriangle, Settings2 } from 'lucide-react';
+import { Save, Loader2, Store, MapPin, Phone, Clock, Camera, QrCode, Download, Plus, Minus, X, ExternalLink, Lock, Users, Trash2, User, Briefcase, Moon, BrainCircuit, Target, Timer, TrendingUp, AlertTriangle, Settings2 } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';

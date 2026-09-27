@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight, Edit, Clock, BarChart3,
   MoreHorizontal, ShieldCheck
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import type { StaffMember } from '../types';
 
 interface StaffTableProps {

@@ -6,7 +6,7 @@
 // first_seen (YENİ badge), UNPAIR (blok) + REMOTE RELOAD ("Yenilə" düyməsi).
 // Hər terminal 30s heartbeat atır; online = last_seen ≤ 45s. Tab 30s poll.
 import { useCallback, useEffect, useState } from 'react';
-import { Monitor, Laptop, Coffee, BellRing, Shield, RefreshCw, RotateCw, Unplug, CheckCheck, Loader2, BatteryCharging, BatteryLow, CreditCard, WifiOff } from 'lucide-react';
+import { Monitor, Laptop, Coffee, BellRing, Shield, RefreshCw, RotateCw, Unplug, CheckCheck, Loader2, BatteryCharging, BatteryLow, CreditCard, WifiOff } from '@/components/ui/saito-icons';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';

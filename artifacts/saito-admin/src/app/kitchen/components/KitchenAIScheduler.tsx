@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Clock, Users, ChefHat, Bell, ShoppingBag, X, CookingPot, ChevronRight } from 'lucide-react';
+import { Sparkles, Clock, Users, ChefHat, Bell, ShoppingBag, X, CookingPot, ChevronRight } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, BellOff } from 'lucide-react';
+import { Bell, BellOff } from '@/components/ui/saito-icons';
 import { motion } from 'framer-motion';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { showSAITONotification } from '@/components/CustomNotification';

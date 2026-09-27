@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, X, Loader2, History, ShoppingCart, FileText,
   Plus, Trash2, RotateCcw, ChevronDown, Clock,
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 
 interface HistoryEvent {

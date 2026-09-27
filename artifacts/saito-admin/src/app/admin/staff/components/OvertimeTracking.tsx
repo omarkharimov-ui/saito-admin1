@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, Clock, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Clock, AlertTriangle } from '@/components/ui/saito-icons';
 
 interface OvertimeTrackingProps {
   staffId: string;

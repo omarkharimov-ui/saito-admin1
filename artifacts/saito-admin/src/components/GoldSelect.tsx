@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export interface GoldSelectOption {

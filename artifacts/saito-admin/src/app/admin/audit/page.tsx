@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, ShoppingBag, AlertTriangle, TrendingDown, ArrowRight, Download } from 'lucide-react';
+import { Search, Loader2, ShoppingBag, AlertTriangle, TrendingDown, ArrowRight, Download } from '@/components/ui/saito-icons';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';

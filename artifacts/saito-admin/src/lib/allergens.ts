@@ -1,4 +1,4 @@
-import { Wheat, Fish, Milk, Egg, Nut, Bean, Shrimp, Sprout, Leaf, Shell, Flower2, FlaskConical, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { Wheat, Fish, Milk, Egg, Nut, Bean, Shrimp, Sprout, Leaf, Shell, Flower2, FlaskConical, TriangleAlert, type LucideIcon } from '@/components/ui/saito-icons';
 
 /**
  * ALLERGEN SSOT — Supabase:

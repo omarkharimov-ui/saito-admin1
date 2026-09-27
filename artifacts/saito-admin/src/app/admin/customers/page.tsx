@@ -34,7 +34,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Search, X, ChevronRight, Users, Phone, Pencil, Star } from 'lucide-react';
+import { Search, X, ChevronRight, Users, Phone, Pencil, Star } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
 import { cachedFetch, cachePeek } from '@/lib/data-cache';

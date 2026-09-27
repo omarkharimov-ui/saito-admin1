@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSettings, updateSettings } from '@/lib/settings-client';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, Save, Loader2, MapPin, Minus } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, Save, Loader2, MapPin, Minus } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { inputCls } from './_shared';
 

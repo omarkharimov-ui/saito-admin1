@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import { Trash2, AlertCircle, Loader2 } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import MobileModal from '@/components/ui/MobileModal';
 

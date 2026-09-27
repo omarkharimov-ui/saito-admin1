@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Component, type ReactNode } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from '@/components/ui/saito-icons';
 
 interface Props {
   children: ReactNode;

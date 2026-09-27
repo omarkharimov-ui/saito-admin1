@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, TrendingUp, TrendingDown, Minus, Package, Search, RefreshCw, AlertTriangle, DollarSign, CheckCircle, ShoppingCart, ExternalLink } from 'lucide-react';
+import { Lightbulb, TrendingUp, TrendingDown, Minus, Package, Search, RefreshCw, AlertTriangle, DollarSign, CheckCircle, ShoppingCart, ExternalLink } from '@/components/ui/saito-icons';
 import { TableActionBar } from '@/components/TableActionBar';
 import { EmptyState, LoadingState } from '@/components/ProcurementEmptyState';
 import { SummaryCards } from '@/components/ProcurementSummaryCards';

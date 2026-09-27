@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Star, Send, CheckCircle } from 'lucide-react';
+import { Star, Send, CheckCircle } from '@/components/ui/saito-icons';
 
 interface Review {
   review_id: string;

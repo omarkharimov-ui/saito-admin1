@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, LogIn, LogOut, Coffee, Play, Square, AlertTriangle, Timer, TrendingUp, UserX, History, ShieldAlert } from 'lucide-react';
+import { Clock, LogIn, LogOut, Coffee, Play, Square, AlertTriangle, Timer, TrendingUp, UserX, History, ShieldAlert } from '@/components/ui/saito-icons';
 
 interface TimeClockStatus {
   is_clocked_in: boolean;
@@ -520,7 +520,7 @@ export function TimeClockPanel({ staffId, staffName }: TimeClockPanelProps) {
 function StatusCard({ label, value, icon: Icon, color }: {
   label: string;
   value: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: React.ComponentType<{ size?: number | string; className?: string }>;
   color: 'emerald' | 'zinc' | 'amber' | 'blue' | 'purple';
 }) {
   const colors = {

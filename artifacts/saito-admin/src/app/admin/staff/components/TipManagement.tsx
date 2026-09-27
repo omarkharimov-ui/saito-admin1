@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DollarSign, Users, PieChart, Settings, Check, AlertTriangle } from 'lucide-react';
+import { DollarSign, Users, PieChart, Settings, Check, AlertTriangle } from '@/components/ui/saito-icons';
 
 interface TipPool {
   id: string;

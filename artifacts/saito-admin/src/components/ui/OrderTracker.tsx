@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
-import { Package, Clock, Utensils, CheckCircle2, X } from 'lucide-react';
+import { Package, Clock, Utensils, CheckCircle2, X } from '@/components/ui/saito-icons';
 
 const OrderTracker = () => {
   const [activeOrder, setActiveOrder] = useState<any>(null);

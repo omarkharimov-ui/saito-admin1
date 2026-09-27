@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { toast, type Toast } from '@/lib/toast';
-import { CheckCircle2, X } from 'lucide-react';
+import { CheckCircle2, X } from '@/components/ui/saito-icons';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { getSettings } from '@/lib/settings-client';

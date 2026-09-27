@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock, Users, DollarSign, AlertTriangle, CheckCircle, XCircle,
   Filter, Calendar, ChevronRight, Play, Square, Coffee
-} from 'lucide-react';
+} from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 
 type Shift = {

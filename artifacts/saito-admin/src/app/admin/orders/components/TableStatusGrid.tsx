@@ -12,7 +12,7 @@ import { rectSortingStrategy, SortableContext } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Order, TableFilterType, TableFloor } from '../types';
 import { getOrderAgeMinutes, getKitchenStatusConfig } from '../utils';
-import { GitMerge } from 'lucide-react';
+import { GitMerge } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 

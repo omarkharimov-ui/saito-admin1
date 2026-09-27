@@ -6,7 +6,7 @@
 // partner logo + brand color + courier info across POS / KDS / BDS.
 // "Test sifarişi" fires one realistic order so you can see the branding live.
 import { useState, useEffect, useCallback } from 'react';
-import { Bike, CheckCircle2, Loader2, Zap } from 'lucide-react';
+import { Bike, CheckCircle2, Loader2, Zap } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

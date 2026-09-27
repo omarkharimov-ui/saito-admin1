@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUI } from '@/context/UIContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { Menu as MenuIcon, Globe, ShoppingBag } from 'lucide-react';
+import { Menu as MenuIcon, Globe, ShoppingBag } from '@/components/ui/saito-icons';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { NotificationButton } from '@/components/NotificationButton';

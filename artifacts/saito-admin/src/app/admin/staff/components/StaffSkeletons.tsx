@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Users, UserPlus } from 'lucide-react';
+import { Users, UserPlus } from '@/components/ui/saito-icons';
 import { EmptyState } from '@/components/ui/primitives';
 
 export function StaffEmptyState({ onCreate }: { onCreate: () => void }) {

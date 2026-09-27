@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Activity, ShoppingBag, DollarSign, Clock, Edit, Trash2, CheckCircle, XCircle, AlertTriangle, Filter } from 'lucide-react';
+import { Activity, ShoppingBag, DollarSign, Clock, Edit, Trash2, CheckCircle, XCircle, AlertTriangle, Filter } from '@/components/ui/saito-icons';
 
 interface ActivityItem {
   id: string;

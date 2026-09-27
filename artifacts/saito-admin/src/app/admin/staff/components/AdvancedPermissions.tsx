@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Shield, Check, X, Lock } from 'lucide-react';
+import { Shield, Check, X, Lock } from '@/components/ui/saito-icons';
 
 interface Permission {
   permission_code: string;

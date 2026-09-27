@@ -83,8 +83,8 @@
 
 ### C. Sonra
 1. ~~A + B fix → tsc → qısa E2E → bir commit → `MASTER_FEATURE_MAP.md` §10 entry~~ ✅ **BİTİB (2026-09-27)** — bax §2b.
-2. Qısa probe: 60s kataloq sync tick görünür? (network-də hər 60s `/api/pos/products` GET) — görünmürsə reason tap (həmçinin admin-də `is_in_stock` toggle edib POS-da OOS badge-in 60s içində dəyişdiyini yoxla — owner bunu soruşdu).
-3. E2E qalıqları: masa 18 seated/empty, masa 17-də 1 draft "Tea" (10₼). Demo data; təmizləmək istəsən: kart seç → MƏTBƏXDƏ/⋮ → sifariş dismiss (ilk klikdən işləyir).
+2. ~~Qısa probe: 60s kataloq sync tick görünür?~~ ✅ **YOXLANDI — PASS (2026-09-27)**: 4 ardıcıl tick, delta ~60000 ms (59991/60000/60002/59997); OOS zənci **reload olmadan** təsdiqləndi və bu, **real DB-yə yazı etmədən** edildi (cavab bir tick üçün yerində modifikasiya olundu). **Cavab: admin `is_in_stock` flag-ı dəyişəndə POS 60s içində özü yenilənir.** Detal: `MASTER_FEATURE_MAP.md` §10.
+3. E2E qalıqları — **OWNER QƏRARI GÖZLƏYİR (icazəsiz təmizlənmədi)**: **masa 17 = QRUP** (17+16+18), `ORD-2817`, Filadelfiya Classic ×1, ₼14.00, chip **MƏTBƏXDƏ** — ayrı "Tea" draft-ı YOXDUR (əvvəlki qeyd köhnəlib); **masa 18 həmin qrupun içindədir**, ayrı kart deyil. Digər: 97/511 TƏMİZLƏNMƏLİ · 401/502/901 YENİ OTURUŞ · 14/15/98/99/471/472/991–996 BOŞ. Təmizləmək: kart seç → MƏTBƏXDƏ/⋮ → sifariş dismiss (ilk klikdən işləyir).
 
 ## 4. UI QAYDALARI — DETALLI (BINDING, owner-final)
 

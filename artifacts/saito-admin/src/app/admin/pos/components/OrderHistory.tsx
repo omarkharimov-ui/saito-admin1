@@ -384,8 +384,8 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
         <motion.div
           {...centerModal}
           className={`relative w-full max-w-xl rounded-[32px] shadow-overlay border ${
-            lightMode ? 'bg-white/90 border-zinc-200' : 'bg-zinc-900/90 border-white/10'
-          } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-xl`}
+            lightMode ? 'bg-white/95 border-zinc-200' : 'bg-zinc-900/95 border-white/10'
+          } overflow-hidden max-h-[85vh] flex flex-col`}
           onClick={e => e.stopPropagation()}
         >
           {/* Header — 2026-09-27 premium pass (owner: "modal düzbucaqlı forma...
@@ -431,9 +431,27 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
             </button>
           </div>
 
+          {/* 2026-09-27 BUG A FIX (TARİXÇƏ): list ↔ detail is now a real STATE
+              TRANSITION. Both views are separate keyed motion children inside
+              ONE AnimatePresence with `mode="popLayout"` — the outgoing view
+              leaves the layout flow so the incoming one owns the space
+              immediately and the two fade at once (220ms fade + 8px drift, no
+              empty gap, no reflow). A fragment is not tracked by
+              AnimatePresence, so each view must be its own motion.div. The
+              card's `backdrop-blur-xl` was removed too: a backdrop-filter on an
+              ancestor freezes a far child's opacity animation in Chrome (that
+              is why the switch read as an instant snap). */}
+          <AnimatePresence mode="popLayout" initial={false}>
           {/* ═══════ LIST VIEW ═══════ */}
-          {!selectedOrder && (
-            <>
+          {!selectedOrder ? (
+            <motion.div
+              key="oh-list"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+              className="w-full min-h-0 flex-1 flex flex-col"
+            >
               {/* 2026-09-23 (owner, Toast "Sales Exception Report"): Sifarişlər / İstisnalar.
                   2026-09-27 premium pass: true segmented control — one quiet
                   surface, the active segment is the solid pill (no more two
@@ -665,14 +683,18 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                      </div>
                    ))
                  )}
-               </div>
-              )}
-             </>
-           )}
-
-           {/* ═══════ DETAIL VIEW ═══════ */}
-          {selectedOrder && (
-            <div className="flex-1 overflow-y-auto">
+                </div>
+               )}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="oh-detail"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+              className="w-full flex-1 overflow-y-auto"
+            >
               {detailLoading ? (
                 <div className="flex items-center justify-center py-16">
                   <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
@@ -950,16 +972,17 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     </button>
                   </div>
 
-                </div>
-              ) : (
-                <div className="py-16 text-center">
-                  <p className="text-xs opacity-40">Sifariş tapılmadı</p>
-                </div>
-              )}
-            </div>
+                 </div>
+               ) : (
+                 <div className="py-16 text-center">
+                   <p className="text-xs opacity-40">Sifariş tapılmadı</p>
+                 </div>
+               )}
+            </motion.div>
           )}
+          </AnimatePresence>
 
-          {/* ═══════ INTEGRATED REFUND MODAL ═══════ */}
+           {/* ═══════ INTEGRATED REFUND MODAL ═══════ */}
           <AnimatePresence>
             {refundModalOpen && refundOrder && (
               <RefundView

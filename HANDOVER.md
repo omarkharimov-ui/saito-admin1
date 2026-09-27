@@ -6,7 +6,8 @@
 ## 0. STATUS QISCA
 
 - **Repo:** `/Users/mr.apple/saito-admin1/` · app: `artifacts/saito-admin/` (git path prefix `artifacts/saito-admin/`)
-- **HEAD:** `b469f842` — **HARİÇDƏ: 7 fayl UNCOMMITTED** (bu turn-un işi, §2-də detallı). `git status` / `git diff --stat` ilə görünür.
+- **HEAD:** `080742b5` (HANDOVER §4.0 state-machine quruluşu) **+ BUG A/B fix commit-i** (§2b). Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`.
+  - ⚠️ Əvvəl burada "HEAD `b469f842` — 7 fayl UNCOMMITTED" yazırdı — **o qeyd KÖHNƏ idi** (§2-dəki 7 fayl həmin anda commit olunmuşdu).
 - **Dev server:** `http://localhost:3000` (adətən işləyir; yoxdursa `corepack pnpm dev` inside `artifacts/saito-admin/`)
 - **Login:** `/login` → PIN **4321** · POS: `/admin/pos`
 - **pnpm workspace** — `npm i` QIQDIR (repo qırılır). Həmişə `corepack pnpm`.
@@ -19,7 +20,7 @@
 - Journal: `MASTER_FEATURE_MAP.md` §10 — hər round-dan sonra newest-first entry əlavə et.
 - Canonical UI direction (ratified 2026-09-19, BINDING): `SAITO_UI_VISUAL_DIRECTION.md`.
 
-## 2. BU TURN-DA YAPILANLAR (UNCOMMITTED — 7 fayl + e2e-shots)
+## 2. ƏVVƏLKİ TURN (ARTIQ COMMIT OLUNUB — `080742b5`-də)
 
 | Fayl | Dəyişiklik | E2E statusu |
 |---|---|---|
@@ -33,9 +34,32 @@
 
 `tsc --noEmit` (app scope) = **təmiz**.
 
-## 3. PENDING BUGS — növbəti agentin #1 prioriteti
+## 2b. BU ROUND (2026-09-27, "davam ele") — BUG A + B FIX (✅ TAMAM, commit olunub)
 
-### A. KASSA view-swap opacity donmuş (visually: 215ms boş ekran + snap)
+İki açıq bug (§3-A, §3-B) bağlandı. Dəyişən fayllar: **3**
+(`CashDrawerPanel.tsx`, `OrderHistory.tsx`, `hooks/usePos.tsx`) + sənədlər.
+
+- **BUG A** → card-dan **`backdrop-blur-xl` APARILDI** (kök səbəb: ancestor
+  `backdrop-filter` Chrome-da uzaq child-in opacity animasiyasını dondurur), səth
+  `/90` → `/95`; view-swap `mode="wait"` → **`mode="popLayout"`** (container
+  `relative`, child `w-full`); TARİXÇƏ list↔detail indi bir `AnimatePresence`-də
+  iki keyed `motion.div` (`oh-list` / `oh-detail`).
+- **BUG B** → `clearCart` indi `pos_draft_<mode>` açarını **SİNXRON** silir (hər iki
+  yol: dine-in + reservationMode). Kök səbəb **effekt-sırası yarışı** idi — event
+  deyil (ilk tapda `click` düyməyə çatırdı).
+- **E2E**: BUG B **5/5 ilk tap** (hər iterasiya təmiz reload → deterministik) ·
+  KASSA/TARİXÇƏ crossfade 20–26 ara opacity, **0 ms boşluq** · tab-dəyişməsi
+  ("səbət itmir") reqressiyası **PASS** · console errors **0**.
+- **Tam detallar + qalıq qeydlər**: `MASTER_FEATURE_MAP.md` §10 →
+  "2026-09-27 (BUG A + B FIX …)" (newest-first, ən yuxarıda). Orada qeyd olunanlar:
+  `resetCart` eyni sinif yarışa açıqdır (TOXUNULMADI), cart sətirlərinin özü bir
+  frame-də unmount olur (per-row opacity ramp yox), reload-da nadir "Retry" ekranı.
+- Screenshots: `artifacts/saito-admin/e2e-shots/14-*` və `15-*`.
+
+## 3. BUG STATUS — A ✅ FIXED · B ✅ FIXED · QALAN: §3-C
+
+### A. ✅ FIXED (2026-09-27) — KASSA view-swap opacity donmuş (visually: 215ms boş ekran + snap)
+> **Həll §2b-də + jurnalda.** Aşağıdaki mətn fix-dən ƏVVƏLKİ analizdir — tarixi qeyd kimi saxlanılır.
 **Repro:** KASSA aç → DAXİLOLMA bas → köhnə grid y-animatsiya edir (0→−8) amma **opacity 1-də donub** 220ms-də silinir; yeni form **opacity 0-da 216ms boş** qalıb, y-animatsiya edir, opacity anidən 1-ə qalxır. (Probe timeline: t=5195→5660, `e2e-shots/13-kassa-cashin.png`.)
 **Root cause hipotezi:** card-da `backdrop-blur-xl` — Chrome backdrop-filter ancestor-u child opacity animasiyasını qırır (transform/y ayrı pipeline olduğundan y işləyir). Modal entrance (card öz opacity-si) işləyir; **içəri** view swap-lar işləmir.
 **Fix plan:**
@@ -44,7 +68,13 @@
 3. **Eyni müalicəni TARİXÇƏ-yə də tətbiq et:** (a) onun card blur-u da apara, (b) list↔detail switch hazırda **anidən** swap olunur — iki keyed motion child (key="oh-list" / "oh-detail") ilə eyni 220ms fade ver (fragment AnimatePresence-də track olunmur — hər biri ayrı `motion.div` olmalıdır).
 4. Frame sampling ilə verify: opacity 0→1 ramp görməlisən, boş boşluq YOX.
 
-### B. TƏMİZLƏ ilk tap no-op ("mexaniki problem" variantı)
+### B. ✅ FIXED (2026-09-27) — TƏMİZLƏ ilk tap no-op
+> **Həll:** kök səbəb "mexaniki" DEYİL — **effekt-sırası yarışı**. Draft-restore effekti
+> (`usePos.tsx` ~490) draft-persist effektindən (~538) ƏVVƏL elan olunduğu üçün clear-in
+> commit-ində restore birinci işləyirdi, `pos_draft_<mode>` açarını hələ silinməmiş oxuyub
+> `setCart(parsed.cart)` ilə itemləri geri yazırdı. E2E bunu sübut etdi: ilk tapda tam
+> `pointerdown→…→click` zənciri düyməyə çatır, DOM node dəyişmir. **Fix:** `clearCart`
+> açarı sinxron silir. E2E **5/5 ilk tap** PASS. Aşağıdaki mətn fix-dən ƏVVƏLKİ analizdir.
 **Repro:** boş masa → 1 məhsul əlavə et → TƏMİZLƏ ghost pill header-də görünür → **ilk tap: pill highlight olur (klik elementə çatır) amma cart təmizlənMİR; ikinci tap: təmizlənir.** (Probe 1, masa 18.)
 **İstiqamət:**
 - `usePos.tsx` `clearCart` (~line 1517): guard-lara bax (`reservationMode`, `isDirty`, `cart` null check) — ilk çağırışda hansı şərt no-op verə bilər?
@@ -52,7 +82,7 @@
 - Owner üçün QİRAĞI: hər operation ILK klikdən işləməlidir.
 
 ### C. Sonra
-1. A + B fix → tsc → qısa E2E (KASSA view-swap fade frame sample; TƏMİZLƏ ilk tap) → **bir commit** (message: bu turn-un bütün işi + fix-lər) → `MASTER_FEATURE_MAP.md` §10 entry (newest-first).
+1. ~~A + B fix → tsc → qısa E2E → bir commit → `MASTER_FEATURE_MAP.md` §10 entry~~ ✅ **BİTİB (2026-09-27)** — bax §2b.
 2. Qısa probe: 60s kataloq sync tick görünür? (network-də hər 60s `/api/pos/products` GET) — görünmürsə reason tap (həmçinin admin-də `is_in_stock` toggle edib POS-da OOS badge-in 60s içində dəyişdiyini yoxla — owner bunu soruşdu).
 3. E2E qalıqları: masa 18 seated/empty, masa 17-də 1 draft "Tea" (10₼). Demo data; təmizləmək istəsən: kart seç → MƏTBƏXDƏ/⋮ → sifariş dismiss (ilk klikdən işləyir).
 

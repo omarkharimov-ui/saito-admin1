@@ -1526,6 +1526,18 @@ export function usePos() {
         .filter(item => (item.sentQuantity ?? 0) > 0)
         .map(item => ({ ...item, quantity: item.sentQuantity ?? item.quantity }));
       setCart(prev => prev ? { ...prev, items: keptItems } : null);
+      // Same first-tap race as the dine-in path below (see the BUG B note there):
+      // drop the mode's draft synchronously whenever the cart ends up dataless,
+      // so the restore effect (which is declared above the persist effect) can
+      // never resurrect the items we just cleared.
+      if (
+        keptItems.length === 0
+        && !current.customer_name
+        && !current.customer_phone
+        && !current.delivery_address
+      ) {
+        try { sessionStorage.removeItem(`pos_draft_${posMode}`); } catch {}
+      }
       if (reservationId) {
         apiFetch('/api/reservations/pre-order-items', {
           method: 'POST',
@@ -1557,6 +1569,30 @@ export function usePos() {
       .filter(item => (item.sentQuantity ?? 0) > 0)
       .map(item => ({ ...item, quantity: item.sentQuantity ?? item.quantity }));
     setCart(prev => prev ? { ...prev, items: keptItems } : null);
+
+    // 2026-09-27 BUG B FIX (owner: "TƏMİZLƏ-yə ilk basışda heç nə olmur,
+    // ikinci basışda işləyir") — ROOT CAUSE: an effect ORDERING race, not the
+    // click. The draft-restore effect is declared ABOVE the draft-persist
+    // effect, so in the very commit that this clear commits, restore runs
+    // FIRST: it sees "live cart has no data", reads `pos_draft_<mode>` out of
+    // sessionStorage — which still holds the pre-clear draft, because the
+    // persist effect (the one that removes the key when the cart goes empty)
+    // only runs LATER in that same commit — and writes the just-cleared items
+    // straight back with `setCart(parsed.cart)`. So tap #1 looked like a no-op
+    // and tap #2 stuck (by then `draftRestoredForRef` already had this mode, so
+    // restore short-circuits). Dropping the key SYNCHRONOUSLY here makes the
+    // restore find nothing — deterministic on the first tap.
+    // NOTE: the key is dropped only when the cart ends up dataless, mirroring
+    // the persist effect's own `hasData()` predicate, so a cart that still
+    // holds a customer/address keeps its draft.
+    if (
+      keptItems.length === 0
+      && !current.customer_name
+      && !current.customer_phone
+      && !current.delivery_address
+    ) {
+      try { sessionStorage.removeItem(`pos_draft_${posMode}`); } catch {}
+    }
     if (draftIds.length > 0) {
       apiFetch('/api/orders/clear-draft-items', {
         method: 'POST',

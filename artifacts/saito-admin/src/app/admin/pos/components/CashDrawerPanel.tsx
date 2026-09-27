@@ -438,8 +438,8 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
         <motion.div
           {...centerModal}
           className={`relative z-10 pointer-events-auto w-full max-w-lg rounded-[32px] shadow-overlay border ${
-            lightMode ? 'bg-white/90 border-zinc-200' : 'bg-zinc-900/90 border-white/10'
-          } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-xl`}
+            lightMode ? 'bg-white/95 border-zinc-200' : 'bg-zinc-900/95 border-white/10'
+          } overflow-hidden max-h-[85vh] flex flex-col`}
         >
           {/* Header — 2026-09-27 premium pass (owner: same doctrine as TARİXÇƏ):
               icon chip + title + live status subtitle, circular ghost close. */}
@@ -467,7 +467,10 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
+          {/* `relative` anchors the popLayout'd (absolutely positioned) exiting
+              view during the in-dialog view swap, so the crossfade overlaps
+              instead of pushing the movement log down. */}
+          <div className="relative flex-1 overflow-y-auto px-6 pb-6 space-y-4">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 size={24} className="animate-spin text-[var(--theme-text-muted)]" />
@@ -596,20 +599,33 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                    </div>
                 </div>
 
-                  {/* 2026-09-27 premium pass: the view region (main actions ↔
-                      cash-in/out ↔ no-sale ↔ drop ↔ deposit ↔ lock ↔ close)
-                      swaps as a STATE TRANSITION — 220ms fade + 8px drift,
-                      wait-mode, so the old view settles out before the new one
-                      lands. Movement log below stays persistent. */}
-                  <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={`kassa-view-${view}`}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-                    className="space-y-4"
-                  >
+                   {/* 2026-09-27 premium pass: the view region (main actions ↔
+                       cash-in/out ↔ no-sale ↔ drop ↔ deposit ↔ lock ↔ close)
+                       swaps as a STATE TRANSITION — 220ms fade + 8px drift.
+                       2026-09-27 BUG A FIX (owner: "kassa view swap-da 215ms boş
+                       ekran + snap olur"):
+                         (1) the card's own `backdrop-blur-xl` was the root cause
+                             — a backdrop-filter on an ancestor freezes a far
+                             child's opacity animation in Chrome (transform/y
+                             keeps running, opacity is only applied on the final
+                             frame). Card blur removed (the veil already blurs
+                             the page) and the surface made more opaque
+                             (/90 → /95) so legibility is unchanged.
+                         (2) `mode="wait"` made the two views SEQUENTIAL (exit
+                             then enter) → a dip-to-empty gap at the crossover.
+                             `popLayout` pops the exiting view out of the layout
+                             flow so the incoming one owns the space immediately
+                             and both fade at once — a true crossfade, no gap,
+                             no reflow (same pattern as lib/motion/Morph.tsx). */}
+                   <AnimatePresence mode="popLayout" initial={false}>
+                   <motion.div
+                     key={`kassa-view-${view}`}
+                     initial={{ opacity: 0, y: 8 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     exit={{ opacity: 0, y: -8 }}
+                     transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                     className="w-full space-y-4"
+                   >
                   {/* Actions — 2026-09-27 (E2E: bottom row clipped): primary 3 +
                       secondary 5 so the main view fits the dialog. */}
                   {view === 'main' && (

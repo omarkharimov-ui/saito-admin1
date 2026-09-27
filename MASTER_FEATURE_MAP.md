@@ -809,6 +809,25 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-27 (DESIGN BATCH: Tarixçə tabs + 3 order-card variant + ORD chip sil + Kassa Apple-minimal)
+
+- **Owner turn**: 6-nöqtəlik batch-in **dizayn** yarısı: (2) çirkin şablonlardan 3 variant + 2-ci şəkildəki ORD chip-ənin silinməsi; (3) Tarixçə tab-ları "hər tab digəri ilə qarışmış görünür" — hamar transition + aydın aktiv indikator; (5) Kassa "sadə şablondan çıx" — Apple fəlsəfəsi, minimal, premium.
+- **Task 5 — Tarixçə tabs** (`OrderHistory.tsx`):
+  - SIFARİŞLƏR/İSTİSNALAR → **sliding pill** (`layoutId="oh-sheet-pill"`, 240ms `[0.45,0,0.55,1]`, zero overshoot) — aktiv tab bir nazarda aydın.
+  - 8 chip (2 müxtəlif filter sistemi, 1 clipped scroll row) → **2 ayrı quiet qrup**: source (HAMİSİ/İÇƏRİDƏ/TAKEAWAY/ÇATDIRILMA) + status (ÖDƏNİLDİ/QAYTARILMIŞ/LƏGV/**BÜTÜN**), hər qrupun öz sliding pill-i (`oh-src-pill`/`oh-st-pill`); status "Hamısı" → "Bütün" (iki Hamısı qarışırdı). Artıq heç label clip olunmur (QAYTARILMIŞ kəsik deyil).
+  - Tab CONTENT = **parallel crossfade**: 2 pane relative container-da absolute stack (card-a **list mode-da definite height** — 85vh; detail content-sized qaldı) — 220ms fade, blank frame YOX, hər pane öz scroll-un saxlayır. Search orders pane-ə köçdü (exceptions-da görünüb, heç nə etmir idi).
+- **Task 6 — 3 order-card variant** (`OrderHistory.tsx`): `renderOrderCard()` + **TEMPORARY 1/2/3 switcher** (modal header, X-in yanı): **V1 "Clean list"** (hairline separator, round source glyph, title+meta sol / total sağ) · **V2 "Ledger card"** (kart səthi, kvadrat glyph, title/total baseline, dot-meta) · **V3 "Accent receipt"** (source-rəngli left accent bar, uppercase title, böyük total). **Owner seçəcək; sonra switcher + digər 2 silinəcək.**
+  - **ORD chip SİLİNDİ** (`CartPanel.tsx`): cart header-dəki dine-in `cart.order_number` chip yoxdur (owner explicit: "ikinci şəkildəki chipi sil") — data cart-da qalır (detail/receipt yolları toxunulmayıb).
+- **Task 7 — Kassa Apple-minimal** (`CashDrawerPanel.tsx`): 6 metric tile (shift 3 + balance 3 colored) = `SAITO_UI_VISUAL_DIRECTION.md` §5-in "dashboard syndrome"-u → **tək hero section**: status dot + 34px tabular balance + 1 sətir shift meta (kassir · 11:42 · 9s 23dq · açılış) + hairline NAĞD/KART/XƏRC (**yalnız rəqəmlər rəngli**). 3-colored primary grid → **tək solid emerald "Daxilolma"** (yalnız accent) + quiet bordered Xərc/Smenanı bitir cütü. 5 colored mini-tile → **borderless accessory row** (No Sale/Drop/Depozit/Qıfıl/Z). Hərəkətlər: card fill → hairline list, quiet circle icon-də. Bütün handler-lər eyni.
+- **E2E (Chrome :3000, rAF frame-sampling, real DB-yə 0 yazı)**:
+  - **2 BUG tapıldı + fix olundu**: (1) card **0px collapse** (content-sized card + absolute panes — flex-in grow etmək üçün space yoxdu) → list mode-da definite 85vh; (2) **iki pane eyni anda render** (ternary guard itki) → AnimatePresence-də `sheetTab` ternary, yalnız aktiv pane DOM-da.
+  - **Crossfade sübutu (hər iki istiqamət)**: outgoing 1→0 ∥ incoming 0→1, **~14–16 ara dəyər**, **frame-frame cəmi ≈ 1.0** (203/226ms), 0 blank frame, çıxan pane 220ms-də unmount (ghost qalmır).
+  - **Tab isolation (elementFromPoint)**: orders↔exceptions 3/3 PASS · 0 console error.
+  - Kassa: accessory row 5 item tam görünür, clip YOX (dark+light) · Card 737px (85vh), list scroller 483px işləyir, detail content-sized (max-h, forced deyil).
+  - 25-exceptions: 8 CANCEL row tam body-də (45px collapse fix olundu).
+- Verify: `tsc --noEmit` app-scope **0 xəta** · **3 fayl** (`OrderHistory.tsx`, `CartPanel.tsx`, `CashDrawerPanel.tsx`) · screenshots `e2e-shots/21-*` (Kassa dark/light), `22-*` (V1 dark/light), `23-*` (V2), `24-*` (V3), `25/26/27/28-*`.
+- **⚠️ OWNER QƏRARI GÖZLƏYİR**: order-card variantı hansı (1/2/3) — seçildikdən sonra switcher + digər 2 variant silinəcək.
+
 ### Jurnal sətiri — 2026-09-27 (GUEST OPTİMİSTİK + MODAL STALE-WHILE-REVALIDATE + KASSA BLUR SINGLE-CLOCK + VKB FIT)
 
 - **Owner turn**: 6 nöqtəlik batch — (1) guest confirm gecikir; (2) 3 order-card variantı + ORD chip sil; (3) Tarixçə tabs qarışıq görünür — hamar transition + aktiv indikator; (4) VKB-açıldıqda modal balanssız/qalın düzbucaqlı; (5) Kassa "sadə şablon"dan çıxarmaq — Apple minimal/premium; (6) Kassa + Tarixçə gec açılır + "Tarixçə bluru möhtəşəm, Kassa-da modal açılır BLUR SONRA olur". Bu sətir **texniki batch** (1, 4, 6 + blur fix)-in nəticəsidir; dizayn nöqtələri (2, 3, 5) növbəti round-da.

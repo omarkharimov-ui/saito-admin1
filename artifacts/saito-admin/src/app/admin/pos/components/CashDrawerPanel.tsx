@@ -554,61 +554,44 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                     </div>
                   </div>
                 )}
-                {/* Shift info card */}
-                <div className={`p-5 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
-                     <div className="flex items-center justify-between mb-3">
-                       <div className="flex items-center gap-2">
-                        <User size={14} className="text-[var(--theme-text-muted)]" />
-                        <p className="text-xs font-bold text-[var(--theme-text)]">{session?.staff_name || 'Kassir'}</p>
-                      </div>
-                      <span className="flex items-center gap-1 text-xs font-bold text-green-500">
-                        <Unlock size={10} /> {t('open')}
-                      </span>
-                    </div>
-                   <div className="grid grid-cols-3 gap-3">
-                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
-                       <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('shift_started')}</p>
-                       <p className="text-xs font-black tabular-nums">{formatTime(session.opened_at)}</p>
-                     </div>
-                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
-                       <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('duration')}</p>
-                       <p className="text-xs font-black tabular-nums">{shiftDuration}</p>
-                     </div>
-                     {/* AUDIT 2026-09-23: opening balance was only visible in the
-                         today-sessions list, not on the active session card. */}
-                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
-                       <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('opening')}</p>
-                       <p className="text-xs font-black tabular-nums">{(session.opening_balance || 0).toFixed(2)}₼</p>
-                     </div>
-                   </div>
-                </div>
-
-                {/* Balance card */}
-                <div className={`p-5 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-bold uppercase tracking-widest text-[var(--theme-text-muted)]">Cari Balans</p>
-                    <span className="flex items-center gap-1 text-xs font-bold text-green-500">
-                      <Unlock size={10} /> {t('open')}
+                {/* 2026-09-27 (owner: "Kassa sadə şablondan çıx — Apple fəlsəfəsi,
+                    minimal, premium"): the two metric TILES were the exact
+                    "dashboard syndrome" SAITO_UI_VISUAL_DIRECTION.md §5 warns
+                    against. One quiet section now: status dot, the balance as
+                    the single hero number, a muted one-line shift meta
+                    (kassir · smena start · müddət · açılış), and a
+                    hairline-separated breakdown where ONLY the numbers carry
+                    color. All data preserved; no fills, no tiles. */}
+                <section>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)]">Cari Balans</p>
+                    <span className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${lightMode ? 'bg-emerald-500' : 'bg-emerald-400'}`} />
+                      {t('open')}
                     </span>
                   </div>
-                  <p className="text-[32px] font-black tracking-tighter tabular-nums">
-                    {currentBalance.toFixed(2)} <span className="text-lg text-[var(--theme-text-muted)]">₼</span>
+                  <p className="text-[34px] leading-none font-black tracking-tighter tabular-nums mt-2">
+                    {currentBalance.toFixed(2)}
+                    <span className={`text-base font-bold ml-1 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>₼</span>
                   </p>
-                   <div className="grid grid-cols-3 gap-3 mt-3">
-                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-green-50 border border-green-200' : 'bg-green-500/10 border border-green-500/20'}`}>
-                       <p className="text-xs font-black uppercase tracking-widest text-green-600">{t('cash')}</p>
-                       <p className="text-xs font-black tabular-nums text-green-600">{(paymentTotal + cashInTotal).toFixed(2)}₼</p>
-                     </div>
-                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-blue-50 border border-blue-200' : 'bg-blue-500/10 border border-blue-500/20'}`}>
-                       <p className="text-xs font-black uppercase tracking-widest text-blue-600">Kart</p>
-                       <p className="text-xs font-black tabular-nums text-blue-600">{(session?.card_total || cardPaymentTotal).toFixed(2)}₼</p>
-                     </div>
-                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-red-50 border border-red-200' : 'bg-red-500/10 border border-red-500/20'}`}>
-                       <p className="text-xs font-black uppercase tracking-widest text-red-600">{t('expense')}</p>
-                       <p className="text-xs font-black tabular-nums text-red-600">-{cashOutTotal.toFixed(2)}₼</p>
-                     </div>
-                   </div>
-                </div>
+                  <p className={`text-[11px] font-bold tabular-nums mt-2 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                    {session.staff_name || 'Kassir'} · {formatTime(session.opened_at)} · {shiftDuration} · açılış {(session.opening_balance || 0).toFixed(2)}₼
+                  </p>
+                  <div className={`mt-3 pt-3 border-t grid grid-cols-3 ${lightMode ? 'border-zinc-100' : 'border-white/10'}`}>
+                    <div>
+                      <p className={`text-[9px] font-black uppercase tracking-[0.14em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('cash')}</p>
+                      <p className={`text-sm font-black tabular-nums mt-0.5 ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>{(paymentTotal + cashInTotal).toFixed(2)}₼</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`text-[9px] font-black uppercase tracking-[0.14em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Kart</p>
+                      <p className={`text-sm font-black tabular-nums mt-0.5 ${lightMode ? 'text-blue-600' : 'text-blue-400'}`}>{(session?.card_total || cardPaymentTotal).toFixed(2)}₼</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-[9px] font-black uppercase tracking-[0.14em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('expense')}</p>
+                      <p className={`text-sm font-black tabular-nums mt-0.5 ${lightMode ? 'text-red-500' : 'text-red-400'}`}>-{cashOutTotal.toFixed(2)}₼</p>
+                    </div>
+                  </div>
+                </section>
 
                    {/* 2026-09-27 premium pass: the view region (main actions ↔
                        cash-in/out ↔ no-sale ↔ drop ↔ deposit ↔ lock ↔ close)
@@ -637,74 +620,80 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
                      className="w-full space-y-4"
                    >
-                  {/* Actions — 2026-09-27 (E2E: bottom row clipped): primary 3 +
-                      secondary 5 so the main view fits the dialog. */}
+                  {/* Actions — 2026-09-27 Apple-minimal pass: ONE primary
+                      (Daxilolma — the single solid accent, full width) and a
+                      quiet bordered secondary pair; the 5 tertiary actions
+                      become a borderless accessory row (no colored fills —
+                      they were the "5 colored tiles" noise). All handlers
+                      unchanged. */}
                   {view === 'main' && (
-                    <div className="grid grid-cols-3 gap-2.5">
-                     <button
-                       onClick={() => { setView('cash-in'); setCashAmount(''); setCashDesc(''); }}
-                       className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-green-50 border-green-200 text-green-600' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}
-                     >
-                       <ArrowDownCircle size={20} strokeWidth={2.5} />
-                       <span className="text-xs font-black uppercase tracking-widest">Daxilolma</span>
-                     </button>
-                     <button
-                       onClick={() => { setView('cash-out'); setCashAmount(''); setCashDesc(''); }}
-                       className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-red-50 border-red-200 text-red-600' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}
-                     >
-                       <ArrowUpCircle size={20} strokeWidth={2.5} />
-                       <span className="text-xs font-black uppercase tracking-widest">{t('expense')}</span>
-                     </button>
+                    <section className="space-y-2">
                       <button
-                        onClick={() => { setClosingTarget(null); setView('close'); setCashAmount(String(currentBalance.toFixed(2))); setCashDesc(''); setBillCounts({}); setShowBillCount(false); }}
-                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-zinc-300'}`}
+                        onClick={() => { setView('cash-in'); setCashAmount(''); setCashDesc(''); }}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-widest shadow-sm transition-all active:scale-[0.98] hover:bg-emerald-600"
                       >
-                        <Lock size={20} strokeWidth={2.5} />
-                        <span className="text-xs font-black uppercase tracking-widest">{t('end_shift')}</span>
+                        <ArrowDownCircle size={16} strokeWidth={2.5} />
+                        Daxilolma
                       </button>
-                    </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => { setView('cash-out'); setCashAmount(''); setCashDesc(''); }}
+                          className={`flex items-center justify-center gap-2 py-3 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] ${lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300' : 'bg-white/[0.04] border-white/10 text-zinc-300 hover:border-white/20'}`}
+                        >
+                          <ArrowUpCircle size={15} strokeWidth={2.5} className={lightMode ? 'text-red-500' : 'text-red-400'} />
+                          {t('expense')}
+                        </button>
+                        <button
+                          onClick={() => { setClosingTarget(null); setView('close'); setCashAmount(String(currentBalance.toFixed(2))); setCashDesc(''); setBillCounts({}); setShowBillCount(false); }}
+                          className={`flex items-center justify-center gap-2 py-3 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] ${lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300' : 'bg-white/[0.04] border-white/10 text-zinc-300 hover:border-white/20'}`}
+                        >
+                          <Lock size={15} strokeWidth={2.5} />
+                          {t('end_shift')}
+                        </button>
+                      </div>
+                    </section>
                   )}
 
                   {/* 2026-09-23 (owner, Toast benchmark): secondary drawer actions
-                      (2026-09-24: + Z-report — Toast "print Z at any time") */}
+                      (2026-09-24: + Z-report) — now a quiet accessory row. */}
                   {view === 'main' && (
-                    <div className="grid grid-cols-5 gap-2">
+                    <section className={`grid grid-cols-5 gap-1 pt-3 border-t ${lightMode ? 'border-zinc-100' : 'border-white/10'}`}>
                       <button
                         onClick={() => { setView('no-sale'); setNoSaleReason(''); }}
-                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}
+                        className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
                       >
-                        <FileText size={15} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black uppercase tracking-widest">No Sale</span>
+                        <FileText size={15} strokeWidth={2} />
+                        <span className="text-[9px] font-black uppercase tracking-wider">No Sale</span>
                       </button>
                       <button
                         onClick={() => { setView('cash-drop'); setCashAmount(''); setCashDesc(''); }}
-                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-sky-50 border-sky-200 text-sky-600' : 'bg-sky-500/10 border-sky-500/20 text-sky-400'}`}
+                        className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
                       >
-                        <Landmark size={15} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Drop</span>
+                        <Landmark size={15} strokeWidth={2} />
+                        <span className="text-[9px] font-black uppercase tracking-wider">Drop</span>
                       </button>
                       <button
                         onClick={openDeposit}
-                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-green-50 border-green-200 text-green-600' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}
+                        className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
                       >
-                        <Banknote size={15} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Depozit</span>
+                        <Banknote size={15} strokeWidth={2} />
+                        <span className="text-[9px] font-black uppercase tracking-wider">Depozit</span>
                       </button>
                       <button
                         onClick={() => { setView('lock'); setManagerPin(''); setManagerError(''); }}
-                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-zinc-300'}`}
+                        className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
                       >
-                        {session.locked ? <Unlock size={15} strokeWidth={2.5} /> : <Lock size={15} strokeWidth={2.5} />}
-                        <span className="text-[9px] font-black uppercase tracking-widest">{session.locked ? 'Aç' : 'Qıfıl'}</span>
+                        {session.locked ? <Unlock size={15} strokeWidth={2} /> : <Lock size={15} strokeWidth={2} />}
+                        <span className="text-[9px] font-black uppercase tracking-wider">{session.locked ? 'Aç' : 'Qıfıl'}</span>
                       </button>
                       <button
                         onClick={openZ}
-                        className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-violet-50 border-violet-200 text-violet-600' : 'bg-violet-500/10 border-violet-500/20 text-violet-300'}`}
+                        className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
                       >
-                        <FileText size={15} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Z</span>
+                        <FileText size={15} strokeWidth={2} />
+                        <span className="text-[9px] font-black uppercase tracking-wider">Z</span>
                       </button>
-                    </div>
+                    </section>
                   )}
 
                  {/* Cash-in / Cash-out form */}
@@ -974,40 +963,44 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                   </motion.div>
                   </AnimatePresence>
 
-                  {/* Movement log */}
+                  {/* Movement log — 2026-09-27 Apple-minimal pass: card fills
+                      removed; a clean hairline-separated list (icon · label /
+                      time · staff · description · signed tabular amount). */}
                   {movements.length > 0 && (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('transactions')}</p>
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  <section>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--theme-text-muted)] mb-1">{t('transactions')}</p>
+                    <div className="max-h-44 overflow-y-auto">
                       {[...movements].reverse().map(m => {
                         const cfg = typeLabels[m.type] || typeLabels.cash_in;
                         const Icon = cfg.icon;
                         const isDebit = m.type === 'cash_out' || m.type === 'refund' || m.type === 'void';
                         const shownAmount = m.type === 'reopen' ? Math.abs(m.amount) : m.amount;
                         return (
-                          <div key={m.id} className={`flex items-center gap-3 p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
-                            <Icon size={14} className={cfg.color} />
-                             <div className="flex-1 min-w-0">
-                               <p className="text-xs font-bold truncate">
-                                 {t(cfg.labelKey as any)}
-                                 {m.order_ref ? <span className="text-[var(--theme-text-secondary)]"> · {m.order_ref}</span> : ''}
-                                 {m.description ? ` — ${m.description}` : ''}
-                               </p>
-                               <p className="text-xs text-[var(--theme-text-muted)]">
-                                 {formatTime(m.created_at)}
-                                 {m.created_by_name ? ` · ${m.created_by_name}` : ''}
-                               </p>
-                             </div>
-                            <span className={`text-xs font-black tabular-nums ${
-                              isDebit ? 'text-red-500' : 'text-green-500'
-                            }`}>
-                              {isDebit ? '-' : '+'}{shownAmount.toFixed(2)}₼
+                          <div key={m.id} className={`flex items-center gap-3 py-2.5 border-b last:border-0 ${lightMode ? 'border-zinc-100' : 'border-white/[0.06]'}`}>
+                            <span className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'}`}>
+                              <Icon size={13} className={cfg.color} />
                             </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold truncate">
+                                {t(cfg.labelKey as any)}
+                                {m.order_ref ? <span className="text-[var(--theme-text-secondary)]"> · {m.order_ref}</span> : ''}
+                              </p>
+                              <p className="text-[11px] text-[var(--theme-text-muted)] truncate">
+                                {formatTime(m.created_at)}
+                                {m.created_by_name ? ` · ${m.created_by_name}` : ''}
+                                {m.description ? ` · ${m.description}` : ''}
+                              </p>
+                            </div>
+                           <span className={`text-xs font-black tabular-nums flex-shrink-0 ${
+                             isDebit ? 'text-red-500' : 'text-emerald-500'
+                           }`}>
+                             {isDebit ? '-' : '+'}{shownAmount.toFixed(2)}₼
+                           </span>
                           </div>
                         );
                       })}
                     </div>
-                  </div>
+                  </section>
                 )}
               </div>
             )}

@@ -6,7 +6,7 @@
 ## 0. STATUS QISCA
 
 - **Repo:** `/Users/mr.apple/saito-admin1/` · app: `artifacts/saito-admin/` (git path prefix `artifacts/saito-admin/`)
-- **HEAD:** `297e26b0` (Cart body crossfade, §2d) **+ §2e tech-batch commit-i**. Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`.
+- **HEAD:** `cccbffe9` (§2e tech batch) **+ §2f design-batch commit-i**. Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`. **⚠️ AÇIQ QƏRAR:** owner order-card variantı (1/2/3) seçməlidir — sonra switcher + digər 2 silinir.
   - ⚠️ Əvvəl burada "HEAD `b469f842` — 7 fayl UNCOMMITTED" yazırdı — **o qeyd KÖHNƏ idi** (§2-dəki 7 fayl həmin anda commit olunmuşdu).
 - **Dev server:** `http://localhost:3000` (adətən işləyir; yoxdursa `corepack pnpm dev` inside `artifacts/saito-admin/`)
 - **Login:** `/login` → PIN **4321** · POS: `/admin/pos`
@@ -103,6 +103,23 @@ Apple-minimal redesign) növbəti round. Dəyişən: **5 fayl** + sənədlər.
   balanslı, input kəsilmir. Desktop E2E-olunmayıb (mobil lazımdır).
 - Detal: jurnal `MASTER_FEATURE_MAP.md` §10 (newest-first) · screenshots
   `e2e-shots/20-*.png` (18-*-lərlə birlikdə bu round-un).
+
+## 2f. DESIGN BATCH (2026-09-27, owner 6-nöqtəlik turn) — ✅ TAMAM (variant qərari gözləyir)
+
+- **Tarixçə tabs**: sliding pill segmented (Sifarişlər/İstisnalar + 2 filter qrupu:
+  source/status, hər birinin öz pill-i); status "Hamısı" → "Bütün"; tab content
+  = parallel crossfade (220ms, frame-cəmi ≈1.0 — rAF ilə sübut). 2 E2E bug
+  tapılıb-fix olundu: card 0px collapse → list mode-da definite 85vh; iki pane
+  eyni anda render → `sheetTab` ternary AnimatePresence-də.
+- **3 order-card variant** `renderOrderCard()` + **TEMPORARY 1/2/3 switcher**
+  (modal header): V1 clean list · V2 ledger card · V3 accent receipt.
+  **⚠️ Owner variant seçəcək → sonra switcher + digər 2 silinəcək.**
+- **ORD chip SİLİNDİ** (`CartPanel.tsx` cart header, owner explicit) — data saxlanılır.
+- **Kassa Apple-minimal**: metric tile-lər yoxdur (dashboard syndrome → tək hero:
+  balance + 1 sətir meta + hairline NAĞD/KART/XƏRC rəqəm-rəngli); tək solid emerald
+  Daxilolma; quiet secondary pair; borderless accessory row; hairline hərəkət list.
+- Detal: jurnal `MASTER_FEATURE_MAP.md` §10 (newest-first) · screenshots
+  `e2e-shots/21-28-*`.
 
 ## 3. BUG STATUS — A ✅ FIXED · B ✅ FIXED · QALAN: §3-C
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Printer, X, ChevronLeft, Search, CalendarDays, RefreshCw, Split, Receipt, User, Users, Wallet, CreditCard, Package, AlertTriangle, ChevronRight, Minus } from '@/components/ui/saito-icons';
+import { Clock, Printer, X, ChevronLeft, Search, CalendarDays, RefreshCw, Split, Receipt, User, Users, Wallet, CreditCard, Package, Car, Utensils, AlertTriangle, ChevronRight, Minus } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
@@ -124,6 +124,11 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   // were visible — voided/refunded orders could not be audited from the POS.
   const [statusFilter, setStatusFilter] = useState<'paid' | 'refunded' | 'cancelled' | 'all'>('paid');
   const [sheetTab, setSheetTab] = useState<'orders' | 'exceptions'>('orders');
+  // 2026-09-27 (owner: "çirkin şablonlardan üç variant hazırla") — TEMPORARY
+  // owner-review switcher for the 3 order-card variants (1/2/3 in the modal
+  // header). The winning variant stays; switcher + the other two are removed
+  // in the next round once he picks.
+  const [cardVariant, setCardVariant] = useState<1 | 2 | 3>(1);
   const [loadedCount, setLoadedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -232,6 +237,122 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const handleBackToList = () => {
     setSelectedOrder(null);
     setDetailData(null);
+  };
+
+  // 2026-09-27 (owner: "çirkin şablonlardan üç variant hazırla — daha estetik
+  // və müasir"): THREE order-card variants, selected by the temporary
+  // cardVariant switcher. All keep the same data + actions (tap → detail,
+  // reprint, tabular amounts, source semantics).
+  const renderOrderCard = (order: PaidOrder) => {
+    const isDine = !!order.table_number;
+    const src = order.order_source || 'dine_in';
+    const srcLabel = src === 'takeaway' ? t('takeaway') : src === 'delivery' ? t('delivery') : t('dine_in');
+    const title = isDine
+      ? `${t('table_label')} ${order.table_number}`
+      : src === 'takeaway' ? `${t('takeaway_short')} ${order.order_number || ''}`
+      : src === 'delivery' ? `${t('delivery_short')} ${order.order_number || ''}`
+      : `#${order.order_number || order.id.slice(0, 8)}`;
+    const time = new Date(order.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' });
+    const date = new Date(order.created_at).toLocaleDateString('az');
+    const total = `₼${(Number(order.paid_amount || order.total_amount) || 0).toFixed(2)}`;
+    const guests = order.guest_count ? ` · ${order.guest_count} nəfər` : '';
+    const Icon = src === 'takeaway' ? Package : src === 'delivery' ? Car : Utensils;
+    const iconWrap = src === 'takeaway'
+      ? (lightMode ? 'bg-amber-500/10 text-amber-600' : 'bg-amber-500/15 text-amber-400')
+      : src === 'delivery'
+        ? (lightMode ? 'bg-blue-500/10 text-blue-600' : 'bg-blue-500/15 text-blue-400')
+        : (lightMode ? 'bg-emerald-500/10 text-emerald-600' : 'bg-emerald-500/15 text-emerald-400');
+    const accentBar = src === 'takeaway' ? 'bg-amber-500' : src === 'delivery' ? 'bg-blue-500' : 'bg-emerald-500';
+    const meta = lightMode ? 'text-zinc-400' : 'text-white/35';
+    const reprintBtn = (
+      <button
+        onClick={(e) => { e.stopPropagation(); guardAction(() => doReprint(order), 'reprint'); }}
+        disabled={reprinting === order.id}
+        className={`p-2 rounded-full flex-shrink-0 transition-all active:scale-90 disabled:opacity-30 ${lightMode ? 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600' : 'text-white/35 hover:bg-white/10 hover:text-white/70'}`}
+        title={t('reprint')}
+      >
+        {reprinting === order.id ? (
+          <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <Printer size={13} />
+        )}
+      </button>
+    );
+
+    if (cardVariant === 1) {
+      // V1 — "Clean list" (Apple history style): no card fills, hairline
+      // separators, round source glyph, title + meta left, amount right.
+      return (
+        <div
+          key={order.id}
+          onClick={() => handleSelectOrder(order)}
+          className={`flex items-center gap-3 px-2 py-3 rounded-xl cursor-pointer select-none transition-colors border-b last:border-0 ${lightMode ? 'border-zinc-100 hover:bg-zinc-50' : 'border-white/[0.06] hover:bg-white/[0.03]'}`}
+        >
+          <span className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${iconWrap}`}>
+            <Icon size={15} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-bold truncate leading-tight">{title}</p>
+            <p className={`text-[11px] font-bold tabular-nums truncate mt-0.5 ${meta}`}>{date} · {time}{guests}</p>
+          </div>
+          <span className="text-[13px] font-black tabular-nums flex-shrink-0">{total}</span>
+          {reprintBtn}
+        </div>
+      );
+    }
+    if (cardVariant === 2) {
+      // V2 — "Ledger card" (bank-app style): one quiet surface per row,
+      // square glyph, title/total on one baseline, dot-separated meta.
+      return (
+        <div
+          key={order.id}
+          onClick={() => handleSelectOrder(order)}
+          className={`rounded-2xl border px-4 py-3 cursor-pointer select-none transition-all active:scale-[0.99] ${lightMode ? 'bg-white border-zinc-200/70 hover:border-zinc-300' : 'bg-white/[0.04] border-white/[0.06] hover:bg-white/[0.06]'}`}
+        >
+          <div className="flex items-center gap-3">
+            <span className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconWrap}`}>
+              <Icon size={16} />
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[13px] font-bold truncate">{title}</p>
+                <p className="text-sm font-black tabular-nums flex-shrink-0">{total}</p>
+              </div>
+              <p className={`text-[11px] font-bold tabular-nums truncate mt-0.5 ${meta}`}>
+                {srcLabel} · {date} · {time}{guests}
+              </p>
+            </div>
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              {reprintBtn}
+              <ChevronRight size={14} className={lightMode ? 'text-zinc-300' : 'text-white/20'} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+    // V3 — "Accent receipt" (POS-native): source-colored accent bar, uppercase
+    // title, larger tabular total; the quietest surface of the three.
+    return (
+      <div
+        key={order.id}
+        onClick={() => handleSelectOrder(order)}
+        className={`relative overflow-hidden rounded-2xl border px-4 py-3 pl-5 cursor-pointer select-none transition-all active:scale-[0.99] ${lightMode ? 'bg-white/[0.6] border-zinc-200/60 hover:bg-white' : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]'}`}
+      >
+        <span className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full ${accentBar}`} />
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[12px] font-black uppercase tracking-wide truncate leading-tight">{title}</p>
+            <p className={`text-[10px] font-bold uppercase tracking-wider tabular-nums truncate mt-1 ${meta}`}>
+              {srcLabel} · {date} {time}{guests}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <p className="text-base font-black tabular-nums leading-none">{total}</p>
+            {reprintBtn}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const filteredOrders = orders.filter(order => {
@@ -393,7 +514,18 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
           className={`relative w-full max-w-xl rounded-[32px] shadow-overlay border ${
             lightMode ? 'bg-white/95 border-zinc-200' : 'bg-zinc-900/95 border-white/10'
           } overflow-hidden flex flex-col`}
-          style={{ maxHeight: keyboardHeight > 0 ? `calc(100vh - ${keyboardHeight + 32}px)` : '85vh' }}
+          // 2026-09-27 (E2E collapse catch): LIST mode needs a DEFINITE height —
+          // the tab panes are absolutely stacked (parallel crossfade), so a
+          // max-h-only (content-sized) card collapses to header height the
+          // moment a short pane enters. List = 85vh (Kassa-consistent sheet);
+          // detail stays content-sized (max-h) as before.
+          style={
+            keyboardHeight > 0
+              ? { height: `calc(100vh - ${keyboardHeight + 32}px)`, maxHeight: `calc(100vh - ${keyboardHeight + 32}px)` }
+              : selectedOrder
+                ? { maxHeight: '85vh' }
+                : { height: '85vh', maxHeight: '85vh' }
+          }
           onClick={e => e.stopPropagation()}
         >
           {/* Header — 2026-09-27 premium pass (owner: "modal düzbucaqlı forma...
@@ -430,13 +562,29 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className={`flex-shrink-0 w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 ${lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80'}`}
-              title={t('close')}
-            >
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* TEMPORARY owner-review switcher for the 3 card variants —
+                  removed in the next round once he picks (2026-09-27). */}
+              <div className="flex items-center gap-1">
+                {([1, 2, 3] as const).map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setCardVariant(n)}
+                    title={`Kart variantı ${n} (seçim üçün)`}
+                    className={`w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center transition-all active:scale-90 ${cardVariant === n ? 'bg-emerald-500 text-white' : lightMode ? 'bg-zinc-100 text-zinc-400 hover:text-zinc-600' : 'bg-white/5 text-white/40 hover:text-white/70'}`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={onClose}
+                className={`flex-shrink-0 w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 ${lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80'}`}
+                title={t('close')}
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           {/* 2026-09-27 BUG A FIX (TARİXÇƏ): list ↔ detail is now a real STATE
@@ -463,57 +611,111 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
               {/* 2026-09-23 (owner, Toast "Sales Exception Report"): Sifarişlər / İstisnalar.
                   2026-09-27 premium pass: true segmented control — one quiet
                   surface, the active segment is the solid pill (no more two
-                  floating buttons, one always screaming emerald). */}
-              <div className={`mx-5 mt-3 mb-1 rounded-2xl p-1 flex ${lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'}`}>
+                  floating buttons, one always screaming emerald).
+                  2026-09-27 (owner: "tablar qarışmış görünür, aydın aktiv
+                  indikator"): the pill now SLIDES between segments (layoutId,
+                  240ms time-based ease, zero overshoot) — the active tab is
+                  unambiguous at a glance. */}
+              <div className={`mx-5 mt-3 mb-0 rounded-2xl p-1 flex flex-shrink-0 ${lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'}`}>
                 {([['orders', t('orders') || 'Sifarişlər'], ['exceptions', t('exceptions') || 'İstisnalar']] as const).map(([id, label]) => (
                   <button
                     key={id}
                     onClick={() => setSheetTab(id)}
-                    className={`flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                    className={`relative flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-widest ${
                       sheetTab === id
-                        ? (lightMode ? 'bg-white text-zinc-900 shadow-sm' : 'bg-white text-zinc-950 shadow-sm')
-                        : (lightMode ? 'text-zinc-500 hover:text-zinc-700' : 'text-white/40 hover:text-white/70')
+                        ? (lightMode ? 'text-zinc-900' : 'text-zinc-950')
+                        : (lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/40 hover:text-white/70')
                     }`}
                   >
-                    {label}{id === 'exceptions' && exceptions.length > 0 ? ` (${exceptions.length})` : ''}
+                    {sheetTab === id && (
+                      <motion.span
+                        layoutId="oh-sheet-pill"
+                        className={`absolute inset-0 rounded-xl ${lightMode ? 'bg-white shadow-sm' : 'bg-white'}`}
+                        transition={{ duration: 0.24, ease: [0.45, 0, 0.55, 1] }}
+                      />
+                    )}
+                    <span className="relative z-10">{label}{id === 'exceptions' && exceptions.length > 0 ? ` (${exceptions.length})` : ''}</span>
                   </button>
                 ))}
               </div>
 
-               {/* 2026-09-27 (E2E premium pass): ONE filter row — source
-                   filters + a hairline divider + status filters. The two
-                   stacked rows used to clip into the search field. */}
-               {sheetTab === 'orders' && (
-               <div className="flex items-center gap-2 px-5 py-2 overflow-x-auto scrollbar-hide">
-                 {filters.map(f => (
-                   <button
-                     key={f.id}
-                     onClick={() => setFilter(f.id as any)}
-                     className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all ${
-                       filter === f.id
-                         ? 'bg-emerald-500 text-white'
-                         : lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'
-                     }`}
-                   >
-                     {t(f.labelKey as any)}
-                   </button>
-                 ))}
-                 <span className={`w-px h-4 flex-shrink-0 ${lightMode ? 'bg-zinc-200' : 'bg-white/10'}`} />
-                 {([['paid', t('status_paid') || 'Ödənilmiş'], ['refunded', t('status_refunded') || 'Qaytarılmış'], ['cancelled', t('status_cancelled') || 'Ləğv'], ['all', t('all_orders') || 'Hamısı']] as const).map(([id, label]) => (
-                   <button
-                     key={id}
-                     onClick={() => { setStatusFilter(id); setSheetTab('orders'); }}
-                     className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider whitespace-nowrap border transition-all ${
-                       statusFilter === id
-                         ? (id === 'refunded' ? 'bg-amber-500 border-amber-400 text-white' : id === 'cancelled' ? 'bg-red-500 border-red-400 text-white' : 'bg-zinc-700 border-zinc-600 text-white')
-                         : lightMode ? 'bg-white border-zinc-200 text-zinc-400' : 'bg-white/5 border-white/10 text-white/40'
-                     }`}
-                   >
-                     {label}
-                   </button>
-                 ))}
-               </div>
-               )}
+              {/* 2026-09-27 (owner: "tablar arasında hamar transition"): the tab
+                  CONTENT is a real state transition — both panes stack as
+                  absolute layers in this relative container (definite height,
+                  see the card above) and crossfade in PARALLEL (220ms): no
+                  blank frame, no reflow, each pane keeps its own scroll. The
+                  search field now lives in the orders pane (it used to show
+                  on exceptions where it did nothing). */}
+              <div className="relative flex-1 min-h-0">
+                <AnimatePresence initial={false}>
+                {sheetTab === 'orders' ? (
+                <motion.div
+                  key="oh-tab-orders"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                  className="absolute inset-0 flex flex-col"
+                >
+
+                  {/* 2026-09-27 (owner: "hər tab digəri ilə qarışmış görünür"):
+                      the 8 loose chips from TWO different filter systems no
+                      longer share one clipped scroll row. Two DISTINCT quiet
+                      segmented groups, each with its own sliding pill
+                      (layoutId) = a clear active indicator per group. The
+                      duplicated "Hamısı" (status=all) is labeled "Bütün" so
+                      the two all-filters can't be confused. */}
+                  <div className="px-5 pt-2.5 space-y-1.5">
+                    <div className={`rounded-xl p-0.5 flex ${lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'}`}>
+                      {filters.map(f => (
+                        <button
+                          key={f.id}
+                          onClick={() => setFilter(f.id as any)}
+                          className={`relative flex-1 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                            filter === f.id
+                              ? (lightMode ? 'text-zinc-900' : 'text-zinc-950')
+                              : (lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/40 hover:text-white/60')
+                          }`}
+                        >
+                          {filter === f.id && (
+                            <motion.span
+                              layoutId="oh-src-pill"
+                              className={`absolute inset-0 rounded-[10px] ${lightMode ? 'bg-white shadow-sm' : 'bg-white'}`}
+                              transition={{ duration: 0.24, ease: [0.45, 0, 0.55, 1] }}
+                            />
+                          )}
+                          <span className="relative z-10">{t(f.labelKey as any)}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className={`rounded-xl p-0.5 flex ${lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'}`}>
+                      {([
+                        ['paid', t('status_paid') || 'Ödənilmiş', 'text-emerald-600'],
+                        ['refunded', t('status_refunded') || 'Qaytarılmış', 'text-amber-600'],
+                        ['cancelled', t('status_cancelled') || 'Ləğv', 'text-red-600'],
+                        ['all', 'Bütün', 'text-zinc-950'],
+                      ] as const).map(([id, label, activeCls]) => (
+                        <button
+                          key={id}
+                          onClick={() => { setStatusFilter(id); setSheetTab('orders'); }}
+                          className={`relative flex-1 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                            statusFilter === id
+                              ? activeCls
+                              : (lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/40 hover:text-white/60')
+                          }`}
+                        >
+                          {statusFilter === id && (
+                            <motion.span
+                              layoutId="oh-st-pill"
+                              className={`absolute inset-0 rounded-[10px] ${lightMode ? 'bg-white shadow-sm' : 'bg-white'}`}
+                              transition={{ duration: 0.24, ease: [0.45, 0, 0.55, 1] }}
+                            />
+                          )}
+                          <span className="relative z-10">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                {/* Search + collapsed date range (2026-09-27 premium pass:
                    the always-visible date row removed one header level) */}
@@ -573,9 +775,10 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                  </AnimatePresence>
                </div>
 
-              {/* Order list */}
-              {sheetTab === 'orders' && (
-              <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+                  {/* Order list — 2026-09-27: the row markup now lives in
+                      renderOrderCard() (3 variants, temporary 1/2/3 switcher
+                      in the modal header for owner review). */}
+                  <div className={`flex-1 overflow-y-auto px-5 py-3 ${cardVariant === 1 ? '' : 'space-y-2'}`}>
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
@@ -584,66 +787,9 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                   <p className="text-center text-xs opacity-40 py-12">
                     {searchQuery || dateFrom || dateTo ? t('no_search_results') : t('no_paid_orders')}
                   </p>
-                ) : (
-                   filteredOrders.map(order => (
-                     <div
-                       key={order.id}
-                       onClick={() => handleSelectOrder(order)}
-                       className={`flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl border cursor-pointer transition-all ${
-                         lightMode ? 'bg-zinc-50/80 border-zinc-100 hover:border-zinc-300 hover:bg-white' : 'bg-white/[0.04] border-white/5 hover:border-white/15 hover:bg-white/[0.07]'
-                       }`}
-                     >
-                       <div className="flex-1 min-w-0">
-                         <div className="flex items-center gap-2">
-                           <span className="text-[13px] font-black tabular-nums truncate">
-                             {order.table_number ? `${t('table_label')} ${order.table_number}` : order.order_source === 'takeaway' ? `${t('takeaway_short')} ${order.order_number || ''}` : order.order_source === 'delivery' ? `${t('delivery_short')} ${order.order_number || ''}` : `#${order.order_number || order.id.slice(0, 8)}`}
-                           </span>
-                           <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md flex-shrink-0 ${
-                             order.order_source === 'takeaway' ? 'bg-amber-500/10 text-amber-500' :
-                             order.order_source === 'delivery' ? 'bg-blue-500/10 text-blue-500' :
-                             'bg-emerald-500/10 text-emerald-500'
-                           }`}>
-                             {order.order_source === 'takeaway' ? t('takeaway') : order.order_source === 'delivery' ? t('delivery') : t('dine_in')}
-                           </span>
-                         </div>
-                         <div className={`flex items-center gap-3 mt-1 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                           <span className="text-[11px] font-bold tabular-nums flex items-center gap-1">
-                             <Clock size={10} />
-                             {new Date(order.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}
-                           </span>
-                           <span className="text-[11px] font-bold tabular-nums">
-                             {new Date(order.created_at).toLocaleDateString('az')}
-                           </span>
-                           {order.guest_count ? (
-                             <span className="text-[11px] font-bold tabular-nums flex items-center gap-1">
-                               <Users size={10} />{order.guest_count}
-                             </span>
-                           ) : null}
-                         </div>
-                       </div>
-                       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                         <span className="text-sm font-black tabular-nums leading-none">
-                           ₼{(Number(order.paid_amount || order.total_amount) || 0).toFixed(2)}
-                         </span>
-                         <div className="flex items-center gap-1">
-                           <button
-                             onClick={(e) => { e.stopPropagation(); guardAction(() => doReprint(order), 'reprint'); }}
-                             disabled={reprinting === order.id}
-                             className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 transition-all disabled:opacity-30"
-                             title={t('reprint')}
-                           >
-                             {reprinting === order.id ? (
-                               <div className="w-3.5 h-3.5 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
-                             ) : (
-                               <Printer size={13} />
-                             )}
-                           </button>
-                           <ChevronRight size={14} className={lightMode ? 'text-zinc-300' : 'text-white/20'} />
-                         </div>
-                       </div>
-                     </div>
-                     ))
-                 )}
+                 ) : (
+                    filteredOrders.map(renderOrderCard)
+                  )}
                  {/* 2026-09-23 (owner): "load more" — the list was hard-capped
                      at 100 orders; busy days lost their older orders. */}
                  {!loading && filteredOrders.length > 0 && loadedCount < totalCount && (
@@ -654,15 +800,22 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                    >
                      {loadingMore
                        ? <div className="w-4 h-4 mx-auto border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                       : (t('load_more') || 'Daha çox yüklə')}
-                   </button>
-                 )}
-               </div>
-              )}
-
-              {/* 2026-09-23 (owner, Toast "Sales Exception Report"): who voided /
-                  cancelled / refunded, with reason + staff + order reference. */}
-              {sheetTab === 'exceptions' && (
+                        : (t('load_more') || 'Daha çox yüklə')}
+                    </button>
+                  )}
+                 </div>
+                </motion.div>
+                ) : (
+                /* 2026-09-23 (owner, Toast "Sales Exception Report"): who voided /
+                    cancelled / refunded, with reason + staff + order reference. */
+                <motion.div
+                  key="oh-tab-exceptions"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                  className="absolute inset-0 flex flex-col"
+                >
                <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
                  {exceptionsLoading ? (
                    <div className="flex items-center justify-center py-12">
@@ -689,14 +842,17 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                          </p>
                        </div>
                      </div>
-                   ))
-                 )}
-                </div>
-               )}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="oh-detail"
+                    ))
+                  )}
+                  </div>
+                 </motion.div>
+                )}
+                </AnimatePresence>
+              </div>
+             </motion.div>
+           ) : (
+             <motion.div
+               key="oh-detail"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}

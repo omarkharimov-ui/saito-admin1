@@ -766,13 +766,10 @@ export function CartPanel({
                     {t('seated_no_order')}
                   </span>
                 )}
-                {/* 2026-09-25 (full seat): active order number — kassir bilir
-                    hansı order-ə məhsul əlavə edir (waitlist keçirmə, merge, reprint). */}
-                {posMode === 'dine_in' && cart.order_number && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black tracking-wider bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)]">
-                    {cart.order_number}
-                  </span>
-                )}
+                {/* 2026-09-27 (owner, explicit): the dine-in ORD-#### header chip
+                    was REMOVED ("ikinci şəkildəki chipi sil"). cart.order_number
+                    still lives on the cart (data intact) — it renders in the
+                    Tarixçə detail / receipt paths; it is no longer shown here. */}
               </span>
               {mergedChildNumbers && mergedChildNumbers.length > 0 && (
                 <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold tracking-wider border ${lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-600' : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-300'}`}>

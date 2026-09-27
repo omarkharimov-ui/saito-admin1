@@ -364,9 +364,14 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
          whileTap={{ scale: 0.97 }}
          transition={SPRING.press}
          className={`relative h-[180px] rounded-4xl p-5 text-left overflow-hidden border cursor-pointer group flex flex-col
-          /* Motion System: transition EXCLUDES transform (framer owns it); border
-             color still crossfades in T.standard (200ms) — the border "yaranır". */
-          [transition:border-color_0.2s_cubic-bezier(0.4,0,0.2,1),background-color_0.2s_cubic-bezier(0.4,0,0.2,1),box-shadow_0.2s_cubic-bezier(0.4,0,0.2,1),opacity_0.14s_ease-out]
+           /* Motion System: transition EXCLUDES transform (framer owns it).
+              2026-09-27 (owner: "yaşıl border anidən yox olur — mavi border
+              kimi təbii fade-out olsun"): border-color now lives in the GRACE
+              band (320ms, symmetric in-out) — the same duration/easing family
+              as the content's graceful exit, so border + numbers + pill drift
+              away together as ONE motion, never a snap. Enters are equally
+              soft (green "yaranır" slowly, like the blue ring he praised). */
+           [transition:border-color_0.32s_cubic-bezier(0.45,0,0.55,1),background-color_0.2s_cubic-bezier(0.4,0,0.2,1),box-shadow_0.2s_cubic-bezier(0.4,0,0.2,1),opacity_0.14s_ease-out]
           ${isTransferSource
             ? (lightMode ? 'bg-zinc-100 border-transparent opacity-60' : 'bg-[#141419] border-transparent opacity-50')
             : isTransferTarget

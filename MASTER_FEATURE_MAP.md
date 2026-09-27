@@ -809,6 +809,14 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-27 (TABLE BORDER GRACE — "mavi border kimi" yaşıl border fade-out: Dismiss / Sərbəst burax / Hesabı bağla)
+- **Owner turn**: "Masadan çıxanda mavi border-in fade-out çox uğurludur. Eyni zərif fade-out-u 'Dismiss table', 'Sərbəst burax', 'Hesabı bağla' state machine-lərində də tətbiq et — yaşıl border anidən yox olur."
+- **Təhlil**: 3 axının hamısı green(emerald) border-i mənbəyidir — occupied→empty (Masanı boşalt), paid→empty (Sərbəst burax), occupied→paid (Hesabı Bağla — burada border eyni emerald kalır, yox olma Sərbəst burax-da olur). Root cause: card-ın `border-color` CSS transition-u **200ms decel**-idi, content isə **320ms blur drift** edir → border content-ən əvvəl "snap" edirdi; mavi ring (1.5s) isə uğurlu referens idi. Node remount DEYİLDİ (probe: data-probe-tag 1801+876 frame boyu keçdi, 0 REMOVED/WRONGNODE).
+- **Fix (1 sətir, TableCard)**: `border-color` 0.2s cubic-bezier(0.4,0,0.2,1) → **0.32s cubic-bezier(0.45,0,0.55,1)** (grace band, simmetrik in-out). İndi border + content + pill BİRLİKDƏ bir motion kimi gedir; enters də eyni yumşaqlıqda (green "yaranır"). Selection/transfer/overdue border-ləri eyni token-dan keçir — hamısı tutarlı.
+- **E2E frame proof (border-top-color sampler, rAF, 2.5s pəncərə)**: Sərbəst burax paid→empty **312ms, 19 ara rəng** (oklab -0.16→0.05 alpha .45→.14) ✅ · Masanı boşalt occupied→empty **281ms, 17 ara rəng** ✅ · Hesabı Bağla occupied→paid: border sabit emerald (eyni endpoint — gözlənilən) ✅ · node identity: 0 remount ✅ · console errors: 0.
+- **Dev-env qeydi**: probe zamanı ilk 3 dismiss cəhdi "Invalid CSRF token" (stale dev session token) ilə səs-səssiz no-op oldu — page reload-dan sonra keçdi. Prod-da session-expiry eyni simtom verə bilər → qeydə alındı (session refresh mexanizması ayrıca tapşırıq).
+- Verify: tsc 0 error · 1 file.
+
 ### Jurnal sətiri — 2026-09-27 (RESTORE: cart counter-roll — owner "qaytar ona, o daha qesengdir, icazəsiz şeylər etmə")
 - **Owner qərarı (final)**: Cart footer totals = **counter-roll (NumberRoll ×4 + RollingNumber hero total, duration 0.3)** — bu SƏRHİN premium hiss'idir; Morph crossfade buranın yerinə keçid deyil. `a117c749`-da icazəsiz dəyişilmişdi → `0ba5ecd0`-da byte-for-byte qaytarıldı, `Morph` import-u CartPanel-dən çıxarıldı (Morph digər səthlərdə qalır: table cards, board cards, action sheets).
 - **Qayda (anti-regression)**: vizual pattern swap-ləri (roll↔fade↔morph, ikon dəsti, spring tuning) **yalnız owner açıq soruşduqda** edilir. "Daha premium" hissini öz iqtidarımla təyin etmək icazə deyil.

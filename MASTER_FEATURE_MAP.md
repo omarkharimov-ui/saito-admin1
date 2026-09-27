@@ -809,6 +809,22 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-27 (TƏMİZLƏ ↔ LƏĞV ET MORPH BƏRPA — header pill geri qaytarıldı, eyni sətirdə split)
+
+- **Owner turn**: "'Təmizlə' gedib en yuxarıya düşüb — LƏĞV ET ilə **EYNI SƏTİRDƏ** olmalıdır. Əvvəlki commit-lərdəki morph geri qaytar: draft yoxdur → LƏĞV ET **full**; draft var → TƏMİZLƏ **solda** görünür, LƏĞV ET bölünər."
+- **Root**: 2026-09-27 "Təmizlə header pill" round (`6bd92ec3`) owner-in "çox pis yerləşdirilib" şikayətini header-ə köçürəndə **morph-u qırdı** — Təmizlə header-ə ghost pill oldu, void-row **VOID-ONLY** oldu. Əsl morph dizaynı `b469f842`-də (parent) var idi: `CartPanel.tsx` `flex gap-2` row-da Təmizlə `flex: hasDraft ? '1 1 0%' : '0 0 0%'` + Ləğv `flex: hasVoidableItems ? '1 1 0%' : '0 0 0%'`.
+- **Fix**: (1) header-dakı Təmizlə ghost pill **SİLİNDİ**; (2) void-row → **morph row** (eyni yerdə: `border-t`, customer area altında, items üstündə). İki `motion.div` (spring 400/30/0.8) öz **flex share**-ini animasiya edir; row özü `AnimatePresence`-da graceful height+opacity collapse (280ms, doctrine saxlanılır).
+  - **No draft** (tək sent item) → Ləğv **full** (Təmizlə `flex:0 0 0%`)
+  - **Draft, no sent** (tək draft) → Təmizlə **full** (Ləğv `flex:0 0 0%`)
+  - **Mixed** → hər ikisi `1 1 0%` = **50/50 split**
+- **E2E (Chrome, :3000, rAF width sampling, real DB-yə 0 yazı)**:
+  - **TEST A** (masa 15, +1 Tea, pure draft): Təmizlə **383px** / Ləğv **2px** / row 391 → Təmizlə full ✓ · header-də Təmizlə pill: **YOX** ✓ · Təmizlə-yə **1 tap** → cart boşalır (Bug B fix saxlanılır) ✓.
+  - **TEST B** (masa 17, sent Filadelfiya Classic, no draft): Təmizlə **2px** / Ləğv **383px** → Ləğv full ✓.
+  - **TEST C** (masa 17 + +1 Tea draft, mixed): Təmizlə **192px** / Ləğv **192px** / gap 8px → 50/50 ✓. **Morph rAF seriyası**: (2, 383)→(45, 334)→(58, 320)→(73, 304)→(141, 236)→(164, 216)→(180, 201)→(188, 194)→(192, 191) = **~210ms smooth split**, ani jump YOX.
+  - **LIGHT** mode: eyni split (192/192/8/391) — hər iki tema ✓. Console errors **0**. **Backend writes: 0** (masa 15 təmizləndi, masa 17 orijinal sent-only halına qayıtdı).
+- **Qeyd**: `Trash2` importu saxlanıldı (Təmizlə buttonunda işlədilir). Served-only (returnable) edge case parent-də də var idi — toxunulmadı.
+- Verify: `tsc --noEmit` app-scope **0 xəta** · **1 fayl** (`CartPanel.tsx`) · screenshots `e2e-shots/17-morph-A-draft-full.png`, `17-morph-B-legv-full.png`, `17-morph-C-split.png`, `17-morph-C-light.png`.
+
 ### Jurnal sətiri — 2026-09-27 (BUG A + B FIX — KASSA/TARİXÇƏ view-swap crossfade + TƏMİZLƏ ilk-klik: kök səbəb EFFEKT-SIRASI YARIŞI idi)
 
 - **Owner turn**: "davam ele" — HANDOVER §3-ün #1 prioriteti (iki açıq bug) icra olundu. Bu jurnal sətiri həmin round-un nəticəsidir.

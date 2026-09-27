@@ -957,38 +957,9 @@ export function CartPanel({
                 </span>
               </div>
             ) : null}
-          </div>
-          {/* 2026-09-27 (owner: "'Təmizlə' düyməsi çox pis yerləşdirilib"):
-              the full-width clear bar under the header is GONE. Clear now
-              lives as a quiet ghost pill on the header's empty right side —
-              visible only while an unsent draft exists, hidden in void mode.
-              Enter/exit = STATE TRANSITION (fade + 6px drift, 240ms, no
-              overshoot). Clearing itself already plays the per-row graceful
-              exits, so data never vanishes instantly. */}
-          <AnimatePresence>
-            {hasDraft && !voidMode && (
-              <motion.button
-                key="cart-clear"
-                type="button"
-                onClick={onClearDraft}
-                initial={{ opacity: 0, x: 6 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 6 }}
-                transition={{ duration: 0.24, ease: [0.45, 0, 0.55, 1] }}
-                title={t('clear')}
-                className={`flex items-center gap-1.5 h-8 px-3 rounded-full border text-[10px] font-black uppercase tracking-widest transition-colors active:scale-[0.97] ${
-                  lightMode
-                    ? 'bg-white border-zinc-200 text-zinc-400 hover:text-rose-500 hover:border-rose-200 hover:bg-rose-50'
-                    : 'bg-white/[0.04] border-white/10 text-white/35 hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10'
-                }`}
-              >
-                <Trash2 size={12} />
-                {t('clear')}
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+           </div>
+         </div>
+       </div>
 
       {/* ═══ Empty state body ═══ (2026-09-27: fades IN over 320ms — the
           graceful tail of the clear animation; the rows above exit first) */}
@@ -1021,48 +992,86 @@ export function CartPanel({
         </div>
       )}
 
-      {/* 2026-09-27 (owner: "'Təmizlə' çox pis yerləşdirilib"): the row is
-          VOID-ONLY now (clear moved to the header ghost pill). The whole row
-          collapses/opens as a STATE TRANSITION — height + opacity, 280ms
-          symmetric, no snap — so the items area glides into its place. */}
-      <AnimatePresence initial={false}>
-        {!isEmpty && (hasVoidableItems || voidMode) && (
-          <motion.div
-            key="void-row"
-            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-            animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
-            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-            transition={{ duration: 0.28, ease: [0.45, 0, 0.55, 1] }}
-            className={`border-t overflow-hidden ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}
-          >
-            <div className="pt-3 pb-4">
-              <button
-                onClick={() => {
-                  if (voidMode) {
-                    setVoidMode(false);
-                    setVoidSelection({});
-                  } else {
-                    setVoidMode(true);
-                  }
-                }}
-                title={t('void_items') || 'Ləğv et'}
-                className={`flex items-center justify-center w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border transition-all ${
-                  voidMode
-                    ? lightMode
-                      ? 'bg-zinc-900 text-white border-zinc-900 shadow-lg shadow-black/10'
-                      : 'bg-white text-black border-white shadow-lg shadow-white/10'
-                    : lightMode
-                      ? 'bg-[var(--theme-surface)] border-zinc-200 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100'
-                      : 'bg-white/5 border-[var(--theme-border)] text-white/40 hover:text-white/70 hover:bg-white/10'
-                }`}
-              >
-                {voidMode ? <X size={12} className="mr-1.5" /> : <Ban size={12} className="mr-1.5" />}
-                {voidMode ? (t('cancel') || 'Ləğv et') : (t('void_items') || 'Ləğv et')}
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+       {/* Cart Quick Actions Row — Təmizlə (clear) + Ləğv et (void) MORPHING.
+           (2026-09-27 owner: "'Təmizlə' gedib en yuxarıya düşüb — LƏĞV ET ilə
+           EYNI SƏTİRDƏ olmalıdır." This restores the 08-26/09-24 morph that the
+           09-27 "header pill" round removed — the design the owner references
+           from the earlier commits:
+             - NO draft    → Təmizlə collapses (flex 0) → LƏĞV ET = FULL WIDTH
+             - draft       → Təmizlə appears on the LEFT, LƏĞV ET takes the
+                              right half → one button visibly SPLITS into two
+           The row itself still collapses/opens as a STATE TRANSITION (height +
+           opacity, 280ms, no snap); the two buttons morph their flex share with
+           a spring so the split reads as one continuous morph. Təmizlə clears
+           the unsent draft (onClearDraft — first-tap race fixed in usePos). */}
+       <AnimatePresence initial={false}>
+         {!isEmpty && (hasDraft || hasVoidableItems) && (
+           <motion.div
+             key="quick-actions"
+             initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+             animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
+             exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+             transition={{ duration: 0.28, ease: [0.45, 0, 0.55, 1] }}
+             className={`border-t overflow-hidden ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}
+           >
+             <div className="pt-3 pb-4">
+               <div className="flex gap-2">
+                 <motion.div
+                   initial={false}
+                   animate={{ flex: hasDraft ? '1 1 0%' : '0 0 0%', opacity: hasDraft ? 1 : 0, scale: hasDraft ? 1 : 0.9 }}
+                   transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+                   style={{ overflow: 'hidden', minWidth: 0 }}
+                 >
+                   <button
+                     onClick={onClearDraft}
+                     title={t('clear')}
+                     tabIndex={hasDraft ? 0 : -1}
+                     style={{ pointerEvents: hasDraft ? 'auto' : 'none', width: '100%' }}
+                     className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border ${
+                       lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
+                     }`}
+                   >
+                     <Trash2 size={12} className="mr-1.5" />
+                     {t('clear')}
+                   </button>
+                 </motion.div>
+                 <motion.div
+                   initial={false}
+                   animate={{ flex: hasVoidableItems ? '1 1 0%' : '0 0 0%', opacity: hasVoidableItems ? 1 : 0, scale: hasVoidableItems ? 1 : 0.9 }}
+                   transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+                   style={{ overflow: 'hidden', minWidth: 0 }}
+                 >
+                   <button
+                     onClick={() => {
+                       if (voidMode) {
+                         setVoidMode(false);
+                         setVoidSelection({});
+                       } else {
+                         setVoidMode(true);
+                       }
+                     }}
+                     title={t('void_items') || 'Ləğv et'}
+                     tabIndex={hasVoidableItems ? 0 : -1}
+                     style={{ pointerEvents: hasVoidableItems ? 'auto' : 'none', width: '100%' }}
+                     className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border transition-all ${
+                       voidMode
+                         ? lightMode
+                           ? 'bg-zinc-900 text-white border-zinc-900 shadow-lg shadow-black/10'
+                           : 'bg-white text-black border-white shadow-lg shadow-white/10'
+                         : lightMode
+                           ? 'bg-[var(--theme-surface)] border-zinc-200 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100'
+                           : 'bg-white/5 border-[var(--theme-border)] text-white/40 hover:text-white/70 hover:bg-white/10'
+                     }`}
+                   >
+                     {voidMode ? <X size={12} className="mr-1.5" /> : <Ban size={12} className="mr-1.5" />}
+                     {voidMode ? (t('cancel') || 'Ləğv et') : (t('void_items') || 'Ləğv et')}
+                   </button>
+                 </motion.div>
+               </div>
+             </div>
+           </motion.div>
+         )}
+       </AnimatePresence>
 
         {/* Items — void mode indicator: a thin rose strip on top (owner 2026-09-21:
             the FULL background tint was too aggressive — strip + the inverted

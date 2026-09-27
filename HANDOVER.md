@@ -56,6 +56,19 @@
   frame-də unmount olur (per-row opacity ramp yox), reload-da nadir "Retry" ekranı.
 - Screenshots: `artifacts/saito-admin/e2e-shots/14-*` və `15-*`.
 
+## 2c. MORPH BƏRPA (2026-09-27, "Təmizlə en yuxarıya düşüb") — ✅ TAMAM
+
+Owner: "TƏMİZLƏ LƏĞV ET ilə **eyni sətirdə** olmalıdır — əvvəlki morph geri qaytar".
+2026-09-27 "header pill" round (`6bd92ec3`) morph-u qırmışdı; `b469f842`-dəki dizayn
+bərpa olundu. `CartPanel.tsx`-də:
+- header-dakı **Təmizlə ghost pill SİLİNDİ** (artıq en yuxarıda YOX).
+- void-row → **morph row**: eyni row-da (border-t) iki button, spring flex-share morph:
+  **no draft → LƏĞV ET full** · **draft+no sent → TƏMİZLƏ full** · **mixed → 50/50 split**
+  `[TƏMİZLƏ | LƏĞV ET]`. Row graceful collapse (280ms) saxlanıldı.
+- E2E: TEST A Təmizlə 383/Ləğv 2 (full) · TEST B Təmizlə 2/Ləğv 383 (Ləğv full) ·
+  TEST C 192/192/8 (50/50, ~210ms smooth split) · light eyni · **0 console error, 0 DB yazı**.
+- Detal: jurnal `MASTER_FEATURE_MAP.md` §10 (newest-first) · screenshots `e2e-shots/17-morph-*.png`.
+
 ## 3. BUG STATUS — A ✅ FIXED · B ✅ FIXED · QALAN: §3-C
 
 ### A. ✅ FIXED (2026-09-27) — KASSA view-swap opacity donmuş (visually: 215ms boş ekran + snap)

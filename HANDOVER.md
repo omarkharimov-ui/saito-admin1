@@ -6,7 +6,7 @@
 ## 0. STATUS QISCA
 
 - **Repo:** `/Users/mr.apple/saito-admin1/` · app: `artifacts/saito-admin/` (git path prefix `artifacts/saito-admin/`)
-- **HEAD:** `f91f5c15` (§2f design batch) **+ §2g modal/VKB-batch commit-i**. Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`. Variant qərari verilib: **V1 "Clean list"** (switcher silindi).
+- **HEAD:** `a1dacd86` (§2g modal/VKB batch) **+ §2h morph/cart/DB-hygiene batch commit-i**. Repo **TƏMİZDİR** və `origin/main` ilə sinxron — uncommitted fayl YOX. Dəqiq hash: `git log --oneline -3`. Variant qərari: **V1 "Clean list"**. **⏳ AÇIQ:** §3-D Tarixçə modal-girişi bug (brauzer reproduksiya növbəti round — bu turn-də browser relay fail oldu).
   - ⚠️ Əvvəl burada "HEAD `b469f842` — 7 fayl UNCOMMITTED" yazırdı — **o qeyd KÖHNƏ idi** (§2-dəki 7 fayl həmin anda commit olunmuşdu).
 - **Dev server:** `http://localhost:3000` (adətən işləyir; yoxdursa `corepack pnpm dev` inside `artifacts/saito-admin/`)
 - **Login:** `/login` → PIN **4321** · POS: `/admin/pos`
@@ -144,7 +144,16 @@ Tarixçə qiyməti + variant qərari + Kassa label-ları + VKB stacking/stil + T
   kassir axını) — yığcam həll ilə (sticky footer + audit collapse).
 - Detal: jurnal `MASTER_FEATURE_MAP.md` §10 · screenshots `e2e-shots/30-40-*`.
 
-## 3. BUG STATUS — A ✅ FIXED · B ✅ FIXED · QALAN: §3-C
+## 2h. MORPH + CART-PERSIST + DB HYGIENE (2026-09-27, owner 5-nöqtəlik turn) — ✅ TAMAM (E2E + §3-D pending)
+
+- **(a) Mərtəbə çipi ⇄ tab pill morph** (WhatsApp-style shared element): `layoutId="pos-floor-chip"` — İÇƏRİDƏ-da `LiquidDropdown` trigger (yeni `layoutId` prop), TAKEAWAY/ÇATDIRILMA-da `DragTabSwitcher`-in aktiv pill-in MƏRKƏZİNƏ `pillOverlay` (yeni optional prop) ilə dot; Framer layoutId projection = çip pill-ə uçub əriyir / geri çıxır (260ms `[0.45,0,0.55,1]`, zero overshoot). `floors>1` şərti ilə fəaliyyət göstərir (DB-də 2 floor).
+- **(b) Səbət Customer Info-da qalır**: `page.tsx`-də `{posPhase !== 'customer' && (cart)}` gate SİLİNDİ — 440px column həmişə mounted. Phase exit-ləri enter-in exact reverse-etdi (customer `y:14 scale:0.99`, products `y:10`) — "açılış bizə doğru, bağlanış eyni yol əksinə".
+- **(c) Owner təsdiqi**: Tarixçə modal (ş4) + detail (ş5) + refund (ş6) dizaynları **qəbul olundu — toxunulmadı**.
+- **(d) ⏳ Tarixçə modal-girişi bug** → §3-D (açıq, brauzer reproduksiya).
+- **(e) DB HYGIENE**: orders 849→0 (bütün data dev/test: 2026-03-19→09-27, Admin Updated/superadmin/test staff) + uşaqlar (items 891, payments 161+2, events 54, cancelled 25, kitchen 24+3, logs 351+392+130, inventory 64). Immutable trigger-lər (`order_payments`, `inventory_logs`) transaction içində disable/enable; `table_floors` (107 masa) + floors + staff + customers + reservations + Kassa saxlanıldı. Detal: jurnal §10.
+- **E2E**: ⏳ browser relay fail (circuit breaker: stale fused-ref + tab-loss) — növbəti round-da 41-54 screenshot protocolu (jurnalda).
+
+## 3. BUG STATUS — A ✅ FIXED · B ✅ FIXED · C ⏳ (owner qərarı) · D ⏳ AÇIQ
 
 ### A. ✅ FIXED (2026-09-27) — KASSA view-swap opacity donmuş (visually: 215ms boş ekran + snap)
 > **Həll §2b-də + jurnalda.** Aşağıdaki mətn fix-dən ƏVVƏLKİ analizdir — tarixi qeyd kimi saxlanılır.
@@ -173,6 +182,12 @@ Tarixçə qiyməti + variant qərari + Kassa label-ları + VKB stacking/stil + T
 1. ~~A + B fix → tsc → qısa E2E → bir commit → `MASTER_FEATURE_MAP.md` §10 entry~~ ✅ **BİTİB (2026-09-27)** — bax §2b.
 2. ~~Qısa probe: 60s kataloq sync tick görünür?~~ ✅ **YOXLANDI — PASS (2026-09-27)**: 4 ardıcıl tick, delta ~60000 ms (59991/60000/60002/59997); OOS zənci **reload olmadan** təsdiqləndi və bu, **real DB-yə yazı etmədən** edildi (cavab bir tick üçün yerində modifikasiya olundu). **Cavab: admin `is_in_stock` flag-ı dəyişəndə POS 60s içində özü yenilənir.** Detal: `MASTER_FEATURE_MAP.md` §10.
 3. E2E qalıqları — **OWNER QƏRARI GÖZLƏYİR (icazəsiz təmizlənmədi)**: **masa 17 = QRUP** (17+16+18), `ORD-2817`, Filadelfiya Classic ×1, ₼14.00, chip **MƏTBƏXDƏ** — ayrı "Tea" draft-ı YOXDUR (əvvəlki qeyd köhnəlib); **masa 18 həmin qrupun içindədir**, ayrı kart deyil. Digər: 97/511 TƏMİZLƏNMƏLİ · 401/502/901 YENİ OTURUŞ · 14/15/98/99/471/472/991–996 BOŞ. Təmizləmək: kart seç → MƏTBƏXDƏ/⋮ → sifariş dismiss (ilk klikdən işləyir).
+
+### D. ⏳ AÇIQ (2026-09-27) — Sifariş Tarixçəsi modal GİRİŞİ bug
+- **Owner**: "sifariş tarixçəsi — modal girişi — zamani bug var onu düzəlt (brauzerdən baxsan anlayasan)".
+- **Repro (növbəti brauzer pass)**: POS → TARİXÇƏ click → entry-ni 5–8 frame (~100ms interval) sample et + `window.__errs` hook ilə console error-lar + Next dev "N issues" badge (owner şəkil 4-də görünür → React error var).
+- **Statik suspektlər** (OrderHistory.tsx bu round-da TOXUNULMAYIB): (1) ilk açılışda subtitle **"0 sifariş" → "N sifariş" count flash** (`totalCount` state 0-dan start, fetch gələnədək); (2) "1 Issue" badge-in məzmunu bilməyib; (3) `centerModal` spring 500/26 (ζ≈0.58) 85vh card-da kiçik overshoot; (4) layoutId pill-lərin ilk mount davranışı.
+- **Plan**: reproduksiya → diaqnoz → fix → E2E both themes + journal/handover update.
 
 ## 4. UI QAYDALARI — DETALLI (BINDING, owner-final)
 
@@ -271,4 +286,4 @@ Gallery-da 'Sil' basanda şəkillər bir anda yox olmur; yavaş və zərif fade-
 - `e2e-shots/*.png` — owner baxışı üçün saxlanıldı (13 screenshot); istəsən sil.
 
 ## 6. KOMMIT GİSİ (gələn round üçün)
-Son commits: `cccbffe9` (tech batch: guest optimistic + SWR + blur single-clock + VKB, §2e) ← `297e26b0` (cart body crossfade, §2d) ← `8fff6c6f` (Təmizlə/Ləğv morph bərpa, §2c) ← `4b507c5e` (60s sync verify) ← `1b5cd979` (Bug A+B, §2b) ← `080742b5` (HANDOVER §4.0) ← `b469f842` (ghost blue border fix) ← `9f4e5302` (1px ring fix) ← `9e3c50c2` / `0253c58e` (border transparent) ← `3eea7dfe` (border grace 320ms — ring bug buradan gəldi) ← `0ba5ecd0` (cart counter-roll RESTORE) ← `a3021e4a` (grace doctrine + presence fixes).
+Son commits: `f91f5c15` (design batch: tabs crossfade + 3 variants + ORD sil + Kassa Apple-minimal, §2f) ← `cccbffe9` (tech batch: guest optimistic + SWR + blur single-clock + VKB, §2e) ← `297e26b0` (cart body crossfade, §2d) ← `8fff6c6f` (Təmizlə/Ləğv morph bərpa, §2c) ← `4b507c5e` (60s sync verify) ← `1b5cd979` (Bug A+B, §2b) ← `080742b5` (HANDOVER §4.0) ← `b469f842` (ghost blue border fix) ← `9f4e5302` (1px ring fix) ← `9e3c50c2` / `0253c58e` (border transparent) ← `3eea7dfe` (border grace 320ms — ring bug buradan gəldi) ← `0ba5ecd0` (cart counter-roll RESTORE) ← `a3021e4a` (grace doctrine + presence fixes).

@@ -2233,6 +2233,29 @@ export default function POSPage() {
                 { id: 'delivery', label: t('delivery'), icon: Bike, dotColor: '#3b82f6' },
               ]}
               value={posMode}
+              // 2026-09-27 (owner: "mərtəbə çipi tab dəyişəndə bir anda yox
+              // olmasın — aktiv tab pill-ə doğru uçup onunla birləşsin"): the
+              // floor chip (LiquidDropdown, layoutId="pos-floor-chip") is
+              // absent on Takeaway/Delivery. While it's absent, this tiny dot
+              // sits centered inside the active sliding pill with the SAME
+              // layoutId — Framer projects it from the chip's last box (chip
+              // "flies in" and dissolves into the pill) and back on the return
+              // (chip emerges from the pill). 260ms in-out ease, zero
+              // overshoot — same family as the sheet pills.
+              pillOverlay={
+                pos.floors.length > 1 && posMode !== 'dine_in' ? (
+                  <motion.div
+                    layoutId="pos-floor-chip"
+                    initial={{ opacity: 1 }}
+                    animate={{ opacity: 0 }}
+                    transition={{
+                      layout: { duration: 0.26, ease: [0.45, 0, 0.55, 1] },
+                      opacity: { duration: 0.26, ease: [0.45, 0, 0.55, 1] },
+                    }}
+                    className={`h-3 w-3 rounded-full ${lightMode ? 'bg-[#efeff4] shadow-sm' : 'bg-white/10'}`}
+                  />
+                ) : null
+              }
               onChange={(mode) => {
                 // Delivery Phase 2: master switch off → the delivery mode is
                 // not reachable from the chip (settings.delivery_enabled).
@@ -2244,11 +2267,14 @@ export default function POSPage() {
                 pos.setActiveView('floor');
               }}
             />
-           {pos.floors.length > 1 && posMode === 'dine_in' ? (
+            {pos.floors.length > 1 && posMode === 'dine_in' ? (
             <LiquidDropdown
               options={pos.floors.map((f: any) => ({ id: f.name, label: f.name }))}
               activeId={activeFloor?.name}
               onChange={setSelectedFloor}
+              // Same layoutId as the pillOverlay dot above — the shared-element
+              // identity behind the floor-chip ⇄ tab-pill morph (2026-09-27).
+              layoutId="pos-floor-chip"
             />
           ) : pos.floors.length > 1 ? (
             <div className="w-[120px]" />
@@ -2863,7 +2889,13 @@ export default function POSPage() {
                               className="h-full"
                               initial={{ opacity: 0, y: 14, scale: 0.99 }}
                               animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: -10, scale: 0.995 }}
+                              // 2026-09-27 (owner: "giriş animasiyasını qoruyaraq
+                              // çıxışda həmin animasiyanı tərsinə tətbiq et"):
+                              // exit is the EXACT REVERSE of the enter — the pane
+                              // recedes along the same trajectory it entered
+                              // (y 0→14, scale 1→0.99), never the old y:-10
+                              // "up-and-away" that read as a jump.
+                              exit={{ opacity: 0, y: 14, scale: 0.99 }}
                               transition={SPRING}
                             >
                               <CustomerPhasePanel
@@ -2909,7 +2941,12 @@ export default function POSPage() {
                               className="h-full"
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10, scale: 0.995 }}
+                              // 2026-09-27 (owner: same reversed-trajectory rule
+                              // as the customer phase above) — products recede
+                              // back the way they came (y 0→10), so the
+                              // Products ⇄ Customer Info swap reads as one
+                              // continuous path in both directions.
+                              exit={{ opacity: 0, y: 10 }}
                               transition={SPRING}
                             >
                             <ProductGrid
@@ -2947,16 +2984,17 @@ export default function POSPage() {
                           )}
                         </AnimatePresence>
                        </div>
-                        {/* 2026-09-26 (Task 55, audit55 P0 "şəkil 4"): the customer
-                            phase (name/phone/zone/address) is a FULL-WIDTH step — the
-                            440px cart column used to stay mounted beside it and at
-                            phone widths (w-full cart) squeezed the phase to a 50px
-                            sliver (inner inputs 0px, unusable). Mobile stepper:
-                            products → customer (cart hidden) → back. */}
-                        {posPhase !== 'customer' && (
-                        <div
-                           className="w-[440px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
-                          >
+                         {/* 2026-09-26 (Task 55, audit55 P0 "şəkil 4"): the customer
+                             phase used to hide the 440px cart column.
+                             2026-09-27 (owner OVERRIDE: "Customer Info açıldıqda
+                             səbət yoxa çıxmasın — keçid zamanı görünən qalsın"):
+                             the cart stays MOUNTED and visible through the whole
+                             Products ⇄ Customer Info swap — no content loss, no
+                             column collapse, no UI jump. The phase pane keeps
+                             flex-1; the cart keeps its fixed 440px. */}
+                         <div
+                            className="w-[440px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
+                           >
                                 {/* 2026-09-23 (owner): the wide blue binding banner is
                                     REJECTED — it ate the whole cart column top. The
                                     binding identity now lives as a compact chip inside
@@ -3110,12 +3148,11 @@ export default function POSPage() {
                                       : undefined,
                                  };
                                gridRef.current?.toggleEditor(productId, preset);
-                             }}
-                          />
-                      </div>
-                        )}
-                    </div>
-               </motion.div>
+                              }}
+                           />
+                       </div>
+                     </div>
+                </motion.div>
             )}
             </AnimatePresence>
 

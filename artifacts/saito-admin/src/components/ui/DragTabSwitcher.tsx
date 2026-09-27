@@ -25,6 +25,11 @@ interface DragTabSwitcherProps {
     labelColor?: string;
     boxShadow?: string;
   };
+  /** 2026-09-27 (owner): a node rendered INSIDE the sliding pill, centered
+      (wrapper is absolute inset-0 flex, pointer-events-none). The POS page uses
+      it as the landing spot for the floor-chip layoutId morph — the chip flies
+      into the active tab's pill and dissolves there. */
+  pillOverlay?: React.ReactNode;
 }
 
 const HOLD_THRESHOLD = 120;
@@ -35,7 +40,7 @@ const HOLD_THRESHOLD = 120;
 const TRAVEL_SPRING = { stiffness: 420, damping: 28, mass: 0.38 };
 const SETTLE_SPRING = { stiffness: 480, damping: 24, mass: 0.36 };
 
-export function DragTabSwitcher({ items, value, onChange, containerClassName, activeStyle }: DragTabSwitcherProps) {
+export function DragTabSwitcher({ items, value, onChange, containerClassName, activeStyle, pillOverlay }: DragTabSwitcherProps) {
   const { lightMode } = useTheme();
   const [isDragging, setIsDragging] = useState(false);
   const [previewTab, setPreviewTab] = useState<string | null>(null);
@@ -327,9 +332,9 @@ export function DragTabSwitcher({ items, value, onChange, containerClassName, ac
             ? lightMode
               ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 8px 28px rgba(0,0,0,0.28)'
               : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 8px 28px rgba(0,0,0,0.22)'
-            : lightMode
-              ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.18)'
-              : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 3px rgba(0,0,0,0.08)'),
+             : lightMode
+               ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.18)'
+               : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 3px rgba(0,0,0,0.08)'),
         }}
         transition={{
           type: 'spring',
@@ -337,7 +342,16 @@ export function DragTabSwitcher({ items, value, onChange, containerClassName, ac
           damping: SETTLE_SPRING.damping,
           mass: SETTLE_SPRING.mass,
         }}
-      />
+      >
+        {/* Floor-chip morph landing spot: a plain centered wrapper (NOT a
+            motion element) so the layoutId anchor inside it gets projected
+            from the chip's box without fighting the pill's own transforms. */}
+        {pillOverlay && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+            {pillOverlay}
+          </div>
+        )}
+      </motion.div>
 
       {/* QA bug 15 (2026-09-22): this sliding layer re-renders every label as a
           visual mirror of the base buttons — the duplicated text was exposed to

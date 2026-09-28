@@ -509,5 +509,23 @@ html[data-light-mode="true"], html[data-light="true"], html[data-theme="light"] 
   --pos-send-text: #ffffff;
   --pos-send-hover: #18181b;
   --pos-search-bg: #ffffff;
-  --pos-search-border: rgba(214,211,209,0.7);
+  --pos-search-border: rgba(214,213,209,0.7);
+}
+
+/* 2026-09-29 (owner video: iOS klavyə — "acılışı/qapanışı nə qədər sessizdir"):
+   the VKB sets --vk-height (0 → Npx) on <html> the moment the keyboard opens.
+   Every modal consumes it as paddingBottom to make room. Without this the push
+   JUMPS (the var snaps) while the keyboard slides → they move out of sync and
+   it looks jerky. Registering the custom property makes it ANIMATABLE, and the
+   transition below tweens 0→N over the same window as the keyboard's spring
+   settle — so the modal lift and the keyboard rise read as ONE body of motion
+   (the video's harmony). Registered @property: Chrome 85+, Safari 15.4+,
+   Firefox 128+. */
+@property --vk-height {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+html {
+  transition: --vk-height 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 }

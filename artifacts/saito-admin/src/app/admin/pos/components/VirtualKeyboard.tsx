@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Delete, CornerDownLeft, Check } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { SPRING } from '@/lib/motion/system';
 
 type KeyMode = 'numeric' | 'text';
 
@@ -345,8 +346,15 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
       key="vk-keyboard"
       initial={{ y: 400 }}
       animate={{ y: 0 }}
-      exit={{ y: 400 }}
-      transition={{ duration: 0.28, ease: [0.45, 0, 0.55, 1] }}
+      exit={{ y: 400, transition: { duration: 0.26, ease: [0.4, 0, 0.6, 1] } }}
+      // 2026-09-29 (owner video: iOS Liquid Glass klavyə — "acılışı/qapanışı
+      // nəce səssizdir"): the slide is a PHYSICAL sheet settle (SPRING.surface,
+      // owner-tuned "no snap") instead of a flat 280ms tween — fast start,
+      // controlled landing, zero bounce; exit is a slightly quicker decel.
+      // The content push (var(--vk-height)) is animated in parallel via the
+      // @property transition in globals.css, so modal + keyboard move as ONE
+      // body — the video's harmony.
+      transition={SPRING.surface}
       data-vk-panel
       className={`fixed bottom-0 left-0 right-0 z-[10002] p-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)] shadow-elevated backdrop-blur-xl ${
         lightMode ? 'bg-[#D8D9DD]/95 border-t border-black/10' : 'bg-[#1B1B21]/95 border-t border-white/10'

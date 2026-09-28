@@ -1,4 +1,4 @@
-import { Wheat, Fish, Milk, Egg, Nut, Bean, Shrimp, Sprout, Leaf, Shell, Flower2, FlaskConical, TriangleAlert, type LucideIcon } from '@/components/ui/saito-icons';
+import { Wheat, Fish, Milk, Egg, Nut, Bean, Shrimp, Sprout, Leaf, Shell, Flower2, FlaskConical, TriangleAlert, Wine, type LucideIcon } from '@/components/ui/saito-icons';
 
 /**
  * ALLERGEN SSOT — Supabase:
@@ -30,6 +30,30 @@ export const ALLERGEN_UI: AllergenUIDef[] = [
   { code: 'mustard', label: 'Xardal', icon: FlaskConical },
   { code: 'sulfites', label: 'Sülfit', icon: FlaskConical },
   { code: 'lupin', label: 'Lupin', icon: Flower2 },
+  { code: 'alcohol', label: 'Alkol', icon: Wine },
+];
+
+// 2026-09-29 (owner: "icon pakei yüklüdür — məhsulların allergenləri yarandıkca
+// sistem ona uyğun allergen/ikon qoysun"): free-text allergen names that are
+// NOT one of the known codes/labels get AUTO-ASSIGNED to the closest family by
+// keyword (az/en/tr), so a newly-created allergen ("Qarğıdalı", "Şərab",
+// "Pistachio"…) instantly renders with a fitting icon instead of the generic
+// warning triangle. Matching = substring on the lowercased name.
+const ALLERGEN_KEYWORDS: Array<[string, string[]]> = [
+  ['gluten',  ['qluten', 'gluten', 'buğda', 'bugda', 'wheat', 'çovdar', 'rye', 'barley', 'yulaf', 'oat']],
+  ['fish',    ['balıq', 'balig', 'balık', 'fish', 'ryba', 'somon', 'salmon', 'levrek', 'perch', 'tuna']],
+  ['milk',    ['süd', 'sud', 'süt', 'sütlük', 'dairy', 'milk', 'lakt', 'laktoz', 'lactose', 'peynir', 'cheese', 'ghee', 'qaymaq', 'cream', 'butter']],
+  ['eggs',    ['yumurta', 'egg', 'eggs', 'eier']],
+  ['nuts',    ['fındıq', 'findiq', 'qoz', 'qozu', 'peanut', 'qarğıdalı', 'qarqadali', 'yerfıstığı', 'yer fistigi', 'walnut', 'ceviz', 'almond', 'badam', 'cashew', 'macadamia', 'hazelnut', 'fıstıq', 'fistiq', 'pista', 'pistachio', 'kaju']],
+  ['soy',     ['soya', 'soy', 'tofu', 'edamame']],
+  ['sesame',  ['küncüt', 'kuncut', 'susam', 'sesame']],
+  ['shellfish',['xərçəng', 'xerceng', 'shrimp', 'şrimt', 'srimit', 'krab', 'crab', 'lobster', 'kreyvis', 'karides', 'istiq', 'squid', 'kalamar']],
+  ['molluscs',['mollusc', 'mollyusk', 'oyster', 'istiridye', 'salyangan', 'snail', 'mussel', 'midye', 'conch']],
+  ['celery',  ['kərəviz', 'kareviz', 'celery']],
+  ['mustard', ['xardal', 'mustard', 'hardal']],
+  ['sulfites',['sülfit', 'sulfit', 'sulfite']],
+  ['lupin',   ['lupin', 'lupine']],
+  ['alcohol', ['alkol', 'alkogol', 'alcohol', 'spirt', 'wine', 'şərab', 'seferab', 'şarab']],
 ];
 
 export const ALLERGEN_FALLBACK_ICON: LucideIcon = TriangleAlert;
@@ -69,17 +93,12 @@ function resolveByName(name: string): AllergenUIDef | null {
   return (
     ALLERGEN_UI.find(a => a.label.toLowerCase() === v) ||
     ALLERGEN_UI.find(a => a.code === v) ||
-    // legacy az/en free-text aliaslar (köhnə sətirlər üçün)
-    ALLERGEN_UI.find(a => (
-      (a.code === 'gluten' && ['qluten', 'un', 'buğda'].includes(v)) ||
-      (a.code === 'fish' && ['balıq', 'balig', 'fish'].includes(v)) ||
-      (a.code === 'milk' && ['süd', 'sud', 'dairy'].includes(v)) ||
-      (a.code === 'eggs' && ['yumurta', 'egg', 'eggs'].includes(v)) ||
-      (a.code === 'nuts' && ['fındıq', 'findiq', 'qoz', 'peanut', 'nut'].includes(v)) ||
-      (a.code === 'soy' && ['soya'].includes(v)) ||
-      (a.code === 'sesame' && ['küncüt', 'kuncut'].includes(v)) ||
-      (a.code === 'shellfish' && ['xərçəng', 'xerceng', 'shrimp', 'karaqsan'].includes(v))
-    )) ||
+    // 2026-09-29: keyword auto-assign (any free-text allergen name → closest
+    // family icon). Substring scan over the multi-language keyword table.
+    (() => {
+      const hit = ALLERGEN_KEYWORDS.find(([, kws]) => kws.some(k => v.includes(k)));
+      return hit ? ALLERGEN_UI.find(a => a.code === hit[0]) || null : null;
+    })() ||
     null
   );
 }

@@ -168,16 +168,16 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
     dirty: {
       icon: null,
       label: t('dirty' as any),
-      bg: lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-28 (owner: light — yalnız mavi/qara)
-      iconColor: lightMode ? 'text-white' : 'text-amber-400',
-      dotColor: lightMode ? 'bg-white' : 'bg-amber-400',
+      bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-29 (owner: "light-da statuslar qapı-qara olmasın — qara modda necədirsə elə olsun")
+      iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
+      dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
     },
     waiting: {
       icon: Clock,
       label: t('waiting' as any),
-      bg: lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-28 (owner: light — yalnız mavi/qara)
-      iconColor: lightMode ? 'text-white' : 'text-amber-400',
-      dotColor: lightMode ? 'bg-white' : 'bg-amber-400',
+      bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-29 (owner: "light-da statuslar qapı-qara olmasın — qara modda necədirsə elə olsun")
+      iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
+      dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
     },
     waiting_bill: {
       icon: Receipt,
@@ -217,9 +217,9 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
      ready: {
        icon: CheckCircle2,
        label: t('table_ready' as any),
-       bg: lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-28 (owner: light — yalnız mavi/qara)
-       iconColor: lightMode ? 'text-white' : 'text-amber-400',
-       dotColor: lightMode ? 'bg-white' : 'bg-amber-400',
+      bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-29 (owner: "light-da statuslar qapı-qara olmasın — qara modda necədirsə elə olsun")
+        iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
+        dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
      },
      served: {
        icon: CheckCircle2,
@@ -252,9 +252,9 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
      payment_pending: {
        icon: CreditCard,
        label: t('payment_pending' as any),
-       bg: lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-28 (owner: light — yalnız mavi/qara)
-       iconColor: lightMode ? 'text-white' : 'text-amber-400',
-       dotColor: lightMode ? 'bg-white' : 'bg-amber-400',
+      bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-29 (owner: "light-da statuslar qapı-qara olmasın — qara modda necədirsə elə olsun")
+        iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
+        dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
      },
      paid: {
        icon: CheckCircle2,
@@ -266,9 +266,9 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
      cleaning: {
        icon: null,
        label: t('needs_cleaning' as any),
-       bg: lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-28 (owner: light — yalnız mavi/qara)
-       iconColor: lightMode ? 'text-white' : 'text-amber-400',
-       dotColor: lightMode ? 'bg-white' : 'bg-amber-400',
+      bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-29 (owner: "light-da statuslar qapı-qara olmasın — qara modda necədirsə elə olsun")
+        iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
+        dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
      },
       empty: {
        icon: null,
@@ -455,24 +455,6 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                    {t('group_label')} {groupNumber}
                  </span>
                )}
-               {/* 2026-09-28 (owner: "guest və shoppingbag iconlarını Masa X
-                   ad və qiymətin ARASINA keçir"): the counters now sit
-                   IMMEDIATELY AFTER the table name — between the title and the
-                   amount hero — instead of hugging the top-right ⋮ button.
-                   (2026-09-27 quiet styling kept: muted, supporting data.) */}
-                {displayGuests && (
-                  <span className={`inline-flex items-center gap-1 text-[12px] font-bold tabular-nums shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
-                    <Users size={13} strokeWidth={2.5} />
-                    {/* Motion System: guest count morphs in place (icon stays, number swaps) */}
-                    <Morph value={displayGuests} y={3} duration={T.quick}>{displayGuests}</Morph>
-                  </span>
-                )}
-                {(table.item_count ?? 0) > 0 && (
-                  <span className={`inline-flex items-center gap-1 text-[12px] font-bold tabular-nums shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
-                    <ShoppingBag size={13} strokeWidth={2.5} />
-                    {table.item_count}
-                  </span>
-                )}
             </div>
             <div className="flex items-center gap-1">
               {/* 2026-09-28 (owner video: "dots çevirilib olur daire kimi" + "ağ
@@ -588,8 +570,29 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
              exit={{ opacity: 0, y: -8, scale: 0.985, filter: 'blur(4px)', transition: { duration: T.grace, ease: EASE.graceful } }}
              transition={{ duration: T.standard, ease: EASE.exit }}
-             className="mt-2.5 min-h-0 overflow-hidden">
-              {/* Amount as hero element — Motion System: in-place morph
+              className="mt-2.5 min-h-0 overflow-hidden">
+               {/* 2026-09-29 (owner, figure 2: "guest və shoppingbag qiymətlə
+                   masa yazısının ORTASINA"): the counters now live on their own
+                   quiet row BETWEEN the "Masa X" title and the ₼ amount hero
+                   (removed from the title row) — supporting data, muted style
+                   kept. Morphs in place when the guest count changes. */}
+               {(displayGuests || (table.item_count ?? 0) > 0) && (
+                 <div className="flex items-center gap-3 mb-1.5">
+                   {displayGuests && (
+                     <span className={`inline-flex items-center gap-1 text-[12px] font-bold tabular-nums ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
+                       <Users size={13} strokeWidth={2.5} />
+                       <Morph value={displayGuests} y={3} duration={T.quick}>{displayGuests}</Morph>
+                     </span>
+                   )}
+                   {(table.item_count ?? 0) > 0 && (
+                     <span className={`inline-flex items-center gap-1 text-[12px] font-bold tabular-nums ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
+                       <ShoppingBag size={13} strokeWidth={2.5} />
+                       {table.item_count}
+                     </span>
+                   )}
+                 </div>
+               )}
+               {/* Amount as hero element — Motion System: in-place morph
                   (old ₼13.00 drifts up+blurs out, ₼17.00 settles in).
                   No counter roll, no full-card re-render. */}
               {displayAmount && (
@@ -639,10 +642,13 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                at the RIGHT (where the shopping+guest icons used to be); the
                guest/item counts moved to the TOP row, filling the empty space.
                LEFT now carries only the waiter name. (flex-flow mt-auto) */}
-             <div className="mt-auto flex items-end justify-between gap-2">
-              {/* LEFT: merged children chip (2026-09-27: moved here from the
-                  top row — the top row was crowded and the chip collided
-                  with the guest/item counters, E2E overlap catch) + waiter. */}
+              {/* 2026-09-29 (light audit, Masa 17): on narrow cards the group
+                  chip ("16 · 18") and the status pill collided — flex-wrap lets
+                  the pill drop to its own line instead of overlapping. */}
+              <div className="mt-auto flex items-end gap-2 flex-wrap">
+               {/* LEFT: merged children chip (2026-09-27: moved here from the
+                   top row — the top row was crowded and the chip collided
+                   with the guest/item counters, E2E overlap catch) + waiter. */}
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 {isGroup && mergedChildNumbers && mergedChildNumbers.length > 0 && (
                   <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-black leading-none tabular-nums whitespace-nowrap ${
@@ -657,8 +663,10 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                   </span>
                 )}
               </div>
-             {/* RIGHT: status label chips + HESAB */}
-              <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">
+              {/* RIGHT: status label chips + HESAB — ml-auto (with the
+                  row's flex-wrap) keeps the pill right-aligned even when it
+                  wraps under the group chip on narrow cards. */}
+               <div className="ml-auto flex items-center gap-2 flex-wrap justify-end min-w-0">
                  <AnimatePresence mode="wait">
                 {/* 2026-09-26 (Task 54 verify fix, P2): kitchen status chip —
                     normalize case ('PARTIALLY_READY' leak) + map every known
@@ -692,11 +700,15 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                    exit={{ opacity: 0, y: -4, transition: { duration: 0.28, ease: [0.45, 0, 0.55, 1] } }}
                    transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
                     className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${
-                      seatedNoOrder
-                        ? (lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-orange-500/25 border-orange-400/60 text-orange-300') // 2026-09-28 (owner: light — qara)
-                        : currentStatus.bg
-                    }`}>
-                    {StatusIcon && <StatusIcon size={10} strokeWidth={2.5} className={seatedNoOrder ? (lightMode ? 'text-white' : 'text-orange-400') : currentStatus.iconColor} />}
+                       seatedNoOrder
+                         // 2026-09-29 (owner: "light-da statuslar qapı-qara olmasın —
+                         // qara modda necədirsə elə olsun"): dark = orange → light
+                         // mirrors it (was solid zinc-900: the "jet-black pill"
+                         // defect from the light audit).
+                         ? (lightMode ? 'bg-orange-100 border-orange-400 text-orange-800' : 'bg-orange-500/25 border-orange-400/60 text-orange-300')
+                         : currentStatus.bg
+                     }`}>
+                     {StatusIcon && <StatusIcon size={10} strokeWidth={2.5} className={seatedNoOrder ? (lightMode ? 'text-orange-600' : 'text-orange-400') : currentStatus.iconColor} />}
                     <AnimatePresence mode="wait" initial={false}>
                       <motion.span
                         key={showOccupiedFlash ? 'occupied-flash' : (seatedNoOrder ? 'seated-no-order' : currentStatus.label)}

@@ -31,9 +31,19 @@ type PaymentMethod = 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_c
  *  press feedback. Now: visible border + full-white text + spring tap.
  *  Every back action in this sheet uses it. */
 function BackButton({ onClick, className = '', children }: { onClick?: () => void; className?: string; children?: React.ReactNode }) {
+  const { lightMode } = useTheme();
+  // 2026-09-29 (owner, figure 5: "geri buttonu görünmür"): BackButton was
+  // hardcoded dark (text-white on bg-white/10) — on the LIGHT white card it
+  // rendered as white-on-white: INVISIBLE in every light-mode sub-view
+  // (payment/customer/split/transfer/courier…). Now theme-aware: light =
+  // quiet zinc pill (readable), dark = the original frosted white pill.
   return (
     <motion.button onClick={onClick} whileHover={{ y: -1 }} whileTap={{ scale: 0.96 }} transition={TAP}
-      className={`w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest border border-white/15 bg-white/10 hover:bg-white/20 text-white ${className}`}>
+      className={`w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest border ${
+        lightMode
+          ? 'border-zinc-200 bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+          : 'border-white/15 bg-white/10 hover:bg-white/20 text-white'
+      } ${className}`}>
       {children}
     </motion.button>
   );
@@ -1242,18 +1252,26 @@ export function ActionSheet({
                       ) : (couriers || []).length > 0 ? (
                         <div className="space-y-2 max-h-[50vh] overflow-y-auto">
                           {(couriers || []).map((c: any) => (
-                            <button
+                            // 2026-09-29 (owner, figure 5: "chip qapı-qara, çox
+                            // böyükdür, çirkindir"): light mode used a full-width
+                            // BLACK pill (bg-zinc-900, py-4) on a white card —
+                            // heavy and ugly. Now Apple-list language: light =
+                            // white card row with a hairline border + blue
+                            // chevron; dark = the inverted white row (unchanged).
+                            <motion.button
                               key={c.id}
                               onClick={() => onAssignCourier?.(c.id, c.name)}
-                              className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border font-black text-sm uppercase tracking-wider transition-all active:scale-[0.98] ${
+                              whileTap={{ scale: 0.985 }}
+                              transition={TAP}
+                              className={`w-full flex items-center justify-between px-5 py-3.5 rounded-2xl border font-black text-sm uppercase tracking-wider transition-colors ${
                                 lightMode
-                                  ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-800'
+                                  ? 'bg-white text-zinc-900 border-zinc-200 hover:bg-zinc-50'
                                   : 'bg-white text-black border-white hover:bg-white/90'
                               }`}
                             >
                               <span>{c.name}</span>
-                              <ChevronRight size={18} strokeWidth={3} />
-                            </button>
+                              <ChevronRight size={18} strokeWidth={3} className={lightMode ? 'text-blue-500' : 'text-black'} />
+                            </motion.button>
                           ))}
                         </div>
                       ) : (

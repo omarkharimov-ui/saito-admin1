@@ -1352,8 +1352,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                       </motion.button>
                     )}
                   </div>
-                  <div className={`flex items-center gap-3 mt-2 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
-                    <div className={`flex items-center rounded-2xl border overflow-hidden ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
+                   <div className={`flex items-center gap-3 mt-2 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
+                     {/* 2026-09-29 (owner: "butonlar cox kohne nesildir — uşunu
+                         yenile"): capsule (rounded-full) stepper, Apple current. */}
+                     <div className={`flex items-center rounded-full border overflow-hidden ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
                       <motion.button onClick={() => setQty(Math.max(1, qty - 1))} whileTap={{ scale: 0.88 }} transition={TAP}
                         className={`px-6 py-3 text-base font-black ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>−</motion.button>
                       <span className={`px-5 py-3 text-base font-black tabular-nums min-w-[3.5rem] text-center ${expandedText}`}>{qty}</span>
@@ -1369,11 +1371,11 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('option' as any)}</span>
                     <div className={`flex flex-wrap gap-2 mt-2 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
                       {(expandedItem.variants ?? []).map((v: any) => (
-                        <motion.button key={v.id} onClick={() => setSelectedVariant(v.id)}
-                          whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }} transition={SPRING}
-                          className={`px-5 py-2.5 rounded-xl text-sm font-bold border ${selectedVariant === v.id ? 'bg-blue-500 text-white border-blue-500' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'border-white/10 text-white/80 hover:bg-white/10'}`}>
-                          {v.name || v.title || `#${v.id.slice(0, 6)}`} {v.price ? `(+₼${Number(v.price).toFixed(2)})` : ''}
-                        </motion.button>
+                          <motion.button key={v.id} onClick={() => setSelectedVariant(v.id)}
+                            whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }} transition={SPRING}
+                            className={`px-5 py-2.5 rounded-full text-sm font-bold border [transition:background-color_0.2s_ease,border-color_0.2s_ease,color_0.2s_ease] ${selectedVariant === v.id ? 'bg-blue-500 text-white border-blue-500' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'border-white/10 text-white/80 hover:bg-white/10'}`}>
+                            {v.name || v.title || `#${v.id.slice(0, 6)}`} {v.price ? `(+₼${Number(v.price).toFixed(2)})` : ''}
+                          </motion.button>
                       ))}
                     </div>
                   </div>
@@ -1420,12 +1422,16 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                      // olur??? birbaşa seçilən olsun").
                      if (isExclusive) {
                        return (
-                         <motion.button
-                           key={m.id || m.name}
-                           onClick={() => setModQty(m.id, on ? 0 : 1, group)}
-                           whileHover={{ y: -1.5 }} whileTap={{ scale: 0.94 }} transition={TAP}
-                           className={`px-4 py-2.5 rounded-xl text-sm font-semibold border whitespace-nowrap ${on ? 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/25' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/80 hover:bg-white/5'}`}
-                         >
+                          <motion.button
+                            key={m.id || m.name}
+                            onClick={() => setModQty(m.id, on ? 0 : 1, group)}
+                            whileHover={{ y: -1.5 }} whileTap={{ scale: 0.94 }} transition={TAP}
+                            // 2026-09-29 (owner: "state-machine transition course /
+                            // servis üslubu / allergens hamısı üçün"): selection is a
+                            // STATE — the fill/border/text crossfade over 200ms
+                            // (no hard snap) + capsule shape (current gen).
+                            className={`px-4 py-2.5 rounded-full text-sm font-bold border whitespace-nowrap [transition:background-color_0.2s_ease,border-color_0.2s_ease,color_0.2s_ease,box-shadow_0.2s_ease] ${on ? 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/25' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/80 hover:bg-white/5'}`}
+                          >
                            {m.name} {m.price ? <span className={on ? 'opacity-80' : 'opacity-50'}>+₼{Number(m.price).toFixed(2)}</span> : ''}
                          </motion.button>
                        );
@@ -1436,29 +1442,42 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                      // mütləkdir"). Name tap also adds 1; −/count/+ control the
                      // quantity. (The serving group above stays direct-select
                      // — it has no quantity.)
-                     return (
-                       <motion.div key={m.id || m.name} whileHover={{ y: -1.5 }} transition={SPRING}
-                         className={`flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl text-sm font-semibold border ${on ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
-                         <span
-                           onClick={() => { if (!maxReached) setModQty(m.id, mQty + 1, group); }}
-                           className={`whitespace-nowrap select-none active:scale-95 ${maxReached && !on ? 'opacity-40' : 'cursor-pointer'}`}
-                         >
-                           {m.name} {m.price ? <span className={on ? 'opacity-70' : 'opacity-50'}>+₼{Number(m.price).toFixed(2)}</span> : ''}
-                         </span>
-                         {on && (
-                           <>
-                             <motion.button whileTap={{ scale: 0.85 }} transition={TAP}
-                               onClick={() => setModQty(m.id, mQty - 1, group)}
-                               className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10">−</motion.button>
-                             <span className="min-w-[1.1rem] text-center tabular-nums text-xs font-bold">{mQty}</span>
-                           </>
-                         )}
-                         <motion.button whileTap={{ scale: 0.85 }} transition={TAP}
-                           onClick={() => { if (!maxReached) setModQty(m.id, mQty + 1, group); }}
-                           disabled={maxReached}
-                           className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30">+</motion.button>
-                       </motion.div>
-                     );
+                      return (
+                        <motion.div key={m.id || m.name} whileHover={{ y: -1.5 }} transition={SPRING}
+                          // 2026-09-29 (owner: state-machine transition + "coxx
+                          // kohne nesildir" → capsule, current-gen chips):
+                          className={`flex items-center gap-1 pl-3.5 pr-1.5 py-1.5 rounded-full text-sm font-bold border [transition:background-color_0.2s_ease,border-color_0.2s_ease,color_0.2s_ease] ${on ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
+                          <span
+                            onClick={() => { if (!maxReached) setModQty(m.id, mQty + 1, group); }}
+                            className={`whitespace-nowrap select-none active:scale-95 ${maxReached && !on ? 'opacity-40' : 'cursor-pointer'}`}
+                          >
+                            {m.name} {m.price ? <span className={on ? 'opacity-70' : 'opacity-50'}>+₼{Number(m.price).toFixed(2)}</span> : ''}
+                          </span>
+                          {/* The − / count pair is a STATE (qty>0) — it pops in
+                              with the selection, fades out on the last −. */}
+                          <AnimatePresence initial={false}>
+                            {on && (
+                              <motion.span
+                                key="mod-minus-count"
+                                initial={{ scale: 0.6, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.6, opacity: 0, transition: { duration: 0.12 } }}
+                                transition={SPRING}
+                                className="flex items-center gap-1"
+                              >
+                                <motion.button whileTap={{ scale: 0.85 }} transition={TAP}
+                                  onClick={() => setModQty(m.id, mQty - 1, group)}
+                                  className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10">−</motion.button>
+                                <span className="min-w-[1.1rem] text-center tabular-nums text-xs font-bold">{mQty}</span>
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                          <motion.button whileTap={{ scale: 0.85 }} transition={TAP}
+                            onClick={() => { if (!maxReached) setModQty(m.id, mQty + 1, group); }}
+                            disabled={maxReached}
+                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30">+</motion.button>
+                        </motion.div>
+                      );
                    };
 
                   return (
@@ -1506,16 +1525,19 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                       const on = editCourse === val;
                       const key = val === 'appetizer' ? 'course_appetizers' : val === 'main' ? 'course_mains' : val === 'dessert' ? 'course_desserts' : 'course_drinks';
                       return (
-                         <motion.button
-                           key={val}
-                           whileHover={{ y: -1.5 }}
-                           whileTap={{ scale: 0.92 }}
-                           transition={SPRING}
-                            onClick={() => setEditCourse(on ? null : val)}
-                            /* 2026-09-28 (owner: light mode-da orange/sarı YOX —
-                               yalnız mavi/qara): light active = BLACK. */
-                            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border ${on ? (lightMode ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-amber-400 text-black border-amber-400') : (lightMode ? 'bg-white/60 text-zinc-500 border-zinc-200' : 'bg-white/5 text-white/50 border-white/10')}`}
-                         >
+                          // 2026-09-29 (owner: "kategori active pill qaradır deyə
+                          // text oxunmur" → light active is now BLUE, white text —
+                          // same selected-state language as variants/modifiers,
+                          // readable at small size. Capsule + 200ms state
+                          // crossfade (owner: "state-machine transition lazımdır").
+                          <motion.button
+                            key={val}
+                            whileHover={{ y: -1.5 }}
+                            whileTap={{ scale: 0.92 }}
+                            transition={SPRING}
+                             onClick={() => setEditCourse(on ? null : val)}
+                             className={`px-4 py-2 rounded-full text-xs font-bold border [transition:background-color_0.2s_ease,border-color_0.2s_ease,color_0.2s_ease] ${on ? (lightMode ? 'bg-blue-500 text-white border-blue-500' : 'bg-amber-400 text-black border-amber-400') : (lightMode ? 'bg-white/60 text-zinc-500 border-zinc-200' : 'bg-white/5 text-white/50 border-white/10')}`}
+                          >
                           {t(key as any)}
                         </motion.button>
                       );
@@ -1529,52 +1551,67 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                   </span>
                 )}
 
-                {/* Qeyd */}
-                <div className={specLocked ? 'pointer-events-none opacity-40' : ''}>
-                  <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Qeyd:</span>
-                  <input type="text" value={noteForProduct} onChange={(e) => setNoteForProduct(e.target.value)} placeholder={t('add_note')} disabled={specLocked} className={`mt-2 w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} focus:border-zinc-400/50`} />
-                </div>
+                 {/* 2026-09-29 (owner: "qeyd ilə allergens yerini dəyiş"):
+                     ALLERGENS now sit BEFORE QEYD — allergy flags are a spec
+                     decision (with the modifiers), the free-text note closes
+                     the form. Tapping flags the allergen on THIS instance
+                     (customer allergy warning → kitchen); stored in
+                     order_items.allergens, re-loaded when re-opened. */}
+                 {(() => {
+                   const allergenList = parseAllergens(expandedItem.allergens);
+                   if (allergenList.length === 0) return null;
+                   return (
+                     <div>
+                       <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Allergenlər:</span>
+                       <div className={`flex items-center gap-1.5 flex-wrap mt-2 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
+                         {allergenList.map((a: any) => {
+                           const def = resolveAllergenEntry(a);
+                           const Icon = def?.icon ?? ALLERGEN_FALLBACK_ICON;
+                           const code = def?.code || (a && typeof a === 'object' ? (String(a.code || a.name || '')) : String(a));
+                           if (!code) return null;
+                           const on = selectedAllergens.includes(code);
+                           return (
+                             <motion.button
+                               key={code}
+                               whileHover={{ y: -1.5 }} whileTap={{ scale: 0.94 }} transition={TAP}
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 setSelectedAllergens(prev => on ? prev.filter(x => x !== code) : [...prev, code]);
+                               }}
+                               /* Touch-friendly (owner 2026-09-22): min 38px
+                                  target, bigger text/icon — the old
+                                  px-2/py-0.5/text-[10px] pill was a 16px
+                                  tap hole. 2026-09-29: capsule + 200ms state
+                                  crossfade (owner: "state-machine transition"). */
+                               className={`inline-flex items-center gap-1.5 min-h-[38px] px-4 py-2 rounded-full border text-xs font-bold [transition:background-color_0.2s_ease,border-color_0.2s_ease,color_0.2s_ease] ${on ? 'bg-red-500/15 border-red-500/60 text-red-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
+                             >
+                               <Icon size={14} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
+                               <AnimatePresence initial={false}>
+                                 {on && (
+                                   <motion.span
+                                     key="al-check"
+                                     initial={{ scale: 0.4, opacity: 0 }}
+                                     animate={{ scale: 1, opacity: 1 }}
+                                     exit={{ scale: 0.4, opacity: 0, transition: { duration: 0.12 } }}
+                                     transition={SPRING}
+                                   >
+                                     <Check size={12} />
+                                   </motion.span>
+                                 )}
+                               </AnimatePresence>
+                             </motion.button>
+                           );
+                         })}
+                       </div>
+                     </div>
+                   );
+                 })()}
 
-                {/* Allergens — own BOTTOM section (owner 2026-09-28).
-                    Tapping flags the allergen on THIS instance (customer
-                    allergy warning → kitchen); stored in order_items.allergens
-                    and re-loaded when this instance is re-opened. */}
-                {(() => {
-                  const allergenList = parseAllergens(expandedItem.allergens);
-                  if (allergenList.length === 0) return null;
-                  return (
-                    <div>
-                      <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Allergenlər:</span>
-                      <div className={`flex items-center gap-1.5 flex-wrap mt-2 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
-                        {allergenList.map((a: any) => {
-                          const def = resolveAllergenEntry(a);
-                          const Icon = def?.icon ?? ALLERGEN_FALLBACK_ICON;
-                          const code = def?.code || (a && typeof a === 'object' ? (String(a.code || a.name || '')) : String(a));
-                          if (!code) return null;
-                          const on = selectedAllergens.includes(code);
-                          return (
-                            <motion.button
-                              key={code}
-                              whileHover={{ y: -1.5 }} whileTap={{ scale: 0.94 }} transition={TAP}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedAllergens(prev => on ? prev.filter(x => x !== code) : [...prev, code]);
-                              }}
-                              /* Touch-friendly (owner 2026-09-22): min 38px
-                                 target, bigger text/icon — the old
-                                 px-2/py-0.5/text-[10px] pill was a 16px
-                                 tap hole. */
-                              className={`inline-flex items-center gap-1.5 min-h-[38px] px-4 py-2 rounded-xl border text-xs font-bold ${on ? 'bg-red-500/15 border-red-500/60 text-red-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
-                            >
-                              <Icon size={14} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
-                              {on && <Check size={12} />}
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
+                 {/* Qeyd — now AFTER allergens (owner 2026-09-29 swap). */}
+                 <div className={specLocked ? 'pointer-events-none opacity-40' : ''}>
+                   <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Qeyd:</span>
+                   <input type="text" value={noteForProduct} onChange={(e) => setNoteForProduct(e.target.value)} placeholder={t('add_note')} disabled={specLocked} className={`mt-2 w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} focus:border-zinc-400/50`} />
+                 </div>
               </div>
 
                 {/* Footer: ƏLAVƏ ET full-width — sticky (flex-shrink-0).

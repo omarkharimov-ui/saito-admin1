@@ -1517,7 +1517,10 @@ export default function POSPage() {
         }
       }
       if (pos.selectedTable && pos.selectedTable.table_number === parent) pos.resetCart();
-      toast.success(t('group_cleared').replace('{table}', String(parent)), { id: 'action-toast' });
+      // 2026-09-29 (owner: toast-da "{tables}" LITERAL gedirdi): the locale
+      // placeholder is `{tables}` — the old .replace('{table}') never matched,
+      // so the raw key leaked into the notification verbatim.
+      toast.success(t('group_cleared').replace('{tables}', String(parent)), { id: 'action-toast' });
     } catch {
       toast.error(t('table_clear_failed'), { id: 'action-toast' });
     }
@@ -2839,13 +2842,18 @@ export default function POSPage() {
 
             {/* TAKEAWAY: Active orders list */}
             {posMode === 'takeaway' && pos.activeView === 'floor' && (
-               <motion.div
-                  key="takeaway-wrapper"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={fastExit}
-               >
+                <motion.div
+                   key="takeaway-wrapper"
+                   initial={{ opacity: 0 }}
+                   animate={{ opacity: 1 }}
+                   exit={{ opacity: 0 }}
+                   transition={fastExit}
+                   // 2026-09-29 (owner: "takeaway scroll olmur"): the wrapper had
+                   // NO height constraint — the inner overflow-y-auto list could
+                   // never become scrollable (it grew past the viewport). Mirror
+                   // the dine-in floor wrapper: fixed height + min-h-0.
+                   className="h-full min-h-0 overflow-hidden"
+                >
               <TakeawayOrders
                 key="takeaway-list"
                 orders={takeawayOrders}
@@ -2869,13 +2877,16 @@ export default function POSPage() {
 
             {/* DELIVERY: Active orders list */}
            {posMode === 'delivery' && pos.activeView === 'floor' && (
-               <motion.div
-                  key="delivery-wrapper"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={fastExit}
-                >
+                <motion.div
+                   key="delivery-wrapper"
+                   initial={{ opacity: 0 }}
+                   animate={{ opacity: 1 }}
+                   exit={{ opacity: 0 }}
+                   transition={fastExit}
+                   // 2026-09-29 (owner: "catdirilma scroll olmur"): same missing
+                   // height constraint as takeaway — inner list could not scroll.
+                   className="h-full min-h-0 overflow-hidden"
+                 >
                <DeliveryOrders
                  key="delivery-list"
                 orders={deliveryOrders}

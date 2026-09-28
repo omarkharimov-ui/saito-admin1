@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
 import { GridCell } from '@/lib/motion/GridCell';
 import { X, Calendar, Utensils, ShoppingBag, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, Hourglass } from '@/components/ui/saito-icons';
@@ -2274,6 +2274,12 @@ export default function POSPage() {
 
   return (
     <VirtualKeyboardProvider>
+    {/* Saito Motion Philosophy §12: respect the OS-level reduced-motion
+        setting across ALL POS framer-motion components (34 files of springs,
+        layout morphs, drag). "user" = honor the preference; framer disables
+        transform/layout animation for those users while keeping opacity-based
+        state feedback, so state clarity is preserved (no jarring jumps). */}
+    <MotionConfig reducedMotion="user">
     <div className="flex-1 min-h-0 w-full h-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden">
       {/* Loading state while session is being validated */}
       {!posSession && (
@@ -3805,6 +3811,7 @@ export default function POSPage() {
         </AnimatePresence>
 
     </div>
+    </MotionConfig>
     </VirtualKeyboardProvider>
   );
 }

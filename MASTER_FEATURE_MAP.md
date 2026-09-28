@@ -809,6 +809,15 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-28 (TICK ROTATION-MORPH + STROKE-DRAW — owner video: "dots çevirilib olur daire kimi" + "tik soldan sağa doldur")
+
+- **Owner feedback (video: iOS Appearance ekranı)**: əvvəlki crossfade+pop "pisdir" — (1) dots → dairə: dots **DÖNÜB** dairəyə çevrilməlidir; (2) ağ tik: **soldan başlayıb sağa doğru ÇÖKÜLMƏLİDİR** (stroke draw), scale-pop deyil.
+- **FIX — ROTATION MORPH (TableCard top-right control)**: 4 keyed state-inin hamısı indi **eyni istiqamətli spin** ilə keçir: exit = `rotate +120°, scale 0.4, fade` (160ms), enter = `rotate −120°→0°, scale 0.4→1` (SPRING.kessey). Eyni rotation istiqaməti = "dots döndü və dairə oldu" illüziyası (Philosophy §2 continuity + §5 morph-not-replace — indi rotation ilə, crossfade ilə YOX).
+- **FIX — CHECK STROKE-DRAW (TableCard)**: Phosphor `Check` (scale-pop) silindi → **inline SVG `motion.path` `d="M4 12.5 L9.5 18 L20 6.5"` + `pathLength 0→1`** (280ms easeOut, 80ms delay — dairə yerləşəndən dərhal sonra çökülür; path solundan başlayıb aşağı zirvədən sağa yuxarı qövs edir = Apple SF-Symbol checkmark draw). Deselect = 140ms un-draw.
+- **E2E R12 (iki tema) — N1-N4 HAMISI PASS**: N1 rotation matrix captured **mid-morph**: incoming circle `matrix(-0.2, 0.346, -0.346, -0.2, …)` = rotate(−120°)·scale 0.4, outgoing dots rotate(+120°)·scale 0.4 — **8 dots + 8 circle DOM-da birgə** (real spin, crossfade DEYİL); N2 check path `M4 12.5…` çökmüş halda `pathLength=1` (draw 280ms bitmişdi, mexanizm OK); N3 out-morph **mid-frame** tutuldu (bəzi kartlar dairə, bəziləri dots — staggered, hard-swap YOX); N4 dark-da eyni matrix.
+- **Fayllar** (1): `TableCard.tsx` (rotation morph + stroke-draw tick; unused `Check` import təmizləndi).
+- **Verify**: tsc təmiz; commit + push.
+
 ### Jurnal sətiri — 2026-09-28 (SELECTION TICK MORPH + HESAB CHIP POP — Apple state-machine transitions)
 
 - **Owner turn**: "bu animasiya Apple-da necədirsə elə olsun — normaldan BİRLEŞDİR-ə keçəndə 3 dots → tik ANİDƏN keçir, state-machine transition olsun; başqa belə tapsan (state-machine transition yoxdur) əlavə et".

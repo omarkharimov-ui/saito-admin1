@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
-import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2, Utensils, X, Layers } from '@/components/ui/saito-icons';
+import { MoreVertical, Users, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2, Utensils, X, Layers } from '@/components/ui/saito-icons';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -475,21 +475,23 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                 )}
             </div>
             <div className="flex items-center gap-1">
-              {/* 2026-09-28 (owner: "normaldan BİRLEŞDİR-ə keçəndə 3 dots → tik
-                  ANİDƏN keçir — Apple'də necədirsə elə olsun"): ONE persistent
-                  slot, keyed MAPH (Philosophy §4/§5 — morph instead of replace).
-                  iOS selection grammar (Settings edit mode / Mail / Photos
-                  multi-select): the control keeps its position + size identity;
-                  a state change crossfades in place — enter = spring pop from
-                  scale 0.5 with hair of overshoot (SPRING.kessey, owner DNA),
-                  exit = fast 140ms shrink+fade. No branch swap, no hard cut. */}
+              {/* 2026-09-28 (owner video: "dots çevirilib olur daire kimi" + "ağ
+                  tik soldan başlayıb sağa doğru doldur"): ROTATION MORPH — the
+                  dots don't crossfade away, they SPIN OUT (rotate +120°) while
+                  the circle SPINS IN from the same direction (−120° → 0°);
+                  shared rotation direction = one continuous turn, so it reads
+                  as "the dots rotated and became the circle" (Philosophy §2
+                  continuity + §5 morph-not-replace). The check is DRAWN, not
+                  popped: an SVG path animated via pathLength 0→1 (stroke
+                  draws left→vertex→right, like Apple's SF-Symbol checkmark
+                  draw), starting just as the circle lands. */}
               <AnimatePresence mode="popLayout" initial={false}>
                 {isTransferSource ? (
                   <motion.div
                     key="ctl-source"
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.14 } }}
+                    initial={{ rotate: -120, scale: 0.4, opacity: 0 }}
+                    animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                    exit={{ rotate: 120, scale: 0.4, opacity: 0, transition: { duration: 0.16 } }}
                     transition={SPRING.kessey}
                     className="w-7 h-7 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center"
                   >
@@ -498,9 +500,9 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                 ) : isTransferTarget ? (
                   <motion.div
                     key="ctl-target"
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.14 } }}
+                    initial={{ rotate: -120, scale: 0.4, opacity: 0 }}
+                    animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                    exit={{ rotate: 120, scale: 0.4, opacity: 0, transition: { duration: 0.16 } }}
                     transition={SPRING.kessey}
                     className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse"
                   >
@@ -509,9 +511,9 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                 ) : selectionMode ? (
                   <motion.div
                     key="ctl-select"
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.14 } }}
+                    initial={{ rotate: -120, scale: 0.4, opacity: 0 }}
+                    animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                    exit={{ rotate: 120, scale: 0.4, opacity: 0, transition: { duration: 0.16 } }}
                     transition={SPRING.kessey}
                     className={`w-7 h-7 rounded-full border-2 flex items-center justify-center [transition:background-color_0.18s_ease,border-color_0.18s_ease] ${
                       isSelected ? 'bg-blue-500 border-blue-500' : (lightMode ? 'bg-zinc-100 border-zinc-300' : 'bg-white/5 border-white/10')
@@ -519,24 +521,48 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                   >
                     <AnimatePresence initial={false}>
                       {isSelected && (
-                        <motion.div
+                        <motion.svg
                           key="sel-tick"
-                          initial={{ scale: 0.3, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0.5, opacity: 0, transition: { duration: 0.14 } }}
-                          transition={SPRING.kessey}
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          initial="hidden"
+                          animate="show"
+                          exit="hidden"
                         >
-                          <Check size={14} className="text-white" strokeWidth={3} />
-                        </motion.div>
+                          {/* Path starts at the LEFT (4,12.5) → bottom vertex
+                              (9.5,18) → up-right tip (20,6.5): pathLength 0→1
+                              draws exactly left-to-right, the Apple way. */}
+                          <motion.path
+                            d="M4 12.5 L9.5 18 L20 6.5"
+                            stroke="white"
+                            strokeWidth={3.4}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            variants={{
+                              hidden: { pathLength: 0, opacity: 0 },
+                              show: {
+                                pathLength: 1,
+                                opacity: 1,
+                                transition: {
+                                  pathLength: { duration: 0.28, ease: 'easeOut', delay: 0.08 },
+                                  opacity: { duration: 0.08 },
+                                },
+                              },
+                              exit: { pathLength: 0, opacity: 0, transition: { duration: 0.14 } },
+                            }}
+                          />
+                        </motion.svg>
                       )}
                     </AnimatePresence>
                   </motion.div>
                 ) : (
                   <motion.button
                     key="ctl-menu"
-                    initial={{ scale: 0.7, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.14 } }}
+                    initial={{ rotate: -120, scale: 0.4, opacity: 0 }}
+                    animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                    exit={{ rotate: 120, scale: 0.4, opacity: 0, transition: { duration: 0.16 } }}
                     transition={SPRING.kessey}
                     whileTap={{ scale: 0.9 }}
                     onClick={(e) => { e.stopPropagation(); onAction(); }}

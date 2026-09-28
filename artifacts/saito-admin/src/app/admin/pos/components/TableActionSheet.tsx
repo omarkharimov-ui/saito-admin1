@@ -100,11 +100,14 @@ export function TableActionSheet({ open, onClose, title, subtitle, badge, guestC
           <p className="text-2xl font-black tracking-tighter mb-1 leading-none text-white">{title}</p>
           {badge && <div className="mt-2">{badge}</div>}
           {guestCount && <div className="mt-3">{guestCount}</div>}
-          {subtitle && <p className="text-xs font-bold uppercase tracking-widest opacity-50 mt-2 text-white/50">{subtitle}</p>}
+          {/* 2026-09-28 (readability): the wrapper used BOTH opacity-50 AND
+              text-white/50 (double-dim ≈ 25%), and callers adding their own
+              opacity stacked to ~15% — near-invisible meta text. One dim now. */}
+          {subtitle && <p className="text-xs font-bold uppercase tracking-widest mt-2 text-white/50">{subtitle}</p>}
         </div>
         {children}
         <button onClick={onClose} className="w-full mt-5 py-4 rounded-4xl text-xs font-black uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-all text-white/70">
-          t('close')
+          {t('close')}
         </button>
       </div>
     </motion.div>

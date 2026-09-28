@@ -114,6 +114,14 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
     setNativeValue(el, next);
     const pos = start + text.length;
     requestAnimationFrame(() => {
+      // 2026-09-28 (owner: "umumi inputlarda space qoymaq problemi"): the
+      // inputs are CONTROLLED (value from cart state) — between the native
+      // input event and the state round-trip committing, any re-render can
+      // snap el.value back to the STALE prop and silently drop the just-typed
+      // character (the space key hit this most, because "word " keeps the
+      // caret at the boundary). Re-assert the intended value before restoring
+      // the caret; if the prop already caught up this is a no-op.
+      if (el.value !== next) setNativeValue(el, next);
       try { el.setSelectionRange(pos, pos); } catch {}
     });
   }, []);
@@ -177,6 +185,15 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
     const onFocusIn = (e: FocusEvent) => {
       const m = detectMode(e.target);
       if (m === 'none') {
+        // 2026-09-28 (owner: "klavyə açıq popup-da əməliyyat etdikdə əvvəlcə
+        // klavyə gizlənir, sonra icra olunur"): tapping a CONTROL (zone chip,
+        // button, link, select) moves focus off the input — that is an
+        // OPERATION, not a dismissal. Keeping the keyboard up means the action
+        // runs immediately with no 280ms dismiss-first. If the action unmounts
+        // the focused input, the detached-input poll (300ms) still closes the
+        // keyboard deterministically.
+        const tgt = e.target as HTMLElement | null;
+        if (tgt && typeof tgt.closest === 'function' && tgt.closest('button, [role="button"], a, label, select')) return;
         close();
         return;
       }
@@ -205,6 +222,11 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
         // in that path, so close on detachment explicitly.
         if (el && !el.isConnected) { activeElRef.current = null; setActiveEl(null); return; }
         const a = document.activeElement;
+        // 2026-09-28 (owner: "klavyə açıq popup-da əməliyyat"): focus moved to a
+        // CONTROL (button/chip tap) — an operation, not a dismissal. Keep the
+        // keyboard up (mirrors the focusin guard); the detached-input poll
+        // above still closes it if the action unmounts the focused input.
+        if (a instanceof HTMLElement && typeof a.closest === 'function' && a.closest('button, [role="button"], a, label, select')) return;
         if (!a || (a !== document.body && !a.classList.contains('vk-active') && !(a instanceof HTMLInputElement) && !(a instanceof HTMLTextAreaElement))) setActiveEl(null);
       });
     };
@@ -235,12 +257,23 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
   // keyboard stayed open and blocked ~40% of the view. An outside pointerdown
   // (any tap/click not on the keyboard and not on an input) now ALWAYS closes
   // it, regardless of focus behavior.
+  // 2026-09-28 (owner: "klavyə açıq olan popup-da bir əməliyyat edirsən,
+  // əvvəlcə klavyə gizlənir, sonra icra olunur — can sıxıcıdır"): that blanket
+  // close made EVERY button tap in the form dismiss the keyboard first
+  // (280ms slide + --vk-height layout jump), THEN run the action. Apple keeps
+  // the keyboard up while the operator taps controls — dismissal is reserved
+  // for BLANK-surface taps (backdrop / empty card areas) and the Done key.
+  // If the action unmounts the focused input, the detached-element guard
+  // (300ms poll) still closes the keyboard deterministically.
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
       if (target.closest('[data-vk-panel]')) return;      // tap on the keyboard itself
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return; // tap on an input (re)opens
+      // Tap on a CONTROL (button / role=button / link / label / select) is an
+      // operation, not a dismissal — keep the keyboard up.
+      if (target.closest('button, [role="button"], a, label, select')) return;
       if (activeElRef.current) setActiveEl(null);
     };
     document.addEventListener('pointerdown', onPointerDown, true);

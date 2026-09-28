@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
-import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2, Utensils, X } from '@/components/ui/saito-icons';
+import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2, Utensils, X, Layers } from '@/components/ui/saito-icons';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -270,14 +270,24 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
        iconColor: lightMode ? 'text-white' : 'text-amber-400',
        dotColor: lightMode ? 'bg-white' : 'bg-amber-400',
      },
-     empty: {
-      icon: null,
-      label: t('empty' as any),
-      bg: lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-500' : 'bg-white/10 border-white/20 text-zinc-400',
-      iconColor: lightMode ? 'text-zinc-500' : 'text-zinc-400',
-      dotColor: lightMode ? 'bg-zinc-400' : 'bg-white/30',
-    },
-  };
+      empty: {
+       icon: null,
+       label: t('empty' as any),
+       bg: lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-500' : 'bg-white/10 border-white/20 text-zinc-400',
+       iconColor: lightMode ? 'text-zinc-500' : 'text-zinc-400',
+       dotColor: lightMode ? 'bg-zinc-400' : 'bg-white/30',
+     },
+      // 2026-09-28 (owner: "status ikonlarini duzgun sec — eksik olana doğru şey"):
+      // 'merged' (group child table) was MISSING here → fell back to the
+      // "Boş" empty-chip, so a merged table read as FREE. Layers = grouped.
+      merged: {
+        icon: Layers,
+        label: t('group_label' as any) || 'Qrup',
+        bg: lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/20 border-blue-400/40 text-blue-300',
+        iconColor: lightMode ? 'text-blue-600' : 'text-blue-300',
+        dotColor: lightMode ? 'bg-blue-500' : 'bg-blue-400',
+      },
+   };
 
   // Archived table: immutable (DB trigger blocks ordering). Rendered as a
   // calm dashed placeholder — still visible on the floor map (staff context),
@@ -423,51 +433,49 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
              2026-09-27 (E2E: "kartlar bir-birinə girib"): the title never
              wraps onto two lines next to the QRUP/pre-order badges — nowrap +
              truncate keeps the row at a single height on every viewport. */}
-         <div className="flex items-start justify-between gap-2 min-w-0">
-           <div className="flex items-center gap-1.5 min-w-0">
-              {/* E2E: truncate chopped "Masa 17" → "M..." next to the QRUP chip.
-                  Instead: full title on ONE line, step the size down when a
-                  badge shares the row. */}
-               <span className={`${(isGroup && groupNumber) || table.pre_order ? 'text-lg' : 'text-2xl'} font-black tracking-tighter whitespace-nowrap ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isDirty ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isWaiting ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
-                {t('table' as any)} {table.table_number}
-              </span>
-             {table.pre_order && (
-               <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
-                 lightMode ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-white/10 text-white/70 border border-white/20'
-               }`}>
-                 Pre-order
+          <div className="flex items-start justify-between gap-2 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+               {/* E2E: truncate chopped "Masa 17" → "M..." next to the QRUP chip.
+                   Instead: full title on ONE line, step the size down when a
+                   badge shares the row. */}
+                <span className={`${(isGroup && groupNumber) || table.pre_order ? 'text-lg' : 'text-2xl'} font-black tracking-tighter whitespace-nowrap ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isDirty ? (lightMode ? 'text-zinc-900' : 'text-amber-400') : isWaiting ? (lightMode ? 'text-zinc-900' : 'text-amber-400') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
+                 {t('table' as any)} {table.table_number}
                </span>
-             )}
-              {isGroup && groupNumber && (
+              {table.pre_order && (
                 <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
-                  lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
+                  lightMode ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-white/10 text-white/70 border border-white/20'
                 }`}>
-                  {t('group_label')} {groupNumber}
+                  Pre-order
                 </span>
               )}
+               {isGroup && groupNumber && (
+                 <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
+                   lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
+                 }`}>
+                   {t('group_label')} {groupNumber}
+                 </span>
+               )}
+               {/* 2026-09-28 (owner: "guest və shoppingbag iconlarını Masa X
+                   ad və qiymətin ARASINA keçir"): the counters now sit
+                   IMMEDIATELY AFTER the table name — between the title and the
+                   amount hero — instead of hugging the top-right ⋮ button.
+                   (2026-09-27 quiet styling kept: muted, supporting data.) */}
+                {displayGuests && (
+                  <span className={`inline-flex items-center gap-1 text-[12px] font-bold tabular-nums shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
+                    <Users size={13} strokeWidth={2.5} />
+                    {/* Motion System: guest count morphs in place (icon stays, number swaps) */}
+                    <Morph value={displayGuests} y={3} duration={T.quick}>{displayGuests}</Morph>
+                  </span>
+                )}
+                {(table.item_count ?? 0) > 0 && (
+                  <span className={`inline-flex items-center gap-1 text-[12px] font-bold tabular-nums shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
+                    <ShoppingBag size={13} strokeWidth={2.5} />
+                    {table.item_count}
+                  </span>
+                )}
             </div>
             <div className="flex items-center gap-1">
-               {/* 2026-09-23 (owner): guest + item counts live in the TOP row
-                   (the empty space above the status chip) — "heç bir zaman"
-                   bottom-right. Amount hero stays in the middle.
-                   2026-09-27 (owner: "məlumatlar bir-birinə girib"): the
-                   counters are now QUIET (muted color, smaller icons) so the
-                   title + group badge read first — the stats are supporting
-                   data, not a second headline. */}
-               {displayGuests && (
-                 <span className={`inline-flex items-center gap-1 text-[12px] font-bold tabular-nums shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
-                   <Users size={13} strokeWidth={2.5} />
-                   {/* Motion System: guest count morphs in place (icon stays, number swaps) */}
-                   <Morph value={displayGuests} y={3} duration={T.quick}>{displayGuests}</Morph>
-                 </span>
-               )}
-               {(table.item_count ?? 0) > 0 && (
-                 <span className={`inline-flex items-center gap-1 text-[12px] font-bold tabular-nums shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
-                   <ShoppingBag size={13} strokeWidth={2.5} />
-                   {table.item_count}
-                 </span>
-               )}
-              {isTransferSource ? (
+               {isTransferSource ? (
                <div className="w-7 h-7 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center">
                  <span className="text-xs font-black text-rose-400">M</span>
                </div>

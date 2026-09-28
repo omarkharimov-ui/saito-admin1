@@ -2106,6 +2106,7 @@ export const az = {
   restored: 'Geri alındı',
   restore_failed: 'Geri alınmadı',
   no_new_products: 'Yeni məhsul yoxdur',
+  all_already_in_kitchen: 'Yeni məhsul yoxdur — bütün sifariş artıq mətbəxdədir',
   order_sent: 'Sifariş göndərildi',
   order_changed_by_other_terminal: 'Sifariş eyni anda başqa terminaldan dəyişdirildi. Yenidən cəhd edin.',
   conflict_title: 'Sifariş eyni anda dəyişdirildi',

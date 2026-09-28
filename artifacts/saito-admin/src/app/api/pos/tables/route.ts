@@ -185,7 +185,10 @@ export async function GET() {
         // table-hold deposit on the table so the POS reservation action sheet
         // shows the VIP badge + "Depozit ₼X" chip.
         is_vip: reservation ? !!reservation.is_vip : !!(f as any).is_vip,
-        deposit_amount: reservation ? reservation.deposit_amount ?? null : (f as any).deposit_amount ?? null,
+        // 2026-09-28: the reservation row may predate the deposit (or carry
+        // null) while the table_floors mirror holds the value — fall back to
+        // the floor's copy so the "Depozit ₼X" chip is never dropped.
+        deposit_amount: reservation?.deposit_amount ?? (f as any).deposit_amount ?? null,
         pre_order: hasPreOrder,
       };
 

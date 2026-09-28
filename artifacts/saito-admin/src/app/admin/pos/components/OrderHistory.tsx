@@ -570,22 +570,26 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                   unambiguous at a glance. */}
               <div className={`mx-5 mt-3 mb-0 rounded-2xl p-1 flex flex-shrink-0 ${lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'}`}>
                 {([['orders', t('orders') || 'Sifarişlər'], ['exceptions', t('exceptions') || 'İstisnalar']] as const).map(([id, label]) => (
-                  <button
-                    key={id}
-                    onClick={() => setSheetTab(id)}
-                    className={`relative flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-widest ${
-                      sheetTab === id
-                        ? (lightMode ? 'text-zinc-900' : 'text-zinc-950')
-                        : (lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/40 hover:text-white/70')
-                    }`}
-                  >
-                    {sheetTab === id && (
-                      <motion.span
-                        layoutId="oh-sheet-pill"
-                        className={`absolute inset-0 rounded-xl ${lightMode ? 'bg-white shadow-sm' : 'bg-white'}`}
-                        transition={{ duration: 0.24, ease: [0.45, 0, 0.55, 1] }}
-                      />
-                    )}
+                   <button
+                     key={id}
+                     onClick={() => setSheetTab(id)}
+                     className={`relative flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-widest ${
+                       sheetTab === id
+                         // 2026-09-28 (owner: "Tarixçə modalında ən yuxarıdakı
+                         // active pill light mode-da qara görünməlidir"):
+                         // light active = BLACK pill / white text (matches the
+                         // two filter groups below); dark keeps the white pill.
+                         ? (lightMode ? 'text-white' : 'text-zinc-950')
+                         : (lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/40 hover:text-white/70')
+                     }`}
+                   >
+                     {sheetTab === id && (
+                       <motion.span
+                         layoutId="oh-sheet-pill"
+                         className={`absolute inset-0 rounded-xl ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
+                         transition={{ duration: 0.24, ease: [0.45, 0, 0.55, 1] }}
+                       />
+                     )}
                     <span className="relative z-10">{label}{id === 'exceptions' && exceptions.length > 0 ? ` (${exceptions.length})` : ''}</span>
                   </button>
                 ))}
@@ -600,15 +604,20 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                   on exceptions where it did nothing). */}
               <div className="relative flex-1 min-h-0">
                 <AnimatePresence initial={false}>
-                {sheetTab === 'orders' ? (
-                <motion.div
-                  key="oh-tab-orders"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-                  className="absolute inset-0 flex flex-col"
-                >
+                 {sheetTab === 'orders' ? (
+                 // 2026-09-28 (owner: "müştəri siyahısı başqa taba keçəndə
+                 // qəfil dəyişməməlidir — Apple üslubunda hamar"): a plain
+                 // opacity crossfade still read as a SNAP between two
+                 // different lists; a directional 16px slide + fade
+                 // (iOS tab-content feel) makes the change legible.
+                 <motion.div
+                   key="oh-tab-orders"
+                   initial={{ opacity: 0, x: 16 }}
+                   animate={{ opacity: 1, x: 0 }}
+                   exit={{ opacity: 0, x: -16 }}
+                   transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+                   className="absolute inset-0 flex flex-col"
+                 >
 
                   {/* 2026-09-27 (owner: "hər tab digəri ilə qarışmış görünür"):
                       the 8 loose chips from TWO different filter systems no
@@ -736,11 +745,11 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                   {/* Order list — row markup in renderOrderCard() (owner
                       picked variant 1 "Clean list" 2026-09-27). */}
                   <div className="flex-1 overflow-y-auto px-5 py-3">
-                {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                  </div>
-                ) : filteredOrders.length === 0 ? (
+                  {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className={`w-6 h-6 border-2 rounded-full animate-spin ${lightMode ? 'border-zinc-200 border-t-zinc-900' : 'border-white/20 border-t-white/60'}`} />
+                    </div>
+                  ) : filteredOrders.length === 0 ? (
                   <p className="text-center text-xs opacity-40 py-12">
                     {searchQuery || dateFrom || dateTo ? t('no_search_results') : t('no_paid_orders')}
                   </p>
@@ -755,9 +764,9 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                      disabled={loadingMore}
                      className={`w-full py-3 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
                    >
-                     {loadingMore
-                       ? <div className="w-4 h-4 mx-auto border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                        : (t('load_more') || 'Daha çox yüklə')}
+                      {loadingMore
+                        ? <div className={`w-4 h-4 mx-auto border-2 rounded-full animate-spin ${lightMode ? 'border-zinc-200 border-t-zinc-900' : 'border-white/20 border-t-white/60'}`} />
+                         : (t('load_more') || 'Daha çox yüklə')}
                     </button>
                   )}
                  </div>
@@ -765,20 +774,20 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                 ) : (
                 /* 2026-09-23 (owner, Toast "Sales Exception Report"): who voided /
                     cancelled / refunded, with reason + staff + order reference. */
-                <motion.div
-                  key="oh-tab-exceptions"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-                  className="absolute inset-0 flex flex-col"
-                >
+                 <motion.div
+                   key="oh-tab-exceptions"
+                   initial={{ opacity: 0, x: 16 }}
+                   animate={{ opacity: 1, x: 0 }}
+                   exit={{ opacity: 0, x: -16 }}
+                   transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+                   className="absolute inset-0 flex flex-col"
+                 >
                <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
-                 {exceptionsLoading ? (
-                   <div className="flex items-center justify-center py-12">
-                     <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                   </div>
-                 ) : exceptions.length === 0 ? (
+                  {exceptionsLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className={`w-6 h-6 border-2 rounded-full animate-spin ${lightMode ? 'border-zinc-200 border-t-zinc-900' : 'border-white/20 border-t-white/60'}`} />
+                    </div>
+                  ) : exceptions.length === 0 ? (
                    <p className="text-center text-xs opacity-40 py-12">{t('no_exceptions') || 'İstisna yoxdur'}</p>
                  ) : (
                    exceptions.map(x => (
@@ -1352,10 +1361,15 @@ function RefundView({
       style={{ paddingBottom: `calc(var(--vk-height, 0px) + ${keyboardHeight}px + 16px)` }}
       onClick={guardedClose}
     >
+      // 2026-09-28 (owner: "refund modalının UI-sını yenidən yaz — light
+      // mode-da tam görünən, oxunaqlı və səliqəli"): the card now carries an
+      // EXPLICIT text color — before, children with no own color (amounts,
+      // qty digits, summary values) inherited WHITE from the dark-themed
+      // sheet and were invisible on the white light card.
       <motion.div
         {...slideUp}
         onClick={e => e.stopPropagation()}
-        className={`w-full max-w-2xl overflow-y-auto rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-elevated border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+        className={`w-full max-w-2xl overflow-y-auto rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-elevated border ${lightMode ? 'bg-white text-zinc-900 border-zinc-200' : 'bg-zinc-900 text-white border-white/10'}`}
         style={{ maxHeight: `calc(100vh - var(--vk-height, 0px) - ${keyboardHeight}px - 48px)` }}
       >
         {/* Header — shared by every FSM stage; the step chip shows where in
@@ -1412,7 +1426,7 @@ function RefundView({
           </div>
           <div className={`flex justify-between pt-1.5 mt-1.5 border-t ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
             <span className={`text-xs font-bold ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{t('remaining') || 'Qalan'}</span>
-            <span className="text-sm font-black tabular-nums text-emerald-500">₼{remaining.toFixed(2)}</span>
+            <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>₼{remaining.toFixed(2)}</span>
           </div>
         </div>
 
@@ -1426,7 +1440,7 @@ function RefundView({
           <div className="grid grid-cols-2 gap-2">
             {methodOptions.map(m => (
               <button key={m} type="button" onClick={() => setRefundMethod(m)}
-                className={`h-10 rounded-xl border text-xs font-black transition-all ${refundMethod === m ? 'border-red-500/50 bg-red-500/10 text-red-400' : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                className={`h-10 rounded-xl border text-xs font-black transition-all ${refundMethod === m ? (lightMode ? 'border-red-300 bg-red-50 text-red-600' : 'border-red-500/50 bg-red-500/10 text-red-300') : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:border-zinc-300' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/20'}`}>
                 {m === 'cash' ? 'Nağd' : m === 'card' ? 'Kart' : m}
               </button>
             ))}
@@ -1470,7 +1484,7 @@ function RefundView({
                 type="number" step="0.01" min="0" max={remaining}
                 value={amount} onChange={e => setAmount(e.target.value)}
                 placeholder="0.00"
-                className={`w-full rounded-2xl pl-9 pr-5 py-3.5 text-lg font-black outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white focus:border-emerald-400/50'}`}
+                className={`w-full rounded-2xl pl-9 pr-5 py-3.5 text-lg font-black outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-blue-500' : 'bg-white/5 border-white/10 text-white focus:border-emerald-400/50'}`}
               />
             </div>
             {mode === 'partial' && (
@@ -1598,7 +1612,7 @@ function RefundView({
           </p>
           <input type="text" value={reason} onChange={e => setReason(e.target.value)}
             placeholder={t('refund_reason_placeholder') || 'Müştəri şikayəti...'}
-            className={`w-full rounded-2xl px-4 py-3 text-sm font-medium outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black placeholder:text-zinc-300 focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-400/50'}`} />
+            className={`w-full rounded-2xl px-4 py-3 text-sm font-medium outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500' : 'bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-400/50'}`} />
         </div>
 
         </div>

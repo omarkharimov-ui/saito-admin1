@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyManagerPin } from '@/lib/managerPin';
@@ -5,10 +6,38 @@ import { verifyManagerPin } from '@/lib/managerPin';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
+// 2026-09-28 (owner: "HESAB ÇAĞIR berbat işləyir" — smena bağlı olduqda
+// client-ə yalnız toast gedir, PIN eskalasiyası yoxdur): the shift gate now
+// accepts `approver_staff_id` (the PinGuard pattern, same as discount/void —
+// the PIN was already verified client-side against /api/auth/verify-pin; the
+// server re-verifies the approver is an ACTIVE manager-role staff member).
+const MANAGER_ROLES = ['admin', 'manager', 'owner', 'superadmin'];
+
+async function isManagerStaff(staffId: string): Promise<boolean> {
+  try {
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: staffRows } = await supabase
+      .from('staff')
+      .select('id, role_id, is_active')
+      .eq('id', staffId)
+      .limit(1);
+    const staff = Array.isArray(staffRows) ? staffRows[0] : null;
+    if (!staff || staff.is_active !== true) return false;
+    if (!staff.role_id) return false;
+    const { data: roleRow } = await supabase.from('roles').select('name').eq('id', staff.role_id).maybeSingle();
+    return !!roleRow?.name && MANAGER_ROLES.includes(roleRow.name);
+  } catch {
+    return false;
+  }
+}
+
 // QF3 (RED #1): unified shift gate with an honest manager-PIN override.
 // If the request body carries `manager_pin`, it is verified (manager role +
-// rate limit) and used as the shift-lock override; otherwise the plain
-// active-shift rule applies.
+// rate limit) and used as the shift-lock override; if it carries
+// `approver_staff_id` (PinGuard flow) the manager role is re-verified server-
+// side; otherwise the plain active-shift rule applies.
 export async function shiftGate(
   req: NextRequest,
   body: any
@@ -19,8 +48,15 @@ export async function shiftGate(
     const pin = await verifyManagerPin(String(managerPin), ip);
     return pin.ok ? { ok: true } : { ok: false, error: pin.error, pin_required: true };
   }
+  const approverStaffId = body?.approver_staff_id;
+  if (approverStaffId) {
+    const ok = await isManagerStaff(String(approverStaffId));
+    return ok
+      ? { ok: true }
+      : { ok: false, error: 'İdarəçi təsdiqi təsdiqlənə bilmədi', pin_required: true };
+  }
   const shiftCheck = await requireActiveShift();
-  return shiftCheck.ok ? { ok: true } : { ok: false, error: shiftCheck.error };
+  return shiftCheck.ok ? { ok: true } : { ok: false, error: shiftCheck.error, pin_required: true };
 }
 
 export async function requireActiveShift(managerOverride = false): Promise<{ ok: boolean; error?: string }> {

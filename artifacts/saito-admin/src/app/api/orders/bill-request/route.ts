@@ -39,14 +39,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Table not found' }, { status: 404 });
     }
 
+    // 2026-09-28 (owner: "avtomatik hesab berbat işləyir"): CANCELLING a bill
+    // request must RESTORE the table's status — the open path sets
+    // 'payment_pending' but the old code left it there forever, so the card
+    // sat in the payment-pending state with no way back (and the next HESAB
+    // ÇAĞIR looked like a no-op because the state never changed).
+    const patchBody: Record<string, unknown> = {
+      bill_requested,
+      updated_at: now,
+      ...(bill_requested ? { status: 'payment_pending' } : {}),
+    };
+    if (!bill_requested && table.status === 'payment_pending') {
+      patchBody.status = 'occupied'; // the action only exists on occupied tables with an open order
+    }
     await fetch(`${s.url}/rest/v1/table_floors?id=eq.${table.id}`, {
       method: 'PATCH',
       headers: s.headers,
-      body: JSON.stringify({
-        bill_requested,
-        updated_at: now,
-        ...(bill_requested ? { status: 'payment_pending' } : {}),
-      }),
+      body: JSON.stringify(patchBody),
     });
 
     return NextResponse.json({ success: true, table_number, bill_requested: bill_requested });

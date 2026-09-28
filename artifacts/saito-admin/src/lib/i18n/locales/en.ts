@@ -2108,6 +2108,7 @@ export const en: TranslationMap = {
   restored: 'Restored',
   restore_failed: 'Restore failed',
   no_new_products: 'No new products',
+  all_already_in_kitchen: 'No new products — the order is already in the kitchen',
   order_sent: 'Order sent',
   order_changed_by_other_terminal: 'Order was changed on another terminal. Please try again.',
   conflict_title: 'Order changed at the same time',

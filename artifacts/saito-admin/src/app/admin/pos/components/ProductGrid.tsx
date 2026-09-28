@@ -231,6 +231,9 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   // DERIVED from the ACTIVE pill's kitchen state (each instance can be in a
   // different state: one served, the other still draft).
   const [singleLocked, setSingleLocked] = useState(false);
+  // 2026-09-28 (owner P2): single-mode kitchen status of the edited line —
+  // drives the READY/SERVED lock label (multi mode reads the active pill's).
+  const [editKs, setEditKs] = useState<string | null>(null);
   // 2026-09-28 (owner: "eyni mehsul 1 setire collapse olsun + modifikator
   // acanda tiktokdaki kimi surusdurme pilli"): multi-instance drafts.
   // instList = the original preset data (static per open — the pills render
@@ -242,9 +245,16 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const instDraftsRef = useRef<NonNullable<EditorPreset['instances']>>([]);
   const multiInst = instList.length > 0;
   const activeDraft = multiInst ? instList[Math.min(activeInst, instList.length - 1)] : null;
+  // 2026-09-28 (owner P2: "Servis edilmiş və ya 'Ready'/hazır instansiyanın
+  // modifikatoru artıq dəyişdirilməməlidir"): READY joins the locked set —
+  // the dish is out the pass, its spec is frozen PER INSTANCE (a sibling
+  // still in the kitchen / draft stays editable).
+  const LOCKED_KS = ['ready', 'served', 'completed'];
   const specLocked = multiInst
-    ? !!activeDraft && ['served', 'completed'].includes(activeDraft.kitchen_status || '')
+    ? !!activeDraft && LOCKED_KS.includes(activeDraft.kitchen_status || '')
     : singleLocked;
+  const lockStatus = multiInst ? (activeDraft?.kitchen_status || '') : (editKs || '');
+  const lockLabel = lockStatus === 'ready' ? 'Hazır (READY)' : 'Served';
   const [returnView, setReturnView] = useState(false);
   const [returnPinOpen, setReturnPinOpen] = useState(false);
   const [returnQty, setReturnQty] = useState(1);
@@ -312,6 +322,49 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     loadInstanceFields(next, instDraftsRef.current);
   };
 
+  // 2026-09-28 (owner P2: "say artıranda modifikatorlar bütün instansiyalar
+  // üçün birləşir"): Miqdar "+" on a SPEC'D or SENT instance does NOT grow the
+  // same line — it creates a NEW independent instance (a fresh pill tab that
+  // COPIES the active instance's spec, qty 1, unsent, editable). Each instance
+  // keeps its own modifier set; the kitchen gets each as its own order line.
+  // Plain (no spec, unsent) instances still grow qty on the same line.
+  const handleQtyPlus = () => {
+    if (!multiInst) { setQty(qty + 1); return; }
+    commitInstanceDraft();
+    const drafts = instDraftsRef.current;
+    const ad: any = drafts[Math.min(activeInst, drafts.length - 1)];
+    if (!ad) { setQty(qty + 1); return; }
+    const isSpecd = Object.values(ad.modifiers || {}).some((q: any) => q > 0)
+      || !!(ad.note || '').trim() || (ad.allergens || []).length > 0;
+    const isSent = (ad.sentQuantity ?? 0) > 0;
+    if (!isSpecd && !isSent) { setQty(qty + 1); return; }
+    const firstModId = (Object.entries(ad.modifiers || {}) as [string, number][])
+      .find(([, q]) => q > 0)?.[0];
+    const modName = firstModId
+      ? (expandedItem?.modifiers || []).find((m: any) => m.id === firstModId)?.name || ''
+      : '';
+    const nd: any = {
+      lineIndex: -1,
+      __isNew: true,
+      quantity: 1,
+      variantId: ad.variantId ?? null,
+      note: ad.note || '',
+      modifiers: { ...(ad.modifiers || {}) },
+      course: null,
+      is_hold: false,
+      allergens: [...(ad.allergens || [])],
+      kitchen_status: null,
+      sentQuantity: 0,
+      returnCtx: undefined,
+      hint: modName || 'Yeni',
+    };
+    instDraftsRef.current = [...drafts, nd];
+    setInstList(instDraftsRef.current);
+    setActiveInst(drafts.length);
+    setReturnView(false);
+    loadInstanceFields(drafts.length, instDraftsRef.current);
+  };
+
   useEffect(() => {
     if (!expandedId) {
       presetRef.current = null;
@@ -320,6 +373,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       setReturnCtx(null);
       setReturnView(false);
       setSingleLocked(false);
+      setEditKs(null);
       // Multi-instance drafts die with the modal — the next open must start
       // from a fresh preset, never from the previous product's drafts.
       instDraftsRef.current = [];
@@ -347,6 +401,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       editLineIndexRef.current = null;
       setReturnView(false);
       setSingleLocked(false);
+      setEditKs(null);
       loadInstanceFields(0, drafts);
       return;
     }
@@ -357,7 +412,9 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     editLineIndexRef.current = preset?.lineIndex ?? null;
     setReturnCtx(preset?.returnCtx ?? null);
     setReturnView(false);
-    setSingleLocked(['served', 'completed'].includes((preset as any)?.kitchen_status || ''));
+    const presetKs = (preset as any)?.kitchen_status || '';
+    setEditKs(presetKs || null);
+    setSingleLocked(LOCKED_KS.includes(presetKs));
     setSelectedVariant(preset?.variantId ?? undefined);
     setNoteForProduct(preset?.note ?? '');
     setEditCourse(preset?.course ?? null);
@@ -618,6 +675,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       const drafts = instDraftsRef.current;
       const edits = drafts.map((d: any) => ({
         lineIndex: d.lineIndex,
+        // 2026-09-28 (owner P2): drafts created by the modal's Miqdar "+" are
+        // NEW instances (lineIndex -1) — applyInstanceEdits appends them as
+        // fresh cart lines instead of replacing anything.
+        isNew: !!d.__isNew,
         quantity: d.quantity,
         variantId: d.variantId ?? null,
         notes: d.note || '',
@@ -1233,12 +1294,15 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                          className="flex items-center gap-2 overflow-x-auto snap-x snap-mandatory pb-1"
                          style={{ scrollbarWidth: 'none' }}
                        >
-                         {instList.map((d: any, i: number) => {
-                           const on = i === activeInst;
-                           const instLocked = ['served', 'completed'].includes(d.kitchen_status || '');
-                           return (
-                             <button
-                               key={d.lineIndex}
+                          {instList.map((d: any, i: number) => {
+                            const on = i === activeInst;
+                            // 2026-09-28 (owner P2): 'ready' joins the lock set;
+                            // __isNew drafts (lineIndex -1) need a stable key
+                            // that never collides across new instances.
+                            const instLocked = LOCKED_KS.includes(d.kitchen_status || '');
+                            return (
+                              <button
+                                key={`inst-${d.__isNew ? `new-${i}` : d.lineIndex}`}
                                onClick={() => switchInstance(i)}
                                className={`relative flex items-center gap-1.5 pl-1.5 pr-3.5 py-1.5 rounded-full whitespace-nowrap snap-start text-[11px] font-black transition-colors active:scale-[0.97] ${
                                  on ? (lightMode ? 'text-white' : 'text-zinc-950') : lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/50 hover:text-white/80'
@@ -1254,7 +1318,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                                <span className={`relative z-10 flex items-center justify-center w-[18px] h-[18px] rounded-full text-[9px] tabular-nums ${
                                  on ? (lightMode ? 'bg-white/20' : 'bg-zinc-950/15') : lightMode ? 'bg-zinc-200/70 text-zinc-600' : 'bg-white/15 text-white/70'
                                }`}>{i + 1}</span>
-                               <span className="relative z-10 max-w-[110px] truncate">{d.hint || (instLocked ? 'Served' : '')}</span>
+                                <span className="relative z-10 max-w-[110px] truncate">{d.hint || (instLocked ? (d.kitchen_status === 'ready' ? 'Hazır' : 'Served') : '')}</span>
                              </button>
                            );
                          })}
@@ -1263,12 +1327,14 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                    )}
                    {/* 2026-09-28 (owner): SERVED/COMPLETED line → spec lock
                        banner; every control below is pointer-events-none + dimmed. */}
-                   {specLocked && (
-                    <div className={`flex items-center gap-2 p-3 rounded-xl border text-[11px] font-bold ${lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white/[0.06] border-white/15 text-white/80'}`}>
-                      <Lock size={12} className="flex-shrink-0" />
-                      Bu məhsula verilmişdir (SERVED) — spesifikasiya dəyişdirilə bilməz
-                    </div>
-                  )}
+                    {specLocked && (
+                     <div className={`flex items-center gap-2 p-3 rounded-xl border text-[11px] font-bold ${lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white/[0.06] border-white/15 text-white/80'}`}>
+                       <Lock size={12} className="flex-shrink-0" />
+                       {lockLabel === 'Hazır (READY)'
+                        ? 'Bu instansiya hazırdır (READY) — spesifikasiya dəyişdirilə bilməz'
+                        : 'Bu məhsul verilmişdir (SERVED) — spesifikasiya dəyişdirilə bilməz'}
+                     </div>
+                   )}
                   {/* Miqdar — 2026-09-25 (owner): GERİ QAYTAR on the RIGHT of
                       the "Miqdar:" label row for served lines (was header
                       top-right, then footer — both rejected). */}
@@ -1291,8 +1357,8 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                       <motion.button onClick={() => setQty(Math.max(1, qty - 1))} whileTap={{ scale: 0.88 }} transition={TAP}
                         className={`px-6 py-3 text-base font-black ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>−</motion.button>
                       <span className={`px-5 py-3 text-base font-black tabular-nums min-w-[3.5rem] text-center ${expandedText}`}>{qty}</span>
-                      <motion.button onClick={() => setQty(qty + 1)} whileTap={{ scale: 0.88 }} transition={TAP}
-                        className={`px-6 py-3 text-base font-black ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>+</motion.button>
+                       <motion.button onClick={handleQtyPlus} whileTap={{ scale: 0.88 }} transition={TAP}
+                         className={`px-6 py-3 text-base font-black ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>+</motion.button>
                     </div>
                   </div>
                 </div>
@@ -1525,7 +1591,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     style={{ backgroundColor: specLocked ? (lightMode ? '#d4d4d8' : 'rgba(255,255,255,0.12)') : '#10b981', color: specLocked ? (lightMode ? '#71717a' : 'rgba(255,255,255,0.5)') : undefined }}
                     >
                       {specLocked
-                        ? <><Lock size={16} /> Served — qəfəslənib</>
+                        ? <><Lock size={16} /> {lockLabel} — qəfəslənib</>
                         : multiInst
                           // Multi-instance save = "Yadda saxla" (the rows exist;
                           // we're editing instances, not adding a product).

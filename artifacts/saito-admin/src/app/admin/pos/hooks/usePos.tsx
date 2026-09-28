@@ -1181,10 +1181,69 @@ export function usePos() {
   // Per-instance price math mirrors the addToCart edit path exactly; unchanged
   // instances are skipped (no-op detection), so a save that only touched the
   // 2nd instance never rewrites the 1st.
+  // 2026-09-28 (owner P2): "+" on a SPEC'D (modifiers/notes/allergens) or SENT
+  // instance creates a NEW independent instance — a fresh line (own
+  // instance_id, qty 1, unsent) that COPIES the source spec. The old
+  // qty+1-on-the-same-line merged one modifier set across ALL units
+  // ("modifikatorlar bütün instansiyalar üçün birləşir"); now each instance is
+  // independently editable (its own pill tab / cart line). Plain
+  // (no-modifier, no-note) instances still grow qty on the same line
+  // (normal POS: 3× çay = 1 line).
+  const cloneInstance = (lineIndex: number): boolean => {
+    const base = cartRef.current;
+    if (!base) return false;
+    const src: any = base.items[lineIndex];
+    if (!src || src.__isCombo || src.is_combo) return false;
+    const p = products.find(x => x.id === src.product_id);
+    if (!p) return false;
+    const srcMods: any[] = src.modifiers || [];
+    const modsTotal = srcMods.reduce((s, m) => s + Number(m.price || 0) * (m.quantity || 1), 0);
+    const variant = src.variant_id
+      ? (variantsByProduct[p.id] || []).find((v: any) => v.id === src.variant_id)
+      : undefined;
+    // Same price math as addToCart (variant base − campaign amount; no-variant
+    // → effective_price with the campaign baked in).
+    const basePrice = variant
+      ? Number(variant.discount_price != null && variant.discount_price !== '' ? variant.discount_price : variant.price)
+      : (p.price ?? 0);
+    const effective: any = (p as any).effective_price;
+    const effNum = typeof effective === 'number' ? effective : effective?.effective_price;
+    const campaignDiscountAmt = typeof effective === 'object' && effective ? Number(effective.discount_amount) || 0 : 0;
+    const productUnit = variant
+      ? (campaignDiscountAmt > 0 ? Math.max(0, basePrice - campaignDiscountAmt) : basePrice)
+      : (effNum ?? basePrice);
+    const unit = Math.round((productUnit + modsTotal) * 100) / 100;
+    const items = base.items.map(i => ({ ...i }));
+    items.splice(lineIndex + 1, 0, {
+      instance_id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `inst-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      product_id: p.id,
+      product_name: p.name,
+      unit_price: unit,
+      original_unit_price: Math.round((basePrice + modsTotal) * 100) / 100,
+      quantity: 1,
+      total_price: unit,
+      modifiers: srcMods.map((m: any) => ({ ...m })),
+      variant_id: src.variant_id ?? null,
+      special_notes: src.special_notes || '',
+      allergens: Array.isArray(src.allergens) ? [...src.allergens] : [],
+      course: src.course ?? null,
+      campaign_id: src.campaign_id ?? null,
+      campaign_discount_amount: src.campaign_discount_amount ?? 0,
+      campaign_discount_type: src.campaign_discount_type ?? null,
+    } as any);
+    setCart({ ...base, items });
+    return true;
+  };
+
   const applyInstanceEdits = (
     p: PosProduct,
     edits: {
       lineIndex: number;
+      /** 2026-09-28 (owner P2): a NEW instance created by the modal's Miqdar +
+          on a spec'd/sent instance — appended as a fresh cart line. */
+      isNew?: boolean;
+      /** Fallback identity (cartLineKey) when lineIndex is stale/missing. */
+      identity?: string;
       quantity?: number;
       variantId?: string | null;
       notes?: string;
@@ -1198,9 +1257,63 @@ export function usePos() {
     if (!base) return;
     const items = base.items.map(i => ({ ...i }));
     let touched = 0;
+    // 2026-09-28 (owner P1: "sonradan edilən modifikator dəyişiklikləri ayrıca
+    // mətbəxə göndərilməlidir"): spec changes on ALREADY-SENT lines are synced
+    // to the server via updateItem — the KDS reads order_items live, so the
+    // kitchen ticket updates immediately. (Previously the change stayed local,
+    // the next send hit "Yeni məhsul yoxdur" (delta=0), and a re-select
+    // reverted the line to the server's old spec.)
+    const specSyncs: { itemId: string; data: Record<string, any> }[] = [];
     for (const e of edits || []) {
-      if (typeof e.lineIndex !== 'number' || e.lineIndex < 0 || e.lineIndex >= items.length) continue;
-      const target: any = items[e.lineIndex];
+      if (typeof e.lineIndex !== 'number') continue;
+      // ── NEW instance (modal Miqdar + on a spec'd/sent instance) ──────────
+      if (e.isNew) {
+        const nextMods: any[] = e.modifiers || [];
+        const variant = (e.variantId ?? null)
+          ? (variantsByProduct[p.id] || []).find((v: any) => v.id === e.variantId)
+          : undefined;
+        const basePrice = variant ? Number(variant.discount_price != null && variant.discount_price !== '' ? variant.discount_price : variant.price) : (p.price ?? 0);
+        const effective: any = (p as any).effective_price;
+        const effNum = typeof effective === 'number' ? effective : effective?.effective_price;
+        const campaignDiscountAmt = typeof effective === 'object' && effective ? Number(effective.discount_amount) || 0 : 0;
+        const productUnit = variant
+          ? (campaignDiscountAmt > 0 ? Math.max(0, basePrice - campaignDiscountAmt) : basePrice)
+          : (effNum ?? basePrice);
+        const modifiersTotal = nextMods.reduce((s, m) => s + Number(m.price || 0) * (m.quantity || 1), 0);
+        const unit = Math.round((productUnit + modifiersTotal) * 100) / 100;
+        const qty = Math.max(1, Number(e.quantity) || 1);
+        items.push({
+          instance_id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `inst-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          product_id: p.id,
+          product_name: p.name,
+          unit_price: unit,
+          original_unit_price: Math.round((basePrice + modifiersTotal) * 100) / 100,
+          quantity: qty,
+          total_price: Math.round(unit * qty * 100) / 100,
+          modifiers: nextMods,
+          variant_id: e.variantId ?? null,
+          special_notes: e.notes || '',
+          allergens: e.allergens || [],
+          ...(e.course != null ? { course: e.course } : {}),
+        } as any);
+        touched++;
+        continue;
+      }
+      // ── EXISTING line replacement ────────────────────────────────────────
+      let li = typeof e.lineIndex === 'number' ? e.lineIndex : -1;
+      if (li < 0 || li >= items.length) {
+        // Stale index (cart shifted while the modal was open) → fall back to
+        // the identity (cartLineKey) of the SAME product's unsent line.
+        if (e.identity) {
+          li = items.findIndex((i: any) =>
+            String(i.product_id) === String(p.id) && !i.__isCombo && !i.is_combo
+            && (i.sentQuantity ?? 0) === 0
+            && cartLineKey(i.variant_id, i.special_notes, i.modifiers as any) === e.identity
+          );
+        }
+        if (li < 0 || li >= items.length) continue;
+      }
+      const target: any = items[li];
       if (!target || String(target.product_id) !== String(p.id) || target.__isCombo || target.is_combo) continue;
       const prevMods: any[] = target.modifiers || [];
       const nextMods: any[] = e.modifiers || [];
@@ -1235,7 +1348,7 @@ export function usePos() {
         unit = Math.round((productUnit + modifiersTotal) * 100) / 100;
         orig = Math.round((basePrice + modifiersTotal) * 100) / 100;
       }
-      items[e.lineIndex] = {
+      items[li] = {
         ...target,
         unit_price: unit,
         original_unit_price: orig,
@@ -1249,8 +1362,51 @@ export function usePos() {
         ...(allergensChanged ? { allergens: e.allergens } : {}),
       };
       touched++;
+      // Spec-only change on a SENT line (no qty delta): sync to the kitchen.
+      // When qty also changed, the unsent delta goes out as a fresh append on
+      // the next send carrying the new spec — the already-sent portion keeps
+      // the spec it was made with (correct: those units are in production).
+      if (
+        target.id && !qtyChanged && base.order_id &&
+        (modsChanged || variantChanged || noteChanged || courseChanged || allergensChanged)
+      ) {
+        specSyncs.push({
+          itemId: target.id,
+          data: {
+            order_item_id: target.id,
+            unit_price: unit,
+            quantity: newQty,
+            ...(modsChanged ? { modifiers: nextMods } : {}),
+            ...(variantChanged ? { variant_id: e.variantId ?? null } : {}),
+            ...(noteChanged ? { special_notes: e.notes } : {}),
+            ...(courseChanged ? { course: e.course } : {}),
+            ...(allergensChanged ? { allergens: e.allergens } : {}),
+          },
+        });
+      }
     }
     if (touched > 0) setCart({ ...base, items });
+    if (specSyncs.length > 0 && base.order_id) {
+      let ok = 0;
+      let done = 0;
+      for (const s of specSyncs) {
+        apiFetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'updateItem', id: base.order_id, data: s.data }),
+        })
+          .then(r => r.json().catch(() => null))
+          .then(d => { if (d?.success !== false) ok++; })
+          .catch(() => {})
+          .finally(() => {
+            done++;
+            if (done === specSyncs.length) {
+              if (ok > 0) toast.success('Mətbəx yeniləndi', { id: 'spec-sync-toast', duration: 2200 });
+              else toast.error('Mətbəx yenilənə bilmədi — sifəri yenidən yoxlayın', { id: 'spec-sync-toast', duration: 3200 });
+            }
+          });
+      }
+    }
   };
 
   const addComboToCart = (combo: any, opts?: { notes?: string }) => {
@@ -1303,6 +1459,16 @@ export function usePos() {
       else items[idx].total_price = items[idx].unit_price * items[idx].quantity;
       return { ...prev, items };
     });
+  };
+
+  // 2026-09-28 (owner: "avtomatik hesab berbat işləyir"): LOCAL-ONLY optimistic
+  // patch of one table row (bill chip / status flip in the same frame). The
+  // authoritative fetchFloor('manual') right after the API call reconciles.
+  const patchFloor = (tableNumber: number, patch: Record<string, any>) => {
+    setFloors(prev => (prev || []).map(f => ({
+      ...f,
+      tables: (f.tables || []).map((tb: any) => (tb.table_number === tableNumber ? { ...tb, ...patch } : tb)),
+    })));
   };
 
   const logOperation = async (action: string, payload: Record<string, any> = {}) => {
@@ -1418,7 +1584,18 @@ export function usePos() {
 
       if (unsent.length === 0) {
         if (cart.items.length > 0) {
-          toast(t('no_new_products'), { id: 'action-toast' });
+          // 2026-09-28 (owner P1): a spec-only edit on an already-sent instance
+          // is synced to the kitchen at SAVE time (applyInstanceEdits →
+          // updateItem, "Mətbəx yeniləndi" toast) — so by the time the user
+          // presses SEND here, everything is already in the kitchen. A neutral
+          // "yeni məhsul yoxdur" read as an ERROR to the owner; give a
+          // confirmatory success instead (held items still get the plain hint).
+          const anyHeld = cart.items.some((i: any) => i.is_hold || i.hold_until);
+          if (anyHeld) {
+            toast(t('no_new_products'), { id: 'action-toast' });
+          } else {
+            toast.success(t('all_already_in_kitchen') || 'Yeni məhsul yoxdur — bütün sifariş artıq mətbəxdədir', { id: 'action-toast' });
+          }
         }
         setActiveView('floor');
         return;
@@ -2118,8 +2295,8 @@ export function usePos() {
 
     return {
       floors, products, categories, combos, variantsByProduct, loading, floorLoadFailed, catalogLoadFailed, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode,
-      fetchData, fetchFloor, selectTable, mergeTables, transferTable, dismissTable, releaseTable, clearTable, performUndo, seatTable,
-      setActiveView, setCart, setSelectedTable, addToCart, applyInstanceEdits, addComboToCart, updateCartItemQty, placeOrder, clearCart, resetCart, updateGuestCount,
+      fetchData, fetchFloor, patchFloor, selectTable, mergeTables, transferTable, dismissTable, releaseTable, clearTable, performUndo, seatTable,
+      setActiveView, setCart, setSelectedTable, addToCart, applyInstanceEdits, cloneInstance, addComboToCart, updateCartItemQty, placeOrder, clearCart, resetCart, updateGuestCount,
       updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
       reservationMode, reservationId, reservationPreOrderItems, reservationInfo,
       enterReservationMode, exitReservationMode, guestArrived, savePreOrder, terminalId,

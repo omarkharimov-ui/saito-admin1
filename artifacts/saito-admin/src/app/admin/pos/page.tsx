@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
 import { GridCell } from '@/lib/motion/GridCell';
-import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, Hourglass } from '@/components/ui/saito-icons';
+import { X, Calendar, Utensils, ShoppingBag, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, Hourglass } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useDeviceHeartbeat } from '@/lib/device-heartbeat';
@@ -240,63 +240,12 @@ export default function POSPage() {
   }, []);
   const waitlistCount = useWaitlistCount(posMode === 'dine_in' && waitlistEnabled);
   const setPosMode = pos.setPosMode;
-  /* ═══ 2026-09-27 (owner: "mərtəbə çipi aktiv tab pill-ə uçub onunla
-     birləşsin — WhatsApp-style") ═══
-     Deterministic manual shared-element flight. (First try used a framer
-     layoutId projection — E2E proved it fires ONE direction only: the
-     chip→pill fly worked, pill→chip did not, because the handoff source had
-     finished at opacity 0. So the flight is now measured + animated by
-     hand: a chip-styled fixed-position ghost animates box→point (OUT) or
-     point→box (IN) over 260/340ms [0.45,0,0.55,1] (zero overshoot); the
-     real chip dims over 150ms so there is never a double image.) */
-  type FloorMorphRect = { x: number; y: number; w: number; h: number };
-  const tabGroupRef = useRef<HTMLDivElement>(null);
-  const chipWrapRef = useRef<HTMLDivElement>(null);
-  const chipRectRef = useRef<FloorMorphRect | null>(null);
-  const [morphGhost, setMorphGhost] = useState<{ id: number; dir: 'out' | 'in'; from: FloorMorphRect; to: FloorMorphRect } | null>(null);
-  const [chipDimmed, setChipDimmed] = useState(false);
-
-  // Keep the chip's last known box fresh (window resize / floor count change).
-  useLayoutEffect(() => {
-    if (posMode === 'dine_in' && chipWrapRef.current) {
-      const r = chipWrapRef.current.getBoundingClientRect();
-      chipRectRef.current = { x: r.x, y: r.y, w: r.width, h: r.height };
-    }
-  }, [posMode, pos.floors.length, lightMode]);
-
-  // Safety: the chip must never be left invisible if a flight is lost.
-  useEffect(() => {
-    if (posMode === 'dine_in' && chipDimmed) {
-      const t = setTimeout(() => setChipDimmed(false), 600);
-      return () => clearTimeout(t);
-    }
-  }, [posMode, chipDimmed]);
-
-  // Called by DragTabSwitcher the moment a tab switch STARTS (before the
-  // pill travel) — the only point where both the chip (OUT) / the current
-  // pill rest position (IN) and the target tab are measurable.
-  const handleTabMorph = useCallback((next: string) => {
-    if (pos.floors.length < 2) return; // single floor → no chip → no morph
-    const container = tabGroupRef.current;
-    if (!container) return;
-    const btns = Array.from(container.querySelectorAll('button'));
-    const idx = (id: string) => ['dine_in', 'takeaway', 'delivery'].indexOf(id);
-    const pointAt = (r: DOMRect): FloorMorphRect => ({ x: r.left + r.width / 2 - 4, y: r.top + r.height / 2 - 4, w: 8, h: 8 });
-    if (next !== 'dine_in') {
-      const chipRect = chipRectRef.current;
-      const target = btns[idx(next)];
-      if (!chipRect || !target) return;
-      setMorphGhost({ id: Date.now(), dir: 'out', from: { x: chipRect.x, y: chipRect.y, w: chipRect.w, h: chipRect.h }, to: pointAt(target.getBoundingClientRect()) });
-      setChipDimmed(true); // chip fades 150ms while the ghost flies from its box
-    } else {
-      const from = btns[idx(pos.posMode)];
-      const chipRect = chipRectRef.current;
-      if (!from || !chipRect) return;
-      setMorphGhost({ id: Date.now(), dir: 'in', from: pointAt(from.getBoundingClientRect()), to: { x: chipRect.x, y: chipRect.y, w: chipRect.w, h: chipRect.h } });
-      setChipDimmed(true); // the incoming chip mounts dimmed; fades in on ghost landing
-    }
-  }, [pos.floors.length, pos.posMode]);
-
+  // 2026-09-28 (owner: "tab keçidində dropdown gizlənməsi/morph yox olsun —
+  // Apple fəlsəfəsi ilə"): the WhatsApp-style chip→pill ghost flight is
+  // REMOVED. On delivery→takeaway switches the stale chip rect still flew a
+  // ghost chip across the header ("görünüb-yox olur"). Now the floor chip
+  // simply renders in dine-in and a fixed-width spacer keeps the header
+  // layout stable in the other modes — no flight, no dim, no flicker.
   const [posRole, setPosRole] = useState<string | null>(null);
   const posRoleNorm = posRole?.toLowerCase() || '';
   const isCashierOrAdmin = ['cashier', 'superadmin'].includes(posRoleNorm);
@@ -1094,24 +1043,49 @@ export default function POSPage() {
   };
 
   // 2026-09-23 (owner): HESAB was open-only — now a toggle (open AND close).
-  const handleBillRequest = async (tableNumber: number, requested: boolean = true) => {
+  // 2026-09-28 (owner: "avtomatik hesab berbat işləyir" — HESAB ÇAĞIR gave no
+  // visible change): the old code called pos.fetchData() (catalog refresh) and
+  // waited on the 3s floor POLL — which is routinely SKIPPED while a
+  // realtime-coalesced refresh is pending — so the HESAB chip / payment_pending
+  // chip on the floor card appeared seconds later or not at all. Now: an
+  // IMMEDIATE optimistic floor patch (chip shows in the same frame) + a manual
+  // floor fetch right after the POST commits (authoritative state).
+  // 2026-09-28 (owner: "HESAB ÇAĞIR berbat işləyir"): when the shift is closed
+  // the server 403s with pin_required — the old code dead-ended on a toast.
+  // Now: manager PIN modal (PinGuard) → retry with approver_staff_id.
+  const [billPin, setBillPin] = useState<{ tableNumber: number; requested: boolean } | null>(null);
+  const postBillRequest = async (tableNumber: number, requested: boolean, approverStaffId?: string) => {
     try {
+      // Optimistic: the floor card flips instantly (no wait for the round trip).
+      pos.patchFloor(tableNumber, { bill_requested: requested, ...(requested ? { status: 'payment_pending' } : {}) });
       const res = await apiFetch('/api/orders/bill-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_number: tableNumber, bill_requested: requested }),
+        body: JSON.stringify({ table_number: tableNumber, bill_requested: requested, ...(approverStaffId ? { approver_staff_id: approverStaffId } : {}) }),
       });
       if (res.ok) {
         if (requested) { toast.success(t('bill_called')); setActionSheetOpen(false); }
-        pos.fetchData();
+        pos.fetchFloor('manual');
       } else {
-        const err = await res.json();
-        toast.error(err.error || t('error_occurred'));
+        const err = await res.json().catch(() => ({}));
+        if (err?.pin_required) {
+          // Shift closed / approver unverified — escalate to the manager PIN
+          // instead of a dead-end toast. Roll the optimistic patch back so the
+          // card shows truth while the modal is open.
+          pos.fetchFloor('manual');
+          setBillPin({ tableNumber, requested });
+          return;
+        }
+        toast.error(err?.error || t('error_occurred'));
+        pos.fetchFloor('manual'); // roll the optimistic patch forward to truth
       }
     } catch (e: any) {
       toast.error(e.message || t('error_occurred'));
+      pos.fetchFloor('manual');
     }
   };
+  const handleBillRequest = (tableNumber: number, requested: boolean = true) =>
+    void postBillRequest(tableNumber, requested);
   const handleMarkServed = async () => {
     if (!actionSheetTable) return;
     const orderId = actionSheetTable.current_order_id || actionSheetTable.order_ids?.[0] || (Array.isArray(actionSheetTable.orders) ? actionSheetTable.orders[0]?.id : undefined);
@@ -1879,7 +1853,21 @@ export default function POSPage() {
   // (weather/peak multiplier + reason + base fee) — Wolt-class badge.
   const [deliverySurge, setDeliverySurge] = useState<{ mult: number; reason: 'weather' | 'peak'; base: number } | null>(null);
 
-  const recalcDeliveryFee = useCallback(async (cart: any, zoneName: string | null | undefined) => {
+  // 2026-09-28 (owner: "zonalarda qairisqliq olmasin — web standartını et"):
+  // representative distance for a zone chip = midpoint of its km-range
+  // (min+2 for open-ended "X km+" ranges). Chip tap writes BOTH zone AND km,
+  // so the three values the operator sees (chip · KM field · fee box) always
+  // form ONE consistent triple — the address-first delivery standard
+  // (Wolt/Getir): derived values follow the last explicit decision.
+  const zoneRepKm = (z: any): number | null => {
+    const min = Number(z?.min_km) || 0;
+    const max = z?.max_km != null && z?.max_km !== '' ? Number(z.max_km) : null;
+    if (max != null && max > min) return Math.round(((min + max) / 2) * 10) / 10;
+    if (min > 0) return Math.round((min + 2) * 10) / 10;
+    return null; // 0–∞ range: no distance implied, keep the existing KM
+  };
+
+  const recalcDeliveryFee = useCallback(async (cart: any, zoneName: string | null | undefined, opts?: { pinZone?: boolean }) => {
     if (!cart || !zoneName) return;
     const zone = deliveryZones.find(z => z.name === zoneName);
     if (!zone) return;
@@ -1895,8 +1883,15 @@ export default function POSPage() {
     let rpcData: any = null;
     setDeliveryFeeCalculating(true);
     try {
+      // 2026-09-28 (owner: "zonalarda qairisqliq olmasin"): pinZone (chip tap)
+      // sends the EXPLICIT zone name together with the distance — the server
+      // ("explicit zone selection always wins") then prices that zone at that
+      // km, so chip · KM field · fee box can never disagree. Distance-only
+      // calls (KM typing / address geocode) keep the km-range re-resolution.
       const body = km >= 0.1
-        ? { p_order_amount: itemsTotal, p_distance_km: km }
+        ? (opts?.pinZone
+            ? { p_zone_name: zone.name, p_order_amount: itemsTotal, p_distance_km: km }
+            : { p_order_amount: itemsTotal, p_distance_km: km })
         : { p_zone_name: zone.name, p_order_amount: itemsTotal, p_customer_address: cart.delivery_address || null };
       const res = await apiFetch('/api/rpc/calculate_delivery_fee', {
         method: 'POST',
@@ -1967,7 +1962,17 @@ export default function POSPage() {
       setDeliverySurge(null);
       return;
     }
-    await recalcDeliveryFee(nextCart, zoneName);
+    // 2026-09-28 (owner: "zonalarda qairisqliq olmasin"): chip tap is an
+    // explicit distance decision — sync the KM field to the zone's
+    // representative distance (midpoint of its km-range) in the SAME cart
+    // write, then price with pinZone so the RPC resolves back to THIS zone.
+    // Before: a stale delivery_km (e.g. 3.4 km from geocode) made the RPC
+    // re-resolve to the old zone and the operator's chip selection silently
+    // reverted (the contradiction seen in the screenshot).
+    const repKm = zoneRepKm(zone);
+    const pinnedCart = repKm != null ? { ...nextCart, delivery_km: repKm } : nextCart;
+    if (repKm != null) pos.setCart(pinnedCart);
+    await recalcDeliveryFee(pinnedCart, zoneName, { pinZone: true });
   };
 
   // 2026-09-23 (owner): the fee now reacts to the CART — crossing the zone's
@@ -2283,16 +2288,19 @@ export default function POSPage() {
        {/* MODE SWITCHER — always visible */}
            <div className="flex items-center gap-4 px-6 pt-2 pb-2">
             <h1 className="text-2xl font-black tracking-tighter">POS</h1>
-            <div ref={tabGroupRef} className="flex-shrink-0">
-            <DragTabSwitcher
-              items={[
-                { id: 'dine_in', label: t('dine_in'), icon: Utensils, dotColor: '#10b981' },
-                { id: 'takeaway', label: t('takeaway'), icon: UserCheck, dotColor: '#3b82f6' },
-                { id: 'delivery', label: t('delivery'), icon: Bike, dotColor: '#3b82f6' },
-              ]}
-              value={posMode}
-              onBeforeChange={handleTabMorph}
-              onChange={(mode) => {
+             <div className="flex-shrink-0">
+             <DragTabSwitcher
+               items={[
+                 // 2026-09-28 (owner: "iceride/takeaway/delivery tabinin
+                 // iconlarini duzgun sec yeniden"): Utensils (dine-in dining) /
+                 // ShoppingBag (takeaway = bag-to-go — UserCheck was a person
+                 // icon, semantically wrong) / Bike (delivery courier).
+                 { id: 'dine_in', label: t('dine_in'), icon: Utensils, dotColor: '#10b981' },
+                 { id: 'takeaway', label: t('takeaway'), icon: ShoppingBag, dotColor: '#3b82f6' },
+                 { id: 'delivery', label: t('delivery'), icon: Bike, dotColor: '#3b82f6' },
+               ]}
+               value={posMode}
+               onChange={(mode) => {
                 // Delivery Phase 2: master switch off → the delivery mode is
                 // not reachable from the chip (settings.delivery_enabled).
                 if (mode === 'delivery' && !deliveryGates.enabled) {
@@ -2304,60 +2312,22 @@ export default function POSPage() {
               }}
             />
             </div>
-            {pos.floors.length > 1 && posMode === 'dine_in' ? (
-              // Wrapper carries the dim (150ms) during the ghost flight and
-              // exposes data-floor-chip for the E2E rect trace.
-              <div
-                ref={chipWrapRef}
-                data-floor-chip
-                style={{ opacity: chipDimmed ? 0 : 1, transition: 'opacity 150ms ease' }}
-              >
-                <LiquidDropdown
-                  floorChip
-                  options={pos.floors.map((f: any) => ({ id: f.name, label: f.name }))}
-                  activeId={activeFloor?.name}
-                  onChange={setSelectedFloor}
-                />
-              </div>
-          ) : pos.floors.length > 1 ? (
-            <div className="w-[120px]" />
-          ) : null}
-            {/* The morph GHOST (2026-09-27): chip-styled fixed-position flight
-                between the chip slot and the active tab pill. OUT = box→point
-                + fade out (chip dissolves into the pill); IN = point→box +
-                fade in (chip emerges from the pill). 'in' runs 340ms so it
-                lands exactly when the pill arrival flips posMode. */}
-            {morphGhost && (
-              <motion.div
-                key={morphGhost.id}
-                data-floor-chip-ghost
-                // left-0 top-0 is CRITICAL: this is a fixed element and Framer
-                // x/y are TRANSFORMS added to the element's flow position.
-                // Without the origin anchor the flight renders offset by the
-                // element's own flow slot (E2E measured +346/+68 — the ghost
-                // flew from the wrong corner). Anchored at (0,0), the traced
-                // viewport rects land EXACTLY on the chip box / pill center.
-                // Silhouette MUST mirror the floorChip trigger (px-4 → dot at
-                // 16px from the left edge; overflow-hidden clips the dot into
-                // the point as the pill shrinks).
-                className={`fixed left-0 top-0 z-[150] pointer-events-none rounded-full border overflow-hidden ${lightMode ? 'bg-zinc-100 border-zinc-200/70' : 'bg-white/[0.06] border-white/[0.10]'}`}
-                initial={{ x: morphGhost.from.x, y: morphGhost.from.y, width: morphGhost.from.w, height: morphGhost.from.h, opacity: morphGhost.dir === 'out' ? 1 : 0 }}
-                animate={{ x: morphGhost.to.x, y: morphGhost.to.y, width: morphGhost.to.w, height: morphGhost.to.h, opacity: morphGhost.dir === 'out' ? 0 : 1 }}
-                transition={{ duration: morphGhost.dir === 'in' ? 0.34 : 0.26, ease: [0.45, 0, 0.55, 1] }}
-                onAnimationComplete={() => {
-                  setMorphGhost(null);
-                  if (morphGhost.dir === 'in') setChipDimmed(false);
-                }}
-              >
-                {/* floor dot travels with the ghost (clipped into the point on shrink) */}
-                <span
-                  aria-hidden
-                  className="absolute left-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: lightMode ? '#10b981' : 'rgba(52,211,153,0.9)' }}
-                />
-              </motion.div>
-            )}
-           <div className="flex-1" />
+             {pos.floors.length > 1 && posMode === 'dine_in' ? (
+               // data-floor-chip kept for E2E rect assertions (no ghost flight).
+               <div data-floor-chip>
+                 <LiquidDropdown
+                   floorChip
+                   options={pos.floors.map((f: any) => ({ id: f.name, label: f.name }))}
+                   activeId={activeFloor?.name}
+                   onChange={setSelectedFloor}
+                 />
+               </div>
+           ) : pos.floors.length > 1 ? (
+             // Stable slot: the header layout never jumps when the chip is
+             // absent in takeaway/delivery (Apple: content swaps, chrome stays).
+             <div className="w-[120px]" />
+           ) : null}
+            <div className="flex-1" />
            {/* pr v1 — print queue badge (queued jobs for this location) */}
            {(printQueue.queued > 0 || printQueue.claimed > 0) && (
              <div
@@ -2588,72 +2558,60 @@ export default function POSPage() {
                          router.push(`/admin/reservations?edit=${lastReservationArrival.reservation_id}`);
                        }
                      }}
-                     onMoveTable={async () => {
-                       setReservationArrival(null);
-                       if (lastReservationArrival && lastReservationArrival.reservation_id) {
-                         const targetTable = prompt(t('target_table_prompt'));
-                         if (!targetTable) return;
-                         const targetNum = parseInt(targetTable, 10);
-                         if (isNaN(targetNum)) {
-                           toast.error(t('invalid_table_number'));
-                           return;
-                         }
-                         try {
-                           const res = await apiFetch('/api/reservations/move-table', {
-                             method: 'POST',
-                             headers: { 'Content-Type': 'application/json' },
-                             body: JSON.stringify({
-                               reservation_id: lastReservationArrival.reservation_id,
-                               from_table: lastReservationArrival.table_number,
-                               to_table: targetNum,
-                               terminal_id: pos.terminalId,
-                             }),
-                           });
-                           if (res.ok) {
-                              toast.success(t('table_transferred'));
-                              pos.fetchData();
-                            } else {
-                              const err = await res.json().catch(() => ({ error: t('error') }));
-                              toast.error(err.error || t('transfer_failed_short'));
-                            }
+                       freeTables={pos.floors?.flatMap((f: any) => f.tables || [])
+                        .filter((tb: any) => tb.status === 'empty' && !tb.is_archived)
+                        .map((tb: any) => ({ table_number: tb.table_number, status: tb.status, guest_count: tb.guest_count }))}
+                      onMoveToTable={async (targetNum: number) => {
+                        setReservationArrival(null);
+                        if (lastReservationArrival && lastReservationArrival.reservation_id) {
+                          try {
+                            const res = await apiFetch('/api/reservations/move-table', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                reservation_id: lastReservationArrival.reservation_id,
+                                from_table: lastReservationArrival.table_number,
+                                to_table: targetNum,
+                                terminal_id: pos.terminalId,
+                              }),
+                            });
+                            if (res.ok) {
+                               toast.success(t('table_transferred'));
+                               pos.fetchData();
+                             } else {
+                               const err = await res.json().catch(() => ({ error: t('error') }));
+                               toast.error(err.error || t('transfer_failed_short'));
+                             }
                           } catch {
                             toast.error(t('transfer_failed_short'));
-                         }
-                       }
-                     }}
-                     onMergeTable={async () => {
-                       setReservationArrival(null);
-                       if (lastReservationArrival && lastReservationArrival.reservation_id) {
-                          const extraTables = prompt(t('merge_tables_prompt'));
-                         if (!extraTables) return;
-                         const tableNums = extraTables.split(',').map((t) => parseInt(t.trim(), 10)).filter((n) => !isNaN(n));
-                         if (tableNums.length === 0) {
-                           toast.error(t('invalid_table_numbers'));
-                           return;
-                         }
-                         tableNums.unshift(lastReservationArrival.table_number);
-                         try {
-                           const res = await apiFetch('/api/reservations/merge-tables', {
-                             method: 'POST',
-                             headers: { 'Content-Type': 'application/json' },
-                             body: JSON.stringify({
-                               reservation_id: lastReservationArrival.reservation_id,
-                               table_numbers: tableNums,
-                               terminal_id: pos.terminalId,
-                             }),
-                           });
-                            if (res.ok) {
-                              toast.success(t('tables_merged').replace('{tables}', tableNums.join(' + ')));
-                              pos.fetchData();
-                           } else {
-                             const err = await res.json().catch(() => ({ error: t('error') }));
-                             toast.error(err.error || t('merge_failed'));
-                           }
-                         } catch {
-                           toast.error(t('merge_failed'));
-                         }
-                       }
-                     }}
+                          }
+                        }
+                      }}
+                      onMergeWith={async (tableNums: number[]) => {
+                        setReservationArrival(null);
+                        if (lastReservationArrival && lastReservationArrival.reservation_id) {
+                          try {
+                            const res = await apiFetch('/api/reservations/merge-tables', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                reservation_id: lastReservationArrival.reservation_id,
+                                table_numbers: tableNums,
+                                terminal_id: pos.terminalId,
+                              }),
+                            });
+                             if (res.ok) {
+                               toast.success(t('tables_merged').replace('{tables}', tableNums.join(' + ')));
+                               pos.fetchData();
+                            } else {
+                              const err = await res.json().catch(() => ({ error: t('error') }));
+                              toast.error(err.error || t('merge_failed'));
+                            }
+                          } catch {
+                            toast.error(t('merge_failed'));
+                          }
+                        }
+                      }}
                      onCancelReservation={async () => {
                        setReservationArrival(null);
                        if (lastReservationArrival.reservation_id) {
@@ -3098,7 +3056,10 @@ export default function POSPage() {
                                pos.setActiveView('floor'); setEditingOrder(null); setPosPhase('products'); setCustomerFocus(null);;
                             }}
                          orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
-                         onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
+                          onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
+                          // 2026-09-28 (owner P2): spec'd/sent instance "+" = NEW
+                          // independent line (own instance_id + spec copy).
+                          onCloneInstance={(idx) => { pos.cloneInstance(idx); }}
                           onEditGuestCount={() => { setActionSheetOpen(true); }}
                           onGuestCountSaved={(count) => {
                               // 2026-09-27 (owner: guest confirm slow) — OPTIMISTIC: the cart
@@ -3742,19 +3703,34 @@ export default function POSPage() {
          )}
        </AnimatePresence>
 
-       {/* Sprint-1: manager PIN override for >20% discounts */}
-       <PinGuard
-         open={discountPinOpen}
-         onClose={() => { setDiscountPinOpen(false); setDiscountBusy(false); }}
-         onVerified={(verified: PinVerified) => {
-           setDiscountPinOpen(false);
-           if (verified?.valid && verified.staffId) {
-             void doSubmitDiscount(verified.staffId);
-           }
-         }}
-         action="discount"
-         title={t('manager_approval_required')}
-       />
+        {/* Sprint-1: manager PIN override for >20% discounts */}
+        <PinGuard
+          open={discountPinOpen}
+          onClose={() => { setDiscountPinOpen(false); setDiscountBusy(false); }}
+          onVerified={(verified: PinVerified) => {
+            setDiscountPinOpen(false);
+            if (verified?.valid && verified.staffId) {
+              void doSubmitDiscount(verified.staffId);
+            }
+          }}
+          action="discount"
+          title={t('manager_approval_required')}
+        />
+
+        {/* 2026-09-28: manager PIN override for HESAB ÇAĞIR when the shift is
+            closed (server 403 pin_required) — retries with the approver id. */}
+        <PinGuard
+          open={!!billPin}
+          onClose={() => setBillPin(null)}
+          onVerified={(verified: PinVerified) => {
+            const pending = billPin;
+            setBillPin(null);
+            if (!pending || !verified?.valid || !verified.staffId) return;
+            void postBillRequest(pending.tableNumber, pending.requested, verified.staffId);
+          }}
+          action="admin"
+          title={t('manager_approval_required')}
+        />
 
     {/* PAYMENT PARTIAL-OUTCOME MODAL (Phase-1 G2) */}
        <AnimatePresence>

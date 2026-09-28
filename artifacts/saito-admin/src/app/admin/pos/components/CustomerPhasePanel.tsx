@@ -117,6 +117,14 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const phone = (cart?.customer_phone || '').trim();
   const name = (cart?.customer_name || '').trim();
   const address = (cart?.delivery_address || '').trim();
+  // 2026-09-28 (owner: "umumi inputlarda space qoymaq problemi"): the CONTROLLED
+  // input `value` must be the RAW cart value, NOT a trimmed one. Feeding the
+  // trimmed string back as `value` re-snaps the DOM after every re-render and
+  // silently eats the just-typed trailing space (VKB "a b c" → "abc"). The
+  // trimmed consts above are kept for logic (wa link, geocode, avatar, checks).
+  const phoneRaw = cart?.customer_phone || '';
+  const nameRaw = cart?.customer_name || '';
+  const addressRaw = cart?.delivery_address || '';
   const zoneName = cart?.delivery_zone || '';
   const feeNum = Number(cart?.delivery_fee) || 0;
 
@@ -224,7 +232,7 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                     <p className={labelCls}>{t('customer_name')}</p>
                     <input
                       ref={el => { fieldRefs.current['customer_name'] = el; }}
-                      value={name}
+                      value={nameRaw}
                       onChange={setField('customer_name')}
                       placeholder={mode === 'takeaway' ? t('cph_name_required') : t('customer_name_placeholder')}
                       className={inputCls('customer_name', 'h-11 text-base font-bold')}
@@ -235,7 +243,7 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                     <div className="flex gap-2">
                       <input
                         ref={el => { fieldRefs.current['customer_phone'] = el; }}
-                        value={phone}
+                        value={phoneRaw}
                         onChange={setField('customer_phone')}
                         placeholder="+994 50 123 45 67"
                         type="tel"
@@ -294,9 +302,9 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                <div>
                  <p className={labelCls}>{t('delivery_address')} *</p>
                  <input
-                   ref={el => { fieldRefs.current['delivery_address'] = el; }}
-                   value={address}
-                   onChange={e => { kmManualRef.current = false; setField('delivery_address')(e); }}
+                    ref={el => { fieldRefs.current['delivery_address'] = el; }}
+                    value={addressRaw}
+                    onChange={e => { kmManualRef.current = false; setField('delivery_address')(e); }}
                    placeholder={t('address_placeholder')}
                    className={inputCls('delivery_address', 'h-12 text-base font-semibold')}
                  />

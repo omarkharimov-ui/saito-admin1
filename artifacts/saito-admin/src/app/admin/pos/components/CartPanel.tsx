@@ -30,6 +30,10 @@ interface CartPanelProps {
   cart: PosCart | null;
   cartHydrating?: boolean;
   onUpdateQty: (index: number, delta: number) => void;
+  /** 2026-09-28 (owner P2): group "+" on a spec'd/sent instance clones it into
+      a NEW independent cart line (own instance_id + spec copy) instead of
+      qty+1 — modifiers must never merge across instances. */
+  onCloneInstance?: (lineIndex: number) => void;
   onPlaceOrder: () => void;
   onClearDraft: () => void;
   onBack: () => void;
@@ -153,7 +157,7 @@ const PRIORITIES = [
 ];
 
 export function CartPanel({
-  cart, cartHydrating = false, onUpdateQty, onPlaceOrder,
+  cart, cartHydrating = false, onUpdateQty, onCloneInstance, onPlaceOrder,
   onClearDraft, onBack, orderButtonStatus, onUpdateGuests, onUpdateCustomer, onSelectCustomer, onOpenCustomerPhase, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
   isReservationMode = false, reservation,
@@ -1274,6 +1278,22 @@ export function CartPanel({
             const plusTargetIdx = (editableLines[editableLines.length - 1] || group.lines[group.lines.length - 1]).originalIdx;
             const minusTarget = editableLines[editableLines.length - 1] || null;
 
+            // 2026-09-28 (owner P2): group "+" — if the target instance carries
+            // its own spec (modifiers/notes/allergens) it is CLONED into a new
+            // independent line (own modifiers, qty 1, unsent); only plain
+            // instances grow qty in place. Prevents the "one modifier set
+            // applied to every unit" merge the owner reported.
+            const plusTargetItem = group.lines.find((l: any) => l.originalIdx === plusTargetIdx)?.item as any;
+            const plusIsSpecd = !!(plusTargetItem && (
+              (plusTargetItem.modifiers?.length > 0) ||
+              (plusTargetItem.special_notes || '').trim() ||
+              (Array.isArray(plusTargetItem.allergens) && plusTargetItem.allergens.length > 0)
+            ));
+            const handleGroupPlus = () => {
+              if (plusIsSpecd && onCloneInstance) { onCloneInstance(plusTargetIdx); return; }
+              onUpdateQty?.(plusTargetIdx, 1);
+            };
+
             const handleGroupMinus = () => {
               if (minusTarget) { onUpdateQty?.(minusTarget.originalIdx, -1); return; }
               if (anyReturnable) toast(t('hint_return_item') || 'Servis edilib — qaytarmaq üçün details panelini açın', { id: 'pos-hint', duration: 3500 });
@@ -1449,7 +1469,7 @@ export function CartPanel({
                           <span className="w-12 h-11 flex items-center justify-center text-sm font-black tabular-nums">{group.totalQty}</span>
                           <motion.button
                             whileTap={{ scale: 0.95, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
-                            onClick={(e) => { e.stopPropagation(); onUpdateQty?.(plusTargetIdx, 1); }}
+                            onClick={(e) => { e.stopPropagation(); handleGroupPlus(); }}
                             className="w-11 h-11 flex items-center justify-center text-lg font-black hover:bg-white/10 transition-colors active:scale-95"
                           >+</motion.button>
                      </div>

@@ -2109,6 +2109,7 @@ export const ru: TranslationMap = {
   restored: 'Восстановлено',
   restore_failed: 'Восстановление не удалось',
   no_new_products: 'Нет новых товаров',
+  all_already_in_kitchen: 'Нет новых позиций — заказ уже на кухне',
   order_sent: 'Заказ отправлен',
   order_changed_by_other_terminal: 'Заказ был изменен на другом терминале. Попробуйте снова.',
   conflict_title: 'Заказ изменился одновременно',

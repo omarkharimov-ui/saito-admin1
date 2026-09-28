@@ -21,6 +21,7 @@ import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { PartnerLogo } from './PartnerBadge';
 import { useVirtualKeyboard } from './VirtualKeyboard';
 import { TAP } from '../lib/pos-motion';
+import { parseAllergens, resolveAllergenEntry } from '@/lib/allergens';
 
 interface CartPanelProps {
   // 2026-09-27 (owner): global EDV switch (Settings → Payment → auto_apply_vat).
@@ -1225,11 +1226,23 @@ export function CartPanel({
                             details-panel "Geri qaytar" action (isReturnableRow
                             below keeps working for the void-mode hint). */}
                       </p>
-                    {item.modifiers?.length ? (
-                      <p className="text-xs truncate text-[var(--theme-text-secondary)]">{(item.modifiers ?? []).map(m => m.name).join(', ')}</p>
-                    ) : null}
-                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                       {/* Course chip — visible BEFORE and AFTER send to kitchen
+                     <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                        {/* 2026-09-28 (owner: "modifikatorların hansı məhsula aid
+                            olduğu aydın görünsün"): the truncated name-list is
+                            replaced with per-INSTANCE chips — each cart row is
+                            its own instance (no auto-merge), so the chips on
+                            THIS row are exactly THIS instance's selections
+                            (name + ×qty). The old one-line truncated list made
+                            two identical-name instances indistinguishable. */}
+                        {(item.modifiers ?? []).filter((m: any) => m && m.name).map((m: any, mi: number) => (
+                          <span
+                            key={`${m.id ?? 'm'}-${mi}`}
+                            className="inline-flex items-center gap-0.5 whitespace-nowrap px-1.5 py-0.5 rounded-md bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[10px] font-semibold tracking-normal text-[var(--theme-text-secondary)]"
+                          >
+                            {m.name}{(m.quantity ?? 1) > 1 ? ` ×${m.quantity}` : ''}
+                          </span>
+                        ))}
+                        {/* Course chip — visible BEFORE and AFTER send to kitchen
                            (was hidden once sent: "course send etdikden sonra itir").
                            After send it is read-only (kitchen grouping is fixed). */}
                        {(item as any).course && (
@@ -1259,12 +1272,24 @@ export function CartPanel({
                         )}
                        {/* Allergen flags (customer allergy → kitchen warning),
                            set in the product modal; persisted in order_items.allergens */}
-                       {(item as any).allergens?.length > 0 && (
-                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-red-500/10 border border-red-500/30 text-[10px] font-semibold tracking-normal text-red-600 dark:text-red-300/90"
-                           title={String((item as any).allergens).replace(/["\[\],]/g, '')}>
-                           <AlertTriangle size={9} />{String((item as any).allergens).replace(/["\[\],]/g, ' · ')}
-                         </span>
-                       )}
+                        {/* Allergen flags (customer allergy → kitchen warning),
+                            set in the product modal; persisted in order_items.allergens.
+                            2026-09-28 (E2E defect #4): the RAW code ("fish") was
+                            displayed as-is — resolve through the allergen SSOT to
+                            the localized label ("Balıq"). */}
+                        {(item as any).allergens?.length > 0 && (() => {
+                          const labels = parseAllergens((item as any).allergens).map((a: any) =>
+                            resolveAllergenEntry(a)?.label ||
+                            (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
+                          ).filter(Boolean);
+                          if (labels.length === 0) return null;
+                          return (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-red-500/10 border border-red-500/30 text-[10px] font-semibold tracking-normal text-red-600 dark:text-red-300/90"
+                              title={labels.join(' · ')}>
+                              <AlertTriangle size={9} />{labels.join(' · ')}
+                            </span>
+                          );
+                        })()}
                      </div>
                   </div>
                    <span className={`text-sm font-black tabular-nums min-w-[4rem] text-right ${lightMode ? 'text-gray-900' : 'text-white'}`}>

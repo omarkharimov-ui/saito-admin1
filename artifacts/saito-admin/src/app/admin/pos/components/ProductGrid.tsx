@@ -907,45 +907,11 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                   <div className="min-w-0">
                     <p className={`text-xl font-black truncate leading-tight ${expandedText}`}>{modalName}</p>
                     <p className={`text-lg font-black mt-0.5 ${expandedSecondary}`}>₼ {modalUnitPrice.toFixed(2)}</p>
-                    <div className="mt-1.5">
-                      {/* Allergen selection — previously static badges only.
-                          Tapping flags the allergen on this line (customer
-                          allergy warning → kitchen); stored in
-                          order_items.allergens. */}
-                      {(() => {
-                        const allergenList = parseAllergens(expandedItem.allergens);
-                        if (allergenList.length === 0) return null;
-                        return (
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {allergenList.map((a: any) => {
-                              const def = resolveAllergenEntry(a);
-                              const Icon = def?.icon ?? ALLERGEN_FALLBACK_ICON;
-                              const code = def?.code || (a && typeof a === 'object' ? (String(a.code || a.name || '')) : String(a));
-                              if (!code) return null;
-                              const on = selectedAllergens.includes(code);
-                              return (
-                                <motion.button
-                                  key={code}
-                                  whileHover={{ y: -1.5 }} whileTap={{ scale: 0.94 }} transition={TAP}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedAllergens(prev => on ? prev.filter(x => x !== code) : [...prev, code]);
-                                  }}
-                                  /* Touch-friendly (owner 2026-09-22): min 38px
-                                     target, bigger text/icon — the old
-                                     px-2/py-0.5/text-[10px] pill was a 16px
-                                     tap hole. */
-                                  className={`inline-flex items-center gap-1.5 min-h-[38px] px-4 py-2 rounded-xl border text-xs font-bold ${on ? 'bg-red-500/15 border-red-500/60 text-red-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
-                                >
-                                  <Icon size={14} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
-                                  {on && <Check size={12} />}
-                                </motion.button>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
-                    </div>
+                    {/* 2026-09-28 (owner: "allergenlər sətrini aşağıda ayrıca
+                        bölmə kimi göstərin"): the allergen chips moved OUT of
+                        the header — they now live in their own section at the
+                        BOTTOM of the modal (below Qeyd). The header is back to
+                        görsəl · ad · qiymət only. */}
                   </div>
                 </div>
                 <motion.button onClick={(e) => { e.stopPropagation(); handleClose(); }}
@@ -1274,6 +1240,47 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                   <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Qeyd:</span>
                   <input type="text" value={noteForProduct} onChange={(e) => setNoteForProduct(e.target.value)} placeholder={t('add_note')} className={`mt-2 w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} focus:border-zinc-400/50`} />
                 </div>
+
+                {/* Allergens — own BOTTOM section (owner 2026-09-28).
+                    Tapping flags the allergen on THIS instance (customer
+                    allergy warning → kitchen); stored in order_items.allergens
+                    and re-loaded when this instance is re-opened. */}
+                {(() => {
+                  const allergenList = parseAllergens(expandedItem.allergens);
+                  if (allergenList.length === 0) return null;
+                  return (
+                    <div>
+                      <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Allergenlər:</span>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                        {allergenList.map((a: any) => {
+                          const def = resolveAllergenEntry(a);
+                          const Icon = def?.icon ?? ALLERGEN_FALLBACK_ICON;
+                          const code = def?.code || (a && typeof a === 'object' ? (String(a.code || a.name || '')) : String(a));
+                          if (!code) return null;
+                          const on = selectedAllergens.includes(code);
+                          return (
+                            <motion.button
+                              key={code}
+                              whileHover={{ y: -1.5 }} whileTap={{ scale: 0.94 }} transition={TAP}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedAllergens(prev => on ? prev.filter(x => x !== code) : [...prev, code]);
+                              }}
+                              /* Touch-friendly (owner 2026-09-22): min 38px
+                                 target, bigger text/icon — the old
+                                 px-2/py-0.5/text-[10px] pill was a 16px
+                                 tap hole. */
+                              className={`inline-flex items-center gap-1.5 min-h-[38px] px-4 py-2 rounded-xl border text-xs font-bold ${on ? 'bg-red-500/15 border-red-500/60 text-red-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
+                            >
+                              <Icon size={14} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
+                              {on && <Check size={12} />}
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
                 {/* Footer: ƏLAVƏ ET full-width — sticky (flex-shrink-0).

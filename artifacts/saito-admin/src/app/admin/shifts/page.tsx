@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock, Users, DollarSign, AlertTriangle, CheckCircle, XCircle,
   Filter, Calendar, ChevronRight, Play, Square, Coffee
 } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 type Shift = {
   id: string;
@@ -20,24 +21,34 @@ type Shift = {
   expected_cash: number;
   actual_cash: number | null;
   difference: number | null;
-  orders_count: number;
   status: 'active' | 'closed' | 'force_closed';
 };
 
-type ShiftKpis = {
-  active_shifts: number;
-  total_hours_today: number;
-  total_orders: number;
-  total_variance: number;
-  avg_shift_duration: number;
-};
-
 export default function ShiftsPage() {
+  const { t } = useLanguage();
   const [shifts, setShifts] = useState<Shift[]>([]);
-  const [kpis, setKpis] = useState<ShiftKpis | null>(null);
+  const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'closed' | 'variances'>('all');
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+
+  // 2026-09-28 (owner: "Scheduling hissəsini bərpa et"): RESTORE. The page
+  // expected `{ shifts, kpis }` from GET /api/shifts, but the route returns a
+  // PLAIN ARRAY of raw rows (staff_id UUID, closed_at — no names, no
+  // duration, no status, no kpis) → the page ALWAYS showed "No shifts found"
+  // with zero KPIs. Now: parse the array, join staff name/role from
+  // /api/staff (same pattern as admin/staff/shifts), and compute KPIs
+  // client-side. The API shape is NOT changed — it has other consumers
+  // (staff/shifts, staff/[id]) that rely on the plain array.
+  const fetchStaff = useCallback(async () => {
+    try {
+      const res = await fetch('/api/staff');
+      if (res.ok) {
+        const data = await res.json();
+        setStaff(Array.isArray(data) ? data : []);
+      }
+    } catch { /* non-fatal — names fall back to "—" */ }
+  }, []);
 
   const fetchShifts = useCallback(async () => {
     setLoading(true);
@@ -45,14 +56,46 @@ export default function ShiftsPage() {
       const res = await fetch('/api/shifts');
       if (res.ok) {
         const data = await res.json();
-        setShifts(data.shifts || []);
-        setKpis(data.kpis || {});
+        setShifts((Array.isArray(data) ? data : []).map((r: any): Shift => {
+          const st = staff.find((m: any) => m.id === r.staff_id);
+          const start = new Date(r.opened_at).getTime();
+          const end = r.closed_at ? new Date(r.closed_at).getTime() : Date.now();
+          return {
+            id: r.id,
+            staff_id: r.staff_id,
+            staff_name: st?.name || '—',
+            staff_role: st?.role || st?.role_name || '—',
+            opened_at: r.opened_at,
+            closed_at: r.closed_at || null,
+            duration_minutes: Math.max(0, (end - start) / 60000),
+            starting_cash: Number(r.starting_cash) || 0,
+            expected_cash: Number(r.expected_cash) || 0,
+            actual_cash: r.actual_cash != null ? Number(r.actual_cash) : null,
+            difference: r.difference != null ? Number(r.difference) : null,
+            status: r.closed_at ? 'closed' : 'active',
+          };
+        }));
       }
-    } catch { toast.error('Failed to shifts'); }
+    } catch { toast.error('Smenalar yüklənə bilmədi'); }
     finally { setLoading(false); }
-  }, []);
+  }, [staff, t]);
 
+  useEffect(() => { fetchStaff(); }, [fetchStaff]);
   useEffect(() => { fetchShifts(); }, [fetchShifts]);
+
+  // KPIs from the mapped rows (no server KPI endpoint exists).
+  const kpis = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayShifts = shifts.filter(s => new Date(s.opened_at) >= startOfToday);
+    const closed = shifts.filter(s => s.status === 'closed');
+    return {
+      active_shifts: shifts.filter(s => s.status === 'active').length,
+      total_hours_today: todayShifts.reduce((a, s) => a + s.duration_minutes, 0) / 60,
+      total_variance: closed.reduce((a, s) => a + (Number(s.difference) || 0), 0),
+      avg_shift_duration: closed.length ? closed.reduce((a, s) => a + s.duration_minutes, 0) / closed.length : 0,
+    };
+  }, [shifts]);
 
   const filteredShifts = shifts.filter(s => {
     if (filter === 'active') return s.status === 'active';
@@ -64,7 +107,7 @@ export default function ShiftsPage() {
   const activeShifts = shifts.filter(s => s.status === 'active');
 
   const handleForceClose = async (shift: Shift) => {
-    if (!confirm(`Force close shift for ${shift.staff_name}?`)) return;
+    if (!confirm(`${shift.staff_name} — smenani məcburi bağlayım?`)) return;
     try {
       // P-8 (D-8): /api/shifts/[id]/close never existed (404) — the canonical
       // force path is /api/staff/force-clock-out (timeclock.override + CSRF).
@@ -75,10 +118,10 @@ export default function ShiftsPage() {
         body: JSON.stringify({ staff_id: shift.staff_id, reason: 'Force closed by admin' }),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data?.success !== false) { toast.success('Shift closed'); fetchShifts(); }
-      else if (data?.error === 'NO_ACTIVE_SHIFT') { toast.success('No active shift'); fetchShifts(); }
-      else toast.error(data?.error || 'Failed');
-    } catch { toast.error('Error'); }
+      if (res.ok && data?.success !== false) { toast.success('Smena bağlandı'); fetchShifts(); }
+      else if (data?.error === 'NO_ACTIVE_SHIFT') { toast.success('Aktiv smena yoxdur'); fetchShifts(); }
+      else toast.error(data?.error || 'Səhv');
+    } catch { toast.error('Səhv'); }
   };
 
   return (
@@ -86,28 +129,28 @@ export default function ShiftsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-black text-[var(--theme-text)] tracking-tight">SHIFTS</h1>
+          <h1 className="text-2xl font-black text-[var(--theme-text)] tracking-tight">NÖVBƏLƏR</h1>
           <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5 uppercase tracking-widest">
-            {kpis?.active_shifts ?? 0} Active · {kpis?.total_orders ?? 0} Orders Today
+            {kpis?.active_shifts ?? 0} Aktiv Smena · Bugün {Math.round((kpis?.total_hours_today ?? 0) * 10) / 10} saat
           </p>
         </div>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-4 gap-3 flex-shrink-0">
-        <KpiCard label="Active Shifts" value={kpis?.active_shifts ?? 0} icon={Play} accent="emerald" />
-        <KpiCard label="Total Hours" value={`${Math.round((kpis?.total_hours_today ?? 0) / 60 * 10) / 10}h`} icon={Clock} />
-        <KpiCard label="Total Orders" value={kpis?.total_orders ?? 0} icon={Users} />
-        <KpiCard label="Cash Variance" value={`₼${kpis?.total_variance ?? 0}`} icon={AlertTriangle} accent={kpis?.total_variance && Math.abs(kpis.total_variance) > 20 ? 'amber' : undefined} />
+        <KpiCard label="Aktiv Smenalar" value={kpis?.active_shifts ?? 0} icon={Play} accent="emerald" />
+        <KpiCard label="Bugünkü Saatlar" value={`${Math.round((kpis?.total_hours_today ?? 0) * 10) / 10}h`} icon={Clock} />
+        <KpiCard label="Orta Smena Müddəti" value={`${Math.round(kpis?.avg_shift_duration ?? 0)} dəq`} icon={Users} />
+        <KpiCard label="Kassa Fərqi (bağlı)" value={`₼${(kpis?.total_variance ?? 0).toFixed(2)}`} icon={AlertTriangle} accent={kpis?.total_variance && Math.abs(kpis.total_variance) > 20 ? 'amber' : undefined} />
       </div>
 
       {/* Filters */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
-          <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>All ({shifts.length})</FilterPill>
-          <FilterPill active={filter === 'active'} onClick={() => setFilter('active')} count={activeShifts.length} accent="emerald">Active</FilterPill>
-          <FilterPill active={filter === 'closed'} onClick={() => setFilter('closed')}>Closed</FilterPill>
-          <FilterPill active={filter === 'variances'} onClick={() => setFilter('variances')} accent="amber">Variances</FilterPill>
+          <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>Bütün ({shifts.length})</FilterPill>
+          <FilterPill active={filter === 'active'} onClick={() => setFilter('active')} count={activeShifts.length} accent="emerald">Aktiv</FilterPill>
+          <FilterPill active={filter === 'closed'} onClick={() => setFilter('closed')}>Bağlı</FilterPill>
+          <FilterPill active={filter === 'variances'} onClick={() => setFilter('variances')} accent="amber">Fərqli</FilterPill>
         </div>
       </div>
 
@@ -123,7 +166,7 @@ export default function ShiftsPage() {
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <Clock size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
-              <p className="text-sm text-[var(--theme-text-secondary)]">No shifts found</p>
+              <p className="text-sm text-[var(--theme-text-secondary)]">{t('st_no_shifts') || 'Smena tapılmadı'}</p>
             </div>
           </div>
         ) : (
@@ -194,10 +237,10 @@ function ShiftRow({ shift, index, onClick, onForceClose }: {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
               </span>
-              <span className="text-[10px] font-semibold text-emerald-400">ACTIVE</span>
+              <span className="text-[10px] font-semibold text-emerald-400">AKTİV</span>
             </div>
           ) : (
-            <span className="text-[10px] text-zinc-400">{shift.status === 'force_closed' ? 'FORCE CLOSED' : 'CLOSED'}</span>
+            <span className="text-[10px] text-zinc-400">{shift.status === 'force_closed' ? 'MƏCBURİ BAĞLI' : 'BAĞLI'}</span>
           )}
         </div>
 
@@ -210,30 +253,24 @@ function ShiftRow({ shift, index, onClick, onForceClose }: {
         {/* Time */}
         <div className="min-w-[140px]">
           <p className="text-xs text-[var(--theme-text)]">{new Date(shift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-          <p className="text-[10px] text-[var(--theme-text-muted)]">{Math.round(shift.duration_minutes)}m</p>
+          <p className="text-[10px] text-[var(--theme-text-muted)] tabular-nums">{Math.round(shift.duration_minutes)} dəq</p>
         </div>
 
         {/* Cash */}
         <div className="min-w-[120px]">
-          <p className="text-xs text-[var(--theme-text)]">₼{shift.expected_cash ?? 0}</p>
-          <p className="text-[10px] text-[var(--theme-text-muted)]">expected</p>
+          <p className="text-xs text-[var(--theme-text)] tabular-nums">₼{Number(shift.expected_cash ?? 0).toFixed(2)}</p>
+          <p className="text-[10px] text-[var(--theme-text-muted)]">nəzərdə tutulan</p>
         </div>
 
         {/* Variance */}
         <div className="min-w-[100px]">
           {shift.difference !== null ? (
-            <p className={`text-xs font-medium ${Math.abs(shift.difference) > 5 ? 'text-amber-400' : 'text-emerald-400'}`}>
-              {shift.difference > 0 ? '+' : ''}₼{shift.difference}
+            <p className={`text-xs font-medium tabular-nums ${Math.abs(shift.difference) > 5 ? 'text-amber-400' : 'text-emerald-400'}`}>
+              {shift.difference > 0 ? '+' : ''}₼{Number(shift.difference).toFixed(2)}
             </p>
           ) : (
             <p className="text-xs text-[var(--theme-text-muted)]">—</p>
           )}
-        </div>
-
-        {/* Orders */}
-        <div className="min-w-[80px]">
-          <p className="text-xs text-[var(--theme-text)]">{shift.orders_count}</p>
-          <p className="text-[10px] text-[var(--theme-text-muted)]">orders</p>
         </div>
 
         {/* Actions */}
@@ -261,21 +298,21 @@ function ShiftDetailPanel({ shift, onClose }: { shift: Shift; onClose: () => voi
       className="fixed right-0 top-0 bottom-0 z-[101] w-[calc(100vw-260px)] bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col">
       <div className="p-6 border-b border-[var(--theme-border)] flex items-center justify-between flex-shrink-0">
         <div>
-          <h2 className="text-lg font-bold text-[var(--theme-text)]">Shift Detail</h2>
-          <p className="text-xs text-[var(--theme-text-muted)]">{shift.staff_name} · {new Date(shift.opened_at).toLocaleDateString()}</p>
+          <h2 className="text-lg font-bold text-[var(--theme-text)]">Smena Detalı</h2>
+          <p className="text-xs text-[var(--theme-text-muted)]">{shift.staff_name} · {new Date(shift.opened_at).toLocaleDateString('az')} {new Date(shift.opened_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}</p>
         </div>
         <button onClick={onClose} className="p-2 rounded-xl text-[var(--theme-text-muted)] hover:bg-white/5">✕</button>
       </div>
       <div className="flex-1 overflow-y-auto p-6">
         <div className="grid grid-cols-2 gap-4">
-          <DetailCard label="Started" value={new Date(shift.opened_at).toLocaleTimeString()} />
-          <DetailCard label="Duration" value={`${Math.round(shift.duration_minutes)} min`} />
-          <DetailCard label="Starting Cash" value={`₼${shift.starting_cash}`} />
-          <DetailCard label="Expected Cash" value={`₼${shift.expected_cash}`} />
-          <DetailCard label="Actual Cash" value={shift.actual_cash !== null ? `₼${shift.actual_cash}` : '—'} />
-          <DetailCard label="Variance" value={shift.difference !== null ? `₼${shift.difference}` : '—'} accent={shift.difference !== null && Math.abs(shift.difference) > 5 ? 'amber' : undefined} />
-          <DetailCard label="Orders" value={shift.orders_count.toString()} />
-          <DetailCard label="Status" value={shift.status} />
+          <DetailCard label="Başlanğıc" value={new Date(shift.opened_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })} />
+          <DetailCard label="Bitiş" value={shift.closed_at ? new Date(shift.closed_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' }) : '— (açıq)'} />
+          <DetailCard label="Müddət" value={`${Math.round(shift.duration_minutes)} dəq`} />
+          <DetailCard label="Status" value={shift.status === 'active' ? 'Aktiv' : shift.status === 'force_closed' ? 'Məcburi bağlandı' : 'Bağlı'} />
+          <DetailCard label="Açılış Kassa" value={`₼${Number(shift.starting_cash || 0).toFixed(2)}`} />
+          <DetailCard label="Nəzərdə Tutulan" value={`₼${Number(shift.expected_cash || 0).toFixed(2)}`} />
+          <DetailCard label="Fakt Kassa" value={shift.actual_cash !== null ? `₼${Number(shift.actual_cash).toFixed(2)}` : '—'} />
+          <DetailCard label="Fərq" value={shift.difference !== null ? `₼${Number(shift.difference).toFixed(2)}` : '—'} accent={shift.difference !== null && Math.abs(shift.difference) > 5 ? 'amber' : undefined} />
         </div>
       </div>
     </motion.div>

@@ -496,6 +496,11 @@ export async function POST(request: Request) {
               total_price: (i.unit_price || 0) * (i.quantity || 1),
               modifiers: i.modifiers || [],
               special_notes: i.special_notes || '',
+              // 2026-09-28 (E2E defect #4, part 3): the CREATE path persists
+              // allergens, but this ADD-ITEMS path dropped them — every
+              // appended send (2nd send to the same order) lost the instance's
+              // allergen flags server-side. Symmetry with the create insert.
+              allergens: i.allergens || null,
               course: i.course || 'main',
               kitchen_status: 'pending',
             }))

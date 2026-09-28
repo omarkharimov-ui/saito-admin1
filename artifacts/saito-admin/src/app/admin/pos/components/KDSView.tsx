@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { PartnerLogo, PartnerStripe } from './PartnerBadge';
+import { parseAllergens, resolveAllergenEntry } from '@/lib/allergens';
 import { supabase } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings-client';
 import { usePrintClaimLoop, type PrintJob } from '@/hooks/usePrintClaimLoop';
@@ -30,6 +31,10 @@ interface KDSItem {
    *  timing. Both are persisted on order_items; the KDS just didn't map them. */
   course?: string | null;
   is_hold?: boolean;
+  /** 2026-09-28 (per-instance state machine): customer-allergy flags
+   *  (order_items.allergens) — the kitchen must SEE them on the ticket;
+   *  before this the KDS never mapped the column at all. */
+  allergens?: string[];
   /** BDS #28: station snapshot (order_items.station_id, set by the
    *  BEFORE INSERT trigger from products.station_id). Legacy locked lines
    *  and manual (product-less) lines are NULL → displayed at the Main
@@ -330,6 +335,9 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
               special_notes: i.special_notes,
               course: i.course ?? null,
               is_hold: Boolean(i.is_hold),
+              allergens: i.allergens
+                ? (typeof i.allergens === 'string' ? (() => { try { return JSON.parse(i.allergens); } catch { return []; } })() : i.allergens)
+                : [],
               station_id: i.station_id ?? null,
             })),
             created_at: o.created_at,
@@ -596,12 +604,29 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                               <span className={`text-sm font-medium truncate ${item.is_hold ? (lightMode ? 'text-amber-800' : 'text-amber-200/80') : itemReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-gray-800' : 'text-white/85')}`}>
                                 {item.name}
                               </span>
-                              {item.course && (
-                                <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-sky-100 text-sky-700' : 'bg-sky-500/15 text-sky-400'}`}>
-                                  {item.course}
-                                </span>
-                              )}
-                              {modText ? (
+                               {item.course && (
+                                 <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-sky-100 text-sky-700' : 'bg-sky-500/15 text-sky-400'}`}>
+                                   {item.course}
+                                 </span>
+                               )}
+                               {/* 2026-09-28: per-instance ALLERGEN flags on the
+                                   ticket (customer allergy → kitchen warning).
+                                   Localized through the allergen SSOT ("fish" →
+                                   "Balıq"); only renders when the instance has
+                                   flags. */}
+                               {(() => {
+                                 const alLabels = parseAllergens(item.allergens).map((a: any) =>
+                                   resolveAllergenEntry(a)?.label ||
+                                   (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
+                                 ).filter(Boolean);
+                                 if (alLabels.length === 0) return null;
+                                 return (
+                                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-red-100 text-red-700' : 'bg-red-500/15 text-red-400'}`}>
+                                     <AlertTriangle size={9} />{alLabels.join(' · ')}
+                                   </span>
+                                 );
+                               })()}
+                               {modText ? (
                                 <span className={`text-xs shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                                   {modText}
                                 </span>

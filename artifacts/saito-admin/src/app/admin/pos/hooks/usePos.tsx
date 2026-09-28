@@ -653,9 +653,14 @@ export function usePos() {
           const groupIds = new Set(groupOrders.map((o: any) => o.id));
 
           const serverItems: any[] = [];
-          const serverSeen = new Map<string, any>();
+          // 2026-09-28 (owner: per-instance state machine — E2E defect #3):
+          // the OLD load merged server rows by product_id+variant_id, so two
+          // instances of the same product with DIFFERENT modifiers/notes/
+          // allergens collapsed into ONE line (qty summed, first instance's
+          // price × qty → cart 41.00 vs real order 35.00, Row B's modifiers +
+          // allergen chip lost). Each server order_item IS one instance →
+          // one cart line, no merge.
           for (const item of orderItems.filter((i: any) => groupIds.has(i.order_id))) {
-            const key = `${item.product_id}__${item.variant_id ?? ''}`;
             const mapped = {
               id: item.id,
               product_id: item.product_id,
@@ -665,6 +670,13 @@ export function usePos() {
               total_price: item.total_price,
               modifiers: typeof item.modifiers === 'string' ? JSON.parse(item.modifiers || '[]') : (item.modifiers || []),
               special_notes: item.special_notes || '',
+              // 2026-09-28 (E2E defect #4, part 2): allergens + variant_id were
+              // SILENTLY DROPPED by the load mapping — the DB carries them
+              // (verified: order_items.allergens = ["fish"]) but every table
+              // reload stripped them, so the red allergen chip (and the variant
+              // identity) vanished after send→reopen.
+              allergens: item.allergens ? (typeof item.allergens === 'string' ? JSON.parse(item.allergens || '[]') : item.allergens) : [],
+              variant_id: item.variant_id || null,
               hold_until: item.hold_until || null,
               is_hold: !!item.hold_until,
               course: item.course || 'main',
@@ -673,14 +685,7 @@ export function usePos() {
               sentQuantity: item.quantity,
               kitchen_status: item.kitchen_status || 'pending',
             };
-            const existing = serverSeen.get(key);
-            if (existing) {
-              existing.quantity += Number(item.quantity || 0);
-              existing.total_price = existing.unit_price * existing.quantity;
-            } else {
-              serverSeen.set(key, mapped);
-              serverItems.push(mapped);
-            }
+            serverItems.push(mapped);
           }
 
           const serverTotal = Number(primary.total_amount || 0);
@@ -693,20 +698,27 @@ export function usePos() {
             // re-entering the SAME table. Leaving a table (switching to another)
             // auto-discards the drafts, mirroring reservation drafts.
             const carryDrafts = !switchingToDifferentTable;
-            const seen = new Set<string>();
-            for (const u of carryDrafts
-              ? [...draftItems, ...prev.items.filter(i => (i.sentQuantity ?? 0) === 0)]
-              : []) {
-              const key = `${u.product_id}__${u.variant_id || ''}`;
-              if (seen.has(key)) continue;
-              seen.add(key);
-              const found = merged.find((m: any) => `${m.product_id}__${m.variant_id || ''}` === key);
-              if (found) {
-                found.quantity += u.quantity;
-                found.total_price = found.unit_price * found.quantity;
-              } else {
-                merged.push(u);
+            // 2026-09-28 (per-instance): the old carry merged any draft into a
+            // server row with the same product+variant — a NEW instance of the
+            // same product (different modifiers) would inflate the sent row's
+            // quantity. Now: a draft only re-attaches to a server row it
+            // tracks (same server id — the "+ after send" case); every other
+            // draft is its OWN line. Reference-dedup: draftItems (snapshot)
+            // and prev.items can contain the same row objects.
+            const draftSet = new Set<any>();
+            if (carryDrafts) {
+              for (const u of [...draftItems, ...prev.items.filter(i => (i.sentQuantity ?? 0) === 0)]) draftSet.add(u);
+            }
+            for (const u of draftSet) {
+              if (u.id) {
+                const found = merged.find((m: any) => m.id === u.id);
+                if (found) {
+                  found.quantity = Math.max(found.quantity, u.quantity);
+                  found.total_price = found.unit_price * found.quantity;
+                  continue;
+                }
               }
+              merged.push(u);
             }
             return {
               table_number: table.table_number,
@@ -1286,12 +1298,24 @@ export function usePos() {
     placingRef.current = true; // synchronous — blocks a double-tap before re-render
     setPlacingOrder(true);
     try {
-      const unsent = cart.items
+      // 2026-09-28 (per-instance): keep the ITEM refs of the rows that pass
+      // the send filter — the post-send reconciliation must match by INSTANCE
+      // identity, not by product+variant key. (Old key-based reconciliation
+      // would also mark a HELD row of the same product as sent when its twin
+      // went out — sentQuantity would freeze the held instance.)
+      const pendingRows = cart.items
         .map(i => ({
           item: i,
           delta: Math.max(0, (i.quantity || 0) - (i.sentQuantity || 0)),
         }))
-        .filter(x => x.delta > 0 && !(x.item as any).is_hold)
+        .filter(x => x.delta > 0 && !(x.item as any).is_hold);
+      const sentIdentity = new Set(
+        pendingRows.map(x =>
+          (x.item as any).instance_id ?? (x.item as any).id ??
+          `${x.item.product_id}__${x.item.variant_id || ''}__${x.item.is_combo ? 'c' : 'p'}`
+        )
+      );
+      const unsent = pendingRows
         .map(x => ({
           product_id: x.item.product_id,
           product_name: x.item.product_name,
@@ -1428,15 +1452,16 @@ export function usePos() {
         }).catch(() => {});
         // Merge both setCart calls into one to avoid losing order_id:
         // 1) Set order_id  2) Advance sentQuantity for sent items
-        const sentKeys = new Set(unsent.map(u => `${u.product_id}__${u.variant_id || ''}__${u.is_combo ? 'c' : 'p'}`));
+        // Instance-identity reconciliation (see sentIdentity above).
         setCart(prev => {
           if (!prev) return null;
           return {
             ...prev,
             order_id: createdOrderId,
             items: prev.items.map(i => {
-              const key = `${i.product_id}__${i.variant_id || ''}__${i.is_combo ? 'c' : 'p'}`;
-              if (!sentKeys.has(key)) return i;
+              const ident = (i as any).instance_id ?? (i as any).id ??
+                `${i.product_id}__${i.variant_id || ''}__${i.is_combo ? 'c' : 'p'}`;
+              if (!sentIdentity.has(ident)) return i;
               const newSent = Math.min(i.quantity, (i.sentQuantity || 0) + (i.quantity - (i.sentQuantity || 0)));
               return { ...i, sentQuantity: Math.max(i.sentQuantity || 0, newSent) };
             })

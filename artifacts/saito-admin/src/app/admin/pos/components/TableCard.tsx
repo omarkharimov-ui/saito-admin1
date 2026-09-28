@@ -475,31 +475,78 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                 )}
             </div>
             <div className="flex items-center gap-1">
-               {isTransferSource ? (
-               <div className="w-7 h-7 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center">
-                 <span className="text-xs font-black text-rose-400">M</span>
-               </div>
-             ) : isTransferTarget ? (
-               <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
-                 <span className="text-xs font-black text-emerald-400">H</span>
-               </div>
-             ) : selectionMode ? (
-               <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
-                 isSelected ? 'bg-blue-500 border-blue-500' : (lightMode ? 'bg-zinc-100 border-zinc-300' : 'bg-white/5 border-white/10')
-               }`}>
-                 <AnimatePresence>{isSelected && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}><Check size={14} className="text-white" strokeWidth={3} /></motion.div>}</AnimatePresence>
-               </div>
-             ) : (
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
-                  onClick={(e) => { e.stopPropagation(); onAction(); }}
-                  className="p-1 rounded-full transition-colors opacity-40 hover:opacity-100"
-                >
-                  <MoreVertical size={15} className={`${lightMode ? 'text-zinc-400' : 'text-white/50'}`} />
-                </motion.button>
-             )}
-           </div>
+              {/* 2026-09-28 (owner: "normaldan BİRLEŞDİR-ə keçəndə 3 dots → tik
+                  ANİDƏN keçir — Apple'də necədirsə elə olsun"): ONE persistent
+                  slot, keyed MAPH (Philosophy §4/§5 — morph instead of replace).
+                  iOS selection grammar (Settings edit mode / Mail / Photos
+                  multi-select): the control keeps its position + size identity;
+                  a state change crossfades in place — enter = spring pop from
+                  scale 0.5 with hair of overshoot (SPRING.kessey, owner DNA),
+                  exit = fast 140ms shrink+fade. No branch swap, no hard cut. */}
+              <AnimatePresence mode="popLayout" initial={false}>
+                {isTransferSource ? (
+                  <motion.div
+                    key="ctl-source"
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.14 } }}
+                    transition={SPRING.kessey}
+                    className="w-7 h-7 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center"
+                  >
+                    <span className="text-xs font-black text-rose-400">M</span>
+                  </motion.div>
+                ) : isTransferTarget ? (
+                  <motion.div
+                    key="ctl-target"
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.14 } }}
+                    transition={SPRING.kessey}
+                    className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse"
+                  >
+                    <span className="text-xs font-black text-emerald-400">H</span>
+                  </motion.div>
+                ) : selectionMode ? (
+                  <motion.div
+                    key="ctl-select"
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.14 } }}
+                    transition={SPRING.kessey}
+                    className={`w-7 h-7 rounded-full border-2 flex items-center justify-center [transition:background-color_0.18s_ease,border-color_0.18s_ease] ${
+                      isSelected ? 'bg-blue-500 border-blue-500' : (lightMode ? 'bg-zinc-100 border-zinc-300' : 'bg-white/5 border-white/10')
+                    }`}
+                  >
+                    <AnimatePresence initial={false}>
+                      {isSelected && (
+                        <motion.div
+                          key="sel-tick"
+                          initial={{ scale: 0.3, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.5, opacity: 0, transition: { duration: 0.14 } }}
+                          transition={SPRING.kessey}
+                        >
+                          <Check size={14} className="text-white" strokeWidth={3} />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                ) : (
+                  <motion.button
+                    key="ctl-menu"
+                    initial={{ scale: 0.7, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.14 } }}
+                    transition={SPRING.kessey}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => { e.stopPropagation(); onAction(); }}
+                    className="p-1 rounded-full transition-colors opacity-40 hover:opacity-100"
+                  >
+                    <MoreVertical size={15} className={`${lightMode ? 'text-zinc-400' : 'text-white/50'}`} />
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
          </div>
 
          {/* Main content: Amount hero + guests (flex-flow, was absolute).
@@ -649,16 +696,29 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
               {/* HESAB chip: 2026-09-23 (owner) — was open-only. Now tappable to
                   CLOSE (bill_requested=false). Sits right of the status chip,
                   whitespace-nowrap so it never overlaps the status. */}
-              {table.bill_requested && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onToggleBill?.(); }}
-                  title={t('bill_requested_cancel') || 'Hesabı bağla'}
-                  className="shrink-0 h-[22px] flex items-center gap-1 px-2.5 rounded-full bg-rose-500/15 text-rose-500 border border-rose-500/30 text-[10px] font-black uppercase tracking-wide whitespace-nowrap transition-all active:scale-95"
-                >
-                  {t('bill_requested')}
-                  <X size={11} strokeWidth={3} />
-                </button>
-              )}
+               {/* 2026-09-28 (owner: "harada state-machine transition YOXDURsə
+                   əlavə et"): HESAB chip was a hard on/off (no AnimatePresence) —
+                   it snapped in when the bill was requested and snapped out on
+                   close. Now a keyed spring pop: enter from scale 0.5 (kessey),
+                   exit fast shrink+fade. bill_requested is a real STATE change
+                   (Philosophy §1/§9) so it gets a visible, continuous result. */}
+               <AnimatePresence initial={false}>
+               {table.bill_requested && (
+                 <motion.button
+                   key="hesab-chip"
+                   initial={{ scale: 0.5, opacity: 0 }}
+                   animate={{ scale: 1, opacity: 1 }}
+                   exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.14 } }}
+                   transition={SPRING.kessey}
+                   onClick={(e) => { e.stopPropagation(); onToggleBill?.(); }}
+                   title={t('bill_requested_cancel') || 'Hesabı bağla'}
+                   className="shrink-0 h-[22px] flex items-center gap-1 px-2.5 rounded-full bg-rose-500/15 text-rose-500 border border-rose-500/30 text-[10px] font-black uppercase tracking-wide whitespace-nowrap transition-all active:scale-95"
+                 >
+                   {t('bill_requested')}
+                   <X size={11} strokeWidth={3} />
+                 </motion.button>
+               )}
+               </AnimatePresence>
               </div>
             </div>
         </motion.div>

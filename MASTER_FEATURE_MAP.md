@@ -809,6 +809,18 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-28 (SELECTION TICK MORPH + HESAB CHIP POP — Apple state-machine transitions)
+
+- **Owner turn**: "bu animasiya Apple-da necədirsə elə olsun — normaldan BİRLEŞDİR-ə keçəndə 3 dots → tik ANİDƏN keçir, state-machine transition olsun; başqa belə tapsan (state-machine transition yoxdur) əlavə et".
+- **Web research**: Apple iOS selection grammar (Settings edit-mode / Mail / Photos multi-select) — badge = BİR səthi control; state change = crossfade + spring pop (slight overshoot ~1.05-1.10, ~250-350ms), deselect = fast 140-200ms shrink+fade; structural swap YOX (Philosophy §4/§5 — morph instead of replace, interruptible).
+- **FIX 1 — top-right control morph (TableCard)**: 4 ayrış DOM branch-ə (⋮ / select-circle / M / H) **bİR keyed `AnimatePresence mode="popLayout"` slot**-a çevrildi — `ctl-menu` / `ctl-select` / `ctl-source` / `ctl-target` keys; enter = `SPRING.kessey` (500/26, owner DNA — hair of overshoot) scale 0.5→1 + fade, exit = 140ms shrink+fade. Select-circle içindəki check indi ayrıca keyed pop (`sel-tick`: 0.3→1 kessey in / 140ms out). Grey→blue fill = 180ms CSS color crossfade (state, non-spring).
+- **FIX 2 — HESAB chip pop (TableCard)**: `bill_requested` chip anidə on/off idi → keyed `motion.button` (`hesab-chip`) + AnimatePresence: pop in (kessey, scale 0.5→1) / 140ms shrink+fade out. Optimistik patchFloor zamanı dərhal pop olunur (Philosophy §8 — immediate feedback).
+- **AUDIT (başqa anidə state transition axtarışı)**: kitchen/status chip-lər ✅ (already keyed morph + blur), OOS card ✅ (CSS 250ms crossfade — intentional, content not structure), cart count badge ✅ (motion), openRing/seatRing ✅ (motion), group border ✅ (320ms grace), tab switcher ✅. **TAMAM — TableCard-dakı 2 nöqtə yeganə gap idi.**
+- **E2E R11 (motion, both themes) — HAMISI PASS** (still-latency bəlasına görə `document.getAnimations()` ilə programatik verify): M1 merge-mode: 8×140ms outgoing crossfade + 8×500ms incoming spring **110.6% overshoot** + 260ms toolbar slide → morph Təsdiqləndi (hard-swap DEYİL); M2 check pop in/out (Masa 9, re-tap = shrink+fade); M3 HESAB chip: optimistik pop PIN-dən ƏVVƏL + "MASA 8 — HESAB ÇAĞIRILDI" → 4321 → "kassira göndərildi" → chip tap = PIN → chip fade-out, card MƏTBƏXDƏ; M4 dark spot: select-circle/check/toolbar dark-da düzgün.
+- **CLEANUP/STATE**: R11 heç bir real order-a toxunmadı (Masa 8 real order, bill_requested=false geri); Masa 9/98/99 empty; 3 saatda 0 yeni order. **Masa 1 / ORD-2920 toxunulmadı.**
+- **Verify**: tsc təmiz; commit + push.
+- **Fayllar** (1): `TableCard.tsx` (control morph + HESAB chip pop).
+
 ### Jurnal sətiri — 2026-09-28 (FINAL FULL-POS CHECK + SAITO MOTION PHILOSOPHY + REDUCED-MOTION)
 
 - **Owner turn**: "final şəkildə BÜTÜN POS-u check et — UI + backend tam hazırdır? eksikləri fully tamamla" + Saito Motion & Interaction Philosophy-ni yaz (12 qayda: state→motion, continuity, physical motion, interruptibility, morph-not-replace, moving layout, input-device adaptation, immediate feedback, selective motion, no generic AI UI, fast-not-abrupt, **reduced-motion**).

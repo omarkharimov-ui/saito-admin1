@@ -79,7 +79,15 @@ interface CartPanelProps {
   }) => void;
   onUpdateGlobalNote?: (note: string) => void;
   onOpenModifiers?: (productId: string) => void;
-  onRequestEditor?: (productId: string, lineIndex?: number) => void;
+  /** 2026-09-28 (owner: "eyni mehsul 1 setire collapse olsun + modalda
+      instans pill tabları"): the collapsed group row passes ALL of the
+      group's cart-line indexes (+ the raw lines) — the editor opens in
+      multi-instance mode with TikTok-style pill tabs. */
+  onRequestEditor?: (productId: string, lineIndexes?: number | number[], lineItems?: any[]) => void;
+  /** Batch line patch (single setCart) — the group hold-toggle rewrites
+      several instances at once; N sequential onUpdateItem calls would lose
+      updates (stale-closure setCart, last write wins). */
+  onUpdateItems?: (patches: { idx: number; patch: Partial<PosCartItem> }[]) => void;
   tableStatus?: string | null;
   tableGuests?: number | null;
   onSeatTable?: () => void | Promise<void>;
@@ -162,6 +170,7 @@ export function CartPanel({
   onUpdateGlobalNote,
   onOpenModifiers,
   onRequestEditor,
+  onUpdateItems,
   tableStatus,
   tableGuests,
   onSeatTable,
@@ -372,6 +381,75 @@ export function CartPanel({
   const filteredItems = useMemo(() => {
     return cart?.items ?? [];
   }, [cart]);
+
+  // 2026-09-28 (owner: "eyni mehsul ayri-ayri qeyd olunmali deyil — 1 setire
+  // collapse olsun"): PRESENTATION grouping only. The DATA stays per-instance
+  // (each line keeps its own modifiers/instance_id/sent state — placeOrder and
+  // the per-instance editor target exact line indexes). A group = same
+  // product + variant; the row shows Σqty + Σtotal and per-instance details
+  // (modifier chips ×N, hold, allergen union, course) live in the sub-row.
+  const filteredGroups = useMemo(() => {
+    type G = {
+      key: string;
+      product_id: string;
+      product_name: string;
+      lines: { item: any; originalIdx: number }[];
+      totalQty: number;
+      totalAmount: number;
+      draftQty: number;      // Σ (quantity − sentQuantity)
+      anyHeld: boolean;      // an EDITABLE (unsent portion) instance is on hold
+      anyUnsent: boolean;    // an instance with sentQuantity === 0 exists
+      modChips: { name: string; count: number }[]; // union across instances
+      allergenLabels: string[]; // union across instances (SSOT labels)
+      course: string | null;    // shared course (null if lines disagree)
+    };
+    const groups: G[] = [];
+    const map = new Map<string, G>();
+    filteredItems.forEach((item: any, idx) => {
+      const gk = `${item.product_id}|${item.variant_id ?? ''}`;
+      let g = map.get(gk);
+      if (!g) {
+        g = {
+          key: gk, product_id: item.product_id, product_name: item.product_name,
+          lines: [], totalQty: 0, totalAmount: 0, draftQty: 0,
+          anyHeld: false, anyUnsent: false, modChips: [], allergenLabels: [], course: null,
+        };
+        g.course = null;
+        // First line's course is the candidate for the "shared" chip;
+        // recomputed after the loop (must match on EVERY line to show).
+        (g as any)._course0 = item.course ?? null;
+        map.set(gk, g);
+        groups.push(g);
+      }
+      g.lines.push({ item, originalIdx: idx });
+      const sent = item.sentQuantity ?? 0;
+      g.totalQty += item.quantity || 0;
+      g.totalAmount += (item.unit_price || 0) * (item.quantity || 1);
+      g.draftQty += Math.max(0, (item.quantity ?? 0) - sent);
+      if (!sent) g.anyUnsent = true;
+      if (!sent && (item.is_hold || item.hold_until)) g.anyHeld = true;
+      (item.modifiers || []).filter((m: any) => m && m.name).forEach((m: any) => {
+        const c = g.modChips.find(x => x.name === m.name);
+        if (c) c.count += 1; else g.modChips.push({ name: m.name, count: 1 });
+      });
+      const al = (item as any).allergens;
+      if (Array.isArray(al) && al.length) {
+        parseAllergens(al).forEach((a: any) => {
+          const lb = resolveAllergenEntry(a)?.label ||
+            (a && typeof a === 'object' ? (a.name || a.code || '') : String(a));
+          if (lb && !g.allergenLabels.includes(lb)) g.allergenLabels.push(lb);
+        });
+      }
+    });
+    // Course: only "shared" when every line carries the SAME non-null value
+    // (a mixed group shows no course chip — courses are edited per instance
+    // in the modal, where they always were).
+    for (const g of groups) {
+      const first = (g as any)._course0;
+      g.course = first != null && g.lines.every(l => (l.item.course ?? null) === first) ? first : null;
+    }
+    return groups;
+  }, [filteredItems]);
 
   useEffect(() => {
     setGlobalNote(cart?.notes || '');
@@ -737,18 +815,50 @@ export function CartPanel({
        next send is lossless. All-held cart → "no_new_products" toast.
      - is_hold persists in the draft (localStorage) and, for lines that
        already exist server-side, syncs via /api/orders/item-hold. */
-  const toggleHold = (item: any, idx: number) => {
-    if (item.sentQuantity) return;
-    const next = !item.is_hold;
-    onUpdateItem?.(idx, { is_hold: next } as any);
-    if (item.id) {
-      fetch('/api/orders/item-hold', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_id: item.id, is_hold: next }),
-      }).catch(() => {});
-    }
-  };
+   const toggleHold = (item: any, idx: number) => {
+     if (item.sentQuantity) return;
+     const next = !item.is_hold;
+     onUpdateItem?.(idx, { is_hold: next } as any);
+     if (item.id) {
+       fetch('/api/orders/item-hold', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ item_id: item.id, is_hold: next }),
+       }).catch(() => {});
+     }
+   };
+
+   // 2026-09-28 (owner: collapsed rows): the group hold-toggle applies to ALL
+   // editable (unsent-portion) instances of the product in ONE batched
+   // setCart (onUpdateItems) — sequential onUpdateItem calls would collide on
+   // the same stale cart snapshot. Same /api/orders/item-hold sync per sent
+   // instance (CSRF-exempt route, same as the single toggleHold above).
+   const toggleGroupHold = (group: any) => {
+     const editable = group.lines.filter((l: any) => !(l.item.sentQuantity ?? 0) && ((l.item.quantity ?? 0) > 0));
+     if (editable.length === 0) return;
+     const next = !group.anyHeld;
+     onUpdateItems?.(editable.map((l: any) => ({ idx: l.originalIdx, patch: { is_hold: next } as any })));
+     editable.forEach((l: any) => {
+       if (l.item.id) {
+         fetch('/api/orders/item-hold', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ item_id: l.item.id, is_hold: next }),
+         }).catch(() => {});
+       }
+     });
+   };
+
+   // Cycle the SHARED course on all unsent instances of the group (only
+   // reachable when every line carries the same course — mixed groups have
+   // no group chip; per-instance course edits live in the modal).
+   const cycleGroupCourse = (group: any) => {
+     const values = COURSES.map(c => c.value);
+     const cur = values.includes(group.course) ? group.course : 'main';
+     const next = values[(values.indexOf(cur) + 1) % values.length];
+     const editable = group.lines.filter((l: any) => !(l.item.sentQuantity ?? 0));
+     onUpdateItems?.(editable.map((l: any) => ({ idx: l.originalIdx, patch: { course: next } as any })));
+   };
 
   return (
     <>
@@ -778,10 +888,11 @@ export function CartPanel({
                 {isReservationMode && (
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)]">PRE-ORDER</span>
                 )}
+                {/* 2026-09-28 (owner: light mode — yalnız mavi/qara) */}
                 {seatedNotOrdered && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-black uppercase tracking-widest bg-orange-500/10 border border-orange-500/30 text-orange-500">
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-                    {t('seated_no_order')}
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-900/10 border border-zinc-900/25 text-zinc-900' : 'bg-orange-500/10 border border-orange-500/30 text-orange-500'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${lightMode ? 'bg-zinc-900' : 'bg-orange-500'}`} />
+                    YENİ OTURUŞ
                   </span>
                 )}
                 {/* 2026-09-27 (owner, explicit): the dine-in ORD-#### header chip
@@ -953,7 +1064,7 @@ export function CartPanel({
                   </div>
                   <span className="text-xs font-bold text-blue-400 truncate">{cart.customer_name}</span>
                   {/* Loyalty-linked customer (has customer_id → points accrue) */}
-                  {customerId && <Star size={11} className="text-amber-400 shrink-0" />}
+                  {customerId && <Star size={11} className={`${lightMode ? 'text-zinc-900' : 'text-amber-400'} shrink-0`} />}
                   <span className="text-xs text-[var(--theme-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">{t('edit_customer')}</span>
                 </button>
               ) : (
@@ -1145,24 +1256,51 @@ export function CartPanel({
           style={{ opacity: isEmpty ? 0 : 1 }}
         >
           <AnimatePresence initial={false}>
-          {filteredItems.map((item, idx) => {
-            const originalIdx = cart.items.indexOf(item);
-            // 2026-09-28 (per-instance lines): identical-config lines are now
-            // possible (no auto-merge), so the key must be the instance id —
-            // the config hash alone would collide.
-            const lineKey = item.id ?? (item as any).instance_id ?? `${item.product_id}|${item.variant_id ?? ''}|${(item.modifiers ?? []).map(m => `${m.id}:${m.name}`).join(',')}|${item.special_notes ?? ''}|${originalIdx}`;
-            const ks = (item as any).kitchen_status || 'pending';
-            const isVoidableItem = voidMode && (item.sentQuantity ?? 0) > 0 && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
-            // 2026-09-24 (owner, FINAL): the ✓ badge marks the served state;
-            // the RETURN action itself lives in the details panel (right-side
-            // "Geri qaytar" button → panel morphs into the return view).
-            // Void pill / Təmizlə / void mode: untouched (08-26 placement).
-            const isReturnableRow = (item.sentQuantity ?? 0) > 0 && ['ready', 'completed', 'served'].includes(ks);
-            const maxVoidQty = item.sentQuantity || item.quantity;
+          {filteredGroups.map((group) => {
+            // 2026-09-28 (owner: "eyni mehsul ayri-ayri qeyd olunmali deyil —
+            // 1 setire collapse olsun"): ONE presented row per product+variant;
+            // the DATA stays per-instance — exact line indexes drive the
+            // editor (pill tabs), stepper targets, void selection and hold.
+            const lineKeys = group.lines.map((l: any) => l.item.id ?? `idx-${l.originalIdx}`);
+            const groupVoidQty = lineKeys.reduce((s, k) => s + (voidSelection[k] || 0), 0);
+            const anyVoidSelected = groupVoidQty > 0;
+            const voidableLines = group.lines.filter((l: any) =>
+              (l.item.sentQuantity ?? 0) > 0 && ['pending', 'accepted', 'sent', 'preparing'].includes(l.item.kitchen_status || 'pending'));
+            const groupVoidable = voidableLines.length > 0;
+            const anyReturnable = group.lines.some((l: any) =>
+              (l.item.sentQuantity ?? 0) > 0 && ['ready', 'completed', 'served'].includes(l.item.kitchen_status || 'pending'));
+            const anySent = group.lines.some((l: any) => (l.item.sentQuantity ?? 0) > 0);
+            const editableLines = group.lines.filter((l: any) => ((l.item.quantity ?? 0) - (l.item.sentQuantity ?? 0)) > 0);
+            const plusTargetIdx = (editableLines[editableLines.length - 1] || group.lines[group.lines.length - 1]).originalIdx;
+            const minusTarget = editableLines[editableLines.length - 1] || null;
+
+            const handleGroupMinus = () => {
+              if (minusTarget) { onUpdateQty?.(minusTarget.originalIdx, -1); return; }
+              if (anyReturnable) toast(t('hint_return_item') || 'Servis edilib — qaytarmaq üçün details panelini açın', { id: 'pos-hint', duration: 3500 });
+              else if (anySent) toast(t('hint_void_item') || 'Mətbəxə göndərilib — "Ləğv et" istifadə edin', { id: 'pos-hint', duration: 3500 });
+              else toast(t('hint_minus_blocked') || 'Bu məhsulu azaltmaq olmaz — "Ləğv et" istifadə edin', { id: 'pos-hint', duration: 3500 });
+            };
+            const selectGroupVoid = () => {
+              if (!groupVoidable) return;
+              setVoidSelection(prev => {
+                if (anyVoidSelected) {
+                  const n = { ...prev };
+                  lineKeys.forEach(k => delete n[k]);
+                  return n;
+                }
+                // Single active GROUP (old: single active line) — wholesale
+                // replace keeps exactly this group's voidable instances.
+                const n: Record<string, number> = {};
+                voidableLines.forEach((l: any) => {
+                  n[l.item.id ?? `idx-${l.originalIdx}`] = l.item.sentQuantity || l.item.quantity || 1;
+                });
+                return n;
+              });
+            };
 
             return (
               <motion.div
-                key={lineKey}
+                key={group.key}
                 layout={!voidMode}
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1 }}
@@ -1170,28 +1308,27 @@ export function CartPanel({
                 transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                 data-cart-item
                 onClick={() => {
-                  // 2026-09-24 (owner, FINAL): the row is PASSIVE again —
-                  // return lives in the details panel (right-side "Geri
-                  // qaytar" button → the panel morphs into the return view).
-                  if (voidMode && !isVoidableItem) {
-                    if (isReturnableRow) {
+                  // Row is PASSIVE (return lives in the details panel); in
+                  // void mode a non-voidable group explains why it's inert.
+                  if (voidMode && !groupVoidable) {
+                    if (anyReturnable) {
                       toast(t('hint_void_not_ready') || 'Servis olunub — ləğv etmək olmaz; details panelində "Geri qaytar" var', { id: 'pos-hint', duration: 3500 });
-                    } else if ((item.sentQuantity ?? 0) > 0) {
+                    } else if (anySent) {
                       toast(t('hint_void_not_sent') || 'Mətbəxə göndərilməyib — "Ləğv et" ilə ləğv edin', { id: 'pos-hint', duration: 3500 });
                     }
                   }
                 }}
-                  className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 transition-[border-color,box-shadow] duration-300 ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0
+                  className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 transition-[border-color,box-shadow] duration-300 ${voidMode && groupVoidable && anyVoidSelected
                     ? (lightMode ? 'bg-rose-50/70 border-rose-300' : 'bg-rose-500/10 border-rose-400/50')
-                    : voidMode && !isVoidableItem && !isReturnableRow
+                    : voidMode && !groupVoidable && !anyReturnable
                       ? 'opacity-50 border-[var(--theme-border)]'
                       : 'border-[var(--theme-border)]'}`}
               >
                  {/* Void selection lines — rose (void color), and they now
                      FADE OUT on "−" (AnimatePresence exit) instead of
                      vanishing instantly. */}
-                 <AnimatePresence initial={false}>
-                   {voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 && (
+                  <AnimatePresence initial={false}>
+                    {voidMode && groupVoidable && anyVoidSelected && (
                      <motion.div
                        key="void-lines"
                         initial={{ opacity: 0 }}
@@ -1216,149 +1353,123 @@ export function CartPanel({
                      </motion.div>
                    )}
                  </AnimatePresence>
-                <div className="flex items-center gap-2.5">
-                   <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate text-[var(--theme-text)] flex items-center gap-1.5">
-                        {item.product_name}
-                        {/* 2026-09-28 (owner, REJECTED the "SƏRV" badge): the
-                            served-state chip is REMOVED. The served state is
-                            still expressed by the read-only course chip + the
-                            details-panel "Geri qaytar" action (isReturnableRow
-                            below keeps working for the void-mode hint). */}
-                      </p>
-                     <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                        {/* 2026-09-28 (owner: "modifikatorların hansı məhsula aid
-                            olduğu aydın görünsün"): the truncated name-list is
-                            replaced with per-INSTANCE chips — each cart row is
-                            its own instance (no auto-merge), so the chips on
-                            THIS row are exactly THIS instance's selections
-                            (name + ×qty). The old one-line truncated list made
-                            two identical-name instances indistinguishable. */}
-                        {(item.modifiers ?? []).filter((m: any) => m && m.name).map((m: any, mi: number) => (
-                          <span
-                            key={`${m.id ?? 'm'}-${mi}`}
-                            className="inline-flex items-center gap-0.5 whitespace-nowrap px-1.5 py-0.5 rounded-md bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[10px] font-semibold tracking-normal text-[var(--theme-text-secondary)]"
-                          >
-                            {m.name}{(m.quantity ?? 1) > 1 ? ` ×${m.quantity}` : ''}
-                          </span>
-                        ))}
-                        {/* Course chip — visible BEFORE and AFTER send to kitchen
-                           (was hidden once sent: "course send etdikden sonra itir").
-                           After send it is read-only (kitchen grouping is fixed). */}
-                       {(item as any).course && (
-                         item.sentQuantity ? (
-                           <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold tracking-normal opacity-80 ${COURSE_STYLE[(item as any).course] || COURSE_STYLE.main}`}>
-                             {COURSE_LABEL[(item as any).course] || (item as any).course}
-                           </span>
-                         ) : (
-                           <button
-                             onClick={() => cycleCourse(originalIdx)}
-                             className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold tracking-normal transition-all active:scale-95 ${COURSE_STYLE[(item as any).course] || COURSE_STYLE.main}`}
-                             title="Xidmət ardıcıllığı (dəyişmək üçün toxun)"
+                 <div className="flex items-center gap-2.5">
+                    <div className="flex-1 min-w-0">
+                       <p className="text-sm font-semibold truncate text-[var(--theme-text)] flex items-center gap-1.5">
+                         {group.product_name}
+                         {/* 2026-09-28 (owner, REJECTED the "SƏRV" badge): the
+                             served-state chip stays REMOVED. The served state is
+                             still expressed by the read-only course chip + the
+                             details-panel "Geri qaytar" action (anyReturnable
+                             above keeps working for the void-mode hint). */}
+                       </p>
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                         {/* 2026-09-28 (owner: collapse): UNION modifier chips
+                             across the group's instances — ×N = how many
+                             instances carry that modifier. WHICH instance has
+                             WHICH config lives in the editor's pill tabs
+                             ("1 · Kremli" / "2 · Yüngül", TikTok-style). */}
+                         {group.modChips.map((c: any) => (
+                           <span
+                             key={`mod-${c.name}`}
+                             className="inline-flex items-center gap-0.5 whitespace-nowrap px-1.5 py-0.5 rounded-md bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[10px] font-semibold tracking-normal text-[var(--theme-text-secondary)]"
                            >
-                             {COURSE_LABEL[(item as any).course] || (item as any).course}
-                           </button>
-                         )
-                       )}
-                        {(item.hold_until || (item as any).is_hold) && (
-                          /* tappable = RESUME (second affordance next to the
-                             line's orange ▶) — keeps the machine one-tap in
-                             either direction (2026-09-28, owner screenshot 2) */
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleHold(item, originalIdx); }}
-                            title="Bərpa et"
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-[10px] font-semibold tracking-normal text-orange-600 dark:text-orange-300/80 transition-transform active:scale-95"
-                          ><Pause size={9} />Saxlanılıb</button>
-                        )}
-                       {/* Allergen flags (customer allergy → kitchen warning),
-                           set in the product modal; persisted in order_items.allergens */}
-                        {/* Allergen flags (customer allergy → kitchen warning),
-                            set in the product modal; persisted in order_items.allergens.
-                            2026-09-28 (E2E defect #4): the RAW code ("fish") was
-                            displayed as-is — resolve through the allergen SSOT to
-                            the localized label ("Balıq"). */}
-                        {(item as any).allergens?.length > 0 && (() => {
-                          const labels = parseAllergens((item as any).allergens).map((a: any) =>
-                            resolveAllergenEntry(a)?.label ||
-                            (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
-                          ).filter(Boolean);
-                          if (labels.length === 0) return null;
-                          return (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-red-500/10 border border-red-500/30 text-[10px] font-semibold tracking-normal text-red-600 dark:text-red-300/90"
-                              title={labels.join(' · ')}>
-                              <AlertTriangle size={9} />{labels.join(' · ')}
-                            </span>
-                          );
-                        })()}
-                     </div>
-                  </div>
-                   <span className={`text-sm font-black tabular-nums min-w-[4rem] text-right ${lightMode ? 'text-gray-900' : 'text-white'}`}>
-                     {(item.unit_price * item.quantity).toFixed(2)} ₼
-                   </span>
-                     {voidMode && isVoidableItem ? (
-                       <div className="flex items-center gap-2">
-                         <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
-                            <motion.button
-                              onClick={(e) => { e.stopPropagation(); deselectVoidItem(item.id || `idx-${originalIdx}`); }}
+                             {c.name}{c.count > 1 ? ` ×${c.count}` : ''}
+                           </span>
+                         ))}
+                         {/* Course chip — only when EVERY instance shares the
+                             same course (mixed groups are edited per instance
+                             in the modal, where they always were). Tap cycles
+                             all unsent instances of the group. */}
+                         {group.course && (
+                           group.draftQty > 0 ? (
+                             <button
+                               onClick={(e) => { e.stopPropagation(); cycleGroupCourse(group); }}
+                               className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold tracking-normal transition-all active:scale-95 ${COURSE_STYLE[group.course] || COURSE_STYLE.main}`}
+                               title="Xidmət ardıcıllığı (dəyişmək üçün toxun)"
+                             >
+                               {COURSE_LABEL[group.course] || group.course}
+                             </button>
+                           ) : (
+                             <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold tracking-normal opacity-80 ${COURSE_STYLE[group.course] || COURSE_STYLE.main}`}>
+                               {COURSE_LABEL[group.course] || group.course}
+                             </span>
+                           )
+                         )}
+                         {group.anyHeld && (
+                           /* tappable = RESUME all held instances of the group
+                              (one-tap, both directions — same machine as the
+                              per-line hold badge). 2026-09-28 (owner: light
+                              mode — yalnız mavi/qara): light = BLUE. */
+                           <button
+                             onClick={(e) => { e.stopPropagation(); toggleGroupHold(group); }}
+                             title="Bərpa et"
+                             className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold tracking-normal transition-transform active:scale-95 ${lightMode ? 'bg-blue-50 border border-blue-200 text-blue-700' : 'bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-300/80'}`}
+                           ><Pause size={9} />Saxlanılıb</button>
+                         )}
+                        {/* Allergen union across the group (SSOT labels —
+                            2026-09-28: raw codes like "fish" are resolved to
+                            "Balıq" through the allergen SSOT). */}
+                         {group.allergenLabels.length > 0 && (
+                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-red-500/10 border border-red-500/30 text-[10px] font-semibold tracking-normal text-red-600 dark:text-red-300/90"
+                             title={group.allergenLabels.join(' · ')}>
+                             <AlertTriangle size={9} />{group.allergenLabels.join(' · ')}
+                           </span>
+                         )}
+                      </div>
+                   </div>
+                    <span className={`text-sm font-black tabular-nums min-w-[4rem] text-right ${lightMode ? 'text-gray-900' : 'text-white'}`}>
+                      {group.totalAmount.toFixed(2)} ₼
+                    </span>
+                      {voidMode && groupVoidable ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
+                             <motion.button
+                               onClick={(e) => { e.stopPropagation(); selectGroupVoid(); }}
+                               whileTap={{ scale: 0.88 }} transition={TAP}
+                               className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)] disabled:opacity-30"
+                               disabled={!anyVoidSelected}
+                             >−</motion.button>
+                             <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-[var(--theme-text)]">{groupVoidQty || '—'}</span>
+                             <motion.button
+                              onClick={(e) => { e.stopPropagation(); selectGroupVoid(); }}
                               whileTap={{ scale: 0.88 }} transition={TAP}
-                              className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)] disabled:opacity-30"
-                              disabled={!(voidSelection[item.id || `idx-${originalIdx}`] ?? 0)}
-                            >−</motion.button>
-                            <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-[var(--theme-text)]">{voidSelection[item.id || `idx-${originalIdx}`] || '—'}</span>
-                            <motion.button
-                             onClick={(e) => { e.stopPropagation(); selectVoidItem(item.id || `idx-${originalIdx}`, maxVoidQty); }}
-                             whileTap={{ scale: 0.88 }} transition={TAP}
-                             className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)]"
-                              >+</motion.button>
+                              className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)]"
+                               >+</motion.button>
                           </div>
                         </div>
                       ) : (
                      <div className="flex items-center gap-2">
                        <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
-                         <button
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             const ks = (item as any).kitchen_status;
-                             const draftQty = (item.quantity ?? 0) - (item.sentQuantity ?? 0);
-                              if (ks && draftQty <= 0) {
-                                if (['ready', 'completed', 'served'].includes(ks)) {
-                                  toast(t('hint_return_item') || 'Servis edilib — qaytarmaq üçün details panelini açın', { id: 'pos-hint', duration: 3500 });
-                                } else if (['sent', 'preparing', 'pending', 'accepted', 'cooking'].includes(ks)) {
-                                  toast(t('hint_void_item') || 'Mətbəxə göndərilib — "Ləğv et" istifadə edin', { id: 'pos-hint', duration: 3500 });
-                                } else {
-                                  toast(t('hint_minus_blocked') || 'Bu məhsulu azaltmaq olmaz — "Ləğv et" istifadə edin', { id: 'pos-hint', duration: 3500 });
-                                }
-                                return;
-                              }
-                             onUpdateQty?.(originalIdx, -1);
-                           }}
-                          aria-disabled={!!(item as any).kitchen_status && ((item.quantity ?? 0) - (item.sentQuantity ?? 0)) <= 0}
-                          className={`w-11 h-11 flex items-center justify-center text-lg font-black transition-colors active:scale-95 ${(item as any).kitchen_status && ((item.quantity ?? 0) - (item.sentQuantity ?? 0)) <= 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10'}`}
-                        >−</button>
-                        <span className="w-12 h-11 flex items-center justify-center text-sm font-black tabular-nums">{item.quantity}</span>
-                        <motion.button
-                          whileTap={{ scale: 0.95, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
-                          onClick={(e) => { e.stopPropagation(); onUpdateQty?.(originalIdx, 1); }}
-                          className="w-11 h-11 flex items-center justify-center text-lg font-black hover:bg-white/10 transition-colors active:scale-95"
-                        >+</motion.button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleGroupMinus(); }}
+                           aria-disabled={group.draftQty <= 0}
+                           className={`w-11 h-11 flex items-center justify-center text-lg font-black transition-colors active:scale-95 ${group.draftQty <= 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10'}`}
+                          >−</button>
+                          <span className="w-12 h-11 flex items-center justify-center text-sm font-black tabular-nums">{group.totalQty}</span>
+                          <motion.button
+                            whileTap={{ scale: 0.95, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
+                            onClick={(e) => { e.stopPropagation(); onUpdateQty?.(plusTargetIdx, 1); }}
+                            className="w-11 h-11 flex items-center justify-center text-lg font-black hover:bg-white/10 transition-colors active:scale-95"
+                          >+</motion.button>
                      </div>
                     {/* QA bug 14 (2026-09-22): all line action buttons now share
                         the stepper's 44px box (h-11 w-11) — the old p-2 icon
                         buttons were ~32px and sat off-axis with the +/− column. */}
-                     {!item.sentQuantity && (
-                       <button
-                         onClick={(e) => { e.stopPropagation(); toggleHold(item, originalIdx); }}
-                        className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all active:scale-95 ${(item as any).is_hold
-                          ? 'bg-orange-500/10 border-orange-500/25 text-orange-600 dark:text-orange-300/80 hover:bg-orange-500/20'
-                          : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`}
-                        title={(item as any).is_hold ? 'Bərpa et' : 'Saxla (mətbəxə göndərmə)'}
-                      >
-                        {(item as any).is_hold ? <Play size={16} /> : <Pause size={16} />}
+                      {group.anyUnsent && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleGroupHold(group); }}
+                         className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all active:scale-95 ${group.anyHeld
+                           ? (lightMode ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' : 'bg-orange-500/10 border-orange-500/25 text-orange-600 dark:text-orange-300/80 hover:bg-orange-500/20')
+                           : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`}
+                         title={group.anyHeld ? 'Bərpa et' : 'Saxla (mətbəxə göndərmə)'}
+                       >
+                         {group.anyHeld ? <Play size={16} /> : <Pause size={16} />}
+                       </button>
+                     )}
+                      <button onClick={(e) => { e.stopPropagation(); onRequestEditor?.(group.product_id, group.lines.map((l: any) => l.originalIdx), group.lines.map((l: any) => l.item)); }} className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
+                        <SlidersHorizontal size={16} />
                       </button>
-                    )}
-                     <button onClick={(e) => { e.stopPropagation(); onRequestEditor?.(item.product_id, originalIdx); }} className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
-                       <SlidersHorizontal size={16} />
-                     </button>
                       {/* 2026-09-24 (owner, FINAL): no per-row button at all —
                           return lives in the details panel (served lines).
                           Void (Ləğv pill + mode) and Təmizlə keep their

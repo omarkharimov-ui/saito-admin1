@@ -265,9 +265,9 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
         {/* 2026-09-25 (owner): "yalnız boş masa" izahı — waitlist məhz dolan
             masalar içindir: qonaq növbədə QALIR, masa boşalanda oturur. */}
         {emptyTables.length === 0 && (
-          <div className={`mx-5 mt-3 rounded-xl border px-3 py-2.5 flex items-center gap-2 ${lightMode ? 'border-amber-200 bg-amber-50' : 'border-amber-500/25 bg-amber-500/10'}`}>
-            <AlertTriangle size={13} className={`shrink-0 ${lightMode ? 'text-amber-600' : 'text-amber-400'}`} />
-            <span className={`text-[11px] font-semibold ${lightMode ? 'text-amber-700' : 'text-amber-300/90'}`}>
+          <div className={`mx-5 mt-3 rounded-xl border px-3 py-2.5 flex items-center gap-2 ${lightMode ? 'border-zinc-300 bg-zinc-900/5' : 'border-amber-500/25 bg-amber-500/10'}`}>
+            <AlertTriangle size={13} className={`shrink-0 ${lightMode ? 'text-zinc-900' : 'text-amber-400'}`} />
+            <span className={`text-[11px] font-semibold ${lightMode ? 'text-zinc-900' : 'text-amber-300/90'}`}>
               Hazırda boş masa yoxdur — qonaqlar növbədə qalır, masa boşalanda bu paneli xəbər verəcək və "Oturdul" aktiv olacaq.
             </span>
           </div>
@@ -339,7 +339,7 @@ export default function WaitlistPanel({ open, onClose, emptyTables, onSeated }: 
                         onClick={() => setStatus(e, 'no_show', 'No-show qeydə alınmadı')}
                         disabled={busyId === e.id}
                         title="No-show"
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center disabled:opacity-35 ${lightMode ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'}`}
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center disabled:opacity-35 ${lightMode ? 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200' : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'}`}
                       >
                         <UserX size={14} />
                       </button>

@@ -116,7 +116,7 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
             {/* Header */}
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
-                <RotateCcw size={18} className="text-amber-500" />
+                <RotateCcw size={18} className={lightMode ? 'text-zinc-900' : 'text-amber-500'} />
                 <p className="text-sm font-black">{t('refund') || 'Geri ödəniş'}</p>
               </div>
               <button onClick={onClose} className={`p-1.5 rounded-xl transition-all ${lightMode ? 'hover:bg-zinc-100' : 'hover:bg-white/10'}`}>
@@ -166,8 +166,8 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
                     onClick={() => setAmount(btn.value.toFixed(2))}
                     className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${
                       Math.abs(refundAmount - btn.value) < 0.01
-                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
-                        : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-amber-50' : 'bg-white/5 border-white/10 text-white/40 hover:bg-amber-500/10'
+                        ? (lightMode ? 'bg-zinc-900/10 border-zinc-900/30 text-zinc-900' : 'bg-amber-500/10 border-amber-500/30 text-amber-500')
+                        : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-zinc-100' : 'bg-white/5 border-white/10 text-white/40 hover:bg-amber-500/10'
                     } active:scale-95`}
                   >
                     {btn.label}
@@ -226,9 +226,9 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
               <motion.div
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`p-3 rounded-2xl border mb-4 ${lightMode ? 'bg-amber-50 border-amber-200' : 'bg-amber-500/10 border-amber-500/20'}`}
+                className={`p-3 rounded-2xl border mb-4 ${lightMode ? 'bg-zinc-900/5 border-zinc-200' : 'bg-amber-500/10 border-amber-500/20'}`}
               >
-                <p className={`text-xs font-bold ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
+                <p className={`text-xs font-bold ${lightMode ? 'text-zinc-900' : 'text-amber-300'}`}>
                   ⚠ {t('full_refund_warning') || 'Tam geri ödəniş — əməliyyat geri alınamaz'}
                 </p>
               </motion.div>
@@ -245,7 +245,7 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
               <button
                 onClick={handleRefund}
                 disabled={!isValid || loading}
-                className="flex-1 py-3.5 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-widest hover:bg-amber-600 active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20"
+                className={`flex-1 py-3.5 rounded-2xl text-white text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed ${lightMode ? 'bg-zinc-900 hover:bg-zinc-800 shadow-lg shadow-zinc-900/20' : 'bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-500/20'}`}
               >
                 {loading ? (
                   <span className="inline-flex items-center gap-2">

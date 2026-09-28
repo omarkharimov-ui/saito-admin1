@@ -168,16 +168,16 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
     dirty: {
       icon: null,
       label: t('dirty' as any),
-      bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300',
-      iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
-      dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
+      bg: lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-28 (owner: light — yalnız mavi/qara)
+      iconColor: lightMode ? 'text-white' : 'text-amber-400',
+      dotColor: lightMode ? 'bg-white' : 'bg-amber-400',
     },
     waiting: {
       icon: Clock,
       label: t('waiting' as any),
-      bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300',
-      iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
-      dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
+      bg: lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-28 (owner: light — yalnız mavi/qara)
+      iconColor: lightMode ? 'text-white' : 'text-amber-400',
+      dotColor: lightMode ? 'bg-white' : 'bg-amber-400',
     },
     waiting_bill: {
       icon: Receipt,
@@ -217,9 +217,9 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
      ready: {
        icon: CheckCircle2,
        label: t('table_ready' as any),
-       bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300',
-       iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
-       dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
+       bg: lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-28 (owner: light — yalnız mavi/qara)
+       iconColor: lightMode ? 'text-white' : 'text-amber-400',
+       dotColor: lightMode ? 'bg-white' : 'bg-amber-400',
      },
      served: {
        icon: CheckCircle2,
@@ -252,9 +252,9 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
      payment_pending: {
        icon: CreditCard,
        label: t('payment_pending' as any),
-       bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300',
-       iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
-       dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
+       bg: lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-28 (owner: light — yalnız mavi/qara)
+       iconColor: lightMode ? 'text-white' : 'text-amber-400',
+       dotColor: lightMode ? 'bg-white' : 'bg-amber-400',
      },
      paid: {
        icon: CheckCircle2,
@@ -266,9 +266,9 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
      cleaning: {
        icon: null,
        label: t('needs_cleaning' as any),
-       bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300',
-       iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
-       dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
+       bg: lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-28 (owner: light — yalnız mavi/qara)
+       iconColor: lightMode ? 'text-white' : 'text-amber-400',
+       dotColor: lightMode ? 'bg-white' : 'bg-amber-400',
      },
      empty: {
       icon: null,
@@ -348,11 +348,11 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
     : table.bill_requested
       ? (lightMode ? 'border-rose-400' : 'border-rose-500/50')
       : table.status === 'ready'
-        ? (lightMode ? 'border-amber-400' : 'border-amber-500/60')
+        ? (lightMode ? 'border-blue-500' : 'border-amber-500/60') // 2026-09-28 (owner: light — mavi)
         : isReserved
           ? (lightMode ? 'border-indigo-300' : 'border-indigo-500/40')
           : isDirty || isWaiting
-            ? (lightMode ? 'border-amber-300' : 'border-amber-500/40')
+            ? (lightMode ? 'border-zinc-500' : 'border-amber-500/40') // 2026-09-28 (owner: light — qara)
             : isOccupied
               ? (lightMode ? 'border-emerald-400/70' : 'border-emerald-500/45')
                // 2026-09-27 (owner: "borderleri hamisi agdir nie"): an EMPTY
@@ -524,7 +524,7 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
              {/* Reservation name first */}
              {isWaiting && table.reservation_name && (
                <div className="mb-2">
-                 <span className={`text-sm font-bold truncate ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
+                 <span className={`text-sm font-bold truncate ${lightMode ? 'text-zinc-900' : 'text-amber-300'}`}>
                    {table.reservation_name || table.reservation_phone || t('guest_pending')}
                  </span>
                </div>
@@ -612,10 +612,10 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                    transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
                     className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${
                       seatedNoOrder
-                        ? (lightMode ? 'bg-orange-100 border-orange-400 text-orange-700' : 'bg-orange-500/25 border-orange-400/60 text-orange-300')
+                        ? (lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-orange-500/25 border-orange-400/60 text-orange-300') // 2026-09-28 (owner: light — qara)
                         : currentStatus.bg
                     }`}>
-                    {StatusIcon && <StatusIcon size={10} strokeWidth={2.5} className={seatedNoOrder ? (lightMode ? 'text-orange-700' : 'text-orange-400') : currentStatus.iconColor} />}
+                    {StatusIcon && <StatusIcon size={10} strokeWidth={2.5} className={seatedNoOrder ? (lightMode ? 'text-white' : 'text-orange-400') : currentStatus.iconColor} />}
                     <AnimatePresence mode="wait" initial={false}>
                       <motion.span
                         key={showOccupiedFlash ? 'occupied-flash' : (seatedNoOrder ? 'seated-no-order' : currentStatus.label)}

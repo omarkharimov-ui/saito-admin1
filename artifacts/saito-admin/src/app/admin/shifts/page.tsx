@@ -7,6 +7,7 @@ import {
   Filter, Calendar, ChevronRight, Play, Square, Coffee
 } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
+import { apiFetch } from '@/lib/api-fetch';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 type Shift = {
@@ -111,10 +112,12 @@ export default function ShiftsPage() {
     try {
       // P-8 (D-8): /api/shifts/[id]/close never existed (404) — the canonical
       // force path is /api/staff/force-clock-out (timeclock.override + CSRF).
-      const csrf = typeof document !== 'undefined' ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || '' : '';
-      const res = await fetch('/api/staff/force-clock-out', {
+      // 2026-09-28 (owner: "Invalid CSRF token"): the manual cookie-read raw
+      // fetch sent an EMPTY token whenever the saito_csrf cookie had expired
+      // (1h max-age) → 403. apiFetch owns the double-submit pair + self-heal.
+      const res = await apiFetch('/api/staff/force-clock-out', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ staff_id: shift.staff_id, reason: 'Force closed by admin' }),
       });
       const data = await res.json().catch(() => ({}));

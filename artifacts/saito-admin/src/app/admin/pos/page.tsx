@@ -1370,14 +1370,14 @@ export default function POSPage() {
   };
 
   const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge' | string, tenderedAmount?: number, tipAmount?: number) => {
-    // 2026-09-27 (owner: "kart seçəndə terminal modali gəlir — deaktiv et,
-    // terminal hələ qoşulmayıb"): the tap-to-handheld step is SKIPPED.
-    // Card captures directly (same ledger reference, same as the split flow).
-    // TerminalTapModal stays mounted + dormant — a real PSP (Harbon/SkyPay,
-    // M wave) re-introduces the tap step through terminalState.
+    // 2026-09-28 (owner: "Kart terminalı modalını əvvəlki versiyadakı kimi
+    // geri qaytar"): RESTORE the tap-to-handheld step (the 2026-09-27 bypass
+    // `6b519ad8` is reverted). Card → TerminalTapModal (idle → tapping →
+    // approved/declined simulator) → onDone(code) → runPaymentFlow with the
+    // terminal's SIM reference. A real PSP later takes the same terminalState
+    // path (Harbon/SkyPay, M wave).
     if (method === 'card') {
-      const code = `SIM-${Math.floor(100000 + Math.random() * 900000)}`;
-      await runPaymentFlow(method, tenderedAmount, tipAmount, code);
+      setTerminalState({ amount: cartTotalNow(), method, tendered: tenderedAmount, tip: tipAmount });
       return;
     }
     await runPaymentFlow(method, tenderedAmount, tipAmount);
@@ -2788,7 +2788,8 @@ export default function POSPage() {
                   <div className="flex-1 overflow-y-auto overscroll-contain">
                     {pos.floorLoadFailed ? (
                       <div className="min-h-full flex flex-col items-center justify-center text-center gap-4 p-8">
-                        <div className={`w-16 h-16 rounded-3xl flex items-center justify-center ${lightMode ? 'bg-amber-50 text-amber-500' : 'bg-amber-500/10 text-amber-400'}`}>
+                         {/* 2026-09-28 (owner: light mode — yalnız mavi/qara) */}
+                         <div className={`w-16 h-16 rounded-3xl flex items-center justify-center ${lightMode ? 'bg-zinc-900/10 text-zinc-900' : 'bg-amber-500/10 text-amber-400'}`}>
                           <AlertTriangle size={28} strokeWidth={2} />
                         </div>
                         <p className={`text-sm font-black uppercase tracking-widest max-w-xs ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>{t('floors_load_failed')}</p>
@@ -3033,8 +3034,13 @@ export default function POSPage() {
                            categories={pos.categories}
                            combos={pos.combos}
                            variantsByProduct={pos.variantsByProduct}
-                           onAddProduct={(p) => handleProductTap(p)}
-                           onAddCombo={(c) => pos.addComboToCart(c)}
+                            onAddProduct={(p) => handleProductTap(p)}
+                            // 2026-09-28 (owner: collapse + pill tabs): the
+                            // multi-instance editor saves ALL instances in ONE
+                            // atomic setCart (applyInstanceEdits) — sequential
+                            // per-line addToCart calls would lose replacements.
+                            onApplyInstanceEdits={(product, edits) => pos.applyInstanceEdits(product, edits as any)}
+                            onAddCombo={(c) => pos.addComboToCart(c)}
                            cartCounts={posCartCounts}
                              outOfStock={outOfStockSet}
                              // 2026-09-27 (owner): MƏTBƏX popup — SELECTED TABLE
@@ -3124,12 +3130,22 @@ export default function POSPage() {
                          reservation={pos.reservationInfo}
                          reservationPreOrderItems={pos.reservationPreOrderItems}
                          onGuestArrived={pos.guestArrived}
-                         onUpdateItem={(idx, patch) => {
-                           if (!pos.cart) return;
-                           const newItems = [...pos.cart.items];
-                           newItems[idx] = { ...newItems[idx], ...patch };
-                           pos.setCart({ ...pos.cart, items: newItems });
-                         }}
+                           onUpdateItem={(idx, patch) => {
+                            if (!pos.cart) return;
+                            const newItems = [...pos.cart.items];
+                            newItems[idx] = { ...newItems[idx], ...patch };
+                            pos.setCart({ ...pos.cart, items: newItems });
+                          }}
+                           onUpdateItems={(patches) => {
+                            // Batched (single setCart) — the collapsed group's
+                            // hold-toggle rewrites several instances at once.
+                            if (!pos.cart) return;
+                            const newItems = [...pos.cart.items];
+                            for (const { idx, patch } of patches) {
+                              if (newItems[idx]) newItems[idx] = { ...newItems[idx], ...patch };
+                            }
+                            pos.setCart({ ...pos.cart, items: newItems });
+                          }}
                           onUpdateOrderType={(type) => pos.updateOrderType(type)}
                           posMode={posMode}
                           tableStatus={pos.selectedTable?.status ?? null}
@@ -3174,60 +3190,75 @@ export default function POSPage() {
                              const product = pos.products.find((p: any) => p.id === productId);
                              if (product) gridRef.current?.openEditor(productId);
                            }}
-                            onRequestEditor={(productId, lineIndex) => {
-                              const items = (pos.cart?.items || []) as any[];
-                              // Dəqiq sətir: CartPanel öz indeksini göndərir —
-                              // eyni məhsuldan çox sətir olanda həmişə birincini yığmamaq üçün.
-                              // Owner fix (2026-09-21): SENT lines are editable too —
-                              // the old !sentQuantity filter made "edit" fall through
-                              // to a plain add (course/modifier change → count +1).
-                              const byIndex = typeof lineIndex === 'number' ? items[lineIndex] : undefined;
-                              const match = byIndex && byIndex.product_id === productId && !byIndex.__isCombo
-                                ? byIndex
-                                : items.find((it: any) =>
-                                    it.product_id === productId && !it.__isCombo
-                                  );
-                              if (!match) {
-                                gridRef.current?.toggleEditor(productId);
-                                return;
-                              }
-                               const preset = {
-                                  variantId: match.variant_id ?? null,
-                                  note: match.special_notes || '',
-                                  modifiers: (match.modifiers || []).reduce((acc: Record<string, number>, m: any) => {
-                                    acc[m.id] = (acc[m.id] || 0) + (m.quantity || 1);
-                                    return acc;
-                                  }, {} as Record<string, number>),
-                                  quantity: match.quantity || 1,
-                                  identity: cartLineKey(match.variant_id, match.special_notes, match.modifiers),
-                                  // Exact line reference (stable target for the
-                                  // replace — survives config changes in the modal).
-                                  lineIndex: typeof lineIndex === 'number' && byIndex ? lineIndex : items.indexOf(match),
-                                   // Course + hold must survive a modal re-open:
-                                   course: match.course ?? null,
-                                   is_hold: !!(match.is_hold || match.hold_until),
-                                   // Allergen flags must survive a modal re-open too.
-                                   allergens: Array.isArray(match.allergens) ? match.allergens : [],
-                                   // 2026-09-24 (owner, FINAL): return lives in
-                                   // the details panel — a right-side "Geri
-                                   // qaytar" button that MORPHS the panel into
-                                   // the return view. Only served lines carry
-                                   // the context.
-                                    returnCtx: (match?.sentQuantity ?? 0) > 0 && ['ready', 'completed', 'served'].includes(match?.kitchen_status || 'pending')
-                                      ? {
-                                          order_item_id: match.id,
-                                          product_name: match.product_name,
-                                          // Only the SERVED portion is returnable —
-                                          // cap at sentQuantity (a line can carry
-                                          // extra unsent draft quantity on top).
-                                          quantity: Math.min(match.quantity || 1, match.sentQuantity || 1),
-                                          unit_price: Number(match.unit_price) || 0,
-                                        }
-                                      : undefined,
-                                 };
-                               gridRef.current?.toggleEditor(productId, preset);
-                              }}
-                           />
+                             onRequestEditor={(productId, lineIndexes, lineItems) => {
+                               const items = (pos.cart?.items || []) as any[];
+                               // 2026-09-28 (owner: collapse + TikTok-style pill
+                               // tabs): CartPanel sends the WHOLE group (all
+                               // line indexes of product+variant). The editor
+                               // opens in multi-instance mode — one pill tab per
+                               // instance with a hint label ("1 · Kremli").
+                               // Fallback (legacy single index / no match) =
+                               // plain add editor.
+                               const idxs: number[] = Array.isArray(lineIndexes)
+                                 ? lineIndexes
+                                 : typeof lineIndexes === 'number' ? [lineIndexes] : [];
+                               const lines = idxs
+                                 .map(i => items[i])
+                                 .filter(it => it && String(it.product_id) === String(productId) && !it.__isCombo && !it.is_combo);
+                               if (lines.length === 0) {
+                                 gridRef.current?.toggleEditor(productId);
+                                 return;
+                               }
+                               const product = pos.products.find((p: any) => p.id === productId) as any;
+                               const groups: any[] = product?.modifier_groups || [];
+                               const hintFor = (match: any): string => {
+                                 const mods: any[] = match.modifiers || [];
+                                 if (mods.length === 0) return '';
+                                 // Exclusive (max_select=1) group's chosen member
+                                 // is the meaningful label ("Kremli"); else the
+                                 // first added modifier ("Losos").
+                                 const excl = groups.find((g: any) =>
+                                   Number(g.max_select) === 1 &&
+                                   Array.isArray(g.item_ids) &&
+                                   g.item_ids.some((id: string) => mods.some(m => m.id === id)));
+                                 if (excl) {
+                                   const m = mods.find(m => (excl.item_ids as string[]).includes(m.id));
+                                   if (m) return m.name || '';
+                                 }
+                                 return mods[0].name || '';
+                               };
+                               const instances = lines.map((match, i) => ({
+                                 lineIndex: idxs[i],
+                                 quantity: match.quantity || 1,
+                                 modifiers: (match.modifiers || []).reduce((acc: Record<string, number>, m: any) => {
+                                   acc[m.id] = (acc[m.id] || 0) + (m.quantity || 1);
+                                   return acc;
+                                 }, {} as Record<string, number>),
+                                 variantId: match.variant_id ?? null,
+                                 note: match.special_notes || '',
+                                 course: match.course ?? null,
+                                 is_hold: !!(match.is_hold || match.hold_until),
+                                 allergens: Array.isArray(match.allergens) ? match.allergens : [],
+                                 // 2026-09-28 (owner): served/completed instance
+                                 // → its pill opens LOCKED (spec read-only).
+                                 kitchen_status: match.kitchen_status ?? null,
+                                 sentQuantity: match.sentQuantity ?? 0,
+                                 hint: hintFor(match),
+                                 // 2026-09-24 (owner, FINAL): return lives in the
+                                 // details panel — only served instances carry
+                                 // the context (served portion only).
+                                 returnCtx: (match?.sentQuantity ?? 0) > 0 && ['ready', 'completed', 'served'].includes(match?.kitchen_status || 'pending')
+                                   ? {
+                                       order_item_id: match.id,
+                                       product_name: match.product_name,
+                                       quantity: Math.min(match.quantity || 1, match.sentQuantity || 1),
+                                       unit_price: Number(match.unit_price) || 0,
+                                     }
+                                   : undefined,
+                               }));
+                               gridRef.current?.toggleEditor(productId, { instances });
+                             }}
+                            />
                        </div>
                      </div>
                 </motion.div>
@@ -3379,11 +3410,12 @@ export default function POSPage() {
         const ci: any = pos.conflictInfo;
         const channelMeta = (() => {
           switch (ci.channel) {
-            case 'kds': return { label: t('conflict_channel_kds'), cls: 'bg-amber-500/15 text-amber-500 border-amber-500/30' };
-            case 'system_or_qr': return { label: t('conflict_channel_qr'), cls: 'bg-blue-500/15 text-blue-500 border-blue-500/30' };
-            case 'pos_other_terminal': return { label: t('conflict_channel_other_pos'), cls: 'bg-red-500/15 text-red-500 border-red-500/30' };
-            case 'pos_same_terminal': return { label: t('conflict_channel_own_tab'), cls: 'bg-violet-500/15 text-violet-500 border-violet-500/30' };
-            case 'other_location': return { label: t('conflict_channel_other_location'), cls: 'bg-orange-500/15 text-orange-400 border-orange-500/30' };
+            // 2026-09-28 (owner: light mode — yalnız mavi/qara, orange+sarı YOX)
+            case 'kds': return { label: t('conflict_channel_kds'), cls: lightMode ? 'bg-zinc-900/10 text-zinc-900 border-zinc-900/25' : 'bg-amber-500/15 text-amber-500 border-amber-500/30' };
+            case 'system_or_qr': return { label: t('conflict_channel_qr'), cls: lightMode ? 'bg-blue-500/10 text-blue-600 border-blue-500/30' : 'bg-blue-500/15 text-blue-500 border-blue-500/30' };
+            case 'pos_other_terminal': return { label: t('conflict_channel_other_pos'), cls: lightMode ? 'bg-rose-500/10 text-rose-600 border-rose-500/30' : 'bg-red-500/15 text-red-500 border-red-500/30' };
+            case 'pos_same_terminal': return { label: t('conflict_channel_own_tab'), cls: lightMode ? 'bg-violet-500/10 text-violet-700 border-violet-500/30' : 'bg-violet-500/15 text-violet-500 border-violet-500/30' };
+            case 'other_location': return { label: t('conflict_channel_other_location'), cls: lightMode ? 'bg-zinc-900/10 text-zinc-900 border-zinc-900/25' : 'bg-orange-500/15 text-orange-400 border-orange-500/30' };
             default: return { label: t('conflict_no_channel'), cls: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30' };
           }
         })();
@@ -3498,14 +3530,15 @@ export default function POSPage() {
                     />
                   </svg>
                 </motion.div>
-                <h2 className={`text-sm font-black tracking-tight uppercase ${payOfflinePending ? 'text-amber-600' : 'text-emerald-600'}`}>
-                  {payOfflinePending ? 'Sifariş qeydə alındı — sinxron olacaq' : `${t('order_paid')} ✓`}
-                </h2>
-                {payOfflinePending && (
-                  <div className="mt-2 mx-auto max-w-[240px] text-center text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
-                    Offline ödəniş · internet qayıtda avtomatik yüklənəcək
-                  </div>
-                )}
+                 {/* 2026-09-28 (owner: light mode — yalnız mavi/qara): pending = qara */}
+                 <h2 className={`text-sm font-black tracking-tight uppercase ${payOfflinePending ? 'text-zinc-900' : 'text-emerald-600'}`}>
+                   {payOfflinePending ? 'Sifariş qeydə alındı — sinxron olacaq' : `${t('order_paid')} ✓`}
+                 </h2>
+                 {payOfflinePending && (
+                   <div className="mt-2 mx-auto max-w-[240px] text-center text-[10px] font-bold uppercase tracking-wider text-zinc-900 bg-zinc-900/10 border border-zinc-900/25 rounded-lg px-2.5 py-1.5">
+                     Offline ödəniş · internet qayıtda avtomatik yüklənəcək
+                   </div>
+                 )}
                 {(receiptView.staffName || receiptView.paymentMethodName) && (
                   <motion.div
                     initial={{ opacity: 0, y: 4 }}

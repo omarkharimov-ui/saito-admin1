@@ -407,11 +407,12 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
     payment: { labelKey: 'cash_payment', icon: DollarSign, color: 'text-emerald-500' },
     card_payment: { labelKey: 'card_payment', icon: CreditCard, color: 'text-blue-500' },
     // P-8: ledger types written by P-6 refund/void and the reopen reversal row
-    refund: { labelKey: 'cash_refund', icon: ArrowUpCircle, color: 'text-amber-500' },
+    // 2026-09-28 (owner: light mode — yalnız mavi/qara): qara (light) / amber (dark)
+    refund: { labelKey: 'cash_refund', icon: ArrowUpCircle, color: lightMode ? 'text-zinc-900' : 'text-amber-500' },
     void: { labelKey: 'cash_void', icon: ArrowUpCircle, color: 'text-zinc-500' },
-    reopen: { labelKey: 'cash_reopen', icon: Unlock, color: 'text-amber-500' },
+    reopen: { labelKey: 'cash_reopen', icon: Unlock, color: lightMode ? 'text-zinc-900' : 'text-amber-500' },
     // 2026-09-23 (owner, Toast benchmark)
-    no_sale: { labelKey: 'no_sale', icon: FileText, color: 'text-amber-500' },
+    no_sale: { labelKey: 'no_sale', icon: FileText, color: lightMode ? 'text-zinc-900' : 'text-amber-500' },
     cash_drop: { labelKey: 'cash_drop', icon: Landmark, color: 'text-sky-500' },
     deposit: { labelKey: 'deposit', icon: Banknote, color: 'text-green-500' },
     adjust_close: { labelKey: 'adjust_close', icon: FileText, color: 'text-violet-500' },
@@ -526,8 +527,8 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
               <div className="space-y-4">
                 {/* 2026-09-23 (owner, Toast benchmark): drawer lock */}
                 {session.locked && view === 'main' && (
-                  <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-amber-50 border-amber-300' : 'bg-amber-500/10 border-amber-500/30'}`}>
-                    <p className="flex items-center gap-2 text-xs font-black text-amber-500">
+                  <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-900/5 border-zinc-200' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                    <p className={`flex items-center gap-2 text-xs font-black ${lightMode ? 'text-zinc-900' : 'text-amber-500'}`}>
                       <Lock size={13} /> Kassa qıfıllandırılıb — manager PIN ilə açılır
                     </p>
                   </div>
@@ -744,8 +745,9 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                  {/* 2026-09-23 (owner, Toast benchmark): No Sale — mandatory reason,
                      logged to the drawer ledger + exception reports. */}
                  {view === 'no-sale' && (
-                   <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
-                     <p className="text-sm font-bold text-amber-500">No Sale</p>
+                    <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                      {/* 2026-09-28 (owner: light mode — yalnız mavi/qara) */}
+                      <p className={`text-sm font-bold ${lightMode ? 'text-zinc-900' : 'text-amber-500'}`}>No Sale</p>
                      <p className="text-xs text-[var(--theme-text-muted)]">Səbəb məcburidir — istisna reportlarına düşür.</p>
                      <input
                        value={noSaleReason}
@@ -755,7 +757,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                      />
                      <div className="flex gap-2">
                        <button onClick={() => setView('main')} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>{t('back')}</button>
-                       <button onClick={handleNoSale} disabled={submitting || !noSaleReason.trim()} className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-amber-500 text-white disabled:opacity-50">
+                        <button onClick={handleNoSale} disabled={submitting || !noSaleReason.trim()} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-white disabled:opacity-50 ${lightMode ? 'bg-zinc-900' : 'bg-amber-500'}`}>
                          {submitting ? <Loader2 size={14} className="animate-spin mx-auto" /> : t('confirm')}
                        </button>
                      </div>
@@ -812,7 +814,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                        type="password" inputMode="numeric" maxLength={6} value={managerPin}
                        onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
                        placeholder="Manager PIN"
-                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-emerald-500' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
                      />
                      {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
                      <div className="flex gap-2">
@@ -832,7 +834,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                        type="password" inputMode="numeric" maxLength={6} value={managerPin}
                        onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
                        placeholder="Manager PIN"
-                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-emerald-500' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
                      />
                      {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
                      <div className="flex gap-2">
@@ -923,7 +925,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                     {/* Manager approval PIN — shown when variance != 0 or DB demanded approval */}
                     {(cashAmount && Math.abs(Number(cashAmount) - closeExpected) > 0.005) || needsApproval ? (
                       <div className="space-y-2">
-                        <p className="text-xs font-bold text-amber-500">{t('manager_approval_required')}</p>
+                        <p className={`text-xs font-bold ${lightMode ? 'text-zinc-900' : 'text-amber-500'}`}>{t('manager_approval_required')}</p>
                         <input
                           type="password"
                           inputMode="numeric"
@@ -931,7 +933,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                           value={managerPin}
                           onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
                           placeholder={t('manager_pin')}
-                          className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
+                          className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-emerald-500' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
                         />
                         {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
                       </div>
@@ -1045,7 +1047,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                         <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5">Ödənişlər</p>
                         <div className="flex justify-between"><span>Nağd</span><b className="tabular-nums">{(zData.payments?.cash_total ?? 0).toFixed(2)}₼</b></div>
                         <div className="flex justify-between"><span>Kart</span><b className="tabular-nums">{(zData.payments?.card_total ?? 0).toFixed(2)}₼</b></div>
-                        <div className="flex justify-between"><span>Xüsusiləndirmələr</span><b className="tabular-nums text-amber-500">−{(zData.payments?.discounts_total ?? 0).toFixed(2)}₼</b></div>
+                        <div className="flex justify-between"><span>Xüsusiləndirmələr</span><b className={`tabular-nums ${lightMode ? 'text-zinc-900' : 'text-amber-500'}`}>−{(zData.payments?.discounts_total ?? 0).toFixed(2)}₼</b></div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className={`p-3 rounded-xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-white/5 border-white/10'}`}>
@@ -1092,7 +1094,7 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                     type="password" inputMode="numeric" maxLength={6} value={managerPin}
                     onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
                     placeholder="Manager PIN"
-                    className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
+                    className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-emerald-500' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-emerald-400/50'}`}
                   />
                   {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
                   <div className="flex gap-2">
@@ -1116,11 +1118,11 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                         <div key={s.id} className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              {isOpen ? <Unlock size={14} className="text-green-500" /> : isPaused ? <Hourglass size={14} className="text-amber-500" /> : <Lock size={14} className="text-zinc-500" />}
+                              {isOpen ? <Unlock size={14} className="text-green-500" /> : isPaused ? <Hourglass size={14} className={lightMode ? 'text-zinc-900' : 'text-amber-500'} /> : <Lock size={14} className="text-zinc-500" />}
                               <span className="text-xs font-bold">{formatTime(s.opened_at)}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className={`text-xs font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : isPaused ? 'text-amber-500' : 'text-zinc-500'}`}>
+                              <span className={`text-xs font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : isPaused ? (lightMode ? 'text-zinc-900' : 'text-amber-500') : 'text-zinc-500'}`}>
                                 {isOpen ? t('open') : isPaused ? 'Gözləyir' : t('closed')}
                               </span>
                               {/* 2026-09-23 (owner, Toast): finalize the paused count */}
@@ -1192,8 +1194,8 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
              transition={appleBackdrop}
              className={`relative w-full max-w-sm rounded-3xl border p-6 text-center shadow-2xl ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
            >
-             <div className={`mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${lightMode ? 'bg-amber-50' : 'bg-amber-500/10'}`}>
-               <Clock size={26} className="text-amber-500" />
+             <div className={`mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${lightMode ? 'bg-zinc-100' : 'bg-amber-500/10'}`}>
+               <Clock size={26} className={lightMode ? 'text-zinc-900' : 'text-amber-500'} />
              </div>
              <h3 className="text-base font-black uppercase tracking-tight mb-2">{t('shift_required_title')}</h3>
              <p className={`text-xs leading-relaxed mb-5 ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>{t('open_shift_required')}</p>

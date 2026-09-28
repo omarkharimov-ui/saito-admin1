@@ -136,6 +136,11 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
 
   const status = order?.status ?? 'pending';
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
+  // 2026-09-28 (owner: light mode — yalnız mavi/qara): "preparing" (amber) in
+  // light renders BLACK; dark keeps amber.
+  const cfgL = lightMode && status === 'preparing'
+    ? { ...cfg, color: 'text-zinc-900', bg: 'bg-zinc-900/10', border: 'border-zinc-900/25' }
+    : cfg;
   const StatusIcon = STATUS_ICONS[status] ?? CircleDot;
   const nextStatus = posMode === 'takeaway' && status === 'ready' ? 'paid' : cfg.next;
 
@@ -276,7 +281,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${cfg.bg} ${cfg.color} ${cfg.border}`}>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${cfgL.bg} ${cfgL.color} ${cfgL.border}`}>
                             <StatusIcon size={12} strokeWidth={3} />
                             {t(cfg.labelKey as any)}
                           </span>
@@ -368,12 +373,14 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     )}
 
                     {/* Scheduled Date */}
+                    {/* 2026-09-28 (owner: light mode — yalnız mavi/qara) +
+                        literal `t('...')` JSX bug fix (render olunan mətn idi) */}
                     {order.scheduled_date && (
-                      <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-amber-50/50 border-amber-100' : 'bg-amber-500/5 border-amber-500/10'}`}>
-                        <p className={`text-xs font-black uppercase tracking-[0.2em] mb-1 ${lightMode ? 'text-amber-400' : 'text-amber-300/60'}`}>
-                          t('scheduled_date')
+                      <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-900/5 border-zinc-200' : 'bg-amber-500/5 border-amber-500/10'}`}>
+                        <p className={`text-xs font-black uppercase tracking-[0.2em] mb-1 ${lightMode ? 'text-zinc-500' : 'text-amber-300/60'}`}>
+                          {t('scheduled_date')}
                         </p>
-                        <p className={`text-sm font-bold ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{order.scheduled_date}</p>
+                        <p className={`text-sm font-bold ${lightMode ? 'text-zinc-900' : 'text-amber-300'}`}>{order.scheduled_date}</p>
                       </div>
                     )}
 
@@ -395,7 +402,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                               onClick={() => handleAssignCourier('', '')}
                               className={`text-xs font-bold ${lightMode ? 'text-zinc-400 hover:text-red-500' : 'text-white/30 hover:text-red-400'}`}
                             >
-                              t('change')
+                              {t('change')}
                             </button>
                           </div>
                         ) : couriers.length > 0 ? (
@@ -423,7 +430,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {/* Order Items */}
                     <div>
                       <p className={`text-xs font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                        t('order') ({order.items?.length ?? 0})
+                        {t('order')} ({order.items?.length ?? 0})
                       </p>
                       <div className="space-y-2">
                         {order.items?.map((item: any, idx: number) => (
@@ -468,13 +475,14 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     </div>
 
                     {/* Special Notes */}
+                    {/* 2026-09-28 (owner: light mode — yalnız mavi/qara) */}
                     {order.special_notes && (
-                      <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-amber-50/50 border-amber-200/50' : 'bg-amber-500/5 border-amber-500/10'}`}>
+                      <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-900/5 border-zinc-200' : 'bg-amber-500/5 border-amber-500/10'}`}>
                         <div className="flex items-start gap-2.5">
-                          <FileText size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                          <FileText size={14} className={`mt-0.5 shrink-0 ${lightMode ? 'text-zinc-900' : 'text-amber-500'}`} />
                           <div>
-                            <p className={`text-xs font-black uppercase tracking-[0.2em] mb-1 text-amber-500`}>{t('custom_note')}</p>
-                            <p className={`text-sm font-bold leading-relaxed ${lightMode ? 'text-amber-800' : 'text-amber-200/80'}`}>{order.special_notes}</p>
+                            <p className={`text-xs font-black uppercase tracking-[0.2em] mb-1 ${lightMode ? 'text-zinc-500' : 'text-amber-500'}`}>{t('custom_note')}</p>
+                            <p className={`text-sm font-bold leading-relaxed ${lightMode ? 'text-zinc-900' : 'text-amber-200/80'}`}>{order.special_notes}</p>
                           </div>
                         </div>
                       </div>

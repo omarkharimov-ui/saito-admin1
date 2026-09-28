@@ -117,7 +117,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
           >
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
-                <Shield size={18} className="text-amber-500" />
+                <Shield size={18} className={lightMode ? 'text-zinc-900' : 'text-amber-500'} />
                 <p className="text-sm font-black">{t('security')}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 transition-all">
@@ -175,7 +175,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
               <button
                 onClick={handleSubmit}
                 disabled={pin.length < 4 || verifying}
-                className="flex-1 py-3.5 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-widest hover:bg-amber-600 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20"
+                className={`flex-1 py-3.5 rounded-2xl text-white text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed ${lightMode ? 'bg-zinc-900 hover:bg-zinc-800 shadow-lg shadow-zinc-900/20' : 'bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-500/20'}`}
               >
                 {verifying ? (
                   <span className="inline-flex items-center gap-2">

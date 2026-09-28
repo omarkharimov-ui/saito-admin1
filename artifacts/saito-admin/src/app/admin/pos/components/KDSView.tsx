@@ -83,7 +83,7 @@ function getTimerStyles(color: 'green' | 'yellow' | 'red' | 'purple', lightMode:
         : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20';
     case 'yellow':
       return lightMode
-        ? 'bg-amber-100 text-amber-700 border-amber-200'
+        ? 'bg-zinc-900 text-white border-zinc-900' // 2026-09-28 (owner: light — yalnız mavi/qara)
         : 'bg-amber-500/10 text-amber-300 border-amber-500/20';
     case 'red':
       return lightMode
@@ -99,7 +99,7 @@ function getTimerStyles(color: 'green' | 'yellow' | 'red' | 'purple', lightMode:
 function getOrderBadge(order: KDSOrder, lightMode: boolean) {
   if (order.order_source === 'takeaway') {
     return (
-      <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold tracking-wider ${lightMode ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/10 text-amber-300'}`}>
+      <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold tracking-wider ${lightMode ? 'bg-zinc-900 text-white' : 'bg-amber-500/10 text-amber-300'}`}>
         <Package size={10} /> GEL-AL
       </span>
     );
@@ -594,14 +594,14 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                           .map(m => (m.quantity && m.quantity > 1 ? `${m.name} ×${m.quantity}` : m.name))
                           .join(', ');
                         return (
-                          <div key={item.id} className={`flex items-center justify-between gap-2 rounded-2xl px-2 py-1.5 transition-all ${item.is_hold ? (lightMode ? 'bg-amber-50 ring-1 ring-amber-300' : 'bg-amber-500/10 ring-1 ring-amber-500/30') : itemReady ? (lightMode ? 'bg-emerald-50' : 'bg-emerald-500/5') : ''}`}>
+                          <div key={item.id} className={`flex items-center justify-between gap-2 rounded-2xl px-2 py-1.5 transition-all ${item.is_hold ? (lightMode ? 'bg-zinc-900/5 ring-1 ring-zinc-300' : 'bg-amber-500/10 ring-1 ring-amber-500/30') : itemReady ? (lightMode ? 'bg-emerald-50' : 'bg-emerald-500/5') : ''}`}>
                             <div className="flex items-center gap-2 min-w-0 flex-1">
                               {item.is_hold && (
-                                <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/20 text-amber-400'}`}>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-zinc-900 text-white' : 'bg-amber-500/20 text-amber-400'}`}>
                                   HOLD
                                 </span>
                               )}
-                              <span className={`text-sm font-medium truncate ${item.is_hold ? (lightMode ? 'text-amber-800' : 'text-amber-200/80') : itemReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-gray-800' : 'text-white/85')}`}>
+                              <span className={`text-sm font-medium truncate ${item.is_hold ? (lightMode ? 'text-zinc-900' : 'text-amber-200/80') : itemReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-gray-800' : 'text-white/85')}`}>
                                 {item.name}
                               </span>
                                {item.course && (
@@ -652,9 +652,9 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
 
                     {/* Customer note */}
                     {order.customer_note && (
-                      <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl mb-2 ${lightMode ? 'bg-amber-50 border border-amber-200' : 'bg-amber-500/5 border border-amber-500/10'}`}>
-                        <Bell size={10} className={lightMode ? 'text-amber-600' : 'text-amber-400'} />
-                        <span className={`text-xs font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{order.customer_note}</span>
+                      <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl mb-2 ${lightMode ? 'bg-zinc-900/5 border border-zinc-200' : 'bg-amber-500/5 border border-amber-500/10'}`}>
+                        <Bell size={10} className={lightMode ? 'text-zinc-900' : 'text-amber-400'} />
+                        <span className={`text-xs font-medium ${lightMode ? 'text-zinc-800' : 'text-amber-300'}`}>{order.customer_note}</span>
                       </div>
                     )}
 
@@ -670,7 +670,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                         {t('complete_order')}
                       </button>
                     ) : stationFilter && visibleAllReady && otherPending > 0 ? (
-                      <div className={`w-full py-2.5 rounded-2xl text-xs font-bold text-center border cursor-not-allowed ${lightMode ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-amber-500/5 text-amber-300 border-amber-500/15'}`}>
+                      <div className={`w-full py-2.5 rounded-2xl text-xs font-bold text-center border cursor-not-allowed ${lightMode ? 'bg-zinc-100 text-zinc-500 border-zinc-200' : 'bg-amber-500/5 text-amber-300 border-amber-500/15'}`}>
                         {t('kds_other_stations_pending')} · {otherPending}
                       </div>
                     ) : null}

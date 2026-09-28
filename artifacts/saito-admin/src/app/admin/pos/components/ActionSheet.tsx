@@ -370,8 +370,8 @@ export function ActionSheet({
                           }
                           const paid = isOrderPaid(o);
                           return (
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full border text-[9px] font-black uppercase tracking-widest ${paid ? 'bg-green-500/15 border-green-500/25 text-green-400' : 'bg-amber-500/15 border-amber-500/25 text-amber-400'}`}>
-                              <div className={`w-1.5 h-1.5 rounded-full ${paid ? 'bg-green-400' : 'bg-amber-400'}`} />
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full border text-[9px] font-black uppercase tracking-widest ${paid ? 'bg-green-500/15 border-green-500/25 text-green-400' : (lightMode ? 'bg-zinc-900/10 border-zinc-900/25 text-zinc-900' : 'bg-amber-500/15 border-amber-500/25 text-amber-400')}`}>
+                              <div className={`w-1.5 h-1.5 rounded-full ${paid ? 'bg-green-400' : (lightMode ? 'bg-zinc-900' : 'bg-amber-400')}`} />
                               {paid ? t('paid') : t('unpaid')}
                             </span>
                           );
@@ -404,7 +404,7 @@ export function ActionSheet({
                                        // after refund, but the order says it was settled.
                                        const refunded = ((table as any)?.orders || []).some((o: any) => o?.status === 'refunded' || o?.status === 'partially_refunded');
                                        const paid = table?.status === 'paid' || table?.status === 'cleaning';
-                                       const color = paid || refunded ? 'text-green-400' : 'text-amber-400';
+                                       const color = paid || refunded ? 'text-green-400' : (lightMode ? 'text-zinc-900' : 'text-amber-400');
                                        const label = paid ? `✓ ${t('paid' as any)}` : refunded ? `✓ ${t('refunded' as any)}` : t('unpaid' as any);
                                        return (
                                          <span className={`font-semibold ${color}`}>{label}</span>
@@ -509,7 +509,7 @@ export function ActionSheet({
                                        action.id === 'close_bill'
                                        ? lightMode ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-gold/10 border-gold/30 text-gold'
                                        : action.id === 'bill_request'
-                                       ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                        ? (lightMode ? 'bg-zinc-900/10 border-zinc-900/25 text-zinc-900' : 'bg-amber-500/10 border-amber-500/20 text-amber-400') // 2026-09-28 (owner: light — qara)
                                        : action.id === 'cancel_table'
                                        ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                                        : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
@@ -551,7 +551,7 @@ export function ActionSheet({
                                        action.id === 'close_bill'
                                        ? lightMode ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-gold/10 border-gold/30 text-gold'
                                        : action.id === 'bill_request'
-                                       ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                        ? (lightMode ? 'bg-zinc-900/10 border-zinc-900/25 text-zinc-900' : 'bg-amber-500/10 border-amber-500/20 text-amber-400') // 2026-09-28 (owner: light — qara)
                                        : action.id === 'cancel_table'
                                        ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                                        : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
@@ -583,7 +583,7 @@ export function ActionSheet({
 
                    {isDeliveryOnly ? (
                     <>
-                      <button onClick={() => { /* 2026-09-27 (owner: terminal qoşulmayıb — tap-wait deaktiv): kart birbaşa capture */ onPaymentMethodSelect?.('card', undefined, parseFloat(tipAmount) || 0); }} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
+                      <button onClick={() => { /* 2026-09-28 (owner: "kart terminalı modalını əvvəlki kimi geri qaytar"): tap-wait yoluna QAYTAR — "Terminala göndərildi" wait view → confirm → page handlePaymentMethodSelect('card') → TerminalTapModal (6b519ad8 bypass reverted, both paths) */ setCardConfirmView(true); }} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
                         <CreditCard size={20} strokeWidth={2.5} />
                         <span className="text-sm font-black tracking-wide">{t('card') || 'Kart'}</span>
                       </button>
@@ -604,7 +604,7 @@ export function ActionSheet({
                         <span className="text-sm font-black tracking-wide">{t('cash')}</span>
                       </button>
                       {/* Primary: Kart */}
-                      <button onClick={() => { /* 2026-09-27 (owner: terminal qoşulmayıb — tap-wait deaktiv): kart birbaşa capture */ onPaymentMethodSelect?.('card', undefined, parseFloat(tipAmount) || 0); }} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
+                      <button onClick={() => { /* 2026-09-28 (owner: "kart terminalı modalını əvvəlki kimi geri qaytar"): tap-wait yoluna QAYTAR — "Terminala göndərildi" wait view → confirm → page handlePaymentMethodSelect('card') → TerminalTapModal (6b519ad8 bypass reverted, both paths) */ setCardConfirmView(true); }} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
                         <CreditCard size={20} strokeWidth={2.5} />
                         <span className="text-sm font-black tracking-wide">{t('card') || 'Kart'}</span>
                       </button>
@@ -627,13 +627,13 @@ export function ActionSheet({
                         {/* QA bug 12 (2026-09-22): was 25% opacity — "ÇAPULU +₼0"
                             was nearly invisible. Now a visible tinted row. */}
                         {!tipExpanded ? (
-                          <button onClick={() => setTipExpanded(true)} className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all active:scale-[0.99] ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' : 'bg-amber-500/10 border-amber-500/25 text-amber-400 hover:bg-amber-500/15'}`}>
+                          <button onClick={() => setTipExpanded(true)} className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all active:scale-[0.99] ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 hover:bg-zinc-100' : 'bg-amber-500/10 border-amber-500/25 text-amber-400 hover:bg-amber-500/15'}`}>
                             {t('tip') || 'Çaypulu'} <span className="text-amber-500 dark:text-amber-300">+₼{Number(tipAmount || 0).toFixed(2)}</span>
                           </button>
                       ) : (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={`p-2.5 rounded-xl border ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
                           <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 flex-shrink-0">{t('tip') || 'Çaypulu'}</span>
+                             <span className={`text-[9px] font-black uppercase tracking-widest flex-shrink-0 ${lightMode ? 'text-zinc-900' : 'text-amber-400'}`}>{t('tip') || 'Çaypulu'}</span>
                             <div className="relative flex-1">
                               <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-black ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>₼</span>
                               <input type="number" step="0.01" min="0" value={tipAmount} onChange={e => setTipAmount(e.target.value)} placeholder="0"
@@ -644,7 +644,7 @@ export function ActionSheet({
                               return (
                                 <button key={pct} onClick={() => setTipAmount(val.toString())}
                                   className={`px-2 py-1.5 rounded-lg text-[8px] font-black border transition-all ${
-                                    Math.abs((parseFloat(tipAmount) || 0) - val) < 0.01 ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                                     Math.abs((parseFloat(tipAmount) || 0) - val) < 0.01 ? (lightMode ? 'bg-zinc-900/10 border-zinc-900/30 text-zinc-900' : 'bg-amber-500/10 border-amber-500/30 text-amber-500')
                                     : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-400' : 'bg-white/5 border-white/10 text-white/30'
                                   } active:scale-95`}>
                                   {pct}%
@@ -759,16 +759,17 @@ export function ActionSheet({
                         className={`flex-1 rounded-2xl px-5 py-4 text-lg font-black outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                       />
                     </div>
+                    {/* 2026-09-28 (owner: light — yalnız mavi/qara): qısqıq pul = qara */}
                     {cashTenderedAmount && Number(cashTenderedAmount) > 0 && (
                       Number(cashTenderedAmount) >= (table?.total_amount || 0) ? (
                         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
                           <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500/60 mb-1">{t('change')}</p>
                           <p className="text-2xl font-black text-emerald-400 tabular-nums">₼{(Number(cashTenderedAmount) - (table?.total_amount || 0)).toFixed(2)}</p>
                         </motion.div>
-                      ) : (
-                        <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">{t('short_change')}</p>
-                          <p className="text-2xl font-black text-amber-400 tabular-nums">₼{((table?.total_amount || 0) - Number(cashTenderedAmount)).toFixed(2)}</p>
+                       ) : (
+                        <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-900/5 border-zinc-900/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+                          <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-900/60' : 'text-amber-500/60'}`}>{t('short_change')}</p>
+                          <p className={`text-2xl font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-amber-400'}`}>₼{((table?.total_amount || 0) - Number(cashTenderedAmount)).toFixed(2)}</p>
                         </motion.div>
                       )
                     )}
@@ -915,8 +916,8 @@ export function ActionSheet({
                        if (Math.abs(remaining) < 0.01) return null;
                        return (
                          <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-                           className={`p-3 rounded-xl text-center ${remaining > 0 ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
-                           <p className={`text-xs font-bold ${remaining > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                            className={`p-3 rounded-xl text-center border ${remaining > 0 ? (lightMode ? 'bg-zinc-900/5 border-zinc-900/20' : 'bg-amber-500/10 border-amber-500/20') : 'bg-emerald-500/10 border-emerald-500/20'}`}>
+                            <p className={`text-xs font-bold ${remaining > 0 ? (lightMode ? 'text-zinc-900' : 'text-amber-400') : 'text-emerald-400'}`}>
                              {remaining > 0 ? `${t('change')}: ₼${remaining.toFixed(2)}` : `${t('change_short')}: ₼${Math.abs(remaining).toFixed(2)}`}
                            </p>
                          </motion.div>

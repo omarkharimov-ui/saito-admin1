@@ -133,7 +133,8 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const inputCls = (f: string, extra = '') =>
     `w-full rounded-2xl border px-4 transition-all outline-none ${extra} ${
       lightMode
-        ? `bg-white ${flashField === f ? 'border-amber-400 ring-2 ring-amber-300/40' : 'border-zinc-200 focus:border-zinc-400'} text-zinc-900 placeholder:text-zinc-400`
+        // 2026-09-28 (owner: light mode — yalnız mavi/qara): flash = qara ring
+        ? `bg-white ${flashField === f ? 'border-zinc-900 ring-2 ring-zinc-900/30' : 'border-zinc-200 focus:border-zinc-400'} text-zinc-900 placeholder:text-zinc-400`
         : `bg-white/[0.04] ${flashField === f ? 'border-amber-400/80 ring-2 ring-amber-400/25' : 'border-white/[0.10] focus:border-white/30'} text-white placeholder:text-white/25`
     }`;
 
@@ -319,8 +320,9 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                   )}
                   {/* Geocode failed (address not in OSM) — point the operator
                       to the manual KM field so the fee can still be exact. */}
+                  {/* 2026-09-28 (owner: light mode — yalnız mavi/qara) */}
                   {geoStatus === 'fail' && (
-                    <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-amber-600' : 'text-amber-400/80'}`}>
+                    <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-zinc-900' : 'text-amber-400/80'}`}>
                       Ünvan xəritədə tapılmadı — məsafəni KM sahəsinə əl ilə daxil edin
                     </p>
                   )}
@@ -400,11 +402,12 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                              <div className="mt-1.5 flex items-center gap-2 flex-wrap">
                                <style>{`
 @keyframes vk-surge-glow { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
-.vk-surge-text { background-image: linear-gradient(110deg, ${lightMode ? '#B45309' : '#F59E0B'} 38%, ${lightMode ? '#78350F' : '#FDE68A'} 50%, ${lightMode ? '#B45309' : '#F59E0B'} 62%); background-size: 220% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: vk-surge-glow 1.6s linear infinite; }
+.vk-surge-text { background-image: linear-gradient(110deg, ${lightMode ? '#18181B' : '#F59E0B'} 38%, ${lightMode ? '#52525B' : '#FDE68A'} 50%, ${lightMode ? '#18181B' : '#F59E0B'} 62%); background-size: 220% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: vk-surge-glow 1.6s linear infinite; }
 `}</style>
-                               <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
-                                 lightMode ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                               }`}>
+                                {/* 2026-09-28 (owner: light mode — yalnız mavi/qara) */}
+                                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
+                                  lightMode ? 'bg-zinc-900/10 border-zinc-900/25 text-zinc-900' : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                                }`}>
                                  {surge.reason === 'weather' ? <CloudRain size={11} /> : <Clock size={11} />}
                                  <span className="vk-surge-text">
                                    {surge.reason === 'weather' ? 'Yağış · sürx' : 'Pik saat · sürx'} ×{surge.mult}

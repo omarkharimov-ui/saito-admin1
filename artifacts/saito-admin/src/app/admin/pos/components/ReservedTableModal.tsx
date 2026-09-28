@@ -72,7 +72,7 @@ export default function ReservedTableModal({
         >
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-600 mb-1">Rezervasyon</p>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-900 mb-1">Rezervasyon</p>
                 <p className="text-sm font-bold">Masa {table.table_number}</p>
                 {table.reservation_name && (
                   <p className="text-xs text-zinc-500 mt-0.5">{table.reservation_name}</p>
@@ -80,7 +80,7 @@ export default function ReservedTableModal({
               </div>
               <div className="flex items-center gap-2">
                 {table.is_vip && (
-                  <span className="px-2 py-1 rounded-lg bg-amber-500 text-white text-xs font-black uppercase tracking-wider">VIP</span>
+                  <span className="px-2 py-1 rounded-lg bg-zinc-900 text-white text-xs font-black uppercase tracking-wider">VIP</span>
                 )}
                 <button onClick={onClose} className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-all">
                   <X size={16} />
@@ -103,7 +103,7 @@ export default function ReservedTableModal({
               )}
               {table.guest_count && (
                 <div className="flex items-center gap-2 text-base text-zinc-900 font-black">
-                  <Users size={18} className="text-amber-500" />
+                  <Users size={18} className="text-zinc-900" />
                   <span>{table.guest_count} Nəfər</span>
                 </div>
               )}
@@ -121,7 +121,7 @@ export default function ReservedTableModal({
             <div className="flex gap-2 mb-3">
               <button
                 onClick={onGuestArrived}
-                className="flex-1 py-4 rounded-2xl bg-amber-500 text-white text-xs font-black hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30"
+                className="flex-1 py-4 rounded-2xl bg-zinc-900 text-white text-xs font-black hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-zinc-900/30"
               >
                 <CheckCircle size={16} strokeWidth={2.5} />
                 QONAQ GƏLDİ

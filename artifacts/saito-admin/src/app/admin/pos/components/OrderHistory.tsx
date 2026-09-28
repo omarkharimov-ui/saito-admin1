@@ -270,8 +270,9 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
     const total = `₼${(Number(order.paid_amount || order.total_amount) || 0).toFixed(2)}`;
     const guests = order.guest_count ? ` · ${order.guest_count} nəfər` : '';
     const Icon = src === 'takeaway' ? Package : src === 'delivery' ? Car : Utensils;
+    // 2026-09-28 (owner: light mode — yalnız mavi/qara): takeaway = qara
     const iconWrap = src === 'takeaway'
-      ? (lightMode ? 'bg-amber-500/10 text-amber-600' : 'bg-amber-500/15 text-amber-400')
+      ? (lightMode ? 'bg-zinc-900/10 text-zinc-900' : 'bg-amber-500/15 text-amber-400')
       : src === 'delivery'
         ? (lightMode ? 'bg-blue-500/10 text-blue-600' : 'bg-blue-500/15 text-blue-400')
         : (lightMode ? 'bg-emerald-500/10 text-emerald-600' : 'bg-emerald-500/15 text-emerald-400');
@@ -416,11 +417,12 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   };
 
   const getKitchenStatusColor = (status: string | null) => {
+    // 2026-09-28 (owner: light mode — yalnız mavi/qara): amber/orange → qara
     switch (status) {
       case 'ready': case 'served': case 'completed': return 'text-emerald-500 bg-emerald-500/10';
-      case 'preparing': case 'accepted': return 'text-amber-500 bg-amber-500/10';
+      case 'preparing': case 'accepted': return lightMode ? 'text-zinc-900 bg-zinc-900/10' : 'text-amber-500 bg-amber-500/10';
       case 'voided': case 'cancelled': return 'text-red-500 bg-red-500/10 line-through';
-      case 'wasted': return 'text-orange-500 bg-orange-500/10';
+      case 'wasted': return lightMode ? 'text-zinc-900 bg-zinc-900/10' : 'text-orange-500 bg-orange-500/10';
       default: return 'text-zinc-400 bg-zinc-400/10';
     }
   };
@@ -626,14 +628,17 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                           onClick={() => setFilter(f.id as any)}
                           className={`relative flex-1 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
                             filter === f.id
-                              ? (lightMode ? 'text-zinc-900' : 'text-zinc-950')
+                              ? (lightMode ? 'text-white' : 'text-zinc-950')
                               : (lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/40 hover:text-white/60')
                           }`}
                         >
+                          {/* 2026-09-28 (owner: "light mode-da active pill-lər qara
+                              rəngdə olsun və aydın görünsün"): light active pill =
+                              BLACK (white text on black); dark stays white pill. */}
                           {filter === f.id && (
                             <motion.span
                               layoutId="oh-src-pill"
-                              className={`absolute inset-0 rounded-[10px] ${lightMode ? 'bg-white shadow-sm' : 'bg-white'}`}
+                              className={`absolute inset-0 rounded-[10px] ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
                               transition={{ duration: 0.24, ease: [0.45, 0, 0.55, 1] }}
                             />
                           )}
@@ -643,27 +648,27 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     </div>
                     <div className={`rounded-xl p-0.5 flex ${lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'}`}>
                       {([
-                        ['paid', t('status_paid') || 'Ödənilmiş', 'text-emerald-600'],
-                        ['refunded', t('status_refunded') || 'Qaytarılmış', 'text-amber-600'],
-                        ['cancelled', t('status_cancelled') || 'Ləğv', 'text-red-600'],
-                        ['all', 'Bütün', 'text-zinc-950'],
-                      ] as const).map(([id, label, activeCls]) => (
-                        <button
-                          key={id}
-                          onClick={() => { setStatusFilter(id); setSheetTab('orders'); }}
-                          className={`relative flex-1 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
-                            statusFilter === id
-                              ? activeCls
-                              : (lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/40 hover:text-white/60')
-                          }`}
-                        >
-                          {statusFilter === id && (
-                            <motion.span
-                              layoutId="oh-st-pill"
-                              className={`absolute inset-0 rounded-[10px] ${lightMode ? 'bg-white shadow-sm' : 'bg-white'}`}
-                              transition={{ duration: 0.24, ease: [0.45, 0, 0.55, 1] }}
-                            />
-                          )}
+                         ['paid', t('status_paid') || 'Ödənilmiş', 'text-emerald-600'],
+                         ['refunded', t('status_refunded') || 'Qaytarılmış', 'text-amber-600'],
+                         ['cancelled', t('status_cancelled') || 'Ləğv', 'text-red-600'],
+                         ['all', 'Bütün', 'text-zinc-950'],
+                       ] as const).map(([id, label, activeCls]) => (
+                         <button
+                           key={id}
+                           onClick={() => { setStatusFilter(id); setSheetTab('orders'); }}
+                           className={`relative flex-1 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                             statusFilter === id
+                               ? (lightMode ? 'text-white' : activeCls)
+                               : (lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/40 hover:text-white/60')
+                           }`}
+                         >
+                           {statusFilter === id && (
+                             <motion.span
+                               layoutId="oh-st-pill"
+                               className={`absolute inset-0 rounded-[10px] ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
+                               transition={{ duration: 0.24, ease: [0.45, 0, 0.55, 1] }}
+                             />
+                           )}
                           <span className="relative z-10">{label}</span>
                         </button>
                       ))}
@@ -778,9 +783,9 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                  ) : (
                    exceptions.map(x => (
                      <div key={x.id} className={`flex items-center gap-3 p-3 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'}`}>
-                       <span className={`flex-shrink-0 text-[10px] font-black uppercase px-2 py-1 rounded-lg ${
-                         x.action === 'void' ? 'bg-red-500/10 text-red-400' : x.action === 'refund' ? 'bg-amber-500/10 text-amber-400' : 'bg-zinc-500/10 text-zinc-400'
-                       }`}>
+                        <span className={`flex-shrink-0 text-[10px] font-black uppercase px-2 py-1 rounded-lg ${
+                          x.action === 'void' ? 'bg-red-500/10 text-red-400' : x.action === 'refund' ? (lightMode ? 'bg-zinc-900/10 text-zinc-900' : 'bg-amber-500/10 text-amber-400') : 'bg-zinc-500/10 text-zinc-400'
+                        }`}>
                          {x.action}
                        </span>
                        <div className="flex-1 min-w-0">
@@ -825,11 +830,11 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
 
                   {/* Order info badges */}
                   <div className="flex flex-wrap gap-2">
-                    <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded-lg ${
-                      detailOrder.order_source === 'takeaway' ? 'bg-amber-500/10 text-amber-500' :
-                      detailOrder.order_source === 'delivery' ? 'bg-blue-500/10 text-blue-500' :
-                      'bg-emerald-500/10 text-emerald-500'
-                    }`}>
+                     <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded-lg ${
+                       detailOrder.order_source === 'takeaway' ? (lightMode ? 'bg-zinc-900/10 text-zinc-900' : 'bg-amber-500/10 text-amber-500') :
+                       detailOrder.order_source === 'delivery' ? 'bg-blue-500/10 text-blue-500' :
+                       'bg-emerald-500/10 text-emerald-500'
+                     }`}>
                       {detailOrder.order_source === 'takeaway' ? t('takeaway') : detailOrder.order_source === 'delivery' ? t('delivery') : t('dine_in')}
                     </span>
                     {detailOrder.table_number && (
@@ -993,7 +998,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                                   {p.method || p.payment_method || '—'}
                                 </span>
                                 {p.is_partial && (
-                                  <span className="text-[9px] font-bold text-amber-500 bg-amber-500/10 px-1 py-0.5 rounded">PARTIAL</span>
+                                   <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${lightMode ? 'text-zinc-900 bg-zinc-900/10' : 'text-amber-500 bg-amber-500/10'}`}>PARTIAL</span>
                                 )}
                               </div>
                               <span className="text-xs font-black tabular-nums">₼{Number(p.amount).toFixed(2)}</span>
@@ -1103,7 +1108,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     <button
                       onClick={() => guardAction(() => openRefundModal(detailOrder), 'refund')}
                       disabled={!['paid', 'partially_refunded'].includes(detailOrder.status) || (Number(detailOrder.refund_amount) || 0) >= (Number(detailOrder.paid_amount) || 0)}
-                      className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center gap-2 hover:bg-amber-500/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                       className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest border flex items-center justify-center gap-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed ${lightMode ? 'bg-zinc-900/10 border-zinc-900/20 text-zinc-900 hover:bg-zinc-900/15' : 'bg-amber-500/10 border-amber-500/20 text-amber-500 hover:bg-amber-500/20'}`}
                     >
                       <RefreshCw size={14} /> {t('refund') || 'Geri ödəniş'}
                     </button>
@@ -1165,7 +1170,27 @@ function RefundView({
   const [mode, setMode] = useState<'full' | 'partial' | 'item'>('full');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
-  const [loading, setLoading] = useState(false);
+  // 2026-09-28 (owner: "Refund modalı üçün state machine yoxdur — bütün
+  // vəziyyətləri və keçidlərini düzgün state machine ilə qur"): the refund
+  // flow is now an explicit FSM instead of one always-visible form + a
+  // `loading` flag:
+  //
+  //   open → EDIT ──valid──► CONFIRM ──submit──► PROCESSING ──ok──► SUCCESS
+  //                ▲             │                    └─fail─► ERROR
+  //                └──(Geri)─────┘                    SUCCESS ─(Bağla)→ closed
+  //                                                  ERROR ─(Yenidən cəhd)→ PROCESSING
+  //                                                  ERROR ─(Bağla)→ closed
+  //
+  // Guards:
+  //  · EDIT→CONFIRM: 0 < amount ≤ qalan (full/partial) OR ≥1 item selected
+  //  · PROCESSING: close/backdrop blocked (a half-sent refund must not be
+  //    abandoned mid-flight); inputs locked
+  //  · ERROR retry: reuses the SAME idempotency key (P-4) → the DB boundary
+  //    replays the stored result (one refund row, no double money movement)
+  type RefundStage = 'edit' | 'confirm' | 'processing' | 'success' | 'error';
+  const [stage, setStage] = useState<RefundStage>('edit');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [doneAmount, setDoneAmount] = useState(0);
   // 2026-09-26 (owner): refund METHOD choice. Default = how the order was
   // paid, but operators can pick another (real case: kartla ödədi → nağd
   // geri verdi). The chosen method is persisted on the refund ledger row.
@@ -1234,73 +1259,47 @@ function RefundView({
     return sum + (Number(item.unit_price) * sel.qty);
   }, 0);
 
-  const handleSubmit = async () => {
-    if (mode === 'item') {
-      const itemEntries = Object.entries(selectedItems);
-      if (itemEntries.length === 0) {
-        toast.error('Məhsul seçin');
-        return;
-      }
-      setLoading(true);
-      try {
+  // FSM transitions.
+  const canProceed = mode === 'item'
+    ? Object.keys(selectedItems).length > 0
+    : isValid;
+  const goConfirm = () => { if (canProceed) setStage('confirm'); };
+  const goBackToEdit = () => { if (stage === 'confirm') setStage('edit'); };
+
+  // PROCESSING: run the refund against /api/orders/refund and land on
+  // SUCCESS or ERROR. Retry from ERROR re-enters here with the SAME
+  // idempotency keys (P-4 replay → exactly one refund row).
+  const submitRefund = async () => {
+    setStage('processing');
+    setErrorMsg('');
+    try {
+      if (mode === 'item') {
+        const itemEntries = Object.entries(selectedItems);
         let allOk = true;
+        let okTotal = 0;
         for (const [itemId, sel] of itemEntries) {
           const item = order.order_items?.find(i => i.id === itemId);
           if (!item) continue;
           const itemAmount = Number(item.unit_price) * sel.qty;
-
-          if (sel.fate === 'none') {
-              const res = await apiFetch('/api/orders/refund', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  order_id: order.id,
-                  amount: itemAmount,
-                  method: refundMethod,
-                  reason: reason || 'customer_return',
-                  idempotency_key: refundKeyFor(`item:${itemId}:${refundMethod}:none:${itemAmount}`),
-                }),
-              });
-            if (!res.ok) {
-              const err = await res.json();
-              toast.error(err.error || 'Refund uğursuz oldu');
-              allOk = false;
-              break;
-            }
-          } else {
-            const res = await apiFetch('/api/orders/refund', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                order_id: order.id,
-                order_item_id: itemId,
-                quantity: sel.qty,
-                    amount: itemAmount,
-                    method: refundMethod,
-                    item_fate: sel.fate,
-                    reason: reason || 'customer_return',
-                    idempotency_key: refundKeyFor(`item:${itemId}:${refundMethod}:${sel.fate}:${sel.qty}`),
-              }),
-            });
-            if (!res.ok) {
-              const err = await res.json();
-              toast.error(err.error || 'Refund uğursuz oldu');
-              allOk = false;
-              break;
-            }
+          const body = sel.fate === 'none'
+            ? { order_id: order.id, amount: itemAmount, method: refundMethod, reason: reason || 'customer_return', idempotency_key: refundKeyFor(`item:${itemId}:${refundMethod}:none:${itemAmount}`) }
+            : { order_id: order.id, order_item_id: itemId, quantity: sel.qty, amount: itemAmount, method: refundMethod, item_fate: sel.fate, reason: reason || 'customer_return', idempotency_key: refundKeyFor(`item:${itemId}:${refundMethod}:${sel.fate}:${sel.qty}`) };
+          const res = await apiFetch('/api/orders/refund', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            setErrorMsg(err.error || 'Refund uğursuz oldu');
+            allOk = false;
+            break;
           }
+          okTotal += itemAmount;
         }
-        if (allOk) {
-          toast.success(t('refund_success') || 'Geri ödəniş edildi');
-          onSuccess();
-        }
-      } catch {
-        toast.error(t('error_occurred') || 'Xəta baş verdi');
-      }
-      setLoading(false);
-    } else {
-      setLoading(true);
-      try {
+        if (allOk) { setDoneAmount(okTotal); setStage('success'); }
+        else setStage('error');
+      } else {
         const res = await apiFetch('/api/orders/refund', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1312,18 +1311,27 @@ function RefundView({
             idempotency_key: refundKeyFor(`order:${mode}:${refundMethod}:${refundAmount}`),
           }),
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (res.ok && data.success !== false) {
-          toast.success(t('refund_success') || 'Geri ödəniş edildi');
-          onSuccess();
+          setDoneAmount(refundAmount);
+          setStage('success');
         } else {
-          toast.error(data.error || t('refund_failed') || 'Refund uğursuz oldu');
+          setErrorMsg(data.error || 'Refund uğursuz oldu');
+          setStage('error');
         }
-      } catch {
-        toast.error(t('error_occurred') || 'Xəta baş verdi');
       }
-      setLoading(false);
+    } catch {
+      setErrorMsg('Xəta baş verdi — bağlantını yoxlayın');
+      setStage('error');
     }
+  };
+
+  // Close rule: blocked while PROCESSING (mid-flight refund), SUCCESS closes
+  // through onSuccess (order list refreshes), everything else aborts.
+  const guardedClose = () => {
+    if (stage === 'processing') return;
+    if (stage === 'success') { onSuccess(); return; }
+    onClose();
   };
 
   // 2026-09-27 (owner: "refund modalı klaviatura açıldıqda ekrandan yuxarı
@@ -1342,7 +1350,7 @@ function RefundView({
       transition={fastExit}
       className="fixed inset-0 z-[140] flex items-end sm:items-center justify-center bg-black/25 backdrop-blur-sm"
       style={{ paddingBottom: `calc(var(--vk-height, 0px) + ${keyboardHeight}px + 16px)` }}
-      onClick={onClose}
+      onClick={guardedClose}
     >
       <motion.div
         {...slideUp}
@@ -1350,21 +1358,46 @@ function RefundView({
         className={`w-full max-w-2xl overflow-y-auto rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-elevated border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
         style={{ maxHeight: `calc(100vh - var(--vk-height, 0px) - ${keyboardHeight}px - 48px)` }}
       >
-        <div className="sm:grid sm:grid-cols-2 sm:gap-x-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 sm:col-span-2">
+        {/* Header — shared by every FSM stage; the step chip shows where in
+            Seçim → Təsdiq → Nəticə the flow currently sits. */}
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2.5 min-w-0">
-            <RefreshCw size={14} className="text-amber-500 flex-shrink-0" />
+            <RefreshCw size={14} className={`flex-shrink-0 ${lightMode ? 'text-blue-600' : 'text-amber-500'}`} />
             <h3 className="text-sm font-black truncate">
               {t('refund') || 'Geri ödəniş'}
               {order.table_number ? ` · ${t('table_label')} ${order.table_number}` : order.order_number ? ` · ${order.order_number}` : ''}
             </h3>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {(['Seçim', 'Təsdiq', 'Nəticə'] as const).map((lbl, i) => {
+                const stageIdx = stage === 'edit' ? 0 : stage === 'confirm' ? 1 : 2;
+                const current = i === stageIdx || (stage === 'error' && i === 2);
+                const passed = i < stageIdx && stage !== 'error';
+                return (
+                  <span key={lbl} className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                    current
+                      ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-amber-500/20 text-amber-400')
+                      : passed
+                        ? (lightMode ? 'bg-blue-100 text-blue-700' : 'bg-white/10 text-white/50')
+                        : (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/5 text-white/25')
+                  }`}>{lbl}</span>
+                );
+              })}
+            </div>
           </div>
-          <button onClick={onClose} className={`p-1.5 rounded-xl transition-all flex-shrink-0 ${lightMode ? 'hover:bg-zinc-100' : 'hover:bg-white/10'}`}>
+          <button onClick={guardedClose} disabled={stage === 'processing'}
+            className={`p-1.5 rounded-xl transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed ${lightMode ? 'hover:bg-zinc-100' : 'hover:bg-white/10'}`}>
             <X size={16} />
           </button>
         </div>
 
+        <AnimatePresence mode="wait" initial={false}>
+        {/* ═══ STAGE: EDIT (Seçim) ═══ */}
+        {stage === 'edit' && (
+        <motion.div key="stage-edit"
+          initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+          transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+        >
+        <div className="sm:grid sm:grid-cols-2 sm:gap-x-6">
         {/* LEFT COLUMN: paid summary + refund method */}
         <div>
         {/* Paid info */}
@@ -1383,10 +1416,11 @@ function RefundView({
           </div>
         </div>
 
-        {/* 2026-09-26 (owner): REFUND METHOD — moved to the LEFT column of the
-            two-column layout (defaults to the method the order was paid with;
-            the operator can pick another — real case: kartla ödədi → nağd geri
-            verdi). Persisted on the refund ledger row. */}
+        {/* REFUND METHOD (defaults to the method the order was paid with; the
+            operator can pick another — persisted on the refund ledger row).
+            2026-09-28 (owner: "böyük mənasız izah mətnini sil"): the long
+            amber explanation boxes (kart-refund handheld note / fərqli üsul
+            note) are GONE — the method buttons carry the decision. */}
         <div className="mb-4">
           <p className={`mb-2 text-[9px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Qaytarılma üsulu</p>
           <div className="grid grid-cols-2 gap-2">
@@ -1397,19 +1431,6 @@ function RefundView({
               </button>
             ))}
           </div>
-          {refundMethod === 'card' && (
-            <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-[11px] leading-relaxed text-amber-600">
-              <span className="font-black">Kart refund — handheld terminal:</span> sistemi qeydi POS yaradır, fiziki
-              refundu handheld terminalda <b>orijinal tranzaksiya üzrə</b> (terminalın refund funksiyası) aparın.
-              Pul kart sahibinə 1–3 iş günündə qayıdır.
-            </div>
-          )}
-          {refundMethod === 'cash' && originalMethod !== 'cash' && (
-            <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-[11px] leading-relaxed text-amber-600">
-              <span className="font-black">Fərqli üsulla qaytarılır</span> (ödəniş: {originalMethod === 'card' ? 'Kart' : originalMethod}).
-              Nağd qaytarış kassadan çıxır — Z-report-da drawer hesabatına daxil olur.
-            </div>
-          )}
         </div>
         </div>
 
@@ -1427,7 +1448,7 @@ function RefundView({
               onClick={() => setMode(m.key)}
               className={`flex-1 py-2.5 rounded-2xl border text-center transition-all ${
                 mode === m.key
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                  ? (lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/10 border-amber-500/30 text-amber-500')
                   : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/40'
               }`}
             >
@@ -1493,11 +1514,11 @@ function RefundView({
                       <button
                         onClick={() => canRefund && toggleItem(item.id, item.quantity)}
                         disabled={!canRefund}
-                        className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                          isSelected ? 'bg-amber-500 border-amber-500' : canRefund
-                            ? lightMode ? 'border-zinc-300' : 'border-white/20'
-                            : 'border-zinc-300 opacity-30'
-                        }`}
+                           className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                           isSelected ? (lightMode ? 'bg-zinc-900 border-zinc-900' : 'bg-amber-500 border-amber-500') : canRefund
+                             ? lightMode ? 'border-zinc-300' : 'border-white/20'
+                             : 'border-zinc-300 opacity-30'
+                         }`}
                       >
                         {isSelected && (
                           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -1508,8 +1529,8 @@ function RefundView({
                           <span className={`text-xs font-bold truncate ${lightMode ? 'text-black' : 'text-white'}`}>
                             {item.quantity}x {item.product_name}
                           </span>
-                          {isVoided && <span className="text-[9px] text-red-500 font-bold">LƏĞV</span>}
-                          {isWasted && <span className="text-[9px] text-orange-500 font-bold">İTKİ</span>}
+                           {isVoided && <span className="text-[9px] text-red-500 font-bold">LƏĞV</span>}
+                           {isWasted && <span className={`text-[9px] font-bold ${lightMode ? 'text-zinc-900' : 'text-orange-500'}`}>İTKİ</span>}
                         </div>
                         {parsedMods.length > 0 && (
                           <p className={`text-[9px] ${lightMode ? 'text-zinc-400' : 'text-white/25'}`}>
@@ -1543,9 +1564,9 @@ function RefundView({
                         {/* Fate buttons */}
                         <div className="flex gap-1.5">
                           {[
-                            { key: 'none' as const, icon: Package, label: 'Toxunma', color: lightMode ? 'text-zinc-500 bg-zinc-100' : 'text-white/40 bg-white/5' },
-                            { key: 'return_to_stock' as const, icon: Package, label: 'Anbara qaytar', color: lightMode ? 'text-blue-600 bg-blue-50' : 'text-blue-400 bg-blue-500/10' },
-                            { key: 'waste' as const, icon: AlertTriangle, label: 'İtkiyə yaz', color: lightMode ? 'text-orange-600 bg-orange-50' : 'text-orange-400 bg-orange-500/10' },
+                             { key: 'none' as const, icon: Package, label: 'Toxunma', color: lightMode ? 'text-zinc-900 bg-zinc-100' : 'text-white/40 bg-white/5' },
+                             { key: 'return_to_stock' as const, icon: Package, label: 'Anbara qaytar', color: lightMode ? 'text-blue-600 bg-blue-50' : 'text-blue-400 bg-blue-500/10' },
+                             { key: 'waste' as const, icon: AlertTriangle, label: 'İtkiyə yaz', color: lightMode ? 'text-zinc-900 bg-zinc-100' : 'text-orange-400 bg-orange-500/10' },
                           ].map(f => (
                             <button key={f.key} onClick={() => updateItemFate(item.id, f.key)}
                               className={`flex-1 py-1.5 rounded-xl text-[9px] font-bold flex items-center justify-center gap-1 transition-all ${
@@ -1581,39 +1602,133 @@ function RefundView({
         </div>
 
         </div>
-
-        {/* FOOTER (full width): warning + the confirm/cancel actions */}
-        <div className="mt-4 sm:mt-5 sm:col-span-2">
-        {/* Full refund warning */}
-        {isFullRefund && (
-          <div className={`p-3 rounded-2xl border mb-3 ${lightMode ? 'bg-amber-50 border-amber-200' : 'bg-amber-500/10 border-amber-500/20'}`}>
-            <p className={`text-[10px] font-bold ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
-              ⚠ {t('full_refund_warning') || 'Tam geri ödəniş — əməliyyat geri alınamaz'}
-            </p>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex gap-3">
+        {/* EDIT footer: Ləğv et → abort · Davam et → CONFIRM (guard: canProceed) */}
+        <div className="mt-4 sm:mt-5 sm:col-span-2 flex gap-3">
           <button onClick={onClose}
             className={`flex-1 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
             {t('cancel') || 'Ləğv et'}
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading || (mode === 'item' ? Object.keys(selectedItems).length === 0 : !isValid)}
-            className="flex-1 py-3.5 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-widest hover:bg-amber-600 active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20"
-          >
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                {t('processing') || 'Gözləyin'}
-              </span>
-            ) : t('confirm_refund') || 'Geri qaytar'}
+          <button onClick={goConfirm} disabled={!canProceed}
+            className={`flex-1 py-3.5 rounded-2xl text-white text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg ${lightMode ? 'bg-zinc-900 shadow-zinc-900/20' : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'}`}>
+            Davam et →
           </button>
         </div>
         </div>
-        </div>
+        </motion.div>
+        )}
+
+        {/* ═══ STAGE: CONFIRM (Təsdiq) — read-only summary ═══ */}
+        {stage === 'confirm' && (
+        <motion.div key="stage-confirm"
+          initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+          transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+        >
+          <div className={`rounded-2xl border p-4 space-y-2.5 ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'}`}>
+            {[
+              { k: 'Üsul', v: refundMethod === 'cash' ? 'Nağd' : refundMethod === 'card' ? 'Kart' : refundMethod },
+              { k: 'Həcm', v: mode === 'full' ? 'Tam (qalan)' : mode === 'partial' ? 'Qismən' : 'Məhsul seçimi' },
+              { k: 'Məbləğ', v: `₼${(mode === 'item' ? itemTotal : refundAmount).toFixed(2)} / qalan ₼${remaining.toFixed(2)}` },
+              ...(reason ? [{ k: 'Səbəb', v: reason }] : []),
+            ].map(r => (
+              <div key={r.k} className="flex items-center justify-between gap-3">
+                <span className={`text-[9px] font-black uppercase tracking-widest flex-shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{r.k}</span>
+                <span className={`text-xs font-bold text-right ${lightMode ? 'text-zinc-900' : 'text-white/85'}`}>{r.v}</span>
+              </div>
+            ))}
+            {mode === 'item' && (
+              <div className="pt-1.5 mt-1.5 border-t space-y-1.5" style={{ borderColor: lightMode ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)' }}>
+                {Object.entries(selectedItems).map(([id, sel]) => {
+                  const it = order.order_items?.find(i => i.id === id);
+                  if (!it) return null;
+                  return (
+                    <div key={id} className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold truncate">{sel.qty}x {it.product_name}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider flex-shrink-0 opacity-60">
+                        {sel.fate === 'return_to_stock' ? 'Anbara qaytar' : sel.fate === 'waste' ? 'İtkiyə yaz' : 'Toxunma'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          {isFullRefund && (
+            <div className={`mt-3 p-3 rounded-2xl border ${lightMode ? 'bg-red-50 border-red-200' : 'bg-red-500/10 border-red-500/25'}`}>
+              <p className={`text-[10px] font-bold ${lightMode ? 'text-red-700' : 'text-red-300'}`}>
+                ⚠ {t('full_refund_warning') || 'Tam geri ödəniş — əməliyyat geri alınamaz'}
+              </p>
+            </div>
+          )}
+          <div className="mt-4 flex gap-3">
+            <button onClick={goBackToEdit}
+              className={`flex-1 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
+              ← Geri
+            </button>
+            <button onClick={submitRefund}
+              className={`flex-1 py-3.5 rounded-2xl text-white text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all shadow-lg ${lightMode ? 'bg-zinc-900 shadow-zinc-900/20' : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'}`}>
+              {t('confirm_refund') || 'Geri qaytar'}
+            </button>
+          </div>
+        </motion.div>
+        )}
+
+        {/* ═══ STAGE: PROCESSING — locked, close blocked ═══ */}
+        {stage === 'processing' && (
+          <motion.div key="stage-processing"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex flex-col items-center justify-center py-10 gap-3"
+          >
+            <span className={`w-10 h-10 border-[3px] rounded-full animate-spin ${lightMode ? 'border-zinc-200 border-t-zinc-900' : 'border-white/10 border-t-amber-500'}`} />
+            <p className="text-sm font-black">{t('processing') || 'Geri ödəniş aparılır...'}</p>
+            <p className={`text-[10px] font-semibold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Bu adda pəncərəni bağlamayın</p>
+          </motion.div>
+        )}
+
+        {/* ═══ STAGE: SUCCESS ═══ */}
+        {stage === 'success' && (
+          <motion.div key="stage-success"
+            initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            className="flex flex-col items-center justify-center py-8 gap-3"
+          >
+            <span className="w-12 h-12 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 10.5L8.5 14L15 6.5" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </span>
+            <p className="text-sm font-black">{t('refund_success') || 'Geri ödəniş uğurla aparıldı'}</p>
+            <p className="text-lg font-black tabular-nums text-emerald-500">₼{doneAmount.toFixed(2)}</p>
+            <button onClick={guardedClose}
+              className={`mt-2 px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-white active:scale-[0.98] transition-all ${lightMode ? 'bg-zinc-900' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
+              Bağla
+            </button>
+          </motion.div>
+        )}
+
+        {/* ═══ STAGE: ERROR — retry reuses the same idempotency keys ═══ */}
+        {stage === 'error' && (
+          <motion.div key="stage-error"
+            initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            className="flex flex-col items-center justify-center py-8 gap-3"
+          >
+            <span className="w-12 h-12 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M5 5L13 13M13 5L5 13" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/></svg>
+            </span>
+            <p className="text-sm font-black">Refund uğursuz oldu</p>
+            <p className={`text-[11px] font-semibold text-center max-w-xs ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{errorMsg}</p>
+            <div className="mt-2 flex gap-3 w-full max-w-xs">
+              <button onClick={onClose}
+                className={`flex-1 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest border transition-all ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
+                Bağla
+              </button>
+              <button onClick={submitRefund}
+                className="flex-1 py-3 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-[11px] font-black uppercase tracking-widest active:scale-[0.98] transition-all">
+                Yenidən cəhd et
+              </button>
+            </div>
+          </motion.div>
+        )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );

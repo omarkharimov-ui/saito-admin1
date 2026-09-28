@@ -53,7 +53,7 @@ export default function ClearTablePinModal({ open, tableNumber, onClose, onConfi
           >
             <div className="flex items-center justify-between px-6 pt-6 pb-2">
               <div className="flex items-center gap-2">
-                <ShieldCheck size={18} className="text-amber-500" />
+                <ShieldCheck size={18} className={lightMode ? 'text-zinc-900' : 'text-amber-500'} />
                 <h2 className="text-sm font-black uppercase tracking-widest">{t('clear_table_pin_title')}</h2>
               </div>
               <button onClick={onClose} className={`p-1.5 rounded-full ${lightMode ? 'hover:bg-zinc-100 text-zinc-400' : 'hover:bg-white/10 text-white/40'}`}>

@@ -2,14 +2,14 @@
 
 import { useState, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check, RotateCcw, Package, Trash2, ArrowLeft, Flame } from '@/components/ui/saito-icons';
+import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check, RotateCcw, Package, Trash2, ArrowLeft, Flame, Lock } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { PinGuard } from './PinGuard';
 import { LiquidCategoryNavbar } from './LiquidCategoryNavbar';
-import type { PosProduct } from '../types/shared';
+import type { PosProduct, PosModifierSelection } from '../types/shared';
 import { playHapticSound } from '@/lib/haptic';
 import { appleBackdrop } from '@/lib/modal-transitions';
 import { parseAllergens, resolveAllergenEntry, ALLERGEN_FALLBACK_ICON } from '@/lib/allergens';
@@ -63,6 +63,36 @@ export interface EditorPreset {
     quantity: number;
     unit_price: number;
   };
+  // 2026-09-28 (owner: "Məhsul 'Served' statusuna keçdikdən sonra onun
+  // modifikatorları dəyişdirilə bilməməlidir"): the edited line's kitchen
+  // status. served/completed → spec fields locked (read-only editor).
+  kitchen_status?: string | null;
+  // 2026-09-28 (owner: "modifikator interfeysində instansiyalar arasında
+  // keçid üçün tablar əlavə et" + "tiktokdaki kimi surusdurme pilli"): the
+  // editor opens in MULTI-INSTANCE mode when the collapsed cart row carries
+  // several instances of the same product+variant — one pill tab per
+  // instance (hint = the exclusive-group choice or first modifier name:
+  // "1 · Kremli" / "2 · Yüngül"), and the CTA saves ALL instances atomically
+  // (onApplyInstanceEdits → usePos.applyInstanceEdits, single setCart).
+  instances?: {
+    lineIndex: number;
+    quantity: number;
+    modifiers: Record<string, number>;
+    variantId: string | null;
+    note: string;
+    course: string | null;
+    is_hold: boolean;
+    allergens: string[];
+    kitchen_status: string | null;
+    sentQuantity: number;
+    returnCtx?: {
+      order_item_id: string;
+      product_name: string;
+      quantity: number;
+      unit_price: number;
+    };
+    hint: string;
+  }[];
 }
 
 export interface ProductGridRef {
@@ -79,6 +109,18 @@ interface ProductGridProps {
   // 2026-09-27 (owner): the MƏTBƏX popup also shows the CURRENT table's state.
   currentTableKitchen?: { label: string; draft: number; prep: number; ready: number } | null;
   onAddProduct: (product: PosProduct) => void;
+  /** 2026-09-28 (owner: pill tabs): atomic multi-instance save — replaces
+      several exact cart lines in ONE setCart (usePos.applyInstanceEdits). */
+  onApplyInstanceEdits?: (product: PosProduct, edits: {
+    lineIndex: number;
+    quantity: number;
+    variantId: string | null;
+    notes: string;
+    modifiers: PosModifierSelection[];
+    course: string | null;
+    isHold: boolean;
+    allergens: string[];
+  }[]) => void;
   onAddCombo?: (combo: any) => void;
   cartCounts: Record<string, number>;
   outOfStock?: Set<string>;
@@ -126,7 +168,7 @@ function AllergenBadges({ item }: { item: GridItem | undefined; lightMode?: bool
 }
 
 export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function ProductGrid({
-  products, combos, categories, onAddProduct, onAddCombo, cartCounts, outOfStock, variantsByProduct,
+  products, combos, categories, onAddProduct, onApplyInstanceEdits, onAddCombo, cartCounts, outOfStock, variantsByProduct,
   catalogError, onRetryCatalog, filterData, currentTableKitchen
 }, ref) {
   const { language, t } = useLanguage();
@@ -182,6 +224,27 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   // qty + Anbara qaytar / İtkiyə yaz. The standalone ReturnItemModal and the
   // row-tap return are gone.
   const [returnCtx, setReturnCtx] = useState<NonNullable<EditorPreset['returnCtx']> | null>(null);
+  // Served/completed line → spec LOCKED (qty/variant/modifiers/course/note/
+  // allergens read-only). The GERİ QAYTAR (return) flow stays available —
+  // returning a served dish is a refund/waste path, not a spec change.
+  // 2026-09-28: renamed singleLocked — in MULTI-INSTANCE mode the lock is
+  // DERIVED from the ACTIVE pill's kitchen state (each instance can be in a
+  // different state: one served, the other still draft).
+  const [singleLocked, setSingleLocked] = useState(false);
+  // 2026-09-28 (owner: "eyni mehsul 1 setire collapse olsun + modifikator
+  // acanda tiktokdaki kimi surusdurme pilli"): multi-instance drafts.
+  // instList = the original preset data (static per open — the pills render
+  // from it); instDraftsRef = the EDITABLE drafts, committed on every tab
+  // switch and at save; activeInst = the visible pill (its draft drives all
+  // the field states below).
+  const [instList, setInstList] = useState<NonNullable<EditorPreset['instances']>>([]);
+  const [activeInst, setActiveInst] = useState(0);
+  const instDraftsRef = useRef<NonNullable<EditorPreset['instances']>>([]);
+  const multiInst = instList.length > 0;
+  const activeDraft = multiInst ? instList[Math.min(activeInst, instList.length - 1)] : null;
+  const specLocked = multiInst
+    ? !!activeDraft && ['served', 'completed'].includes(activeDraft.kitchen_status || '')
+    : singleLocked;
   const [returnView, setReturnView] = useState(false);
   const [returnPinOpen, setReturnPinOpen] = useState(false);
   const [returnQty, setReturnQty] = useState(1);
@@ -205,6 +268,50 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     expandedIdRef.current = expandedId;
   }, [expandedId]);
 
+  // 2026-09-28 (owner: pill tabs): the shared field states (qty/variant/
+  // modifiers/note/course/hold/allergens/returnCtx) are the view of the
+  // ACTIVE instance — load ONE draft into them. NOTE: no house-default
+  // preselect here (single mode keeps it) — a stored line's exact spec is
+  // the truth, and silently adding a default member would change its price
+  // on save.
+  const loadInstanceFields = (idx: number, drafts: NonNullable<EditorPreset['instances']>) => {
+    const d = drafts[idx];
+    if (!d) return;
+    setQty(d.quantity && d.quantity > 0 ? d.quantity : 1);
+    setSelectedVariant(d.variantId ?? undefined);
+    setNoteForProduct(d.note || '');
+    setEditCourse(d.course ?? null);
+    setEditIsHold(!!d.is_hold);
+    setSelectedAllergens(d.allergens || []);
+    setReturnCtx(d.returnCtx ?? null);
+    setSelectedModifiers({ ...(d.modifiers || {}) });
+  };
+  // Commit the ACTIVE field states back into its draft (mutates the ref —
+  // the pills render from the static instList, so no state write needed).
+  const commitInstanceDraft = () => {
+    const drafts = instDraftsRef.current;
+    const idx = Math.min(activeInst, drafts.length - 1);
+    if (!drafts[idx]) return;
+    drafts[idx] = {
+      ...drafts[idx],
+      quantity: qty,
+      variantId: selectedVariant ?? null,
+      note: noteForProduct,
+      course: editCourse,
+      is_hold: editIsHold,
+      allergens: selectedAllergens,
+      modifiers: { ...selectedModifiers },
+    };
+  };
+  // TikTok-style tab switch: commit current → activate target → load it.
+  const switchInstance = (next: number) => {
+    if (next === activeInst || next < 0 || next >= instDraftsRef.current.length) return;
+    commitInstanceDraft();
+    setActiveInst(next);
+    setReturnView(false); // a return in progress belongs to the previous pill
+    loadInstanceFields(next, instDraftsRef.current);
+  };
+
   useEffect(() => {
     if (!expandedId) {
       presetRef.current = null;
@@ -212,16 +319,45 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       editLineIndexRef.current = null;
       setReturnCtx(null);
       setReturnView(false);
+      setSingleLocked(false);
+      // Multi-instance drafts die with the modal — the next open must start
+      // from a fresh preset, never from the previous product's drafts.
+      instDraftsRef.current = [];
+      setInstList([]);
+      setActiveInst(0);
       return;
     }
     // One-shot: preset yalnız bir dəfə tətbiq olunur, sonra təmizlənir ki,
     // növbəti kart toxunuşunda köhnə preset təsadüfən tətbiq olunmasın.
     const preset = presetRef.current;
     presetRef.current = null;
+    // 2026-09-28 (owner: "instansiyalar arasında keçid üçün tablar əlavə et"):
+    // MULTI-INSTANCE mode — the collapsed cart row carries several instances
+    // of the same product+variant; each gets its own pill tab.
+    if (preset?.instances && preset.instances.length > 0) {
+      const drafts = preset.instances.map(i => ({
+        ...i,
+        modifiers: { ...(i.modifiers || {}) },
+        allergens: [...(i.allergens || [])],
+      }));
+      instDraftsRef.current = drafts;
+      setInstList(drafts);
+      setActiveInst(0);
+      editIdentityRef.current = null;
+      editLineIndexRef.current = null;
+      setReturnView(false);
+      setSingleLocked(false);
+      loadInstanceFields(0, drafts);
+      return;
+    }
+    instDraftsRef.current = [];
+    setInstList([]);
+    setActiveInst(0);
     editIdentityRef.current = preset?.identity ?? null;
     editLineIndexRef.current = preset?.lineIndex ?? null;
     setReturnCtx(preset?.returnCtx ?? null);
     setReturnView(false);
+    setSingleLocked(['served', 'completed'].includes((preset as any)?.kitchen_status || ''));
     setSelectedVariant(preset?.variantId ?? undefined);
     setNoteForProduct(preset?.note ?? '');
     setEditCourse(preset?.course ?? null);
@@ -473,6 +609,44 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
   const handleModalAdd = () => {
     if (!expandedItem) return;
+    // 2026-09-28 (owner: pill tabs): MULTI-INSTANCE save — commit the active
+    // draft, then send EVERY instance's draft in ONE atomic call
+    // (applyInstanceEdits = single setCart; unchanged instances are skipped
+    // server-side-safe by the diff inside).
+    if (multiInst) {
+      commitInstanceDraft();
+      const drafts = instDraftsRef.current;
+      const edits = drafts.map((d: any) => ({
+        lineIndex: d.lineIndex,
+        quantity: d.quantity,
+        variantId: d.variantId ?? null,
+        notes: d.note || '',
+        modifiers: (Object.entries(d.modifiers || {}) as [string, number][])
+          .filter(([, q]) => q > 0)
+          .map(([id, q]) => {
+            const mod = (expandedItem.modifiers || []).find((x: any) => x.id === id);
+            return { id, name: mod?.name || '', price: Number(mod?.price || 0), quantity: q };
+          }),
+        course: d.course,
+        isHold: !!d.is_hold,
+        allergens: d.allergens || [],
+      }));
+      onApplyInstanceEdits?.(expandedItem as PosProduct, edits as any);
+      instDraftsRef.current = [];
+      setInstList([]);
+      setActiveInst(0);
+      setReturnCtx(null);
+      setReturnView(false);
+      setNoteForProduct('');
+      setSelectedVariant(undefined);
+      setSelectedModifiers({});
+      setEditCourse(null);
+      setEditIsHold(false);
+      setSelectedAllergens([]);
+      setQty(1);
+      handleClose();
+      return;
+    }
     const identity = editIdentityRef.current;
     editIdentityRef.current = null;
     if (expandedItem._isCombo && onAddCombo) {
@@ -502,7 +676,8 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const cardText = lightMode ? 'text-gray-900' : 'text-white';
   const cardPrice = lightMode ? 'text-gray-900' : 'text-white';
   const cardSecondary = lightMode ? 'text-gray-500' : 'text-white/50';
-  const comboLabelBg = lightMode ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/10 text-amber-400';
+  // 2026-09-28 (owner: light mode — yalnız mavi/qara)
+  const comboLabelBg = lightMode ? 'bg-zinc-900 text-white' : 'bg-amber-500/10 text-amber-400';
   const expandedBg = lightMode ? 'bg-white border-zinc-200' : 'bg-[#1a1a1a] border-white/10';
   const expandedText = lightMode ? 'text-gray-900' : 'text-white';
   const expandedSecondary = lightMode ? 'text-gray-600' : 'text-white/60';
@@ -578,7 +753,8 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 }`}
               >
                 <span className={`relative inline-flex items-center justify-center ${tkActive ? 'saito-flame-wrap' : ''}`}>
-                  <Flame size={12} className={tkActive ? 'saito-flame text-orange-400' : ''} />
+                  {/* 2026-09-28 (owner: light mode — yalnız mavi/qara): alov = qara */}
+                  <Flame size={12} className={tkActive ? `saito-flame ${lightMode ? 'text-zinc-900' : 'text-orange-400'}` : ''} />
                   {tkActive && <span className="saito-flame-glow" aria-hidden />}
                 </span>
                 {t('tab_kitchen') || 'Mətbəx'}
@@ -608,11 +784,12 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
              0%, 100% { opacity: .16; }
              50%      { opacity: .45; }
            }
-           .saito-flame-glow {
-             position: absolute; inset: -5px; border-radius: 9999px; pointer-events: none;
-             background: radial-gradient(circle, rgba(251,146,60,.5) 0%, rgba(251,146,60,0) 70%);
-             animation: saito-glow-breathe 2.4s ease-in-out infinite;
-           }
+            .saito-flame-glow {
+              position: absolute; inset: -5px; border-radius: 9999px; pointer-events: none;
+              /* 2026-09-28 (owner: light mode — yalnız mavi/qara): light = qara glow */
+              background: radial-gradient(circle, ${lightMode ? 'rgba(24,24,27,.35)' : 'rgba(251,146,60,.5)'} 0%, ${lightMode ? 'rgba(24,24,27,0)' : 'rgba(251,146,60,0)'} 70%);
+              animation: saito-glow-breathe 2.4s ease-in-out infinite;
+            }
          `}</style>
          {kitchenHintOpen && <div className="fixed inset-0 z-[60]" onClick={() => setKitchenHintOpen(false)} />}
          <AnimatePresence>
@@ -641,7 +818,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                    <p className={`text-[10px] font-black uppercase tracking-[0.16em] ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
                      {t('kitchen_status') || 'Mətbəx statusu'}
                    </p>
-                   <span className={`w-1.5 h-1.5 rounded-full ${tkActive ? 'bg-orange-400' : lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
+                   <span className={`w-1.5 h-1.5 rounded-full ${tkActive ? (lightMode ? 'bg-zinc-900' : 'bg-orange-400') : lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
                  </div>
                  {currentTableKitchen ? (
                    <>
@@ -667,7 +844,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                        >
                          {[
                            { n: currentTableKitchen.draft, label: t('st_draft') || 'draft', num: lightMode ? 'text-zinc-800' : 'text-white/80' },
-                           { n: currentTableKitchen.prep, label: t('st_preparing') || 'hazırlanır', num: lightMode ? 'text-orange-600' : 'text-orange-400' },
+                           { n: currentTableKitchen.prep, label: t('st_preparing') || 'hazırlanır', num: lightMode ? 'text-zinc-900' : 'text-orange-400' },
                            { n: currentTableKitchen.ready, label: t('st_ready') || 'hazır', num: lightMode ? 'text-emerald-600' : 'text-emerald-400' },
                          ].map((s, i) => (
                            <div key={s.label} className="px-1 py-3.5 text-center" style={i > 0 ? { boxShadow: 'inset 1px 0 0 var(--div)' } : undefined}>
@@ -702,7 +879,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       <div className="flex-1 overflow-y-auto pr-1 pt-2 relative z-0" style={{ paddingBottom: vkHeight > 0 ? vkHeight + 12 : 0 }}>
         {catalogError ? (
           <div className="min-h-full flex flex-col items-center justify-center text-center gap-4 py-16">
-            <div className={`w-16 h-16 rounded-3xl flex items-center justify-center ${lightMode ? 'bg-amber-50 text-amber-500' : 'bg-amber-500/10 text-amber-400'}`}>
+            <div className={`w-16 h-16 rounded-3xl flex items-center justify-center ${lightMode ? 'bg-zinc-100 text-zinc-900' : 'bg-amber-500/10 text-amber-400'}`}>
               <AlertTriangle size={28} strokeWidth={2} />
             </div>
             <p className={`text-sm font-black uppercase tracking-widest max-w-xs ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>{t('products_load_failed')}</p>
@@ -1042,7 +1219,56 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 {/* Body: miqdar · variantlar · modifikatorlar · qeyd —
                     flex-1 + min-h-0: scroll region is bounded by the card's
                     92vh cap (footer can never overlap it). */}
-                <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto">
+                 <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto">
+                   {/* 2026-09-28 (owner: "tiktokdaki kimi surusdurme pilli... orada
+                       qeyd edekki 1 ci filadelyiya kremli, 2 ci taba kecid edirsen
+                       yungul yazirsan"): ONE pill per instance — numbered circle +
+                       hint label (exclusive-group choice, else first modifier name).
+                       Swipeable: horizontal scroll + snap. Active pill = BLACK in
+                       light / WHITE in dark (owner: light mode — yalnız mavi/qara).
+                       Shown only when the collapsed row carries >1 instance. */}
+                   {multiInst && instList.length > 1 && (
+                     <div className="-mx-1 px-1">
+                       <div
+                         className="flex items-center gap-2 overflow-x-auto snap-x snap-mandatory pb-1"
+                         style={{ scrollbarWidth: 'none' }}
+                       >
+                         {instList.map((d: any, i: number) => {
+                           const on = i === activeInst;
+                           const instLocked = ['served', 'completed'].includes(d.kitchen_status || '');
+                           return (
+                             <button
+                               key={d.lineIndex}
+                               onClick={() => switchInstance(i)}
+                               className={`relative flex items-center gap-1.5 pl-1.5 pr-3.5 py-1.5 rounded-full whitespace-nowrap snap-start text-[11px] font-black transition-colors active:scale-[0.97] ${
+                                 on ? (lightMode ? 'text-white' : 'text-zinc-950') : lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/50 hover:text-white/80'
+                               }`}
+                             >
+                               {on && (
+                                 <motion.span
+                                   layoutId="pos-inst-pill"
+                                   className={`absolute inset-0 rounded-full ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
+                                   transition={{ duration: 0.2, ease: [0.45, 0, 0.55, 1] }}
+                                 />
+                               )}
+                               <span className={`relative z-10 flex items-center justify-center w-[18px] h-[18px] rounded-full text-[9px] tabular-nums ${
+                                 on ? (lightMode ? 'bg-white/20' : 'bg-zinc-950/15') : lightMode ? 'bg-zinc-200/70 text-zinc-600' : 'bg-white/15 text-white/70'
+                               }`}>{i + 1}</span>
+                               <span className="relative z-10 max-w-[110px] truncate">{d.hint || (instLocked ? 'Served' : '')}</span>
+                             </button>
+                           );
+                         })}
+                       </div>
+                     </div>
+                   )}
+                   {/* 2026-09-28 (owner): SERVED/COMPLETED line → spec lock
+                       banner; every control below is pointer-events-none + dimmed. */}
+                   {specLocked && (
+                    <div className={`flex items-center gap-2 p-3 rounded-xl border text-[11px] font-bold ${lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white/[0.06] border-white/15 text-white/80'}`}>
+                      <Lock size={12} className="flex-shrink-0" />
+                      Bu məhsula verilmişdir (SERVED) — spesifikasiya dəyişdirilə bilməz
+                    </div>
+                  )}
                   {/* Miqdar — 2026-09-25 (owner): GERİ QAYTAR on the RIGHT of
                       the "Miqdar:" label row for served lines (was header
                       top-right, then footer — both rejected). */}
@@ -1060,7 +1286,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                       </motion.button>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 mt-2">
+                  <div className={`flex items-center gap-3 mt-2 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
                     <div className={`flex items-center rounded-2xl border overflow-hidden ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
                       <motion.button onClick={() => setQty(Math.max(1, qty - 1))} whileTap={{ scale: 0.88 }} transition={TAP}
                         className={`px-6 py-3 text-base font-black ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>−</motion.button>
@@ -1075,7 +1301,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 {(expandedItem.variants?.length ?? 0) > 0 && (
                   <div>
                     <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('option' as any)}</span>
-                    <div className="flex flex-wrap gap-2 mt-2">
+                    <div className={`flex flex-wrap gap-2 mt-2 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
                       {(expandedItem.variants ?? []).map((v: any) => (
                         <motion.button key={v.id} onClick={() => setSelectedVariant(v.id)}
                           whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }} transition={SPRING}
@@ -1170,7 +1396,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                    };
 
                   return (
-                    <div className="space-y-3">
+                    <div className={`space-y-3 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
                       {groups.length > 0 && groups.map((g: any) => {
                         const gItems: any[] = (expandedItem.modifiers || []).filter((m: any) => (g.item_ids || []).includes(m.id));
                         if (gItems.length === 0) return null;
@@ -1187,7 +1413,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                               {gItems.map((m: any) => renderChip(m, g))}
                             </div>
                             {minNeed > 0 && picked < minNeed && (
-                              <p className="text-[11px] mt-1.5 font-semibold" style={{ color: '#f59e0b' }}>
+                              <p className="text-[11px] mt-1.5 font-semibold" style={{ color: lightMode ? '#18181b' : '#f59e0b' }}>
                                 {picked} / {minNeed} — seçilməlidir
                               </p>
                             )}
@@ -1209,7 +1435,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 {/* Course (mərhələ) — preserved across re-opens (was lost) */}
                 <div>
                   <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Mərhələ:</span>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className={`flex flex-wrap gap-2 mt-2 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
                     {(['appetizer', 'main', 'dessert', 'drink'] as const).map(val => {
                       const on = editCourse === val;
                       const key = val === 'appetizer' ? 'course_appetizers' : val === 'main' ? 'course_mains' : val === 'dessert' ? 'course_desserts' : 'course_drinks';
@@ -1219,8 +1445,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                            whileHover={{ y: -1.5 }}
                            whileTap={{ scale: 0.92 }}
                            transition={SPRING}
-                           onClick={() => setEditCourse(on ? null : val)}
-                           className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border ${on ? (lightMode ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-400 text-black border-amber-400') : (lightMode ? 'bg-white/60 text-zinc-500 border-zinc-200' : 'bg-white/5 text-white/50 border-white/10')}`}
+                            onClick={() => setEditCourse(on ? null : val)}
+                            /* 2026-09-28 (owner: light mode-da orange/sarı YOX —
+                               yalnız mavi/qara): light active = BLACK. */
+                            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border ${on ? (lightMode ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-amber-400 text-black border-amber-400') : (lightMode ? 'bg-white/60 text-zinc-500 border-zinc-200' : 'bg-white/5 text-white/50 border-white/10')}`}
                          >
                           {t(key as any)}
                         </motion.button>
@@ -1230,15 +1458,15 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 </div>
                 {/* Hold state (read-only badge — hold/resume is managed in the cart) */}
                 {editIsHold && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-orange-500/10 border border-orange-500/25 text-[11px] font-bold text-orange-600 dark:text-orange-300/90">
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border text-[11px] font-bold ${lightMode ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-orange-500/10 border-orange-500/25 text-orange-300/90'}`}>
                     <Pause size={11} /> Saxlanılıb (hold)
                   </span>
                 )}
 
                 {/* Qeyd */}
-                <div>
+                <div className={specLocked ? 'pointer-events-none opacity-40' : ''}>
                   <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Qeyd:</span>
-                  <input type="text" value={noteForProduct} onChange={(e) => setNoteForProduct(e.target.value)} placeholder={t('add_note')} className={`mt-2 w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} focus:border-zinc-400/50`} />
+                  <input type="text" value={noteForProduct} onChange={(e) => setNoteForProduct(e.target.value)} placeholder={t('add_note')} disabled={specLocked} className={`mt-2 w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} focus:border-zinc-400/50`} />
                 </div>
 
                 {/* Allergens — own BOTTOM section (owner 2026-09-28).
@@ -1251,7 +1479,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                   return (
                     <div>
                       <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Allergenlər:</span>
-                      <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                      <div className={`flex items-center gap-1.5 flex-wrap mt-2 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
                         {allergenList.map((a: any) => {
                           const def = resolveAllergenEntry(a);
                           const Icon = def?.icon ?? ALLERGEN_FALLBACK_ICON;
@@ -1287,13 +1515,23 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     2026-09-25 (owner): GERİ QAYTAR moved to the modal
                     TOP-RIGHT (header) for served lines. */}
                 <div className="p-5 pt-0 flex-shrink-0">
-                    <motion.button onClick={handleModalAdd}
-                      whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} transition={SPRING}
-                      className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider shadow-lg hover:brightness-105"
-                    style={{ backgroundColor: '#10b981' }}
+                    {/* 2026-09-28 (owner): SERVED lock — the CTA is inert while
+                        the spec is frozen; only GERİ QAYTAR remains actionable. */}
+                    <motion.button
+                      onClick={() => { if (!specLocked) handleModalAdd(); }}
+                      whileHover={specLocked ? undefined : { y: -2 }} whileTap={specLocked ? undefined : { scale: 0.97 }} transition={SPRING}
+                      disabled={specLocked}
+                      className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-sm font-black uppercase tracking-wider shadow-lg ${specLocked ? 'cursor-not-allowed' : 'text-white hover:brightness-105'}`}
+                    style={{ backgroundColor: specLocked ? (lightMode ? '#d4d4d8' : 'rgba(255,255,255,0.12)') : '#10b981', color: specLocked ? (lightMode ? '#71717a' : 'rgba(255,255,255,0.5)') : undefined }}
                     >
-                       <Plus size={18} /> {t('add')}{qty > 1 ? ` · ${qty}` : ''}
-                     </motion.button>
+                      {specLocked
+                        ? <><Lock size={16} /> Served — qəfəslənib</>
+                        : multiInst
+                          // Multi-instance save = "Yadda saxla" (the rows exist;
+                          // we're editing instances, not adding a product).
+                          ? <><Check size={18} /> Yadda saxla{instList.length > 1 ? ` · ${instList.length}` : ''}</>
+                          : <><Plus size={18} /> {t('add')}{qty > 1 ? ` · ${qty}` : ''}</>}
+                    </motion.button>
                 </div>
                 </motion.div>
                 )}

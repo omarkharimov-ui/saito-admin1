@@ -37,7 +37,27 @@ let __csrfSingleton: string | null = null;
 
 function ensureCsrfToken(): string | null {
   if (typeof document === 'undefined') return null; // SSR: server adds nothing
-  if (__csrfSingleton) return __csrfSingleton;
+  if (__csrfSingleton) {
+    // 2026-09-28 (owner: "Invalid CSRF token" root cause): the cookie's
+    // max-age is 3600 — a long-open tab EXPIRES the cookie while the
+    // per-page-load singleton token stays in memory. The next mutation then
+    // sends a header with NO matching cookie → the server's double-submit
+    // check fails with 403 "Invalid CSRF token". Self-heal PROACTIVELY: if
+    // the cookie is missing/stale, re-establish the pair (cookie := our
+    // token) BEFORE the request. The token is client-issued (no server
+    // secret), so re-writing the cookie restores consistency without any
+    // server change (per the approved "client-side only" rule).
+    const cur = readCookie(COOKIE_NAME);
+    if (cur && cur !== __csrfSingleton) {
+      // Another tab/login flow rotated the shared cookie — adopt it (the
+      // old single-tab assumption broke under multi-tab POS terminals).
+      __csrfSingleton = cur;
+    } else if (!cur) {
+      // Cookie expired (1h) — re-write it with the in-memory token.
+      document.cookie = `${COOKIE_NAME}=${__csrfSingleton}; path=/; max-age=3600; SameSite=Strict`;
+    }
+    return __csrfSingleton;
+  }
   const existing = readCookie(COOKIE_NAME);
   if (existing) {
     __csrfSingleton = existing;
@@ -138,9 +158,21 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
       const sent = headers['X-CSRF-Token'];
       const fresh = readCookie(COOKIE_NAME);
       if (fresh && sent && fresh !== sent) {
+        // Cookie drifted (another tab / login flow) — adopt + retry once.
         __csrfSingleton = fresh;
         try {
           res = await doFetch({ ...headers, 'X-CSRF-Token': fresh });
+        } catch {
+          /* retry died on the network — surface the original 403 */
+        }
+      } else if (!fresh && sent) {
+        // 2026-09-28: cookie EXPIRED mid-session (1h max-age) — the header
+        // has no pair to match. Re-establish the pair with OUR token and
+        // retry once (safe: the CSRF check runs before any side effects,
+        // and the token is client-issued).
+        document.cookie = `${COOKIE_NAME}=${sent}; path=/; max-age=3600; SameSite=Strict`;
+        try {
+          res = await doFetch(headers);
         } catch {
           /* retry died on the network — surface the original 403 */
         }

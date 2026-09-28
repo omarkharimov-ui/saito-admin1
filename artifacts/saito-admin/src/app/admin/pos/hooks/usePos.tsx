@@ -1172,6 +1172,87 @@ export function usePos() {
     }
   };
 
+  // 2026-09-28 (owner: "eyni mehsul ayri-ayri qeyd olunmali deyil... modifikator
+  // acanda surusdurme pilli tiktokdaki kimi"): ATOMIC multi-instance save.
+  // The cart collapses same-product lines into ONE presented row and the modal
+  // edits each instance through pill tabs. One setCart applies ALL instance
+  // edits at once — N sequential addToCart(editOf) calls would lose
+  // replacements (each reads the same stale cartRef snapshot, last write wins).
+  // Per-instance price math mirrors the addToCart edit path exactly; unchanged
+  // instances are skipped (no-op detection), so a save that only touched the
+  // 2nd instance never rewrites the 1st.
+  const applyInstanceEdits = (
+    p: PosProduct,
+    edits: {
+      lineIndex: number;
+      quantity?: number;
+      variantId?: string | null;
+      notes?: string;
+      modifiers?: PosModifierSelection[];
+      course?: string | null;
+      isHold?: boolean;
+      allergens?: string[];
+    }[],
+  ) => {
+    const base = cartRef.current;
+    if (!base) return;
+    const items = base.items.map(i => ({ ...i }));
+    let touched = 0;
+    for (const e of edits || []) {
+      if (typeof e.lineIndex !== 'number' || e.lineIndex < 0 || e.lineIndex >= items.length) continue;
+      const target: any = items[e.lineIndex];
+      if (!target || String(target.product_id) !== String(p.id) || target.__isCombo || target.is_combo) continue;
+      const prevMods: any[] = target.modifiers || [];
+      const nextMods: any[] = e.modifiers || [];
+      const modKey = (m: any) => `${m.id}:${m.quantity || 1}`;
+      const modsChanged = prevMods.map(modKey).sort().join('|') !== nextMods.map(modKey).sort().join('|');
+      const variantChanged = e.variantId !== undefined && (target.variant_id ?? null) !== (e.variantId ?? null);
+      const noteChanged = e.notes !== undefined && (target.special_notes ?? '') !== e.notes;
+      const courseChanged = e.course !== undefined && (target.course ?? null) !== (e.course ?? null);
+      const holdChanged = e.isHold !== undefined && !!target.is_hold !== !!e.isHold;
+      const allergensChanged = e.allergens !== undefined && JSON.stringify(target.allergens ?? []) !== JSON.stringify(e.allergens);
+      const sentQty = target.sentQuantity ?? 0;
+      const newQty = e.quantity != null ? Math.max(e.quantity, sentQty) : target.quantity;
+      const qtyChanged = newQty !== target.quantity;
+      if (!modsChanged && !variantChanged && !noteChanged && !courseChanged && !holdChanged && !allergensChanged && !qtyChanged) continue;
+      let unit: number = target.unit_price;
+      let orig: number = target.original_unit_price;
+      if (modsChanged || variantChanged) {
+        // Same math as addToCart (variant base − campaign amount; no-variant →
+        // effective_price with the campaign baked in; modifiers on both unit
+        // and original so discount math stays intact).
+        const variant = (e.variantId ?? null)
+          ? (variantsByProduct[p.id] || []).find((v: any) => v.id === e.variantId)
+          : undefined;
+        const basePrice = variant ? Number(variant.discount_price != null && variant.discount_price !== '' ? variant.discount_price : variant.price) : (p.price ?? 0);
+        const effective: any = (p as any).effective_price;
+        const effNum = typeof effective === 'number' ? effective : effective?.effective_price;
+        const campaignDiscountAmt = typeof effective === 'object' && effective ? Number(effective.discount_amount) || 0 : 0;
+        const productUnit = variant
+          ? (campaignDiscountAmt > 0 ? Math.max(0, basePrice - campaignDiscountAmt) : basePrice)
+          : (effNum ?? basePrice);
+        const modifiersTotal = nextMods.reduce((s, m) => s + Number(m.price || 0) * (m.quantity || 1), 0);
+        unit = Math.round((productUnit + modifiersTotal) * 100) / 100;
+        orig = Math.round((basePrice + modifiersTotal) * 100) / 100;
+      }
+      items[e.lineIndex] = {
+        ...target,
+        unit_price: unit,
+        original_unit_price: orig,
+        quantity: newQty,
+        total_price: Math.round(unit * newQty * 100) / 100,
+        ...(modsChanged ? { modifiers: nextMods } : {}),
+        ...(variantChanged ? { variant_id: e.variantId ?? null } : {}),
+        ...(noteChanged ? { special_notes: e.notes } : {}),
+        ...(courseChanged ? { course: e.course } : {}),
+        ...(holdChanged ? { is_hold: e.isHold } : {}),
+        ...(allergensChanged ? { allergens: e.allergens } : {}),
+      };
+      touched++;
+    }
+    if (touched > 0) setCart({ ...base, items });
+  };
+
   const addComboToCart = (combo: any, opts?: { notes?: string }) => {
 
     setCart(prev => {
@@ -2038,7 +2119,7 @@ export function usePos() {
     return {
       floors, products, categories, combos, variantsByProduct, loading, floorLoadFailed, catalogLoadFailed, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode,
       fetchData, fetchFloor, selectTable, mergeTables, transferTable, dismissTable, releaseTable, clearTable, performUndo, seatTable,
-      setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, resetCart, updateGuestCount,
+      setActiveView, setCart, setSelectedTable, addToCart, applyInstanceEdits, addComboToCart, updateCartItemQty, placeOrder, clearCart, resetCart, updateGuestCount,
       updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
       reservationMode, reservationId, reservationPreOrderItems, reservationInfo,
       enterReservationMode, exitReservationMode, guestArrived, savePreOrder, terminalId,

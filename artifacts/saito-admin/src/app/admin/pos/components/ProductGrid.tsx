@@ -123,6 +123,13 @@ interface ProductGridProps {
   }[]) => void;
   onAddCombo?: (combo: any) => void;
   cartCounts: Record<string, number>;
+  // 2026-09-30 (owner, round 8b): LIVE qty binding. `cartItemQtys` = the
+  // current cart lines' quantities (index-aligned; the page memoizes it) —
+  // the editor follows external changes while open. `onLiveQtyChange` =
+  // the editor's report of a stepper change; the page applies it to that
+  // cart line with the line's OWN spec (qty-only → no spurious P1 sync).
+  cartItemQtys?: number[];
+  onLiveQtyChange?: (lineIndex: number, quantity: number) => void;
   outOfStock?: Set<string>;
   variantsByProduct?: Record<string, any[]>;
   // G8 Batch 3: catalog load error + retry (parent owns catalog fetching).
@@ -168,7 +175,7 @@ function AllergenBadges({ item }: { item: GridItem | undefined; lightMode?: bool
 }
 
 export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function ProductGrid({
-  products, combos, categories, onAddProduct, onApplyInstanceEdits, onAddCombo, cartCounts, outOfStock, variantsByProduct,
+  products, combos, categories, onAddProduct, onApplyInstanceEdits, onAddCombo, cartCounts, cartItemQtys, onLiveQtyChange, outOfStock, variantsByProduct,
   catalogError, onRetryCatalog, filterData, currentTableKitchen
 }, ref) {
   const { language, t } = useLanguage();
@@ -351,10 +358,45 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
    //     instance (round-5 P2 "qty+ = müstəqil instansiya") — that rule lives
    //     in CartPanel.handleGroupPlus, NOT here.
    // Each instance keeps its own modifier set either way.
+   // 2026-09-30 (owner, round 8b: "səbətdeki sayı artıranla modal içi say
+   // artırma sync işləsin"): LIVE two-way quantity binding.
+   //   MODAL → CART: every +/− reports `onLiveQtyChange(lineIndex, newQty)`;
+   //   the PAGE applies it to the cart line with the LINE'S OWN current spec
+   //   (qty-only diff → P1 kitchen spec-sync does NOT fire; the sent portion
+   //   is clamped by applyInstanceEdits `newQty = max(qty, sentQty)`; the
+   //   unsent delta goes out on the next MƏTBƏXƏ GÖNDƏR). So the cart stepper
+   //   and the modal stepper are always the SAME number — no "save to sync".
+   //   CART → MODAL: the `cartItemQtys` sync effect below follows external
+   //   cart changes while the editor is open. Loop-safe: our own push writes
+   //   the SAME value into the cart, so the effect only fires on external
+   //   changes (cart +, group +, void, kitchen).
+   const liveQtyPush = (lineIndex: number | null | undefined, newQty: number) => {
+     if (lineIndex == null || lineIndex < 0) return; // new product / new instance — nothing to push yet
+     onLiveQtyChange?.(lineIndex, Math.max(1, newQty));
+   };
    const handleQtyPlus = () => {
-     if (!multiInst) { setQty(qty + 1); return; }
+     if (!multiInst) {
+       const nq = qty + 1;
+       setQty(nq);
+       liveQtyPush(editLineIndexRef.current, nq);
+       return;
+     }
      commitInstanceDraft();
-     setQty(qty + 1);
+     const drafts = instDraftsRef.current;
+     const idx = Math.min(activeInst, drafts.length - 1);
+     const nq = qty + 1;
+     if (drafts[idx]) { drafts[idx] = { ...drafts[idx], quantity: nq }; setInstList([...drafts]); }
+     setQty(nq);
+     liveQtyPush(drafts[idx]?.lineIndex, nq);
+   };
+   const handleQtyMinus = () => {
+     const nq = Math.max(1, qty - 1);
+     setQty(nq);
+     if (!multiInst) { liveQtyPush(editLineIndexRef.current, nq); return; }
+     const drafts = instDraftsRef.current;
+     const idx = Math.min(activeInst, drafts.length - 1);
+     if (drafts[idx]) { drafts[idx] = { ...drafts[idx], quantity: nq }; setInstList([...drafts]); }
+     liveQtyPush(drafts[idx]?.lineIndex, nq);
    };
 
   useEffect(() => {
@@ -430,6 +472,33 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     }
     setSelectedModifiers(sel);
   }, [expandedId]);
+
+  // 2026-09-30 (owner, round 8b): CART → MODAL half of the live qty binding.
+  // While the editor is open, any EXTERNAL change to the edited lines'
+  // quantities (cart row ±, group +, void, kitchen updates) flows into the
+  // drafts — and into the `qty` stepper when it's the ACTIVE instance.
+  // Loop-safe: the modal's own pushes (onLiveQtyChange) write the SAME value
+  // into the cart, so this comparison only ever fires on external changes.
+  useEffect(() => {
+    if (!expandedId || !cartItemQtys || cartItemQtys.length === 0) return;
+    if (multiInst) {
+      const drafts = instDraftsRef.current;
+      let changed = false;
+      for (let i = 0; i < drafts.length; i++) {
+        const li = (drafts[i] as any).lineIndex;
+        const cq = li != null && li >= 0 ? cartItemQtys[li] : undefined;
+        if (cq != null && cq > 0 && drafts[i].quantity !== cq) {
+          drafts[i] = { ...drafts[i], quantity: cq };
+          changed = true;
+          if (i === Math.min(activeInst, drafts.length - 1)) setQty(cq);
+        }
+      }
+      if (changed) setInstList([...drafts]);
+    } else if (editLineIndexRef.current != null && editLineIndexRef.current >= 0) {
+      const cq = cartItemQtys[editLineIndexRef.current];
+      if (cq != null && cq > 0 && cq !== qty) setQty(cq);
+    }
+  }, [cartItemQtys, expandedId, multiInst, activeInst, qty]);
 
   useImperativeHandle(ref, () => ({
     openEditor: (productId: string, preset?: EditorPreset) => {
@@ -1315,10 +1384,20 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                                   on ? (lightMode ? 'text-white' : 'text-zinc-950') : lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/50 hover:text-white/80'
                                 }`}
                               >
-                                <span className={`relative z-10 flex items-center justify-center w-[22px] h-[22px] rounded-full text-[10px] tabular-nums ${
-                                  on ? (lightMode ? 'bg-white/25' : 'bg-zinc-950/15') : lightMode ? 'bg-zinc-200/70 text-zinc-600' : 'bg-white/15 text-white/70'
-                                }`}>{i + 1}</span>
-                                 <span className="relative z-10 max-w-[110px] truncate">{d.hint || (instLocked ? (d.kitchen_status === 'ready' ? 'Hazır' : 'Served') : '')}</span>
+                                 <span className={`relative z-10 flex items-center justify-center w-[22px] h-[22px] rounded-full text-[10px] tabular-nums ${
+                                   on ? (lightMode ? 'bg-white/25' : 'bg-zinc-950/15') : lightMode ? 'bg-zinc-200/70 text-zinc-600' : 'bg-white/15 text-white/70'
+                                 }`}>{i + 1}</span>
+                                 {/* 2026-09-30 (owner, round 8b: "yuxardaki 1 və 2
+                                     artmır — bu nə üçündür?"): the circle is the
+                                     INSTANCE tab index, NOT the quantity. Each pill
+                                     now carries its LIVE ×qty badge (draft qty —
+                                     the cartItemQtys sync effect keeps it equal to
+                                     the cart line), so MIQDAR+ is visible right
+                                     on the pill. */}
+                                 <span className={`relative z-10 shrink-0 text-[10px] font-black tabular-nums px-1 h-[18px] rounded-md flex items-center ${
+                                   on ? (lightMode ? 'bg-zinc-900/10 text-zinc-800' : 'bg-white/15 text-white/90') : 'bg-transparent opacity-60'
+                                 }`}>×{(d.quantity || 1)}</span>
+                                  <span className="relative z-10 max-w-[110px] truncate">{d.hint || (instLocked ? (d.kitchen_status === 'ready' ? 'Hazır' : 'Served') : '')}</span>
                               </button>
                             );
                           })}
@@ -1356,7 +1435,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                      {/* 2026-09-29 (owner: "butonlar cox kohne nesildir — uşunu
                          yenile"): capsule (rounded-full) stepper, Apple current. */}
                      <div className={`flex items-center rounded-full border overflow-hidden ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
-                      <motion.button onClick={() => setQty(Math.max(1, qty - 1))} whileTap={{ scale: 0.88 }} transition={TAP}
+                      <motion.button onClick={handleQtyMinus} whileTap={{ scale: 0.88 }} transition={TAP}
                         className={`px-6 py-3 text-base font-black ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>−</motion.button>
                       <span className={`px-5 py-3 text-base font-black tabular-nums min-w-[3.5rem] text-center ${expandedText}`}>{qty}</span>
                        <motion.button onClick={handleQtyPlus} whileTap={{ scale: 0.88 }} transition={TAP}

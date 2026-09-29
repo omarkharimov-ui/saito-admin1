@@ -361,6 +361,15 @@ export default function POSPage() {
     [pos.cart],
   );
 
+  // 2026-09-30 (owner, round 8b): the editor's LIVE cart→modal qty feed.
+  // Index-aligned with cart.items — the ProductGrid sync effect reads the
+  // quantity of the exact line(s) it is editing, so an external cart change
+  // (cart ±, group +, void, kitchen) reflects in the open editor instantly.
+  const posCartItemQtys = useMemo(
+    () => (pos.cart?.items ?? []).map((i: any) => i.quantity ?? 1),
+    [pos.cart],
+  );
+
   // NOTE (M2 removed): a `checkoutTotal` useMemo lived here with a hardcoded
   // 18% tax-INCLUSIVE VAT formula — it diverged from the server SSOT
   // (calculate_order_total_v3, tax-EXCLUSIVE) and was unused (dead landmine).
@@ -3020,6 +3029,31 @@ export default function POSPage() {
                             onApplyInstanceEdits={(product, edits) => pos.applyInstanceEdits(product, edits as any)}
                             onAddCombo={(c) => pos.addComboToCart(c)}
                            cartCounts={posCartCounts}
+                           cartItemQtys={posCartItemQtys}
+                           // 2026-09-30 (owner, round 8b): MODAL → CART half of
+                           // the live qty binding. Apply the stepper's new
+                           // quantity to that exact line with the LINE'S OWN
+                           // current spec — a qty-only diff, so no spurious P1
+                           // kitchen spec-sync fires and an unsaved modal spec
+                           // edit is never leaked to the cart. The sent portion
+                           // is clamped (max(qty, sentQty)) by applyInstanceEdits.
+                           onLiveQtyChange={(lineIndex, quantity) => {
+                             const items = (pos.cart?.items ?? []) as any[];
+                             const line = items[lineIndex];
+                             if (!line || line.__isCombo || line.is_combo) return;
+                             const product = pos.products.find((p: any) => p.id === line.product_id) as any;
+                             if (!product) return;
+                             pos.applyInstanceEdits(product, [{
+                               lineIndex,
+                               quantity: Math.max(1, quantity),
+                               variantId: line.variant_id ?? null,
+                               notes: line.special_notes || '',
+                               modifiers: line.modifiers || [],
+                               course: line.course ?? null,
+                               isHold: !!(line.is_hold || line.hold_until),
+                               allergens: line.allergens || [],
+                             }] as any);
+                           }}
                              outOfStock={outOfStockSet}
                              // 2026-09-27 (owner): MƏTBƏX popup — SELECTED TABLE
                              // state ONLY (no more all-orders section). null while

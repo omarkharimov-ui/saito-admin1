@@ -495,11 +495,19 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                     <span className="text-xs font-black text-emerald-400">H</span>
                   </motion.div>
                 ) : selectionMode ? (
+                  // 2026-09-30 (owner, round 8: "3-dotsdan tike keçən BİR
+                  // morph-da et"): the dots exit spinning +120° (clockwise)
+                  // while the circle used to enter from −120° (COUNTER-clockwise)
+                  // — opposite directions read as three separate motions
+                  // (spin-out / spin-in / tick-draw). Now the circle enters
+                  // from +120° → 0: the SAME clockwise rotation continues
+                  // through the swap, so ⋮ → ○ → ✓ reads as ONE morph
+                  // (dots spin into the circle, tick draws on top).
                   <motion.div
                     key="ctl-select"
-                    initial={{ rotate: -120, scale: 0.4, opacity: 0 }}
+                    initial={{ rotate: 120, scale: 0.4, opacity: 0 }}
                     animate={{ rotate: 0, scale: 1, opacity: 1 }}
-                    exit={{ rotate: 120, scale: 0.4, opacity: 0, transition: { duration: 0.16 } }}
+                    exit={{ rotate: -120, scale: 0.4, opacity: 0, transition: { duration: 0.16 } }}
                     transition={SPRING.kessey}
                     className={`w-7 h-7 rounded-full border-2 flex items-center justify-center [transition:background-color_0.18s_ease,border-color_0.18s_ease] ${
                       isSelected ? 'bg-blue-500 border-blue-500' : (lightMode ? 'bg-zinc-100 border-zinc-300' : 'bg-white/5 border-white/10')

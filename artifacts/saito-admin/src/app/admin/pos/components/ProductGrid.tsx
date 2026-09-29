@@ -336,53 +336,26 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     loadInstanceFields(next, instDraftsRef.current);
   };
 
-  // 2026-09-28 (owner P2: "say artıranda modifikatorlar bütün instansiyalar
-  // üçün birləşir") + 2026-09-29 (owner: "1-ci-ni modifikatorlarını düzəltdim,
-  // sayını artırdım, 3-cü avtomatik 'Kremli' yarandı — bu bug; miqdar düzgün
-  // artmır"): the rule is now STATE-BASED, not spec-based:
-  //   • UNSENT draft (kitchen has nothing of it yet) → "+" simply GROWS THE
-  //     SAME INSTANCE's quantity (1 → 2 on the same pill). One line, one spec,
-  //     N units — exactly what the stepper is for.
-  //   • SENT or LOCKED draft (units already in production / served) → "+"
-  //     cannot touch that kitchen-snapshotted line, so it creates a NEW
-  //     independent instance (fresh pill, qty 1, unsent, editable, copying
-  //     the active spec — the kitchen's next batch).
-  // Each instance keeps its own modifier set either way.
-  const handleQtyPlus = () => {
-    if (!multiInst) { setQty(qty + 1); return; }
-    commitInstanceDraft();
-    const drafts = instDraftsRef.current;
-    const ad: any = drafts[Math.min(activeInst, drafts.length - 1)];
-    if (!ad) { setQty(qty + 1); return; }
-    const isSent = (ad.sentQuantity ?? 0) > 0;
-    const isLocked = LOCKED_KS.includes(ad.kitchen_status || '');
-    if (!isSent && !isLocked) { setQty(qty + 1); return; }
-    const firstModId = (Object.entries(ad.modifiers || {}) as [string, number][])
-      .find(([, q]) => q > 0)?.[0];
-    const modName = firstModId
-      ? (expandedItem?.modifiers || []).find((m: any) => m.id === firstModId)?.name || ''
-      : '';
-    const nd: any = {
-      lineIndex: -1,
-      __isNew: true,
-      quantity: 1,
-      variantId: ad.variantId ?? null,
-      note: ad.note || '',
-      modifiers: { ...(ad.modifiers || {}) },
-      course: null,
-      is_hold: false,
-      allergens: [...(ad.allergens || [])],
-      kitchen_status: null,
-      sentQuantity: 0,
-      returnCtx: undefined,
-      hint: modName || 'Yeni',
-    };
-    instDraftsRef.current = [...drafts, nd];
-    setInstList(instDraftsRef.current);
-    setActiveInst(drafts.length);
-    setReturnView(false);
-    loadInstanceFields(drafts.length, instDraftsRef.current);
-  };
+   // 2026-09-28 (owner P2: "say artıranda modifikatorlar bütün instansiyalar
+   // üçün birləşir") → round 6: STATE-BASED unsent-grows/sent-clones →
+   // 2026-09-30 (owner, round 8: "modal içi say artırmak işləmir — bu button
+   // bunu özün test et"): the CLONE path was the bug's twin — on a SENT
+   // instance the modal "+" spawned a NEW pill instead of growing the number
+   // (owner: "3-cü avtomatik yarandı"). The rule is now SIMPLE and matches
+   // the stepper's meaning in BOTH modes:
+   //   • MODAL stepper "+" = ALWAYS grow the ACTIVE instance's total qty
+   //     (even on a sent instance: the already-sent portion is never touched —
+   //     applyInstanceEdits clamps `newQty = max(e.quantity, sentQty)` and the
+   //     UNSENT delta goes out on the next send, kitchen ticket appended).
+   //   • CART-ROW "+" = "one more of this product" → clone an independent
+   //     instance (round-5 P2 "qty+ = müstəqil instansiya") — that rule lives
+   //     in CartPanel.handleGroupPlus, NOT here.
+   // Each instance keeps its own modifier set either way.
+   const handleQtyPlus = () => {
+     if (!multiInst) { setQty(qty + 1); return; }
+     commitInstanceDraft();
+     setQty(qty + 1);
+   };
 
   useEffect(() => {
     if (!expandedId) {

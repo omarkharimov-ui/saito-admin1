@@ -1185,7 +1185,13 @@ function RefundView({
   const { t } = useLanguage();
 
   const [mode, setMode] = useState<'full' | 'partial' | 'item'>('full');
-  const [amount, setAmount] = useState('');
+  // 2026-09-30 (owner, round 8: "refund modalına basanda loading zamani bir
+  // bug var"): the amount used to start as '' and be filled by a useEffect
+  // AFTER the first paint — so on open the input flashed EMPTY for a frame
+  // and the number POPPED in (plus DAVAM ET toggled disabled→enabled). Mode
+  // always opens as 'full', so initialize with the full remaining amount —
+  // the effect below only keeps it in sync on LATER mode/remaining changes.
+  const [amount, setAmount] = useState(() => Math.max(0, Number(order.paid_amount || order.total_amount) || 0).toFixed(2));
   const [reason, setReason] = useState('');
   // 2026-09-28 (owner: "Refund modalı üçün state machine yoxdur — bütün
   // vəziyyətləri və keçidlərini düzgün state machine ilə qur"): the refund
@@ -1208,6 +1214,9 @@ function RefundView({
   const [stage, setStage] = useState<RefundStage>('edit');
   const [errorMsg, setErrorMsg] = useState('');
   const [doneAmount, setDoneAmount] = useState(0);
+  // round 8 ("refund detalları"): what the order looks like AFTER the refund —
+  // the success screen shows it instead of a bare amount.
+  const [doneRemaining, setDoneRemaining] = useState(0);
   // 2026-09-26 (owner): refund METHOD choice. Default = how the order was
   // paid, but operators can pick another (real case: kartla ödədi → nağd
   // geri verdi). The chosen method is persisted on the refund ledger row.
@@ -1333,7 +1342,7 @@ function RefundView({
           }
           okTotal += itemAmount;
         }
-        if (allOk) { setDoneAmount(okTotal); setStage('success'); }
+        if (allOk) { setDoneAmount(okTotal); setDoneRemaining(Math.max(0, remaining - okTotal)); setStage('success'); }
         else setStage('error');
       } else {
         const res = await apiFetch('/api/orders/refund', {
@@ -1350,6 +1359,7 @@ function RefundView({
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.success !== false) {
           setDoneAmount(refundAmount);
+          setDoneRemaining(Math.max(0, remaining - refundAmount));
           setStage('success');
         } else {
           setErrorMsg(data.error || 'Refund uğursuz oldu');
@@ -1749,10 +1759,32 @@ function RefundView({
           transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
         >
           <div className={`rounded-2xl border p-4 space-y-2.5 ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'}`}>
+            {/* 2026-09-30 (owner, round 8: "refund detalları falan olmur yoxsa
+                ??"): the confirm screen now carries the ORDER identity (which
+                table / order number / when), the line summary and the
+                AFTER-refund remaining — before it was just method/volume/
+                amount, so the cashier confirmed "₼X refund" with no context. */}
+            <div className="flex items-center justify-between gap-3 pb-1.5 border-b" style={{ borderColor: lightMode ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)' }}>
+              <div className="flex-1 min-w-0">
+                <p className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                  {order.table_number ? `${t('table_label')} ${order.table_number}` : t('takeaway')} {order.order_number || `#${order.id.slice(0, 6)}`}
+                </p>
+                <p className={`text-[10px] font-bold truncate ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                  {new Date(order.created_at).toLocaleDateString('az')} {new Date(order.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}
+                  {' · '}{(order.order_items || []).length} sətir
+                </p>
+              </div>
+              <Receipt size={16} className={`flex-shrink-0 ${lightMode ? 'text-zinc-300' : 'text-white/20'}`} />
+            </div>
             {[
               { k: 'Üsul', v: refundMethod === 'cash' ? 'Nağd' : refundMethod === 'card' ? 'Kart' : refundMethod },
               { k: 'Həcm', v: mode === 'full' ? 'Tam (qalan)' : mode === 'partial' ? 'Qismən' : 'Məhsul seçimi' },
               { k: 'Məbləğ', v: `₼${(mode === 'item' ? itemTotal : refundAmount).toFixed(2)} / qalan ₼${remaining.toFixed(2)}` },
+              { k: 'Qalacaq', v: `₼${Math.max(0, remaining - (mode === 'item' ? itemTotal : refundAmount)).toFixed(2)} ${remaining - (mode === 'item' ? itemTotal : refundAmount) > 0.01 ? '(təkrar refund mümkündür)' : '(sifariş tam qaytarılacaq)'}` },
+              ...(mode !== 'item' && (order.order_items || []).length > 0 ? [{
+                k: 'Sətirlər',
+                v: (order.order_items || []).slice(0, 3).map(i => `${i.quantity}x ${i.product_name || i.products?.name_az || ''}`).join(', ') + ((order.order_items || []).length > 3 ? ' …' : ''),
+              }] : []),
               ...(reason ? [{ k: 'Səbəb', v: reason }] : []),
             ].map(r => (
               <div key={r.k} className="flex items-center justify-between gap-3">
@@ -1765,14 +1797,17 @@ function RefundView({
                 {Object.entries(selectedItems).map(([id, sel]) => {
                   const it = order.order_items?.find(i => i.id === id);
                   if (!it) return null;
-                  return (
-                    <div key={id} className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-semibold truncate">{sel.qty}x {it.product_name}</span>
-                      <span className="text-[9px] font-bold uppercase tracking-wider flex-shrink-0 opacity-60">
-                         {sel.fate === 'return_to_stock' ? 'Anbara qaytar' : sel.fate === 'waste' ? 'İtkiyə yaz' : 'Qeydsiz'}
-                      </span>
-                    </div>
-                  );
+                    return (
+                      <div key={id} className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold truncate">{sel.qty}x {it.product_name}</span>
+                        <span className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[9px] font-bold uppercase tracking-wider opacity-60">
+                           {sel.fate === 'return_to_stock' ? 'Anbara qaytar' : sel.fate === 'waste' ? 'İtkiyə yaz' : 'Qeydsiz'}
+                          </span>
+                          <span className={`text-[10px] font-black tabular-nums ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>−₼{(Number(it.unit_price) * sel.qty).toFixed(2)}</span>
+                        </span>
+                      </div>
+                    );
                 })}
               </div>
             )}
@@ -1834,6 +1869,15 @@ function RefundView({
             </span>
             <p className="text-sm font-black">{t('refund_success') || 'Geri ödəniş uğurla aparıldı'}</p>
             <p className="text-lg font-black tabular-nums text-emerald-500">₼{doneAmount.toFixed(2)}</p>
+            {/* round 8: the result screen carries the same order context the
+                confirm screen has — which order, by what method, and what
+                remains (so a PARTIAL refund is unambiguous at a glance). */}
+            <div className={`flex flex-col items-center gap-0.5 text-[10px] font-bold ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>
+              <span>{order.table_number ? `${t('table_label')} ${order.table_number}` : t('takeaway')} {order.order_number || `#${order.id.slice(0, 6)}`} · {refundMethod === 'cash' ? 'Nağd' : refundMethod === 'card' ? 'Kart' : refundMethod}</span>
+              <span className={doneRemaining > 0.01 ? '' : 'text-emerald-500'}>
+                {doneRemaining > 0.01 ? `Qalan: ₼${doneRemaining.toFixed(2)}` : 'Sifariş tam qaytarıldı'}
+              </span>
+            </div>
             <button onClick={guardedClose}
               className={`mt-2 px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-white active:scale-[0.98] transition-all ${lightMode ? 'bg-zinc-900' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
               Bağla

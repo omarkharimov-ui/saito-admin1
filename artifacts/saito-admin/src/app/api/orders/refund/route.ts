@@ -226,11 +226,16 @@ export async function POST(request: NextRequest) {
       if (order.status !== 'paid' && order.status !== 'partially_refunded') {
         return NextResponse.json({ error: 'Can only refund paid orders. Current: ' + order.status }, { status: 400 });
       }
-      const totalRefunded = Number(order.refund_amount) || 0;
+      // 2026-09-29 (round-6 E2E fix, same root cause as the DB guard fix):
+      // `paid_amount` is NET — complete_payment_atomic_v2 decrements it by
+      // every refund (v_new_paid := paid − refund_total). Subtracting
+      // refund_amount AGAIN made the cap read 0 after the first partial
+      // refund, so a second (legitimate) refund 400'd at the route before the
+      // DB ever saw it. The refundable cap IS paid_amount.
       const paidAmount = Number(order.paid_amount) || 0;
-      if (totalRefunded + refundAmount > paidAmount) {
+      if (refundAmount > paidAmount + 0.01) {
         return NextResponse.json({
-          error: `Refund amount (${refundAmount}) exceeds remaining (${paidAmount - totalRefunded})`,
+          error: `Refund amount (${refundAmount}) exceeds remaining (${paidAmount})`,
         }, { status: 400 });
       }
     }

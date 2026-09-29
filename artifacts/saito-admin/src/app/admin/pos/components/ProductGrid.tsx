@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { useState, useMemo, useEffect, useLayoutEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check, RotateCcw, Package, Trash2, ArrowLeft, Flame, Lock } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -243,7 +243,21 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const [instList, setInstList] = useState<NonNullable<EditorPreset['instances']>>([]);
   const [activeInst, setActiveInst] = useState(0);
   const instDraftsRef = useRef<NonNullable<EditorPreset['instances']>>([]);
+  // 2026-09-29 (owner, figure 1: "1-den 2-yə keçəndə state-machine transition
+  // olsun" + "daha touch-friendly"): the sliding capsule indicator. layoutId
+  // morphs are unreliable inside the scaled modal (framer projection vs.
+  // transform), so the indicator is a MEASURED absolute element: on every
+  // activeInst change we read the pill's offsetLeft/offsetWidth and spring the
+  // capsule there — a deterministic state-to-state morph (Philosophy §2/§5).
   const multiInst = instList.length > 0;
+  const instPillRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [pillInd, setPillInd] = useState<{ x: number; w: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!multiInst || instList.length === 0) { setPillInd(null); return; }
+    const el = instPillRefs.current[Math.min(activeInst, instList.length - 1)];
+    if (!el) return;
+    setPillInd((prev) => (prev && prev.x === el.offsetLeft && prev.w === el.offsetWidth ? prev : { x: el.offsetLeft, w: el.offsetWidth }));
+  }, [multiInst, activeInst, instList]);
   const activeDraft = multiInst ? instList[Math.min(activeInst, instList.length - 1)] : null;
   // 2026-09-28 (owner P2: "Servis edilmiş və ya 'Ready'/hazır instansiyanın
   // modifikatoru artıq dəyişdirilməməlidir"): READY joins the locked set —
@@ -323,21 +337,26 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   };
 
   // 2026-09-28 (owner P2: "say artıranda modifikatorlar bütün instansiyalar
-  // üçün birləşir"): Miqdar "+" on a SPEC'D or SENT instance does NOT grow the
-  // same line — it creates a NEW independent instance (a fresh pill tab that
-  // COPIES the active instance's spec, qty 1, unsent, editable). Each instance
-  // keeps its own modifier set; the kitchen gets each as its own order line.
-  // Plain (no spec, unsent) instances still grow qty on the same line.
+  // üçün birləşir") + 2026-09-29 (owner: "1-ci-ni modifikatorlarını düzəltdim,
+  // sayını artırdım, 3-cü avtomatik 'Kremli' yarandı — bu bug; miqdar düzgün
+  // artmır"): the rule is now STATE-BASED, not spec-based:
+  //   • UNSENT draft (kitchen has nothing of it yet) → "+" simply GROWS THE
+  //     SAME INSTANCE's quantity (1 → 2 on the same pill). One line, one spec,
+  //     N units — exactly what the stepper is for.
+  //   • SENT or LOCKED draft (units already in production / served) → "+"
+  //     cannot touch that kitchen-snapshotted line, so it creates a NEW
+  //     independent instance (fresh pill, qty 1, unsent, editable, copying
+  //     the active spec — the kitchen's next batch).
+  // Each instance keeps its own modifier set either way.
   const handleQtyPlus = () => {
     if (!multiInst) { setQty(qty + 1); return; }
     commitInstanceDraft();
     const drafts = instDraftsRef.current;
     const ad: any = drafts[Math.min(activeInst, drafts.length - 1)];
     if (!ad) { setQty(qty + 1); return; }
-    const isSpecd = Object.values(ad.modifiers || {}).some((q: any) => q > 0)
-      || !!(ad.note || '').trim() || (ad.allergens || []).length > 0;
     const isSent = (ad.sentQuantity ?? 0) > 0;
-    if (!isSpecd && !isSent) { setQty(qty + 1); return; }
+    const isLocked = LOCKED_KS.includes(ad.kitchen_status || '');
+    if (!isSent && !isLocked) { setQty(qty + 1); return; }
     const firstModId = (Object.entries(ad.modifiers || {}) as [string, number][])
       .find(([, q]) => q > 0)?.[0];
     const modName = firstModId
@@ -1288,43 +1307,51 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                        Swipeable: horizontal scroll + snap. Active pill = BLACK in
                        light / WHITE in dark (owner: light mode — yalnız mavi/qara).
                        Shown only when the collapsed row carries >1 instance. */}
-                   {multiInst && instList.length > 1 && (
-                     <div className="-mx-1 px-1">
-                       <div
-                         className="flex items-center gap-2 overflow-x-auto snap-x snap-mandatory pb-1"
-                         style={{ scrollbarWidth: 'none' }}
-                       >
-                          {instList.map((d: any, i: number) => {
-                            const on = i === activeInst;
-                            // 2026-09-28 (owner P2): 'ready' joins the lock set;
-                            // __isNew drafts (lineIndex -1) need a stable key
-                            // that never collides across new instances.
-                            const instLocked = LOCKED_KS.includes(d.kitchen_status || '');
-                            return (
-                              <button
-                                key={`inst-${d.__isNew ? `new-${i}` : d.lineIndex}`}
-                               onClick={() => switchInstance(i)}
-                               className={`relative flex items-center gap-1.5 pl-1.5 pr-3.5 py-1.5 rounded-full whitespace-nowrap snap-start text-[11px] font-black transition-colors active:scale-[0.97] ${
-                                 on ? (lightMode ? 'text-white' : 'text-zinc-950') : lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/50 hover:text-white/80'
-                               }`}
-                             >
-                               {on && (
-                                 <motion.span
-                                   layoutId="pos-inst-pill"
-                                   className={`absolute inset-0 rounded-full ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
-                                   transition={{ duration: 0.2, ease: [0.45, 0, 0.55, 1] }}
-                                 />
-                               )}
-                               <span className={`relative z-10 flex items-center justify-center w-[18px] h-[18px] rounded-full text-[9px] tabular-nums ${
-                                 on ? (lightMode ? 'bg-white/20' : 'bg-zinc-950/15') : lightMode ? 'bg-zinc-200/70 text-zinc-600' : 'bg-white/15 text-white/70'
-                               }`}>{i + 1}</span>
-                                <span className="relative z-10 max-w-[110px] truncate">{d.hint || (instLocked ? (d.kitchen_status === 'ready' ? 'Hazır' : 'Served') : '')}</span>
-                             </button>
-                           );
-                         })}
-                       </div>
-                     </div>
-                   )}
+                    {/* 2026-09-29 (owner, figure 1: "daha touch-friendly" +
+                        "1-dən 2-yə keçəndə state-machine transition olsun"):
+                        pills are now 44px-tall touch targets, and the active
+                        capsule is ONE measured sliding element that SPRINGS
+                        between pills (state→motion, Philosophy §1/§5). */}
+                    {multiInst && instList.length > 1 && (
+                      <div className="-mx-1 px-1">
+                        <div
+                          className="relative flex items-center gap-2 overflow-x-auto snap-x snap-mandatory pb-1"
+                          style={{ scrollbarWidth: 'none' }}
+                        >
+                          {pillInd && (
+                            <motion.div
+                              aria-hidden
+                              initial={false}
+                              animate={{ x: pillInd.x, width: pillInd.w }}
+                              transition={SPRING}
+                              className={`absolute top-1 bottom-1 left-0 rounded-full ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
+                            />
+                          )}
+                           {instList.map((d: any, i: number) => {
+                             const on = i === activeInst;
+                             // 2026-09-28 (owner P2): 'ready' joins the lock set;
+                             // __isNew drafts (lineIndex -1) need a stable key
+                             // that never collides across new instances.
+                             const instLocked = LOCKED_KS.includes(d.kitchen_status || '');
+                             return (
+                               <button
+                                 key={`inst-${d.__isNew ? `new-${i}` : d.lineIndex}`}
+                                 ref={(el) => { instPillRefs.current[i] = el; }}
+                                onClick={() => switchInstance(i)}
+                                className={`relative flex items-center gap-2 min-h-[44px] pl-2.5 pr-4 snap-start text-[12px] font-black whitespace-nowrap active:scale-[0.97] [transition:color_0.2s_ease] ${
+                                  on ? (lightMode ? 'text-white' : 'text-zinc-950') : lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/50 hover:text-white/80'
+                                }`}
+                              >
+                                <span className={`relative z-10 flex items-center justify-center w-[22px] h-[22px] rounded-full text-[10px] tabular-nums ${
+                                  on ? (lightMode ? 'bg-white/25' : 'bg-zinc-950/15') : lightMode ? 'bg-zinc-200/70 text-zinc-600' : 'bg-white/15 text-white/70'
+                                }`}>{i + 1}</span>
+                                 <span className="relative z-10 max-w-[110px] truncate">{d.hint || (instLocked ? (d.kitchen_status === 'ready' ? 'Hazır' : 'Served') : '')}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                    {/* 2026-09-28 (owner): SERVED/COMPLETED line → spec lock
                        banner; every control below is pointer-events-none + dimmed. */}
                     {specLocked && (
@@ -1585,20 +1612,47 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                                   crossfade (owner: "state-machine transition"). */
                                className={`inline-flex items-center gap-1.5 min-h-[38px] px-4 py-2 rounded-full border text-xs font-bold [transition:background-color_0.2s_ease,border-color_0.2s_ease,color_0.2s_ease] ${on ? 'bg-red-500/15 border-red-500/60 text-red-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
                              >
-                               <Icon size={14} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
-                               <AnimatePresence initial={false}>
-                                 {on && (
-                                   <motion.span
-                                     key="al-check"
-                                     initial={{ scale: 0.4, opacity: 0 }}
-                                     animate={{ scale: 1, opacity: 1 }}
-                                     exit={{ scale: 0.4, opacity: 0, transition: { duration: 0.12 } }}
-                                     transition={SPRING}
-                                   >
-                                     <Check size={12} />
-                                   </motion.span>
-                                 )}
-                               </AnimatePresence>
+                                <Icon size={14} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
+                                {/* 2026-09-29 (owner, figure 2: "tik bayaq necə
+                                    eləmişik eynisindən"): the same SVG
+                                    STROKE-DRAW as the TableCard selection
+                                    tick — pathLength 0→1, left→vertex→right
+                                    (~280ms), never a scale-pop. */}
+                                <AnimatePresence initial={false}>
+                                  {on && (
+                                    <motion.svg
+                                      key="al-check"
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      initial="hidden"
+                                      animate="show"
+                                      exit="hidden"
+                                      className="shrink-0"
+                                    >
+                                      <motion.path
+                                        d="M4 12.5 L9.5 18 L20 6.5"
+                                        stroke="currentColor"
+                                        strokeWidth={3.4}
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        variants={{
+                                          hidden: { pathLength: 0, opacity: 0 },
+                                          show: {
+                                            pathLength: 1,
+                                            opacity: 1,
+                                            transition: {
+                                              pathLength: { duration: 0.28, ease: 'easeOut', delay: 0.06 },
+                                              opacity: { duration: 0.08 },
+                                            },
+                                          },
+                                          exit: { pathLength: 0, opacity: 0, transition: { duration: 0.12 } },
+                                        }}
+                                      />
+                                    </motion.svg>
+                                  )}
+                                </AnimatePresence>
                              </motion.button>
                            );
                          })}

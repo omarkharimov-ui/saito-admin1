@@ -526,6 +526,12 @@ html[data-light-mode="true"], html[data-light="true"], html[data-theme="light"] 
   inherits: true;
   initial-value: 0px;
 }
+/* 2026-09-29 (owner video re-watch: "videoda mənə jump kimi bir şey var,
+   diqqətlə baxsan"): the video's life comes from a TWO-PHASE open — the
+   content FIRST quickly makes room (snappy ~180ms push), THEN the keyboard's
+   slower sheet spring (SPRING.surface, ~480ms) settles into the space. That
+   brief lead is the "jump". The old 0.3s push ran too close to the spring →
+   one block, no lead. Faster push = the iOS two-phase feel. */
 html {
-  transition: --vk-height 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: --vk-height 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }

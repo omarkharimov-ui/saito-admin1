@@ -961,12 +961,19 @@ export function ActionSheet({
                        );
                      })()}
 
-                     {/* Actions */}
-                     <div className="flex gap-3 mt-2">
-                       <button onClick={() => { setLocalSplit(null); setSplitMode('amount'); setSplitItems({}); }}
-                         className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">
-                         {t('back')}
-                       </button>
+                      {/* Actions */}
+                      <div className="flex gap-3 mt-2">
+                        {/* 2026-09-29 (owner: "actionsheet geri buttonu yoxa
+                            çıxdı"): this one back button was a RAW <button>
+                            with hardcoded dark classes (bg-white/10
+                            text-white/90) — INVISIBLE on the light card,
+                            while every other view uses the theme-aware
+                            <BackButton>. Same component now. */}
+                        <div className="flex-1">
+                          <BackButton onClick={() => { setLocalSplit(null); setSplitMode('amount'); setSplitItems({}); }}>
+                            {t('back')}
+                          </BackButton>
+                        </div>
                         <button
                           onClick={() => {
                             const tipNum = parseFloat(tipAmount) || 0;

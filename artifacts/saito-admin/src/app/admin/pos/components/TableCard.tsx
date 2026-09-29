@@ -1,7 +1,11 @@
 'use client';
 
 import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
-import { MoreVertical, Users, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2, Utensils, X, Layers } from '@/components/ui/saito-icons';
+// 2026-09-29 (owner: "kart statuslarının iconlarını yeniden düzəlt"): every
+// status now has a DISTINCT, semantically-correct Phosphor glyph — the old
+// set recycled CheckCircle2/Utensils/Receipt across 6+ states and left
+// dirty/cleaning/empty with NO icon.
+import { MoreVertical, Users, ShoppingBag, UserCheck, CalendarDays, CreditCard, Receipt, CheckCircle2, CheckCheck, Utensils, X, Layers, BrushCleaning, CookingPot, ClipboardCheck, ChefHat, BellRing, HandPlatter, Banknote, Table2 } from '@/components/ui/saito-icons';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -159,21 +163,21 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
     },
     reserved: {
-      icon: CalendarClock,
+      icon: CalendarDays,
       label: t('reserved' as any),
       bg: lightMode ? 'bg-indigo-100 border-indigo-400 text-indigo-800' : 'bg-indigo-500/25 border-indigo-400/60 text-indigo-300',
       iconColor: lightMode ? 'text-indigo-700' : 'text-indigo-400',
       dotColor: lightMode ? 'bg-indigo-500' : 'bg-indigo-400',
     },
     dirty: {
-      icon: null,
+      icon: BrushCleaning,
       label: t('dirty' as any),
       bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-29 (owner: "light-da statuslar qapı-qara olmasın — qara modda necədirsə elə olsun")
       iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
       dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
     },
     waiting: {
-      icon: Clock,
+      icon: BrushCleaning,
       label: t('waiting' as any),
       bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-29 (owner: "light-da statuslar qapı-qara olmasın — qara modda necədirsə elə olsun")
       iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
@@ -187,42 +191,42 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
     },
     cooking: {
-      icon: UserCheck,
+      icon: CookingPot,
       label: t('occupied' as any),
       bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
       iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
     },
      ordered: {
-       icon: ShoppingBag,
+        icon: ClipboardCheck,
        label: t('table_ordered' as any),
        bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
        iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
        dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
      },
-     confirmed: {
-       icon: CheckCircle2,
+      confirmed: {
+        icon: CheckCheck,
        label: t('table_confirmed' as any),
        bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
        iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
        dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
      },
-     in_kitchen: {
-       icon: Utensils,
+      in_kitchen: {
+        icon: ChefHat,
        label: t('table_in_kitchen' as any),
        bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
        iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
        dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
      },
-     ready: {
-       icon: CheckCircle2,
+      ready: {
+        icon: BellRing,
        label: t('table_ready' as any),
       bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-29 (owner: "light-da statuslar qapı-qara olmasın — qara modda necədirsə elə olsun")
         iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
         dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
      },
-     served: {
-       icon: CheckCircle2,
+      served: {
+        icon: HandPlatter,
        label: t('order_served' as any),
        bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
        iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
@@ -235,15 +239,15 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
        iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
        dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
      },
-     dining: {
-       icon: CheckCircle2,
+      dining: {
+        icon: Users,
        label: t('order_served' as any),
        bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
        iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
        dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
      },
-     bill_requested: {
-       icon: Receipt,
+      bill_requested: {
+        icon: Banknote,
        label: t('bill_requested' as any),
        bg: lightMode ? 'bg-rose-100 border-rose-400 text-rose-800' : 'bg-rose-500/25 border-rose-400/60 text-rose-300',
        iconColor: lightMode ? 'text-rose-700' : 'text-rose-400',
@@ -263,15 +267,15 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
        iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
        dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
      },
-     cleaning: {
-       icon: null,
+      cleaning: {
+        icon: BrushCleaning,
        label: t('needs_cleaning' as any),
       bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300', // 2026-09-29 (owner: "light-da statuslar qapı-qara olmasın — qara modda necədirsə elə olsun")
         iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
         dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
      },
-      empty: {
-       icon: null,
+       empty: {
+        icon: Table2,
        label: t('empty' as any),
        bg: lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-500' : 'bg-white/10 border-white/20 text-zinc-400',
        iconColor: lightMode ? 'text-zinc-500' : 'text-zinc-400',

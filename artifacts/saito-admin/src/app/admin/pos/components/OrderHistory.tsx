@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Printer, X, ChevronLeft, Search, CalendarDays, RefreshCw, Split, Receipt, User, Users, Wallet, CreditCard, Package, Car, Utensils, AlertTriangle, ChevronRight, Minus } from '@/components/ui/saito-icons';
@@ -9,7 +9,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
 import { fastExit, slideUp, centerModal } from '@/lib/modal-transitions';
-import { T, EASE } from '@/lib/motion/system';
+import { T, EASE, SPRING } from '@/lib/motion/system';
 import { PinGuard } from './PinGuard';
 import { requiresPin } from '@/lib/pos-permissions';
 import { toast } from '@/lib/toast';
@@ -1116,7 +1116,11 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                         remaining-amount check is the real gate. */}
                     <button
                       onClick={() => guardAction(() => openRefundModal(detailOrder), 'refund')}
-                      disabled={!['paid', 'partially_refunded'].includes(detailOrder.status) || (Number(detailOrder.refund_amount) || 0) >= (Number(detailOrder.paid_amount) || 0)}
+                      // 2026-09-29 (round-6 E2E): paid_amount is NET (decremented
+                      // by each refund) — refund is unavailable only when the
+                      // net hits 0 (the old refund_amount >= paid_amount test
+                      // disabled the button after the first partial refund).
+                      disabled={!['paid', 'partially_refunded'].includes(detailOrder.status) || (Number(detailOrder.paid_amount) || 0) <= 0.01}
                        className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest border flex items-center justify-center gap-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed ${lightMode ? 'bg-zinc-900/10 border-zinc-900/20 text-zinc-900 hover:bg-zinc-900/15' : 'bg-amber-500/10 border-amber-500/20 text-amber-500 hover:bg-amber-500/20'}`}
                     >
                       <RefreshCw size={14} /> {t('refund') || 'Geri ödəniş'}
@@ -1226,7 +1230,11 @@ function RefundView({
 
   const paidAmount = Number(order.paid_amount || order.total_amount) || 0;
   const totalRefunded = Number(order.refund_amount) || 0;
-  const remaining = paidAmount - totalRefunded;
+  // 2026-09-29 (round-6 E2E: "Qalan" showed ₼0.00 after a 50% refund):
+  // paid_amount is NET — the refund flow decrements it — so the remaining
+  // refundable IS paid_amount. Subtracting totalRefunded again was the
+  // client-side twin of the server guard bug (both now fixed in step).
+  const remaining = Math.max(0, paidAmount);
 
   useEffect(() => {
     if (mode === 'full') setAmount(remaining.toFixed(2));
@@ -1236,6 +1244,21 @@ function RefundView({
   const refundAmount = parseFloat(amount) || 0;
   const isFullRefund = mode === 'full' || Math.abs(refundAmount - remaining) < 0.01;
   const isValid = refundAmount > 0 && refundAmount <= remaining + 0.01;
+  // 2026-09-29 (owner: "refund modalında problem var + hər state machine üçün
+  // transition"): over-amount is now a REAL visible state (red border + pop
+  // hint) instead of a silently-disabled green input.
+  const isOverAmount = refundAmount > remaining + 0.01;
+  // The MODE selector (Tam / Qismən / Məhsul) is the modal's main state
+  // machine — its active capsule is ONE measured element that SPRINGS between
+  // buttons on every state flip (state→motion, Philosophy §1/§5).
+  const modeRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [modeInd, setModeInd] = useState<{ x: number; w: number } | null>(null);
+  useLayoutEffect(() => {
+    const idx = mode === 'full' ? 0 : mode === 'partial' ? 1 : 2;
+    const el = modeRefs.current[idx];
+    if (!el) { setModeInd(null); return; }
+    setModeInd((prev) => (prev && prev.x === el.offsetLeft && prev.w === el.offsetWidth ? prev : { x: el.offsetLeft, w: el.offsetWidth }));
+  }, [mode]);
 
   const toggleItem = (itemId: string, maxQty: number) => {
     setSelectedItems(prev => {
@@ -1353,6 +1376,14 @@ function RefundView({
   // area when a keyboard opens.
   const keyboardHeight = useKeyboardHeight();
 
+  // 2026-09-28 (owner: "refund modalının UI-sını yenidən yaz — light
+  // mode-da tam görünən, oxunaqlı və səliqəli"): the card now carries an
+  // EXPLICIT text color — before, children with no own color (amounts,
+  // qty digits, summary values) inherited WHITE from the dark-themed
+  // sheet and were invisible on the white light card.
+  // 2026-09-29 (E2E): this comment used to sit INSIDE the JSX (between the
+  // backdrop's open tag and its child) and rendered as VISIBLE TEXT on the
+  // modal ("// 2026-09-28 (owner: refund modalının UI-sını…)") — moved here.
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -1361,11 +1392,6 @@ function RefundView({
       style={{ paddingBottom: `calc(var(--vk-height, 0px) + ${keyboardHeight}px + 16px)` }}
       onClick={guardedClose}
     >
-      // 2026-09-28 (owner: "refund modalının UI-sını yenidən yaz — light
-      // mode-da tam görünən, oxunaqlı və səliqəli"): the card now carries an
-      // EXPLICIT text color — before, children with no own color (amounts,
-      // qty digits, summary values) inherited WHITE from the dark-themed
-      // sheet and were invisible on the white light card.
       <motion.div
         {...slideUp}
         onClick={e => e.stopPropagation()}
@@ -1421,7 +1447,10 @@ function RefundView({
             <span className={`text-[9px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('refunded') || 'Geri qaytarılan'}</span>
           </div>
           <div className="flex justify-between mt-1">
-            <span className="text-lg font-black tabular-nums">₼{paidAmount.toFixed(2)}</span>
+            {/* 2026-09-29: "Ödənilən" shows the GROSS the customer handed over
+                (net + already refunded) — net alone would read lower than the
+                order total after a partial refund. */}
+            <span className="text-lg font-black tabular-nums">₼{(paidAmount + totalRefunded).toFixed(2)}</span>
             <span className={`text-lg font-black tabular-nums ${totalRefunded > 0 ? 'text-red-500' : ''}`}>₼{totalRefunded.toFixed(2)}</span>
           </div>
           <div className={`flex justify-between pt-1.5 mt-1.5 border-t ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
@@ -1440,7 +1469,7 @@ function RefundView({
           <div className="grid grid-cols-2 gap-2">
             {methodOptions.map(m => (
               <button key={m} type="button" onClick={() => setRefundMethod(m)}
-                className={`h-10 rounded-xl border text-xs font-black transition-all ${refundMethod === m ? (lightMode ? 'border-red-300 bg-red-50 text-red-600' : 'border-red-500/50 bg-red-500/10 text-red-300') : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:border-zinc-300' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/20'}`}>
+                className={`h-10 rounded-xl border text-xs font-black transition-all duration-200 ${refundMethod === m ? (lightMode ? 'border-red-300 bg-red-50 text-red-600' : 'border-red-500/50 bg-red-500/10 text-red-300') : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:border-zinc-300' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/20'}`}>
                 {m === 'cash' ? 'Nağd' : m === 'card' ? 'Kart' : m}
               </button>
             ))}
@@ -1450,24 +1479,41 @@ function RefundView({
 
         {/* RIGHT COLUMN: mode + amount/items + reason */}
         <div>
-        {/* Mode selector */}
-        <div className="flex gap-2 mb-4">
+        {/* 2026-09-29 (owner: state-machine transitions): the active mode is
+            a MEASURED sliding capsule (springs between buttons on every flip)
+            + a 200ms text-color crossfade — the mode change is now a visible
+            state transition, not an instant repaint. */}
+        <div className="relative flex gap-2 mb-4">
+          {modeInd && (
+            <motion.div
+              aria-hidden
+              initial={false}
+              animate={{ x: modeInd.x, width: modeInd.w }}
+              transition={SPRING.micro}
+              // light = the modal's BLUE accent (a jet-black pill was rejected
+              // for the product modal's category pill — same language here).
+              className={`absolute top-0 bottom-0 rounded-2xl border ${lightMode ? 'bg-blue-500 border-blue-500' : 'bg-amber-500/10 border-amber-500/30'}`}
+            />
+          )}
           {[
             { key: 'full' as const, label: t('full_refund') || 'Tam', desc: remaining.toFixed(2) + ' ₼' },
             { key: 'partial' as const, label: t('partial_refund') || 'Qismən', desc: '' },
             { key: 'item' as const, label: t('item_refund') || 'Məhsul', desc: '' },
-          ].map(m => (
+          ].map((m, i) => (
             <button
               key={m.key}
+              ref={(el) => { modeRefs.current[i] = el; }}
               onClick={() => setMode(m.key)}
-              className={`flex-1 py-2.5 rounded-2xl border text-center transition-all ${
+              className={`relative z-10 flex-1 py-2.5 rounded-2xl border text-center transition-colors duration-200 ${
                 mode === m.key
-                  ? (lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-amber-500/10 border-amber-500/30 text-amber-500')
+                  ? (lightMode ? 'border-transparent text-white' : 'border-transparent text-amber-400')
                   : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/40'
               }`}
             >
               <p className="text-[10px] font-black uppercase tracking-wider">{m.label}</p>
-              {m.desc && <p className="text-[9px] mt-0.5 opacity-60">{m.desc}</p>}
+              {/* light: desc sits on the blue capsule → white 70% (readable);
+                  inactive → inherit muted. */}
+              {m.desc && <p className={`text-[9px] mt-0.5 ${lightMode ? (mode === m.key ? 'text-white/70' : 'opacity-60') : 'opacity-60'}`}>{m.desc}</p>}
             </button>
           ))}
         </div>
@@ -1478,31 +1524,72 @@ function RefundView({
             <p className={`text-[9px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
               {t('refund_amount') || 'Geri qaytarılacaq məbləğ'}
             </p>
-            <div className="relative">
-              <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>₼</span>
-              <input
-                type="number" step="0.01" min="0" max={remaining}
-                value={amount} onChange={e => setAmount(e.target.value)}
-                placeholder="0.00"
-                className={`w-full rounded-2xl pl-9 pr-5 py-3.5 text-lg font-black outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-blue-500' : 'bg-white/5 border-white/10 text-white focus:border-emerald-400/50'}`}
-              />
-            </div>
-            {mode === 'partial' && (
-              <div className="flex gap-2 mt-2">
-                {[25, 50, 75].map(pct => (
-                  <button key={pct} onClick={() => setAmount((remaining * pct / 100).toFixed(2))}
-                    className={`flex-1 py-1.5 rounded-xl text-[9px] font-black uppercase border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/40'}`}>
-                    {pct}%
-                  </button>
-                ))}
-                <button onClick={() => setAmount(remaining.toFixed(2))}
-                  className={`flex-1 py-1.5 rounded-xl text-[9px] font-black uppercase border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/40'}`}>
-                  {t('full') || 'Tam'}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+             <div className="relative">
+               <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black ${isOverAmount ? 'text-red-500' : lightMode ? 'text-zinc-400' : 'text-white/40'}`}>₼</span>
+               <input
+                 type="number" step="0.01" min="0" max={remaining}
+                 value={amount} onChange={e => setAmount(e.target.value)}
+                 placeholder="0.00"
+                 className={`w-full rounded-2xl pl-9 pr-5 py-3.5 text-lg font-black outline-none border transition-all duration-200 ${
+                   isOverAmount
+                     ? 'bg-red-500/5 border-red-500/60 text-red-600 dark:text-red-300'
+                     : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-blue-500' : 'bg-white/5 border-white/10 text-white focus:border-emerald-400/50'
+                 }`}
+               />
+             </div>
+             {/* 2026-09-29 (owner: state transitions): over-amount shows a
+                 spring-pop one-line hint — the state is VISIBLE, not just a
+                 disabled button. */}
+             <AnimatePresence>
+               {isOverAmount && mode !== 'full' && (
+                 <motion.p
+                   key="over-hint"
+                   initial={{ opacity: 0, y: -4, height: 0 }}
+                   animate={{ opacity: 1, y: 0, height: 'auto' }}
+                   exit={{ opacity: 0, y: -4, height: 0 }}
+                   transition={SPRING.micro}
+                   className="mt-1.5 text-[10px] font-bold text-red-600 dark:text-red-400 overflow-hidden"
+                 >
+                   Qalan məbləgdən çox girmək olmaz (maks ₼{remaining.toFixed(2)})
+                 </motion.p>
+               )}
+             </AnimatePresence>
+             {/* 2026-09-29 (owner: state transitions): the quick-% buttons
+                 now have a real ACTIVE state (200ms crossfade) — the selected
+                 share is readable at a glance. */}
+             {mode === 'partial' && (
+               <div className="flex gap-2 mt-2">
+                 {[25, 50, 75].map(pct => {
+                   const val = remaining * pct / 100;
+                   const on = Math.abs(refundAmount - val) < 0.01;
+                   return (
+                   <button key={pct} onClick={() => setAmount(val.toFixed(2))}
+                     className={`flex-1 py-1.5 rounded-xl text-[9px] font-black uppercase border transition-all duration-200 ${
+                       on
+                         ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-amber-500/10 border-amber-500/40 text-amber-400')
+                         : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/40'
+                     }`}>
+                     {pct}%
+                   </button>
+                   );
+                 })}
+                 {(() => {
+                   const on = Math.abs(refundAmount - remaining) < 0.01;
+                   return (
+                   <button onClick={() => setAmount(remaining.toFixed(2))}
+                     className={`flex-1 py-1.5 rounded-xl text-[9px] font-black uppercase border transition-all duration-200 ${
+                       on
+                         ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-amber-500/10 border-amber-500/40 text-amber-400')
+                         : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/40'
+                     }`}>
+                     {t('full') || 'Tam'}
+                   </button>
+                   );
+                 })()}
+               </div>
+             )}
+           </div>
+         )}
 
         {/* Item selection for item-level refund */}
         {mode === 'item' && (
@@ -1534,10 +1621,23 @@ function RefundView({
                              : 'border-zinc-300 opacity-30'
                          }`}
                       >
-                        {isSelected && (
-                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        )}
-                      </button>
+                         {/* 2026-09-29 (owner: state transitions): the check
+                             pops in/out with a micro spring. */}
+                         <AnimatePresence initial={false}>
+                           {isSelected && (
+                             <motion.svg
+                               key="it-check"
+                               width="10" height="10" viewBox="0 0 10 10" fill="none"
+                               initial={{ scale: 0.4, opacity: 0 }}
+                               animate={{ scale: 1, opacity: 1 }}
+                               exit={{ scale: 0.4, opacity: 0, transition: { duration: 0.1 } }}
+                               transition={SPRING.micro}
+                             >
+                               <path d="M2 5L4 7L8 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                             </motion.svg>
+                           )}
+                         </AnimatePresence>
+                       </button>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className={`text-xs font-bold truncate ${lightMode ? 'text-black' : 'text-white'}`}>
@@ -1666,13 +1766,25 @@ function RefundView({
               </div>
             )}
           </div>
-          {isFullRefund && (
-            <div className={`mt-3 p-3 rounded-2xl border ${lightMode ? 'bg-red-50 border-red-200' : 'bg-red-500/10 border-red-500/25'}`}>
-              <p className={`text-[10px] font-bold ${lightMode ? 'text-red-700' : 'text-red-300'}`}>
-                ⚠ {t('full_refund_warning') || 'Tam geri ödəniş — əməliyyat geri alınamaz'}
-              </p>
-            </div>
-          )}
+           {/* 2026-09-29 (owner: state transitions + icon-package rule): the
+               raw "⚠" character became Phosphor TriangleAlert, and the box
+               spring-POPS (it appears together with the confirm stage flip). */}
+           <AnimatePresence initial={false}>
+           {isFullRefund && (
+             <motion.div
+               key="full-warn"
+               initial={{ opacity: 0, y: 6, scale: 0.98 }}
+               animate={{ opacity: 1, y: 0, scale: 1 }}
+               exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.12 } }}
+               transition={SPRING.micro}
+               className={`mt-3 p-3 rounded-2xl border ${lightMode ? 'bg-red-50 border-red-200' : 'bg-red-500/10 border-red-500/25'}`}
+             >
+               <p className={`flex items-center gap-1.5 text-[10px] font-bold ${lightMode ? 'text-red-700' : 'text-red-300'}`}>
+                 <AlertTriangle size={12} className="shrink-0" /> {t('full_refund_warning') || 'Tam geri ödəniş — əməliyyat geri alınamaz'}
+               </p>
+             </motion.div>
+           )}
+           </AnimatePresence>
           <div className="mt-4 flex gap-3">
             <button onClick={goBackToEdit}
               className={`flex-1 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>

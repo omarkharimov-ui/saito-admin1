@@ -20,7 +20,7 @@ import { Numpad } from './Numpad';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { PartnerLogo } from './PartnerBadge';
 import { useVirtualKeyboard } from './VirtualKeyboard';
-import { TAP } from '../lib/pos-motion';
+import { TAP, SPRING } from '../lib/pos-motion';
 import { parseAllergens, resolveAllergenEntry } from '@/lib/allergens';
 
 interface CartPanelProps {
@@ -1278,19 +1278,24 @@ export function CartPanel({
             const plusTargetIdx = (editableLines[editableLines.length - 1] || group.lines[group.lines.length - 1]).originalIdx;
             const minusTarget = editableLines[editableLines.length - 1] || null;
 
-            // 2026-09-28 (owner P2): group "+" — if the target instance carries
-            // its own spec (modifiers/notes/allergens) it is CLONED into a new
-            // independent line (own modifiers, qty 1, unsent); only plain
-            // instances grow qty in place. Prevents the "one modifier set
-            // applied to every unit" merge the owner reported.
+            // 2026-09-28 (owner P2) + 2026-09-29 (owner, figure 3 — same rule as
+            // the modal's Miqdar "+"): STATE-based, not spec-based. A SENT or
+            // LOCKED (ready/served/completed) instance is a kitchen snapshot —
+            // "+" clones it into a NEW independent line (own modifiers, qty 1,
+            // unsent). An UNSENT instance (spec'd or plain) just grows its own
+            // qty in place — its modifiers stay on ITS line, siblings untouched.
             const plusTargetItem = group.lines.find((l: any) => l.originalIdx === plusTargetIdx)?.item as any;
+            const plusTargetLocked = !!(plusTargetItem && (
+              (plusTargetItem.sentQuantity ?? 0) > 0 ||
+              ['ready', 'served', 'completed'].includes(plusTargetItem.kitchen_status || '')
+            ));
             const plusIsSpecd = !!(plusTargetItem && (
               (plusTargetItem.modifiers?.length > 0) ||
               (plusTargetItem.special_notes || '').trim() ||
               (Array.isArray(plusTargetItem.allergens) && plusTargetItem.allergens.length > 0)
             ));
             const handleGroupPlus = () => {
-              if (plusIsSpecd && onCloneInstance) { onCloneInstance(plusTargetIdx); return; }
+              if (plusIsSpecd && plusTargetLocked && onCloneInstance) { onCloneInstance(plusTargetIdx); return; }
               onUpdateQty?.(plusTargetIdx, 1);
             };
 
@@ -1383,20 +1388,22 @@ export function CartPanel({
                              details-panel "Geri qaytar" action (anyReturnable
                              above keeps working for the void-mode hint). */}
                        </p>
-                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                         {/* 2026-09-28 (owner: collapse): UNION modifier chips
-                             across the group's instances — ×N = how many
-                             instances carry that modifier. WHICH instance has
-                             WHICH config lives in the editor's pill tabs
-                             ("1 · Kremli" / "2 · Yüngül", TikTok-style). */}
-                         {group.modChips.map((c: any) => (
-                           <span
-                             key={`mod-${c.name}`}
-                             className="inline-flex items-center gap-0.5 whitespace-nowrap px-1.5 py-0.5 rounded-md bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[10px] font-semibold tracking-normal text-[var(--theme-text-secondary)]"
-                           >
-                             {c.name}{c.count > 1 ? ` ×${c.count}` : ''}
-                           </span>
-                         ))}
+                       <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          {/* 2026-09-29 (owner, figure 4: "hər şey yazılıb —
+                              bir cümlə olsun"): the UNION modifier chip LIST
+                              (Kremli ×2 · Acılı Mayonez ×2 · …) is replaced
+                              by ONE compact summary chip "⚙ N əlavə" — the
+                              full list stays in the hover tooltip, and WHICH
+                              instance carries WHAT lives in the editor's pill
+                              tabs. Row stays one line, no chip sprawl. */}
+                          {group.modChips.length > 0 && (
+                            <span
+                              title={group.modChips.map((c: any) => `${c.name}${c.count > 1 ? ` ×${c.count}` : ''}`).join(' · ')}
+                              className="inline-flex items-center gap-1 whitespace-nowrap px-1.5 py-0.5 rounded-md bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[10px] font-semibold tracking-normal text-[var(--theme-text-secondary)]"
+                            >
+                              <SlidersHorizontal size={10} />{group.modChips.reduce((s: number, c: any) => s + (c.count || 1), 0)} əlavə
+                            </span>
+                          )}
                          {/* Course chip — only when EVERY instance shares the
                              same course (mixed groups are edited per instance
                              in the modal, where they always were). Tap cycles
@@ -1416,26 +1423,42 @@ export function CartPanel({
                              </span>
                            )
                          )}
-                         {group.anyHeld && (
-                           /* tappable = RESUME all held instances of the group
-                              (one-tap, both directions — same machine as the
-                              per-line hold badge). 2026-09-28 (owner: light
-                              mode — yalnız mavi/qara): light = BLUE. */
-                           <button
-                             onClick={(e) => { e.stopPropagation(); toggleGroupHold(group); }}
-                             title="Bərpa et"
-                             className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold tracking-normal transition-transform active:scale-95 ${lightMode ? 'bg-blue-50 border border-blue-200 text-blue-700' : 'bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-300/80'}`}
-                           ><Pause size={9} />Saxlanılıb</button>
-                         )}
+                          {/* 2026-09-29 (owner, figure 5: "hold/resume çox yer
+                              tutur, animasiya yoxdur, transition yoxdur — ən
+                              yaxşısını düşün"): the text chip "Saxlanılıb" is
+                              now an ICON-ONLY pause badge (20px) that SPRING-
+                              POPS in/out (AnimatePresence, micro) — the held
+                              state reads at a glance, costs ~zero row space,
+                              and its appearance/disappearance IS the
+                              state-machine transition. Tap = RESUME all held
+                              instances (same machine as the per-line badge). */}
+                          <AnimatePresence initial={false}>
+                            {group.anyHeld && (
+                              <motion.button
+                                key="held-badge"
+                                initial={{ scale: 0.4, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.4, opacity: 0, transition: { duration: 0.12 } }}
+                                transition={SPRING}
+                                onClick={(e) => { e.stopPropagation(); toggleGroupHold(group); }}
+                                title="Saxlanılıb — toxunub bərpa et"
+                                className={`inline-flex items-center justify-center w-5 h-5 shrink-0 rounded-md border active:scale-90 ${lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-orange-500/10 border-orange-500/25 text-orange-400'}`}
+                              ><Pause size={10} strokeWidth={2.5} /></motion.button>
+                            )}
+                          </AnimatePresence>
                         {/* Allergen union across the group (SSOT labels —
                             2026-09-28: raw codes like "fish" are resolved to
                             "Balıq" through the allergen SSOT). */}
-                         {group.allergenLabels.length > 0 && (
-                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-red-500/10 border border-red-500/30 text-[10px] font-semibold tracking-normal text-red-600 dark:text-red-300/90"
-                             title={group.allergenLabels.join(' · ')}>
-                             <AlertTriangle size={9} />{group.allergenLabels.join(' · ')}
-                           </span>
-                         )}
+                          {group.allergenLabels.length > 0 && (
+                            /* 2026-09-29 (owner, figure 4): compact ONE-LINE
+                               allergen badge — first label + "+N" (full list in
+                               the tooltip). Safety info stays VISIBLE, but it
+                               no longer sprawls across two lines. */
+                            <span className="inline-flex items-center gap-0.5 whitespace-nowrap px-1.5 py-0.5 rounded-md bg-red-500/10 border border-red-500/30 text-[10px] font-semibold tracking-normal text-red-600 dark:text-red-300/90"
+                              title={group.allergenLabels.join(' · ')}>
+                              <AlertTriangle size={9} />{group.allergenLabels[0]}{group.allergenLabels.length > 1 ? ` +${group.allergenLabels.length - 1}` : ''}
+                            </span>
+                          )}
                       </div>
                    </div>
                     <span className={`text-sm font-black tabular-nums min-w-[4rem] text-right ${lightMode ? 'text-gray-900' : 'text-white'}`}>

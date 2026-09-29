@@ -809,6 +809,15 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-30 (ROUND 8c: PILL ×QTY BADGE — AKTİV PİL'DƏ GÖRÜNMƏYİRLİK FIX)
+
+- **Owner turn** (1 xətt): "1 məhsulun sayını artırır, modifikator panelinə daxil oluram, oradaki say artırmaq buttonuna basanda say artmır və ya artır lakin instance (yuxarda 1 2 3 4 pill-lər) artmır — səbəbini tap, düzəlt" + "dev serveri ac və bunu test et."
+- **Təkrar (browser sub-agent, MASA 98):** aktiv pill 1-də MIQDAR+ → stepper **işləyir** (1→2→3), lakin **AKTİV pill-də ×N badge GÖRÜNMÜR** (yalnız "1" görünür); badge yalnız pill **inactive** olduqda görünür ("1 ×2"). Yəni round 8b-in əlavə etdiyi ×qty badge dəqiq owner-in baxdığı (aktiv) pill-də görünmürdü — "instance artmır" hissi tam budur.
+- **ROOT CAUSE:** aktiv pill = sliding capsule — **WHITE (dark) / BLACK (light)** (`motion.div`, ~sətir 1369: `lightMode ? 'bg-zinc-900' : 'bg-white'`). Badge-in AKTİV text rəngi isə capsule-in **ƏKSİ** idi: dark aktiv → `text-white/90` (ağ mətn **ağ kapsul** üzərində = GÖRÜNMÜR); light aktiv → `text-zinc-800` (qara mətn **qara kapsul** üzərində = görünmür). İki branch **SWAP**-edilmişdi.
+- **FIX:** badge-in aktiv text rəngi İNDİ button-un aktiv text rənginə uyğundur (dark: `bg-zinc-900/10 text-zinc-800`; light: `bg-white/15 text-white`) — capsule ilə həmişə kontrast. Inactive dəyişməz (`bg-transparent opacity-60`).
+- **E2E (MASA 471, 4× Filadelfiya):** aktiv pill badge İNDİ görünür və artır: **×1→×2→×3** (dark — white pill / dark badge); pill 2-yə keçid → pill1 inactive **×3** görünür; **LIGHT mode** (Mövzu dəyiş) → black pill + white badge, **×5** görünür ✓. Stepper 1→3, badge 1→3, sync düzgün. **CART LIVE: TƏSDİQ olundu** — modal AÇIQkən row total **84→98 ₼** (qty 6→7); round 8b sub-agent-in "cart canlı yenilənmir" nəticəsi müşahidə artefaktı idi (modal cart-ı örtürdü, DOM-dan oxumaqda). Console **0** error/warning.
+- **Verify:** dev HMR təmiz (0 compile error, hamısı 200); dəyişiklik yalnız className string swap → `tsc` təsiri yoxdur (lakin aşağıda yenə də təmiz). **Fayl** (1): `ProductGrid.tsx` (pill ×qty badge aktiv light/dark rəng swap + root-cause comment).
+
 ### Jurnal sətiri — 2026-09-30 (ROUND 8b: LIVE QTY SYNC (modal ↔ cart) + PILL ×QTY BADGE)
 
 - **Owner turn** (1 screenshot — Filadelfiya 2 pill, "YADDA SAXLA · 2"): (1) "modal içi say artırma — daha doğrusu SYNC işləmir: səbətdeki sayı artıranla modal içi say artırma sync işləsin"; (2) "tamam, miqdar artır, lakin yuxarıdakı 1 və 2 artmır — bu nə üçündür, düzgünündürmü?"

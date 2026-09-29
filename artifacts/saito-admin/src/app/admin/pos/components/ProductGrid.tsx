@@ -1387,16 +1387,27 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                                  <span className={`relative z-10 flex items-center justify-center w-[22px] h-[22px] rounded-full text-[10px] tabular-nums ${
                                    on ? (lightMode ? 'bg-white/25' : 'bg-zinc-950/15') : lightMode ? 'bg-zinc-200/70 text-zinc-600' : 'bg-white/15 text-white/70'
                                  }`}>{i + 1}</span>
-                                 {/* 2026-09-30 (owner, round 8b: "yuxardaki 1 və 2
-                                     artmır — bu nə üçündür?"): the circle is the
-                                     INSTANCE tab index, NOT the quantity. Each pill
-                                     now carries its LIVE ×qty badge (draft qty —
-                                     the cartItemQtys sync effect keeps it equal to
-                                     the cart line), so MIQDAR+ is visible right
-                                     on the pill. */}
-                                 <span className={`relative z-10 shrink-0 text-[10px] font-black tabular-nums px-1 h-[18px] rounded-md flex items-center ${
-                                   on ? (lightMode ? 'bg-zinc-900/10 text-zinc-800' : 'bg-white/15 text-white/90') : 'bg-transparent opacity-60'
-                                 }`}>×{(d.quantity || 1)}</span>
+                                  {/* 2026-09-30 (owner, round 8b: "yuxardaki 1 və 2
+                                      artmır — bu nə üçündür?"): the circle is the
+                                      INSTANCE tab index, NOT the quantity. Each pill
+                                      now carries its LIVE ×qty badge (draft qty —
+                                      the cartItemQtys sync effect keeps it equal to
+                                      the cart line), so MIQDAR+ is visible right
+                                      on the pill.
+                                      2026-09-30 (round 8c): the ACTIVE pill is the
+                                      sliding capsule — WHITE in dark / BLACK in light
+                                      (see the motion.div above, line ~1369). The badge
+                                      text must CONTRAST that capsule, so it mirrors the
+                                      button's active text color (dark-on-white in dark
+                                      mode, white-on-black in light mode). Previously the
+                                      two branches were SWAPPED (text-white on the white
+                                      active capsule in dark mode), so the ×N badge was
+                                      invisible exactly on the pill being edited — the
+                                      owner's "instance artmır" (press +, active pill
+                                      never shows the number growing). */}
+                                  <span className={`relative z-10 shrink-0 text-[10px] font-black tabular-nums px-1 h-[18px] rounded-md flex items-center ${
+                                    on ? (lightMode ? 'bg-white/15 text-white' : 'bg-zinc-900/10 text-zinc-800') : 'bg-transparent opacity-60'
+                                  }`}>×{(d.quantity || 1)}</span>
                                   <span className="relative z-10 max-w-[110px] truncate">{d.hint || (instLocked ? (d.kitchen_status === 'ready' ? 'Hazır' : 'Served') : '')}</span>
                               </button>
                             );

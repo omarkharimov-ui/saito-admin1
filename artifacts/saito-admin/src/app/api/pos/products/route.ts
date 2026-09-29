@@ -40,6 +40,12 @@ export async function GET() {
         id: m.id,
         name: m.name,
         price: Number(m.price) || 0,
+        // 2026-09-30 (owner, round 9b): the house-default flag MUST reach the
+        // client — exclusive-group default resolution (openEditor preselect,
+        // "＋ Yeni variant" fresh spec, plain-tap prefill) all read
+        // m.is_default first. Without it they fell back to "first ₼0 option
+        // in created_at order" and picked Yüngül instead of Standart.
+        is_default: Boolean(m.is_default),
         name_az: m.name_az,
         name_en: m.name_en,
         name_ru: m.name_ru,

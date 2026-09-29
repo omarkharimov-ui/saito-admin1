@@ -1034,6 +1034,31 @@ export function usePos() {
     opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[]; quantity?: number; editOf?: { identity?: string; lineIndex?: number }; course?: string | null; isHold?: boolean; allergens?: string[] }
   ) => {
     const addQty = Math.max(1, Number(opts?.quantity) || 1);
+    // 2026-09-30 (owner, round 9b — "default pill shows no Standart label"):
+    // a PLAIN add (no editOf, no explicit modifiers) = the STANDARD serving.
+    // Every exclusive (max_select=1) group's house default (is_default,
+    // fallback: first ₼0 option) becomes part of the line spec — the exact
+    // same rule as the editor's openEditor preselect. Without this a plain
+    // line carries no exclusive choice: blank pill label, no serving style on
+    // the KDS ticket, and a cartLineKey mismatch with a fresh "＋ Yeni
+    // variant" default spec (the two would never merge — 8 Filadelfiya as 2+2
+    // +4 requires plain taps to BE "Standart"). Explicit edits and
+    // caller-provided modifiers are never touched.
+    const incomingMods: PosModifierSelection[] = [...(opts?.modifiers || [])];
+    const mods: PosModifierSelection[] = (() => {
+      if (opts?.editOf || incomingMods.length > 0) return incomingMods;
+      const filled: PosModifierSelection[] = [];
+      const groups: any[] = (p as any).modifier_groups || [];
+      const allMods: any[] = (p as any).modifiers || [];
+      for (const g of groups) {
+        if (Number(g?.max_select) === 1 && Array.isArray(g?.item_ids) && g.item_ids.length > 0) {
+          const items = allMods.filter((m: any) => g.item_ids.includes(m.id));
+          const def = items.find((m: any) => m.is_default) || items.find((m: any) => !Number(m.price));
+          if (def) filled.push({ id: def.id, name: def.name, price: Number(def.price) || 0, quantity: 1 });
+        }
+      }
+      return filled;
+    })();
     const base = cartRef.current ?? {
       table_number: selectedTable?.table_number || null,
       guest_count: selectedTable?.guest_count || 1,
@@ -1057,7 +1082,7 @@ export function usePos() {
       : (effNum ?? basePrice);
     // Modifikator qiymətləri unit_price-a da, original_unit_price-a da əlavə olunur ki,
     // (original − unit) əsaslı endirim hesablamaları pozulmasın.
-    const modifiersTotal = (opts?.modifiers || []).reduce((s, m) => s + Number(m.price || 0) * (m.quantity || 1), 0);
+    const modifiersTotal = mods.reduce((s, m) => s + Number(m.price || 0) * (m.quantity || 1), 0);
     const unitPrice = Math.round((productUnit + modifiersTotal) * 100) / 100;
     const originalWithMods = Math.round((basePrice + modifiersTotal) * 100) / 100;
     const campaignId = typeof effective === 'object' && effective?.campaign_id ? effective.campaign_id : null;
@@ -1122,7 +1147,7 @@ export function usePos() {
     // DIFFERENT specs, which we still never do. Distinct instances are created
     // explicitly via the editor's "＋ Yeni sətir" button, not by tapping.
     {
-      const addKey = cartLineKey(variantId, opts?.notes ?? '', (opts?.modifiers || []) as any);
+      const addKey = cartLineKey(variantId, opts?.notes ?? '', mods as any);
       const addCourse = opts?.course !== undefined ? opts.course : null;
       const addAllergens = JSON.stringify(opts?.allergens ?? []);
       const existing = items.find((i: any) =>
@@ -1154,7 +1179,7 @@ export function usePos() {
       original_unit_price: originalWithMods,
       quantity: addQty,
       total_price: Math.round(unitPrice * addQty * 100) / 100,
-        modifiers: opts?.modifiers ?? [],
+        modifiers: mods,
         variant_id: variantId,
         special_notes: opts?.notes ?? '',
         allergens: opts?.allergens ?? [],
@@ -1177,11 +1202,11 @@ export function usePos() {
           items: [{
             product_id: p.id,
             product_name: p.name,
-            quantity: 1,
-            unit_price: unitPrice,
-            modifiers: opts?.modifiers ?? [],
-            special_notes: opts?.notes ?? '',
-          }],
+              quantity: 1,
+              unit_price: unitPrice,
+              modifiers: mods,
+              special_notes: opts?.notes ?? '',
+            }],
         }),
       })
         .then(r => r.json().catch(() => null))

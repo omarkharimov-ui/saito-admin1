@@ -264,7 +264,12 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     const el = instPillRefs.current[Math.min(activeInst, instList.length - 1)];
     if (!el) return;
     setPillInd((prev) => (prev && prev.x === el.offsetLeft && prev.w === el.offsetWidth ? prev : { x: el.offsetLeft, w: el.offsetWidth }));
-  }, [multiInst, activeInst, instList]);
+    // round 9 fix: also re-measure when the ACTIVE pill's spec label changes —
+    // the label is resolveHintName() of selectedModifiers, so changing the
+    // SERVİŇƏ ÜSLUBU / modifier changes the pill width WITHOUT instList
+    // changing; without this the capsule keeps its old (narrower) width and the
+    // new label is clipped (owner: "active pill texti tam tutmur, yarimciq qalir").
+  }, [multiInst, activeInst, instList, selectedModifiers]);
   const activeDraft = multiInst ? instList[Math.min(activeInst, instList.length - 1)] : null;
   // 2026-09-30 (owner, round 9 — "YADDA SAXLA · 8"): the CTA shows the TOTAL
   // UNIT count across all instances (2+2+4 = 8), NOT the instance count (3).
@@ -329,20 +334,64 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   // Prefers an exclusive (max_select=1) group's choice (e.g. SERVİŇƏ ÜSLUBU),
   // else the first selected modifier name, else null (no spec → the pill shows
   // only its ×qty badge).
-  const resolveHintName = (): string | null => {
+  const resolveHintName = (mods?: Record<string, number>): string | null => {
     const groups: any[] = (expandedItem as any)?.modifier_groups || [];
-    const mods: any[] = (expandedItem as any)?.modifiers || [];
-    const sel = Object.keys(selectedModifiers || {}).filter((id) => (selectedModifiers as any)[id] > 0);
-    if (!sel.length) return null;
-    const nameOf = (id: string) => mods.find((m: any) => m.id === id)?.name || null;
+    const modList: any[] = (expandedItem as any)?.modifiers || [];
+    const selMods = mods ?? selectedModifiers;
+    const sel = Object.keys(selMods || {}).filter((id) => (selMods as any)[id] > 0);
+    const nameOf = (id: string) => modList.find((m: any) => m.id === id)?.name || null;
+    if (sel.length) {
+      let base: string | null = null;
+      let baseId: string | null = null;
+      for (const g of groups) {
+        if (Number(g?.max_select) === 1) {
+          const hit = (g?.item_ids || []).find((id: string) => sel.includes(id));
+          if (hit) { base = nameOf(hit); baseId = hit; break; }
+        }
+      }
+      if (!base) {
+        for (const id of sel) { const n = nameOf(id); if (n) { base = n; baseId = id; break; } }
+      }
+      // 2026-09-30 (round 9b, E2E legibility catch): two specs sharing the same
+      // SERVİŇƏ ÜSLUBU ("Standart" vs "Standart + Avokado") used to render the
+      // IDENTICAL pill label. Append the count of EXTRA selected modifiers
+      // (addons beyond the base name) — "Standart +1" disambiguates compactly.
+      const extra = sel.reduce((s, id) => (id !== baseId ? s + ((selMods as any)[id] || 1) : s), 0);
+      return base ? (extra > 0 ? `${base} +${extra}` : base) : null;
+    }
+    // 2026-09-30 (owner, round 9b — "default pill shows no label"): a line
+    // with NO explicit exclusive choice (legacy plain lines saved before
+    // round 9b prefill) still shows the group's house default name
+    // ("Standart") — an unchosen exclusive group IS the standard serving.
     for (const g of groups) {
-      if (Number(g?.max_select) === 1) {
-        const hit = (g?.item_ids || []).find((id: string) => sel.includes(id));
-        if (hit) return nameOf(hit);
+      if (Number(g?.max_select) === 1 && Array.isArray(g?.item_ids) && g.item_ids.length > 0) {
+        const items = modList.filter((m: any) => g.item_ids.includes(m.id));
+        const def = items.find((m: any) => m.is_default) || items.find((m: any) => !Number(m.price));
+        if (def) return def.name || null;
       }
     }
-    for (const id of sel) { const n = nameOf(id); if (n) return n; }
     return null;
+  };
+
+  // 2026-09-30 (owner, round 9 fix): the "＋ Yeni variant" pill starts as a FRESH
+  // DEFAULT spec — the exclusive group's default option (e.g. Standart) + the
+  // default variant, NO additive modifiers — NOT a clone of the active pill. The
+  // owner found the clone confusing ("yeni spec yaradanda copy edir"). Mirrors
+  // the openEditor preselect logic.
+  const freshDefaultSpec = (): { variantId: string | null; modifiers: Record<string, number> } => {
+    const groups: any[] = (expandedItem as any)?.modifier_groups || [];
+    const mods: any[] = (expandedItem as any)?.modifiers || [];
+    const sel: Record<string, number> = {};
+    for (const g of groups) {
+      if (Number(g?.max_select) === 1 && Array.isArray(g?.item_ids) && g.item_ids.length > 0) {
+        const items = mods.filter((m: any) => g.item_ids.includes(m.id));
+        const def = items.find((m: any) => m.is_default) || items.find((m: any) => !Number(m.price));
+        if (def) sel[def.id] = 1;
+      }
+    }
+    const variants: any[] = (expandedItem as any)?.variants || [];
+    const defVariant = variants.find((v: any) => v.is_default) || (variants.length === 1 ? variants[0] : null);
+    return { variantId: defVariant?.id ?? null, modifiers: sel };
   };
 
   // Commit the ACTIVE field states back into its draft (mutates the ref —
@@ -392,32 +441,84 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         lineIndex: editLineIndexRef.current ?? -1,
         __isNew: editLineIndexRef.current == null,
         quantity: qty,
-        variantId: selectedVariant || null,
+        variantId: selectedVariant ?? null,
         note: noteForProduct || '',
         modifiers: { ...selectedModifiers },
         course: editCourse,
         is_hold: editIsHold,
         allergens: selectedAllergens,
+        hint: resolveHintName() || '',
         unitPrice: modalUnitPrice,
       });
     }
-    // Clone the active instance's current spec into a fresh instance (qty 1).
+    // round 9 fix: FRESH DEFAULT spec — NOT a clone of the active pill (owner:
+    // "yeni spec yaradanda copy edir"). Starts as the default variant + the
+    // exclusive group's default option (e.g. Standart), no additive modifiers.
+    const fresh = freshDefaultSpec();
     drafts.push({
       lineIndex: -1,
       __isNew: true,
       quantity: 1,
-      variantId: selectedVariant || null,
-      note: noteForProduct || '',
-      modifiers: { ...selectedModifiers },
-      course: editCourse,
-      is_hold: editIsHold,
-      allergens: selectedAllergens,
-      hint: resolveHintName() || undefined,
+      variantId: fresh.variantId,
+      note: '',
+      modifiers: { ...fresh.modifiers },
+      course: null,
+      is_hold: false,
+      allergens: [],
+      hint: resolveHintName(fresh.modifiers) || '',
       unitPrice: modalUnitPrice,
     });
     setInstList([...drafts]);
     setActiveInst(drafts.length - 1);
     setQty(1);
+    // reset the shared field states to the fresh default (the new pill is active)
+    setSelectedVariant(fresh.variantId ?? undefined);
+    setSelectedModifiers({ ...fresh.modifiers });
+    setNoteForProduct('');
+    setEditCourse(null);
+    setEditIsHold(false);
+    setSelectedAllergens([]);
+  };
+
+  // 2026-09-30 (owner, round 9 fix — "＋ basdıqsa onu silmək olmur"): remove an
+  // instance pill. __isNew (unsaved) drafts are dropped locally. Existing cart
+  // lines are removed via onApplyInstanceEdits (qty 0, sentQty-clamped) and the
+  // remaining drafts' lineIndex are re-indexed (a removed line shifts the cart
+  // down by one, so any draft whose lineIndex was past it must decrement).
+  // Served/locked instances can't be removed from here (use GERİ QAYTAR).
+  const removeInstance = (i: number) => {
+    const drafts: any[] = instDraftsRef.current;
+    const d = drafts[i];
+    if (!d) return;
+    if (d.kitchen_status && LOCKED_KS.includes(d.kitchen_status)) return;
+    commitInstanceDraft();
+    const removedLineIndex: number = d.lineIndex;
+    const isLocal = d.__isNew || removedLineIndex < 0;
+    if (!isLocal && onApplyInstanceEdits) {
+      onApplyInstanceEdits(expandedItem as any, [{
+        lineIndex: removedLineIndex,
+        quantity: 0,
+        variantId: d.variantId ?? null,
+        notes: d.note || '',
+        modifiers: { ...(d.modifiers || {}) },
+        course: d.course ?? null,
+        isHold: !!d.is_hold,
+        allergens: d.allergens ?? [],
+      }] as any);
+    }
+    const next = drafts
+      .filter((_, idx) => idx !== i)
+      .map((dd: any) => (!isLocal && dd.lineIndex > removedLineIndex ? { ...dd, lineIndex: dd.lineIndex - 1 } : dd));
+    instDraftsRef.current = next;
+    setInstList(next);
+    const len = next.length;
+    if (len > 0) {
+      const ni = Math.max(0, Math.min(activeInst > i ? activeInst - 1 : activeInst, len - 1));
+      setActiveInst(ni);
+      loadInstanceFields(ni, next);
+    } else {
+      setActiveInst(0);
+    }
   };
 
    // 2026-09-28 (owner P2: "say artıranda modifikatorlar bütün instansiyalar
@@ -1459,9 +1560,14 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                               // ACTIVE pill recomputes from the current selection
                               // (so "Kremli"→"Yüngül" updates as you tap); inactive
                               // pills show their committed d.hint. Locked → state.
-                              const hintText = instLocked
-                                ? (d.kitchen_status === 'ready' ? 'Hazır' : 'Served')
-                                : (on ? (resolveHintName() || d.hint || '') : (d.hint || ''));
+                               // 2026-09-30 (round 9b): inactive pills with an EMPTY
+                               // committed hint (legacy plain lines, saved before the
+                               // round-9b default prefill) resolve through
+                               // resolveHintName(d.modifiers) — the no-selection
+                               // fallback yields the group's house default ("Standart").
+                               const hintText = instLocked
+                                 ? (d.kitchen_status === 'ready' ? 'Hazır' : 'Served')
+                                 : (on ? (resolveHintName() || d.hint || '') : (d.hint || resolveHintName(d.modifiers as Record<string, number>) || ''));
                               return (
                                <button
                                  key={`inst-${d.__isNew ? `new-${i}` : d.lineIndex}`}
@@ -1496,14 +1602,46 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                                     on ? (lightMode ? 'bg-white/15 text-white' : 'bg-zinc-900/10 text-zinc-800') : 'bg-transparent opacity-60'
                                   }`}>×{(d.quantity || 1)}</span>
                                     <span className="relative z-10 max-w-[110px] truncate">{hintText}</span>
+                                  {/* 2026-09-30 (owner, round 9 fix — "＋ basdıqsa onu
+                                      silmək olmur"): the ACTIVE pill exposes a small "×"
+                                      to delete it (local drop for unsaved drafts;
+                                      cart-line remove + re-index for existing).
+                                      stopPropagation keeps it from also switching. */}
+                                  {on && !instLocked && (
+                                    <span
+                                      role="button"
+                                      tabIndex={-1}
+                                      aria-label="Bu variantı sil"
+                                      title="Bu variantı sil"
+                                      onClick={(e) => { e.stopPropagation(); removeInstance(i); }}
+                                       className="relative z-10 shrink-0 flex items-center justify-center w-[18px] h-[18px] rounded-full ml-0.5"
+                                       style={{
+                                         // 2026-09-30 (round 9b, dark-theme E2E catch):
+                                         // the × renders ONLY on the active pill, so
+                                         // its token must mirror the ACTIVE CAPSULE's
+                                         // contrast — light-mode capsule is BLACK
+                                         // (→ white ×), dark-mode capsule is WHITE
+                                         // (→ dark ×). The old dark token was white
+                                         // on the white capsule = invisible (same
+                                         // swap bug as the round-8c ×qty badge).
+                                         color: lightMode ? 'rgba(255,255,255,0.9)' : '#18181b',
+                                         backgroundColor: lightMode ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.10)',
+                                       }}
+                                    >
+                                      <X size={11} />
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })}
-                            {/* 2026-09-30 (owner, round 9 — "＋ Yeni variant"
-                                end-of-strip pill): adding a variant belongs right
-                                where the tabs are. Clones the active pill's spec
-                                into a fresh instance (round-9 A merges identical
-                                taps, so a distinct variant is an explicit action). */}
+                             {/* 2026-09-30 (owner, round 9 — "＋ Yeni variant"
+                                 end-of-strip pill; round 9b fix — "yeni spec
+                                 yaradanda copy edir"): adding a variant belongs right
+                                 where the tabs are. Starts as a FRESH HOUSE DEFAULT
+                                 spec (exclusive group's is_default / first ₼0 option,
+                                 no additive modifiers), NOT a clone of the active
+                                 pill. (round-9 A merges identical taps, so a distinct
+                                 variant is an explicit action). */}
                             {!specLocked && (
                               <motion.button
                                 onClick={addNewInstance}

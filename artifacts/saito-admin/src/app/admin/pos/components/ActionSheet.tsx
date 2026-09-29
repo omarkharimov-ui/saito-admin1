@@ -1160,16 +1160,22 @@ export function ActionSheet({
                  </motion.div>
                 )}
 
-                 {currentView === 'merge' && (
-                  <motion.div key="ui-bar" {...morphView} className="flex items-center gap-5 w-full">
-                    <div className="flex flex-col mr-auto min-w-[140px]">
-                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">{t('merge_tables')}</span>
-                      <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                        {mergeParent ? `${t('main_label')} ${mergeParent} + ${(selectedForMerge?.length || 1) - 1} ${t('child')}` : t('select_main_table')}
-                      </span>
-                    </div>
-                     <div className="flex items-center gap-3">
-                      <button onClick={onCancelMode} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-95 transition-all"><XCircle size={18} strokeWidth={3} /></button>
+                  {currentView === 'merge' && (
+                   <motion.div key="ui-bar" {...morphView} className="flex items-center gap-5 w-full">
+                     <div className="flex flex-col mr-auto min-w-[140px]">
+                       <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">{t('merge_tables')}</span>
+                       <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                         {mergeParent ? `${t('main_label')} ${mergeParent} + ${(selectedForMerge?.length || 1) - 1} ${t('child')}` : t('select_main_table')}
+                       </span>
+                     </div>
+                      <div className="flex items-center gap-3">
+                       {/* 2026-09-29 (owner, round 7 #2: "action sheet-də geri
+                           düyməsi yoxdur — əlavə et"): the merge/transfer capsule
+                           sub-views only had the red ✕ (cancel); a proper GERİ
+                           pill (same component as every other sub-view) now sits
+                           next to it. */}
+                       <BackButton onClick={onCancelMode} className="!w-auto !px-5 !py-2.5 !rounded-full !text-[9px] !tracking-[0.18em] !whitespace-nowrap">{t('back')}</BackButton>
+                       <button onClick={onCancelMode} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-95 transition-all"><XCircle size={18} strokeWidth={3} /></button>
                        <button onClick={() => {
                          const doMerge = () => {
                            onConfirmMerge?.();
@@ -1197,10 +1203,12 @@ export function ActionSheet({
                               : t('select_source_table')}
                         </span>
                      </div>
-                     <div className="flex items-center gap-3">
-                       <button onClick={onCancelTransfer} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-95 transition-all"><XCircle size={18} strokeWidth={3} /></button>
-                        <button onClick={() => {
-                          const doTransfer = () => {
+                      <div className="flex items-center gap-3">
+                        {/* round 7 #2: same GERİ pill as the merge capsule. */}
+                        <BackButton onClick={onCancelTransfer} className="!w-auto !px-5 !py-2.5 !rounded-full !text-[9px] !tracking-[0.18em] !whitespace-nowrap">{t('back')}</BackButton>
+                        <button onClick={onCancelTransfer} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-95 transition-all"><XCircle size={18} strokeWidth={3} /></button>
+                         <button onClick={() => {
+                            const doTransfer = () => {
                             onConfirmTransfer?.();
                           };
                           if (waiterPinRequired) {

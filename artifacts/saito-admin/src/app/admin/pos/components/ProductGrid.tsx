@@ -1618,41 +1618,34 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                                     STROKE-DRAW as the TableCard selection
                                     tick — pathLength 0→1, left→vertex→right
                                     (~280ms), never a scale-pop. */}
-                                <AnimatePresence initial={false}>
-                                  {on && (
-                                    <motion.svg
-                                      key="al-check"
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      initial="hidden"
-                                      animate="show"
-                                      exit="hidden"
-                                      className="shrink-0"
-                                    >
-                                      <motion.path
-                                        d="M4 12.5 L9.5 18 L20 6.5"
-                                        stroke="currentColor"
-                                        strokeWidth={3.4}
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        variants={{
-                                          hidden: { pathLength: 0, opacity: 0 },
-                                          show: {
-                                            pathLength: 1,
-                                            opacity: 1,
-                                            transition: {
-                                              pathLength: { duration: 0.28, ease: 'easeOut', delay: 0.06 },
-                                              opacity: { duration: 0.08 },
-                                            },
-                                          },
-                                          exit: { pathLength: 0, opacity: 0, transition: { duration: 0.12 } },
-                                        }}
-                                      />
-                                    </motion.svg>
-                                  )}
-                                </AnimatePresence>
+                                 {/* 2026-09-29 (owner, round 7 #4: "seçim zamanı
+                                     millisanıyəlik görünən-itən yüngül bug"):
+                                     the tick used to MOUNT/UNMOUNT via
+                                     AnimatePresence on every toggle — a remount
+                                     is the only way a sub-100ms disappear/
+                                     reappear can happen (and it shifted the
+                                     chip width by 14px each time). Now the
+                                     path is PERSISTENT (always rendered in a
+                                     fixed 14px slot — zero layout shift) and
+                                     only its STATE animates: draw on select
+                                     (pathLength 0→1, ~280ms), quick fade off.
+                                     initial={false} → a pre-selected allergen
+                                     opens already drawn (no mount flash). */}
+                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0">
+                                   <motion.path
+                                     d="M4 12.5 L9.5 18 L20 6.5"
+                                     stroke="currentColor"
+                                     strokeWidth={3.4}
+                                     strokeLinecap="round"
+                                     strokeLinejoin="round"
+                                     initial={false}
+                                     animate={on ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
+                                     transition={{
+                                       pathLength: on ? { duration: 0.28, ease: 'easeOut', delay: 0.06 } : { duration: 0.12 },
+                                       opacity: { duration: 0.08 },
+                                     }}
+                                   />
+                                 </svg>
                              </motion.button>
                            );
                          })}

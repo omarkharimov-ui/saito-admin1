@@ -546,13 +546,23 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                 ) : (
                   <motion.button
                     key="ctl-menu"
-                    initial={{ rotate: -120, scale: 0.4, opacity: 0 }}
-                    animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                    // 2026-09-29 (owner, round 7: "birlesidr normal taba kecede
+                    // 3 dots blink etdi"): the ⋮ used to RE-SPIN IN (rotate −120°→0,
+                    // scale 0.4→1) every time selection/merge mode exited — that
+                    // re-entry read as a "blink". The dramatic rotation morph is
+                    // KEPT for dots→circle (owner-approved video pattern); the
+                    // circle→dots RETURN is now a calm 180ms fade (no spin-in).
+                    // Opacity is framer-owned now: the old CSS `opacity-40
+                    // hover:opacity-100` fought framer's inline opacity:1 (rest
+                    // rendered 100%, hover was a no-op) — resting 0.4, hover 1.0.
+                    initial={{ opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 0.4, scale: 1 }}
                     exit={{ rotate: 120, scale: 0.4, opacity: 0, transition: { duration: 0.16 } }}
-                    transition={SPRING.kessey}
-                    whileTap={{ scale: 0.9 }}
+                    whileHover={{ opacity: 1 }}
+                    whileTap={{ scale: 0.9, opacity: 1 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
                     onClick={(e) => { e.stopPropagation(); onAction(); }}
-                    className="p-1 rounded-full transition-colors opacity-40 hover:opacity-100"
+                    className="p-1 rounded-full transition-colors"
                   >
                     <MoreVertical size={15} className={`${lightMode ? 'text-zinc-400' : 'text-white/50'}`} />
                   </motion.button>

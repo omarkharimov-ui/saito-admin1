@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight, Lock, Bike } from '@/components/ui/saito-icons';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Handbag, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight, Lock, Bike } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -487,7 +487,9 @@ export function CartPanel({
 
   const ORDER_TYPE_OPTIONS = [
     { value: 'dine_in' as const, label: t('dine_in'), icon: Utensils, color: 'emerald' },
-    { value: 'takeaway' as const, label: t('takeaway'), icon: Package, color: 'amber' },
+    // round 7 #6: Handbag (pickup bag) — consistent with the header switcher
+    // and order history (Package read as a box).
+    { value: 'takeaway' as const, label: t('takeaway'), icon: Handbag, color: 'amber' },
     { value: 'delivery' as const, label: t('delivery'), icon: Car, color: 'blue' },
   ];
   const activeOrderType = cart?.order_type || 'dine_in';

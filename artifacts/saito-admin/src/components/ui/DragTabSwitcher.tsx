@@ -45,8 +45,14 @@ export function DragTabSwitcher({ items, value, onChange, containerClassName, ac
   const [isDragging, setIsDragging] = useState(false);
   const [previewTab, setPreviewTab] = useState<string | null>(null);
 
-  const pillBg = activeStyle?.pillBackground ?? (lightMode ? '#171717' : '#ffffff');
-  const pillBorder = activeStyle?.pillBorder ?? (lightMode ? '1px solid #171717' : '1px solid rgba(255,255,255,0.9)');
+  // 2026-09-29 (owner, round 7 #7: "status rənglərini qara etmə; dark theme-də
+  // necədirsə elə saxla, lakin görünən rənglərdə də düzgün və oxunaqlı
+  // kontrast"): dark's inverted white pill stays as-is; the LIGHT pill was
+  // jet-black (#171717) — now BLUE (blue-500, white label): the same
+  // selected-state language as every other light active pill (course, mode
+  // capsule, category) and readable on the light surface.
+  const pillBg = activeStyle?.pillBackground ?? (lightMode ? '#3b82f6' : '#ffffff');
+  const pillBorder = activeStyle?.pillBorder ?? (lightMode ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.9)');
   const activeLabelColor = activeStyle?.labelColor ?? (lightMode ? '#ffffff' : '#000000');
 
   const containerRef = useRef<HTMLDivElement>(null);

@@ -3,7 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Printer, X, ChevronLeft, Search, CalendarDays, RefreshCw, Split, Receipt, User, Users, Wallet, CreditCard, Package, Car, Utensils, AlertTriangle, ChevronRight, Minus } from '@/components/ui/saito-icons';
+import { Clock, Printer, X, ChevronLeft, Search, CalendarDays, RefreshCw, Split, Receipt, User, Users, Wallet, CreditCard, Package, PackageOpen, Car, Utensils, AlertTriangle, ChevronRight, Minus, Handbag } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
@@ -269,7 +269,11 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
     const date = new Date(order.created_at).toLocaleDateString('az');
     const total = `₼${(Number(order.paid_amount || order.total_amount) || 0).toFixed(2)}`;
     const guests = order.guest_count ? ` · ${order.guest_count} nəfər` : '';
-    const Icon = src === 'takeaway' ? Package : src === 'delivery' ? Car : Utensils;
+    // 2026-09-29 (owner, round 7 #6): takeaway icon = Handbag — the person
+    // PICKING UP the order carries a bag. ShoppingBag reads as a box at small
+    // sizes; Handbag (trapezoid + handle) is unambiguously a bag. Same icon
+    // language as the POS header tab switcher (Utensils/Handbag/Bike).
+    const Icon = src === 'takeaway' ? Handbag : src === 'delivery' ? Car : Utensils;
     // 2026-09-28 (owner: light mode — yalnız mavi/qara): takeaway = qara
     const iconWrap = src === 'takeaway'
       ? (lightMode ? 'bg-zinc-900/10 text-zinc-900' : 'bg-amber-500/15 text-amber-400')
@@ -1677,19 +1681,26 @@ function RefundView({
                         )}
                         {/* Fate buttons */}
                         <div className="flex gap-1.5">
-                          {[
-                             { key: 'none' as const, icon: Package, label: 'Toxunma', color: lightMode ? 'text-zinc-900 bg-zinc-100' : 'text-white/40 bg-white/5' },
-                             { key: 'return_to_stock' as const, icon: Package, label: 'Anbara qaytar', color: lightMode ? 'text-blue-600 bg-blue-50' : 'text-blue-400 bg-blue-500/10' },
-                             { key: 'waste' as const, icon: AlertTriangle, label: 'İtkiyə yaz', color: lightMode ? 'text-zinc-900 bg-zinc-100' : 'text-orange-400 bg-orange-500/10' },
-                          ].map(f => (
-                            <button key={f.key} onClick={() => updateItemFate(item.id, f.key)}
-                              className={`flex-1 py-1.5 rounded-xl text-[9px] font-bold flex items-center justify-center gap-1 transition-all ${
-                                sel.fate === f.key ? f.color + ' ring-1 ring-current' : lightMode ? 'text-zinc-400 bg-zinc-50' : 'text-white/30 bg-white/5'
-                              }`}>
-                              <f.icon size={10} />
-                              {f.label}
-                            </button>
-                          ))}
+                           {[
+                              // 2026-09-29 (owner, round 7 #5: "toxunma elementinin
+                              // nə üçün olduğunu yoxla"): the fate='none' option IS
+                              // functional — it refunds the amount WITHOUT any
+                              // inventory effect (item goes back to the customer /
+                              // disposition unknown). The label "Toxunma" was
+                              // meaningless; renamed to "Qeydsiz" (no record) with
+                              // a tooltip explaining what it does.
+                              { key: 'none' as const, icon: Package, label: 'Qeydsiz', title: 'Anbara qaytarılmır, itkiyə yazılmır — yalnız məbləğ geri qaytarılır', color: lightMode ? 'text-zinc-900 bg-zinc-100' : 'text-white/40 bg-white/5' },
+                              { key: 'return_to_stock' as const, icon: PackageOpen, label: 'Anbara qaytar', title: 'Məhsul anbar stokuna qaytarılır', color: lightMode ? 'text-blue-600 bg-blue-50' : 'text-blue-400 bg-blue-500/10' },
+                              { key: 'waste' as const, icon: AlertTriangle, label: 'İtkiyə yaz', title: 'Məhsul itki (waste) olaraq qeyd olunur', color: lightMode ? 'text-zinc-900 bg-zinc-100' : 'text-orange-400 bg-orange-500/10' },
+                            ].map(f => (
+                              <button key={f.key} onClick={() => updateItemFate(item.id, f.key)} title={f.title}
+                                className={`flex-1 py-1.5 rounded-xl text-[9px] font-bold flex items-center justify-center gap-1 transition-all ${
+                                  sel.fate === f.key ? f.color + ' ring-1 ring-current' : lightMode ? 'text-zinc-400 bg-zinc-50' : 'text-white/30 bg-white/5'
+                                }`}>
+                                <f.icon size={10} />
+                                {f.label}
+                              </button>
+                            ))}
                         </div>
                       </div>
                     )}
@@ -1758,7 +1769,7 @@ function RefundView({
                     <div key={id} className="flex items-center justify-between gap-3">
                       <span className="text-xs font-semibold truncate">{sel.qty}x {it.product_name}</span>
                       <span className="text-[9px] font-bold uppercase tracking-wider flex-shrink-0 opacity-60">
-                        {sel.fate === 'return_to_stock' ? 'Anbara qaytar' : sel.fate === 'waste' ? 'İtkiyə yaz' : 'Toxunma'}
+                         {sel.fate === 'return_to_stock' ? 'Anbara qaytar' : sel.fate === 'waste' ? 'İtkiyə yaz' : 'Qeydsiz'}
                       </span>
                     </div>
                   );

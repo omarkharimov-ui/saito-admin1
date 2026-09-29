@@ -6,6 +6,7 @@ import {
   ArrowLeft as _ArrowLeft,
   ArrowRight as _ArrowRight,
   ArrowUpRight as _ArrowUpRight,
+  Handbag as _Handbag,
   BatteryCharging as _BatteryCharging,
   BatteryLow as _BatteryLow,
   Bell as _Bell,
@@ -273,6 +274,11 @@ export const Armchair = adapt(_Armchair);
 export const ArrowLeft = adapt(_ArrowLeft);
 export const ArrowRight = adapt(_ArrowRight);
 export const ArrowUpRight = adapt(_ArrowUpRight);
+// 2026-09-29 (owner, round 7 #6): the TAKEAWAY icon must read as a BAG the
+// pickup person carries — Phosphor's ShoppingBag is a rounded BOX + small
+// handle (reads "box" at 15px). Handbag = trapezoid + prominent handle arc:
+// clearly a bag at every size.
+export const Handbag = adapt(_Handbag);
 export const BatteryCharging = adapt(_BatteryCharging);
 export const BatteryLow = adapt(_BatteryLow);
 export const Bell = adapt(_Bell);

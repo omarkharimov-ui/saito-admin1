@@ -629,29 +629,40 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                       unchanged. */}
                   {view === 'main' && (
                     <section className="space-y-2">
-                      <button
-                        onClick={() => { setView('cash-in'); setCashAmount(''); setCashDesc(''); }}
-                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-widest shadow-sm transition-all active:scale-[0.98] hover:bg-emerald-600"
-                      >
-                        <ArrowDownCircle size={16} strokeWidth={2.5} />
-                        Daxilolma
-                      </button>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => { setView('cash-out'); setCashAmount(''); setCashDesc(''); }}
-                          className={`flex items-center justify-center gap-2 py-3 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] ${lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300' : 'bg-white/[0.04] border-white/10 text-zinc-300 hover:border-white/20'}`}
-                        >
-                          <ArrowUpCircle size={15} strokeWidth={2.5} className={lightMode ? 'text-red-500' : 'text-red-400'} />
-                          {t('expense')}
-                        </button>
-                        <button
-                          onClick={() => { setClosingTarget(null); setView('close'); setCashAmount(String(currentBalance.toFixed(2))); setCashDesc(''); setBillCounts({}); setShowBillCount(false); }}
-                          className={`flex items-center justify-center gap-2 py-3 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] ${lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300' : 'bg-white/[0.04] border-white/10 text-zinc-300 hover:border-white/20'}`}
-                        >
-                          <Lock size={15} strokeWidth={2.5} />
-                          {t('end_shift')}
-                        </button>
-                      </div>
+                       {/* 2026-09-29 (owner, round 7 #3): LOCKED drawer = every
+                           cash operation disabled (only AÇ stays live — it is
+                           the way OUT of the locked state). A locked drawer is
+                           sealed: no cash-in, no cash-out, no shift close, no
+                           no-sale/drop/deposit/Z. */}
+                       <button
+                         onClick={() => { setView('cash-in'); setCashAmount(''); setCashDesc(''); }}
+                         disabled={session.locked}
+                         title={session.locked ? 'Kassa qıfıllıdır — əvvəl AÇ düyməsi ilə açın (manager PIN)' : 'Kassaya nağd daxil et'}
+                         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-widest shadow-sm transition-all active:scale-[0.98] hover:bg-emerald-600 disabled:opacity-30 disabled:pointer-events-none"
+                       >
+                         <ArrowDownCircle size={16} strokeWidth={2.5} />
+                         Daxilolma
+                       </button>
+                       <div className="grid grid-cols-2 gap-2">
+                         <button
+                           onClick={() => { setView('cash-out'); setCashAmount(''); setCashDesc(''); }}
+                           disabled={session.locked}
+                           title={session.locked ? 'Kassa qıfıllıdır — əvvəl AÇ düyməsi ilə açın (manager PIN)' : 'Kassadan nağd çıxar (xərc)'}
+                           className={`flex items-center justify-center gap-2 py-3 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none ${lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300' : 'bg-white/[0.04] border-white/10 text-zinc-300 hover:border-white/20'}`}
+                         >
+                           <ArrowUpCircle size={15} strokeWidth={2.5} className={lightMode ? 'text-red-500' : 'text-red-400'} />
+                           {t('expense')}
+                         </button>
+                         <button
+                           onClick={() => { setClosingTarget(null); setView('close'); setCashAmount(String(currentBalance.toFixed(2))); setCashDesc(''); setBillCounts({}); setShowBillCount(false); }}
+                           disabled={session.locked}
+                           title={session.locked ? 'Kassa qıfıllıdır — əvvəl AÇ düyməsi ilə açın (manager PIN)' : 'Növbəni bitir (smena close + sayım)'}
+                           className={`flex items-center justify-center gap-2 py-3 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none ${lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300' : 'bg-white/[0.04] border-white/10 text-zinc-300 hover:border-white/20'}`}
+                         >
+                           <Lock size={15} strokeWidth={2.5} />
+                           {t('end_shift')}
+                         </button>
+                       </div>
                     </section>
                   )}
 
@@ -664,30 +675,33 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                       out the effect for desktop. */}
                   {view === 'main' && (
                     <section className={`grid grid-cols-5 gap-1 pt-3 border-t ${lightMode ? 'border-zinc-100' : 'border-white/10'}`}>
-                      <button
-                        onClick={() => { setView('no-sale'); setNoSaleReason(''); }}
-                        title="Kassanı satışsız aç — məcburi səbəb, istisna reportlarına düşür"
-                        className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
-                      >
-                        <FileText size={15} strokeWidth={2} />
-                        <span className="text-[9px] font-black uppercase tracking-wider">Satışsız</span>
-                      </button>
-                      <button
-                        onClick={() => { setView('cash-drop'); setCashAmount(''); setCashDesc(''); }}
-                        title="Kassadakı artıq nağdı safe-ə (çekməyə) köçür"
-                        className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
-                      >
-                        <Landmark size={15} strokeWidth={2} />
-                        <span className="text-[9px] font-black uppercase tracking-wider">Nağd çekmə</span>
-                      </button>
-                      <button
-                        onClick={openDeposit}
-                        title="Nağdı bank deponuna ödənişi qeydə al (manager PIN)"
-                        className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
-                      >
-                        <Banknote size={15} strokeWidth={2} />
-                        <span className="text-[9px] font-black uppercase tracking-wider">Depozit</span>
-                      </button>
+                       <button
+                         onClick={() => { setView('no-sale'); setNoSaleReason(''); }}
+                         disabled={session.locked}
+                         title={session.locked ? 'Kassa qıfıllıdır — əvvəl AÇ düyməsi ilə açın (manager PIN)' : 'Kassanı satışsız aç — məcburi səbəb, istisna reportlarına düşür'}
+                         className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
+                       >
+                         <FileText size={15} strokeWidth={2} />
+                         <span className="text-[9px] font-black uppercase tracking-wider">Satışsız</span>
+                       </button>
+                       <button
+                         onClick={() => { setView('cash-drop'); setCashAmount(''); setCashDesc(''); }}
+                         disabled={session.locked}
+                         title={session.locked ? 'Kassa qıfıllıdır — əvvəl AÇ düyməsi ilə açın (manager PIN)' : 'Kassadakı artıq nağdı safe-ə (çekməyə) köçür'}
+                         className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
+                       >
+                         <Landmark size={15} strokeWidth={2} />
+                         <span className="text-[9px] font-black uppercase tracking-wider">Nağd çekmə</span>
+                       </button>
+                       <button
+                         onClick={openDeposit}
+                         disabled={session.locked}
+                         title={session.locked ? 'Kassa qıfıllıdır — əvvəl AÇ düyməsi ilə açın (manager PIN)' : 'Nağdı bank deponuna ödənişi qeydə al (manager PIN)'}
+                         className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
+                       >
+                         <Banknote size={15} strokeWidth={2} />
+                         <span className="text-[9px] font-black uppercase tracking-wider">Depozit</span>
+                       </button>
                       <button
                         onClick={() => { setView('lock'); setManagerPin(''); setManagerError(''); }}
                         title={session.locked ? 'Kassanı aç (manager PIN)' : 'Kassanı qıfılla (manager PIN)'}
@@ -696,14 +710,15 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
                         {session.locked ? <Unlock size={15} strokeWidth={2} /> : <Lock size={15} strokeWidth={2} />}
                         <span className="text-[9px] font-black uppercase tracking-wider">{session.locked ? 'Aç' : 'Qıfılla'}</span>
                       </button>
-                      <button
-                        onClick={openZ}
-                        title="Gündəlik Z hesabatı — pullu ödənişlərin cəmi (print)"
-                        className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
-                      >
-                        <Receipt size={15} strokeWidth={2} />
-                        <span className="text-[9px] font-black uppercase tracking-wider">Z hesabat</span>
-                      </button>
+                       <button
+                         onClick={openZ}
+                         disabled={session.locked}
+                         title={session.locked ? 'Kassa qıfıllıdır — əvvəl AÇ düyməsi ilə açın (manager PIN)' : 'Gündəlik Z hesabatı — pullu ödənişlərin cəmi (print)'}
+                         className={`flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none ${lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/80'}`}
+                       >
+                         <Receipt size={15} strokeWidth={2} />
+                         <span className="text-[9px] font-black uppercase tracking-wider">Z hesabat</span>
+                       </button>
                     </section>
                   )}
 

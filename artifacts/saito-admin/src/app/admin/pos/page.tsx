@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
 import { GridCell } from '@/lib/motion/GridCell';
-import { X, Calendar, Utensils, ShoppingBag, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, Hourglass } from '@/components/ui/saito-icons';
+import { X, Calendar, Utensils, Handbag, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, Hourglass } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useDeviceHeartbeat } from '@/lib/device-heartbeat';
@@ -2300,12 +2300,15 @@ export default function POSPage() {
              <div className="flex-shrink-0">
              <DragTabSwitcher
                items={[
-                 // 2026-09-28 (owner: "iceride/takeaway/delivery tabinin
-                 // iconlarini duzgun sec yeniden"): Utensils (dine-in dining) /
-                 // ShoppingBag (takeaway = bag-to-go — UserCheck was a person
-                 // icon, semantically wrong) / Bike (delivery courier).
-                 { id: 'dine_in', label: t('dine_in'), icon: Utensils, dotColor: '#10b981' },
-                 { id: 'takeaway', label: t('takeaway'), icon: ShoppingBag, dotColor: '#3b82f6' },
+                  // 2026-09-28 (owner: "iceride/takeaway/delivery tabinin
+                  // iconlarini duzgun sec yeniden"): Utensils (dine-in dining) /
+                  // takeaway = bag-to-go (UserCheck was a person icon, semantically
+                  // wrong) / Bike (delivery courier).
+                  // 2026-09-29 (owner, round 7 #6: "pickup edən şəxsə uyğun daha
+                  // mənalı ikon"): ShoppingBag renders as a rounded BOX at 15px —
+                  // Handbag (trapezoid + handle) reads as the pickup bag.
+                  { id: 'dine_in', label: t('dine_in'), icon: Utensils, dotColor: '#10b981' },
+                  { id: 'takeaway', label: t('takeaway'), icon: Handbag, dotColor: '#3b82f6' },
                  { id: 'delivery', label: t('delivery'), icon: Bike, dotColor: '#3b82f6' },
                ]}
                value={posMode}

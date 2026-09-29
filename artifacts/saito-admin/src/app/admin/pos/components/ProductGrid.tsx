@@ -266,6 +266,12 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     setPillInd((prev) => (prev && prev.x === el.offsetLeft && prev.w === el.offsetWidth ? prev : { x: el.offsetLeft, w: el.offsetWidth }));
   }, [multiInst, activeInst, instList]);
   const activeDraft = multiInst ? instList[Math.min(activeInst, instList.length - 1)] : null;
+  // 2026-09-30 (owner, round 9 — "YADDA SAXLA · 8"): the CTA shows the TOTAL
+  // UNIT count across all instances (2+2+4 = 8), NOT the instance count (3).
+  // Live: the active pill contributes the stepper's current qty.
+  const multiTotalUnits = multiInst
+    ? instList.reduce((s, d: any, i: number) => s + (i === activeInst ? Math.max(1, qty) : (d.quantity || 1)), 0)
+    : 0;
   // 2026-09-28 (owner P2: "Servis edilmiş və ya 'Ready'/hazır instansiyanın
   // modifikatoru artıq dəyişdirilməməlidir"): READY joins the locked set —
   // the dish is out the pass, its spec is frozen PER INSTANCE (a sibling
@@ -317,6 +323,28 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     setReturnCtx(d.returnCtx ?? null);
     setSelectedModifiers({ ...(d.modifiers || {}) });
   };
+  // 2026-09-30 (owner, round 9): resolve the ACTIVE pill's spec to a short
+  // readable label for the pill ("Kremli" / "Yüngül" / "Standart"), so a
+  // freshly-created "＋ Yeni variant" pill shows its spec NAME, not a raw id.
+  // Prefers an exclusive (max_select=1) group's choice (e.g. SERVİŇƏ ÜSLUBU),
+  // else the first selected modifier name, else null (no spec → the pill shows
+  // only its ×qty badge).
+  const resolveHintName = (): string | null => {
+    const groups: any[] = (expandedItem as any)?.modifier_groups || [];
+    const mods: any[] = (expandedItem as any)?.modifiers || [];
+    const sel = Object.keys(selectedModifiers || {}).filter((id) => (selectedModifiers as any)[id] > 0);
+    if (!sel.length) return null;
+    const nameOf = (id: string) => mods.find((m: any) => m.id === id)?.name || null;
+    for (const g of groups) {
+      if (Number(g?.max_select) === 1) {
+        const hit = (g?.item_ids || []).find((id: string) => sel.includes(id));
+        if (hit) return nameOf(hit);
+      }
+    }
+    for (const id of sel) { const n = nameOf(id); if (n) return n; }
+    return null;
+  };
+
   // Commit the ACTIVE field states back into its draft (mutates the ref —
   // the pills render from the static instList, so no state write needed).
   const commitInstanceDraft = () => {
@@ -332,6 +360,8 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       is_hold: editIsHold,
       allergens: selectedAllergens,
       modifiers: { ...selectedModifiers },
+      // round 9: keep a live spec label so the pill shows the readable name.
+      hint: resolveHintName() || drafts[idx].hint || '',
     };
   };
   // TikTok-style tab switch: commit current → activate target → load it.
@@ -341,6 +371,53 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     setActiveInst(next);
     setReturnView(false); // a return in progress belongs to the previous pill
     loadInstanceFields(next, instDraftsRef.current);
+  };
+
+  // 2026-09-30 (owner, round 9 — "YOL 1: + Yeni Variant"): explicitly create a
+  // NEW instance (a new spec tab) of the current product by cloning the ACTIVE
+  // instance's spec into a fresh `__isNew` draft. This is the ONLY way to make
+  // multiple instances: round-9 A removed auto-split on plain taps (identical
+  // specs now MERGE), so a distinct variant is an intentional "new variant"
+  // action, not a side effect of tapping. The new pill is a local draft —
+  // YADDA SAXLA commits it as a fresh cart line (applyInstanceEdits __isNew
+  // path). Owner workflow: 2× Kremli → "+ Yeni variant" → 2× Yüngül →
+  // "+ Yeni variant" → 4× Standart = 3 pills, save "· 8".
+  const addNewInstance = () => {
+    if (!expandedItem || specLocked) return;
+    commitInstanceDraft();
+    const drafts: any[] = instDraftsRef.current;
+    // Seed a base draft if we're currently in single-instance mode (no pills).
+    if (drafts.length === 0) {
+      drafts.push({
+        lineIndex: editLineIndexRef.current ?? -1,
+        __isNew: editLineIndexRef.current == null,
+        quantity: qty,
+        variantId: selectedVariant || null,
+        note: noteForProduct || '',
+        modifiers: { ...selectedModifiers },
+        course: editCourse,
+        is_hold: editIsHold,
+        allergens: selectedAllergens,
+        unitPrice: modalUnitPrice,
+      });
+    }
+    // Clone the active instance's current spec into a fresh instance (qty 1).
+    drafts.push({
+      lineIndex: -1,
+      __isNew: true,
+      quantity: 1,
+      variantId: selectedVariant || null,
+      note: noteForProduct || '',
+      modifiers: { ...selectedModifiers },
+      course: editCourse,
+      is_hold: editIsHold,
+      allergens: selectedAllergens,
+      hint: resolveHintName() || undefined,
+      unitPrice: modalUnitPrice,
+    });
+    setInstList([...drafts]);
+    setActiveInst(drafts.length - 1);
+    setQty(1);
   };
 
    // 2026-09-28 (owner P2: "say artıranda modifikatorlar bütün instansiyalar
@@ -1354,7 +1431,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                         pills are now 44px-tall touch targets, and the active
                         capsule is ONE measured sliding element that SPRINGS
                         between pills (state→motion, Philosophy §1/§5). */}
-                    {multiInst && instList.length > 1 && (
+                     {/* 2026-09-30 (owner, round 9): pill row now shows for ≥1
+                         instance (was >1) — a single-variant editor also exposes
+                         the "+ Yeni variant" tab at the end of the strip. */}
+                     {multiInst && (
                       <div className="-mx-1 px-1">
                         <div
                           className="relative flex items-center gap-2 overflow-x-auto snap-x snap-mandatory pb-1"
@@ -1374,8 +1454,15 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                              // 2026-09-28 (owner P2): 'ready' joins the lock set;
                              // __isNew drafts (lineIndex -1) need a stable key
                              // that never collides across new instances.
-                             const instLocked = LOCKED_KS.includes(d.kitchen_status || '');
-                             return (
+                              const instLocked = LOCKED_KS.includes(d.kitchen_status || '');
+                              // 2026-09-30 (owner, round 9): live spec label — the
+                              // ACTIVE pill recomputes from the current selection
+                              // (so "Kremli"→"Yüngül" updates as you tap); inactive
+                              // pills show their committed d.hint. Locked → state.
+                              const hintText = instLocked
+                                ? (d.kitchen_status === 'ready' ? 'Hazır' : 'Served')
+                                : (on ? (resolveHintName() || d.hint || '') : (d.hint || ''));
+                              return (
                                <button
                                  key={`inst-${d.__isNew ? `new-${i}` : d.lineIndex}`}
                                  ref={(el) => { instPillRefs.current[i] = el; }}
@@ -1408,11 +1495,32 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                                   <span className={`relative z-10 shrink-0 text-[10px] font-black tabular-nums px-1 h-[18px] rounded-md flex items-center ${
                                     on ? (lightMode ? 'bg-white/15 text-white' : 'bg-zinc-900/10 text-zinc-800') : 'bg-transparent opacity-60'
                                   }`}>×{(d.quantity || 1)}</span>
-                                  <span className="relative z-10 max-w-[110px] truncate">{d.hint || (instLocked ? (d.kitchen_status === 'ready' ? 'Hazır' : 'Served') : '')}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
+                                    <span className="relative z-10 max-w-[110px] truncate">{hintText}</span>
+                                </button>
+                              );
+                            })}
+                            {/* 2026-09-30 (owner, round 9 — "＋ Yeni variant"
+                                end-of-strip pill): adding a variant belongs right
+                                where the tabs are. Clones the active pill's spec
+                                into a fresh instance (round-9 A merges identical
+                                taps, so a distinct variant is an explicit action). */}
+                            {!specLocked && (
+                              <motion.button
+                                onClick={addNewInstance}
+                                whileTap={{ scale: 0.9 }}
+                                transition={SPRING}
+                                aria-label="Yeni variant əlavə et"
+                                title="Yeni variant əlavə et"
+                                className="relative z-10 shrink-0 flex items-center justify-center w-[36px] h-[36px] rounded-full grid place-items-center"
+                                style={{
+                                  color: lightMode ? '#6b7280' : 'rgba(255,255,255,0.55)',
+                                  border: `1.5px dashed ${lightMode ? 'rgba(0,0,0,0.28)' : 'rgba(255,255,255,0.3)'}`,
+                                }}
+                              >
+                                <Plus size={15} />
+                              </motion.button>
+                            )}
+                          </div>
                       </div>
                     )}
                    {/* 2026-09-28 (owner): SERVED/COMPLETED line → spec lock
@@ -1728,8 +1836,12 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     2026-09-25 (owner): GERİ QAYTAR moved to the modal
                     TOP-RIGHT (header) for served lines. */}
                 <div className="p-5 pt-0 flex-shrink-0">
-                    {/* 2026-09-28 (owner): SERVED lock — the CTA is inert while
-                        the spec is frozen; only GERİ QAYTAR remains actionable. */}
+                  {/* 2026-09-30 (owner, round 9): the "＋ Yeni variant" control
+                      moved to the END OF THE PILL STRIP (top of the editor) —
+                      adding a variant belongs right where the variant tabs are,
+                      not down in the CTA. See addNewInstance + the strip below. */}
+                  {/* 2026-09-28 (owner): SERVED lock — the CTA is inert while
+                      the spec is frozen; only GERİ QAYTAR remains actionable. */}
                     <motion.button
                       onClick={() => { if (!specLocked) handleModalAdd(); }}
                       whileHover={specLocked ? undefined : { y: -2 }} whileTap={specLocked ? undefined : { scale: 0.97 }} transition={SPRING}
@@ -1742,7 +1854,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                         : multiInst
                           // Multi-instance save = "Yadda saxla" (the rows exist;
                           // we're editing instances, not adding a product).
-                          ? <><Check size={18} /> Yadda saxla{instList.length > 1 ? ` · ${instList.length}` : ''}</>
+                          ? <><Check size={18} /> Yadda saxla{multiTotalUnits > 1 ? ` · ${multiTotalUnits}` : ''}</>
                           : <><Plus size={18} /> {t('add')}{qty > 1 ? ` · ${qty}` : ''}</>}
                     </motion.button>
                 </div>

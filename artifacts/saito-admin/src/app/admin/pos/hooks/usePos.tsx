@@ -1108,12 +1108,42 @@ export function usePos() {
     }
     // 2026-09-28 (owner: "modifikatorları hər məhsul instansiyası üçün
     // ayrıca idarə et"): NO auto-merge anymore — every tap creates its OWN
-    // line instance with its own modifiers/notes/state. Tapping the same
-    // product 3× = 3 independent lines (e.g. 3× Filadelfiya where only the
-    // 2nd gets a modifier stays exactly that). The +/- stepper grows the
-    // instance's quantity; the per-line editor (editOf) rewrites ONLY that
-    // instance. The old merge (same product+variant+mods+notes → qty +=) is
-    // gone on purpose: it made per-instance modifier state impossible.
+    // line instance with its own modifiers/notes/state. The +/- stepper grows
+    // the instance's quantity; the per-line editor (editOf) rewrites ONLY that
+    // instance.
+    // 2026-09-30 (owner, round 9 — reverses the 8i no-merge for the SAFE case
+    // only): a PLAIN tap whose spec is IDENTICAL to an existing line (same
+    // product + variant + modifiers + notes + course + allergens) now
+    // INCREMENTS that line instead of spawning a duplicate pill — the
+    // "tap Tom Yam 4× = ×4" fix (owner: "×3 + ×1 olmasın, ×4 olsun"). A
+    // MODIFIED line never merges with a plain tap (different key), so
+    // per-instance modifier state is preserved — the 8i concern ("merge made
+    // per-instance modifiers impossible") only ever applied to merging
+    // DIFFERENT specs, which we still never do. Distinct instances are created
+    // explicitly via the editor's "＋ Yeni sətir" button, not by tapping.
+    {
+      const addKey = cartLineKey(variantId, opts?.notes ?? '', (opts?.modifiers || []) as any);
+      const addCourse = opts?.course !== undefined ? opts.course : null;
+      const addAllergens = JSON.stringify(opts?.allergens ?? []);
+      const existing = items.find((i: any) =>
+        String(i.product_id) === String(p.id)
+        && !i.__isCombo && !i.is_combo
+        && cartLineKey(i.variant_id, i.special_notes, i.modifiers as any) === addKey
+        && (i.course ?? null) === addCourse
+        && JSON.stringify(i.allergens ?? []) === addAllergens
+      );
+      if (existing) {
+        const sentQty = existing.sentQuantity ?? 0;
+        const newQty = Math.max(existing.quantity + addQty, sentQty);
+        setCart({
+          ...base,
+          items: items.map(i => i === existing
+            ? { ...i, quantity: newQty, total_price: Math.round(i.unit_price * newQty * 100) / 100 }
+            : i),
+        });
+        return;
+      }
+    }
     const newItem = {
       // client-side instance identity (stable React key + per-instance
       // targeting); server order_items ids are assigned on send.

@@ -76,18 +76,12 @@ export async function POST(request: NextRequest) {
 
     if (itemsError) throw itemsError;
 
-    // increment supplier total_orders
-    const { data: supplier } = await supabase
-      .from('suppliers')
-      .select('total_orders')
-      .eq('id', body.supplier_id)
-      .single();
-    if (supplier) {
-      await supabase
-        .from('suppliers')
-        .update({ total_orders: (supplier.total_orders || 0) + 1 })
-        .eq('id', body.supplier_id);
-    }
+    // 11g (freeze audit): the old read-then-write increment lost updates
+    // under concurrent PO creation. Atomic DB increment; a counter drift is
+    // non-critical (bookkeeping) so it must not fail the create — but it is
+    // logged instead of swallowed silently.
+    const { error: incError } = await supabase.rpc('increment_supplier_orders', { p_supplier_id: body.supplier_id });
+    if (incError) console.error('[purchase-orders] supplier total_orders increment failed:', incError.message);
 
     return NextResponse.json(order);
   } catch (e: any) {

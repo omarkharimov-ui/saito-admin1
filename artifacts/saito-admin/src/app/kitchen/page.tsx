@@ -1278,9 +1278,21 @@ export default function KitchenPage() {
     );
   };
 
-   // ── Main render ────────────────────────────────────────────────────────────
-   const { lightMode, setLightMode } = useTheme();
-  return (
+    // ── Main render ────────────────────────────────────────────────────────────
+    const { lightMode, setLightMode } = useTheme();
+    // 11g (freeze): this pre-CSS-variable page carries ~65 JS-conditional
+    // theme classes (`lightMode ? … : …`). SSR always paints the dark
+    // default, so a light-theme client mismatches dozens of children (React
+    // "hydration failed" console error every load). Gate the whole page
+    // until after mount: server paint and first client paint are IDENTICAL
+    // (empty dark shell), then theme + data appear. Cost: a sub-100ms dark
+    // flash for light-mode users — the kitchen is dark-first anyway. (A
+    // suppressHydrationWarning on the root div alone is NOT enough: React
+    // still reports the first mismatching child.)
+    const [themeMounted, setThemeMounted] = useState(false);
+    useEffect(() => { setThemeMounted(true); }, []);
+    if (!themeMounted) return <div className="min-h-screen bg-[#0a0a0a]" />;
+    return (
     <div className={`min-h-screen p-4 sm:p-6 lg:p-8 ${lightMode ? 'bg-white text-black' : 'bg-[#0a0a0a] text-white'}`}>
       {showWelcome && (
         <WelcomeScreen role="kitchen" onDismiss={() => setShowWelcome(false)} />

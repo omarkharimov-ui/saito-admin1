@@ -19,10 +19,9 @@
 // Flex-flow layout (no absolute stacking) → text overlap is structurally
 // impossible; rows truncate; middle block is overflow-hidden.
 import { AnimatePresence, motion } from 'framer-motion';
-import { User, Phone, MapPin, Bike, Clock, MoreVertical, Route, CheckCircle2 } from '@/components/ui/saito-icons';
+import { User, Phone, MapPin, Bike, Clock, MoreVertical, Route, CheckCircle2, Hourglass } from '@/components/ui/saito-icons';
 import { partnerMeta, type PartnerId } from '../lib/partners';
 import { PartnerLogo } from './PartnerBadge';
-import type { OrderStage } from '@/lib/order-stage';
 import { T, EASE } from '@/lib/motion/system';
 import { Morph } from '@/lib/motion/Morph';
 
@@ -43,7 +42,10 @@ const BOARD_ACCENT: Record<'delivery' | 'takeaway', string> = {
 export interface BoardOrderCardProps {
   order: any;
   kind: 'delivery' | 'takeaway';
-  stage: OrderStage;
+  // 11n (owner): payment is NO LONGER a status on the pill (the pill shows
+  // kitchen/courier fulfillment). `paid` drives the icon by the total:
+  // ✓ = money in, hourglass = payment pending.
+  paid: boolean;
   status: { bg: string; text: string; dot: string; bgDark: string; textDark: string; dotDark: string; labelKey: string };
   lightMode: boolean;
   t: (k: any) => string;
@@ -51,7 +53,7 @@ export interface BoardOrderCardProps {
   onAction: (order: any) => void;
 }
 
-export default function BoardOrderCard({ order, kind, stage, status, lightMode, t, onSelect, onAction }: BoardOrderCardProps) {
+export default function BoardOrderCard({ order, kind, paid, status, lightMode, t, onSelect, onAction }: BoardOrderCardProps) {
   const p = partnerMeta(order.partner_source);
   const isPartner = !!p;
   const accent = p ? p.accent : BOARD_ACCENT[kind];
@@ -229,20 +231,37 @@ export default function BoardOrderCard({ order, kind, stage, status, lightMode, 
           </AnimatePresence>
         </span>
         <span className={`inline-flex items-center gap-1 text-[15px] font-black tabular-nums tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>
-          {(stage === 'paid' || stage === 'ready') && (
-            <AnimatePresence>
+          {/* 11n (owner): payment icon by the total — ✓ when the money is in,
+              hourglass (amber) while it's pending. The pill itself now only
+              tracks kitchen/courier fulfillment, so this is the single
+              payment signal on the card. */}
+          <AnimatePresence mode="wait" initial={false}>
+            {paid ? (
               <motion.span
                 key="paid-check"
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+                title="Ödəniş alınıb"
                 className="inline-flex"
               >
                 <CheckCircle2 size={13} strokeWidth={2.5} className={lightMode ? 'text-emerald-500' : 'text-emerald-400'} />
               </motion.span>
-            </AnimatePresence>
-          )}
+            ) : (
+              <motion.span
+                key="paid-pending"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+                title="Ödəniş gözləyir"
+                className="inline-flex"
+              >
+                <Hourglass size={13} strokeWidth={2.5} className={lightMode ? 'text-amber-500' : 'text-amber-400'} />
+              </motion.span>
+            )}
+          </AnimatePresence>
           <Morph value={order.total_amount} y={3} duration={T.quick}>₼{Number(order.total_amount || 0).toFixed(2)}</Morph>
         </span>
       </div>

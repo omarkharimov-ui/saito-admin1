@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
 import { GridCell } from '@/lib/motion/GridCell';
-import { X, Calendar, Utensils, Handbag, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, Hourglass } from '@/components/ui/saito-icons';
+import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, Hourglass } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useDeviceHeartbeat } from '@/lib/device-heartbeat';
@@ -1016,7 +1016,14 @@ export default function POSPage() {
     if (!actionSheetTable) return;
     setCourierStatusOpen(false);
     try {
-      await orderStateMachine.transitionDelivery(actionSheetTable.id, to as any, { courierId: actionSheetTable.courier_id, courierName: actionSheetTable.courier_name });
+      // 11g (freeze audit): transitionDelivery returns {success:false}
+      // instead of throwing on server failure — the old code toasted success
+      // and advanced the local delivery_status anyway (fake-success).
+      const tr = await orderStateMachine.transitionDelivery(actionSheetTable.id, to as any, { courierId: actionSheetTable.courier_id, courierName: actionSheetTable.courier_name });
+      if (!tr.success) {
+        toast.error(tr.error || t('error_occurred'), { id:'action-toast' });
+        return;
+      }
       setActionSheetTable((prev:any)=> prev ? { ...prev, delivery_status: to } : prev);
       const key = to==='picked_up'?'bds_picked_up':to==='in_transit'?'bds_in_transit':'bds_delivered';
       toast.success((t as any)(key)||to, { id:'action-toast' }); pos.fetchData();
@@ -2345,16 +2352,15 @@ export default function POSPage() {
              <div className="flex-shrink-0">
              <DragTabSwitcher
                items={[
-                  // 2026-09-28 (owner: "iceride/takeaway/delivery tabinin
-                  // iconlarini duzgun sec yeniden"): Utensils (dine-in dining) /
-                  // takeaway = bag-to-go (UserCheck was a person icon, semantically
-                  // wrong) / Bike (delivery courier).
-                  // 2026-09-29 (owner, round 7 #6: "pickup edən şəxsə uyğun daha
-                  // mənalı ikon"): ShoppingBag renders as a rounded BOX at 15px —
-                  // Handbag (trapezoid + handle) reads as the pickup bag.
-                  { id: 'dine_in', label: t('dine_in'), icon: Utensils, dotColor: '#10b981' },
-                  { id: 'takeaway', label: t('takeaway'), icon: Handbag, dotColor: '#3b82f6' },
-                 { id: 'delivery', label: t('delivery'), icon: Bike, dotColor: '#3b82f6' },
+                   // 2026-09-28 (owner): Utensils (dine-in dining) / Bike (delivery
+                   // courier). 2026-09-29: ShoppingBag→Handbag (pickup bag).
+                   // 2026-10-01 (owner, 11n: "takeaway ikonu insanın sifarişi
+                   // götürməsini ifadə edən sadə və intuitiv ikon olsun"): back to a
+                   // PERSON icon — UserCheck (person + check = the customer picks
+                   // up the order). Matches the takeaway board header.
+                   { id: 'dine_in', label: t('dine_in'), icon: Utensils, dotColor: '#10b981' },
+                   { id: 'takeaway', label: t('takeaway'), icon: UserCheck, dotColor: '#10b981' },
+                  { id: 'delivery', label: t('delivery'), icon: Bike, dotColor: '#3b82f6' },
                ]}
                value={posMode}
                onChange={(mode) => {
@@ -3052,11 +3058,12 @@ export default function POSPage() {
                               transition={SPRING}
                             >
                             <ProductGrid
-                           ref={gridRef}
-                           products={pos.products}
-                           categories={pos.categories}
-                           combos={pos.combos}
-                           variantsByProduct={pos.variantsByProduct}
+                            ref={gridRef}
+                            products={pos.products}
+                            categories={pos.categories}
+                            combos={pos.combos}
+                            variantsByProduct={pos.variantsByProduct}
+                            defaultCourse={pos.defaultCourse}
                             onAddProduct={(p) => handleProductTap(p)}
                             // 2026-09-28 (owner: collapse + pill tabs): the
                             // multi-instance editor saves ALL instances in ONE
@@ -3135,6 +3142,7 @@ export default function POSPage() {
                           cart={pos.cart}
                           cartHydrating={pos.cartHydrating}
                           vatEnabled={vatEnabled}
+                          defaultCourse={pos.defaultCourse}
                           onPlaceOrder={sendCurrentOrder}
                             onBack={() => {
                               // Owner UX (2026-09-21): exiting the cart keeps

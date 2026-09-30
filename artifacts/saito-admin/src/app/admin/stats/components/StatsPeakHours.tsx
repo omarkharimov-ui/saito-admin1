@@ -23,7 +23,10 @@ const fmtHour = (h: number) => {
   return `${String(hh).padStart(2, '0')}:00`;
 };
 
-export default function StatsPeakHours({ hourlyBreakdown, peakHour, loading }: StatsPeakHoursProps) {
+// 11g: `peakHour` (top-banner duplicate) is no longer rendered — the peak
+// callout inside the chart is the single source. Prop stays in the interface
+// for the existing caller; it is intentionally not destructured.
+export default function StatsPeakHours({ hourlyBreakdown, loading }: StatsPeakHoursProps) {
   const [metric, setMetric] = useState<'orders' | 'revenue'>('orders');
 
   const points: HourPoint[] = useMemo(() => {
@@ -60,16 +63,18 @@ export default function StatsPeakHours({ hourlyBreakdown, peakHour, loading }: S
             <Clock size={20} />
           </div>
           <div>
-            <h3 className="text-white font-bold text-lg">PİK SAATLƏR</h3>
-            <p className="text-sm text-white/40">Xidmət gününün tam paylanması · {active.length} saat aktiv</p>
+            {/* 11g (E2E catch): 11c hardcoded white text — the title was
+                INVISIBLE in light mode. Theme vars fix both modes. */}
+            <h3 className="text-[var(--theme-text)] font-bold text-lg">PİK SAATLƏR</h3>
+            <p className="text-sm text-[var(--theme-text-muted)]">Xidmət gününün tam paylanması · {active.length} saat aktiv</p>
           </div>
         </div>
-        <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-full p-1">
+        <div className="flex items-center gap-1 bg-[var(--theme-text)]/[0.03] border border-[var(--theme-border)] rounded-full p-1">
           <button
             type="button"
             onClick={() => setMetric('orders')}
             className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-colors ${
-              metric === 'orders' ? 'bg-gold text-black' : 'text-white/40 hover:text-white/70'
+              metric === 'orders' ? 'bg-gold text-black' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'
             }`}
           >
             SİFARİŞ
@@ -78,7 +83,7 @@ export default function StatsPeakHours({ hourlyBreakdown, peakHour, loading }: S
             type="button"
             onClick={() => setMetric('revenue')}
             className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-colors ${
-              metric === 'revenue' ? 'bg-gold text-black' : 'text-white/40 hover:text-white/70'
+              metric === 'revenue' ? 'bg-gold text-black' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'
             }`}
           >
             GƏLİR
@@ -104,11 +109,14 @@ export default function StatsPeakHours({ hourlyBreakdown, peakHour, loading }: S
                   className="flex-1 flex flex-col items-center justify-end h-full"
                   title={`${fmtHour(p.hour)} — ${v > 0 ? (metric === 'orders' ? `${p.orders} sifariş` : fmtManat(p.revenue)) : '—'}${isPeak ? ' · PİK' : ''}`}
                 >
+                  {/* 11g: bars were white-alpha (invisible on the light card) —
+                      theme-text + opacity renders in both modes; peak stays gold. */}
                   <div
-                    className={`w-full rounded-t-sm transition-all duration-300 ${
-                      v === 0 ? 'bg-white/[0.06]' : isPeak ? 'bg-gold' : 'bg-white/25'
-                    }`}
-                    style={{ height: `${hPct}%` }}
+                    className={`w-full rounded-t-sm transition-all duration-300 ${isPeak ? 'bg-gold' : ''}`}
+                    style={{
+                      height: `${hPct}%`,
+                      ...(isPeak ? {} : { background: 'var(--theme-text)', opacity: v === 0 ? 0.08 : 0.35 }),
+                    }}
                   />
                 </div>
               );
@@ -117,7 +125,7 @@ export default function StatsPeakHours({ hourlyBreakdown, peakHour, loading }: S
           {/* Hour labels every 2h */}
           <div className="flex gap-[3px] mt-2">
             {points.map((p) => (
-              <div key={p.hour} className="flex-1 text-center text-[9px] text-white/30 tabular-nums">
+              <div key={p.hour} className="flex-1 text-center text-[9px] text-[var(--theme-text-muted)] tabular-nums">
                 {p.hour % 2 === 0 ? String(p.hour).padStart(2, '0') : ''}
               </div>
             ))}
@@ -125,29 +133,29 @@ export default function StatsPeakHours({ hourlyBreakdown, peakHour, loading }: S
 
           {/* Peak callout */}
           {peak ? (
-            <div className="mt-5 flex items-center justify-between rounded-2xl bg-gold/[0.07] border border-gold/20 px-4 py-3">
-              <div className="text-sm text-white/60">
-                <span className="text-gold font-semibold">Pik saat:</span> {fmtHour(peak.hour)}
+              <div className="mt-5 flex items-center justify-between rounded-2xl bg-gold/[0.07] border border-gold/20 px-4 py-3">
+                <div className="text-sm text-[var(--theme-text-muted)]">
+                  <span className="text-gold font-semibold">Pik saat:</span> {fmtHour(peak.hour)}
+                </div>
+                <div className="text-sm font-semibold text-[var(--theme-text)] tabular-nums">
+                  {metric === 'orders' ? `${peak.orders} sifariş` : fmtManat(peak.revenue)}
+                </div>
               </div>
-              <div className="text-sm font-semibold text-white tabular-nums">
-                {metric === 'orders' ? `${peak.orders} sifariş` : fmtManat(peak.revenue)}
+            ) : (
+              <div className="mt-5 flex items-center justify-center rounded-2xl bg-[var(--theme-text)]/[0.03] border border-[var(--theme-border)] px-4 py-3">
+                <p className="text-sm text-[var(--theme-text-muted)]">Bu dövr üçün aktiv saat yoxdur</p>
               </div>
-            </div>
-          ) : (
-            <div className="mt-5 flex items-center justify-center rounded-2xl bg-white/[0.03] border border-white/[0.06] px-4 py-3">
-              <p className="text-sm text-white/40">Bu dövr üçün aktiv saat yoxdur</p>
-            </div>
-          )}
+            )}
 
           {/* Top-3 list (same data, list form) */}
           {active.length > 0 && (
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
               {active.slice(0, 3).map((p, i) => (
-                <div key={p.hour} className="rounded-xl bg-white/[0.03] border border-white/[0.06] px-3.5 py-2.5">
-                  <p className="text-[10px] uppercase tracking-wider text-white/30">
+                <div key={p.hour} className="rounded-xl bg-[var(--theme-text)]/[0.03] border border-[var(--theme-border)] px-3.5 py-2.5">
+                  <p className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)]">
                     #{i + 1} · {fmtHour(p.hour)}
                   </p>
-                  <p className="text-sm font-semibold text-white tabular-nums mt-0.5">
+                  <p className="text-sm font-semibold text-[var(--theme-text)] tabular-nums mt-0.5">
                     {metric === 'orders' ? `${p.orders} sifariş` : fmtManat(p.revenue)}
                   </p>
                 </div>
@@ -156,7 +164,6 @@ export default function StatsPeakHours({ hourlyBreakdown, peakHour, loading }: S
           )}
         </>
       )}
-      <p className="text-[10px] text-white/20 mt-3">PİK SAAT (top banner): {peakHour || '—'}</p>
     </div>
   );
 }

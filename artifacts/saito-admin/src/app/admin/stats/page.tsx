@@ -179,7 +179,8 @@ const StatsPage = () => {
   }, [fetchDetailedStats]);
 
   return (
-    <div className="relative overflow-x-hidden">
+    // stats-scope: light-mode text rescue layer boundary (globals.css §11g)
+    <div className="stats-scope relative overflow-x-hidden">
       <div className="lg:hidden">
         <StatsMobileView
           stats={stats}

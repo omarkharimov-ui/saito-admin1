@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getSettings, updateSettings } from '@/lib/settings-client';
-import { Save, Loader2, Timer, AlertTriangle } from '@/components/ui/saito-icons';
+import { Save, Loader2, Timer, AlertTriangle, Utensils } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
 import { labelCls } from './_shared';
@@ -12,22 +12,33 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
   const [loading, setLoading] = useState(false); // Instant load
   const [saving, setSaving] = useState(false);
   const [delayMin, setDelayMin] = useState(30);
+  // 11n (owner): default serving course — every NEW cart line gets this course
+  // automatically; the cart chip appears only when a line deviates from it.
+  const [defaultCourse, setDefaultCourse] = useState('main');
+  const COURSE_OPTIONS = [
+    { value: 'appetizer', label: t('course_appetizers') },
+    { value: 'main', label: t('course_mains') },
+    { value: 'dessert', label: t('course_desserts') },
+    { value: 'drink', label: t('course_drinks') },
+  ];
 
   useEffect(() => {
     if (initialData) {
       if (initialData.order_delay_minutes) setDelayMin(initialData.order_delay_minutes);
+      if (initialData.default_course) setDefaultCourse(initialData.default_course);
       setLoading(false);
       return;
     }
     getSettings('order').then((data) => {
       if (data?.order_delay_minutes) setDelayMin(data.order_delay_minutes);
+      if (data?.default_course) setDefaultCourse(data.default_course);
       setLoading(false);
     });
   }, [initialData]);
 
   const save = async () => {
     setSaving(true);
-    const res = await updateSettings('order', { order_delay_minutes: delayMin });
+    const res = await updateSettings('order', { order_delay_minutes: delayMin, default_course: defaultCourse });
     if (!res.ok) toast.error(res.error || 'Xəta', { id: 'action-toast' });
     else toast.success(t('kitchen_saved'), { id: 'action-toast', duration: 3000 });
     setSaving(false);
@@ -67,6 +78,36 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
           <p className="text-[11px] text-red-400/80">
             {interpolateTemplate(t('kitchen_delay_status'), { n: String(delayMin) })}
           </p>
+        </div>
+      </div>
+
+      {/* 11n (owner): default serving course — applied to every new item in
+          POS; the cart chip shows ONLY non-default courses. */}
+      <div className="bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-3xl p-6 sm:p-8 space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-gold/10 text-gold rounded-2xl"><Utensils size={20} /></div>
+          <div>
+            <p className="text-sm font-bold text-white">{t('kitchen_default_course_title')}</p>
+            <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">{t('kitchen_default_course_desc')}</p>
+          </div>
+        </div>
+        <div>
+          <label className={labelCls}><Utensils size={11} /> {t('kitchen_default_course_label')}</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+            {COURSE_OPTIONS.map((c) => (
+              <button
+                key={c.value}
+                onClick={() => setDefaultCourse(c.value)}
+                className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-[0.97] ${
+                  defaultCourse === c.value
+                    ? 'bg-gold text-black border-gold shadow'
+                    : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]'
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

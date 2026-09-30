@@ -45,6 +45,12 @@ export function deriveOrderStage(order: any): OrderStage {
   // done and waiting for HANDOVER (not "order finished"). The fulfillment-final
   // state is `served` (orders.status), handled above.
   if (k === 'ready' || k === 'completed') return 'ready';
+  // 11g (owner: "delivery/pickup ödəniş/mətbəx statusları"): the DB rollup
+  // (sync_order_kitchen_status trigger) also produces 'served' (items handed
+  // over). Unpaid + k='served' previously fell to 'new' ("Yeni Sifariş") —
+  // honest stage is handover-complete, money pending → 'ready' (paid → 'paid'
+  // below stays untouched for records like paid+served).
+  if (k === 'served') return isPaid ? 'paid' : 'ready';
 
   // Delivery machine (delivery only): confirmed→preparing→ready→picked_up→
   // in_transit→delivered. Read via the transition_delivery_status RPC.
@@ -54,8 +60,13 @@ export function deriveOrderStage(order: any): OrderStage {
   if (d === 'ready') return 'ready';
   if (d === 'preparing') return 'kitchen';
 
-  // In the kitchen / being prepared (incl. partially ready).
-  if (k === 'preparing' || k === 'partially_ready' || st === 'preparing') return 'kitchen';
+  // In the kitchen / being prepared (incl. partially ready). 11g: the rollup
+  // also emits 'sent' (all items sent to kitchen), 'accepted' (KDS accepted
+  // the ticket) and 'reserved' — previously these fell through to
+  // 'confirmed' ("Təsdiqləndi"), so right after "Mətbəxə Göndər" the card
+  // showed the wrong stage.
+  if (k === 'preparing' || k === 'partially_ready' || k === 'sent' ||
+      k === 'accepted' || k === 'reserved' || st === 'preparing') return 'kitchen';
 
   // Paid but not ready yet — staff should know money is in.
   if (isPaid) return 'paid';
@@ -73,4 +84,42 @@ export function isOrderPaid(order: any): boolean {
   const total = Number(order?.total_amount ?? 0);
   const paidAmt = Number(order?.paid_amount ?? 0);
   return !!order?.is_fully_paid || st === 'paid' || (total > 0 && paidAmt >= total);
+}
+
+// ── FULFILLMENT stage (11n, owner: "soldakı status bölməsində ödəniş yox,
+//    mətbəx və ya kuryer statusu göstərilsin") ─────────────────────────────────
+// The board's status pill used to show the DERIVED stage, where 'paid' is a
+// stage — so most settled cards all read "ÖDƏNİLDİ" (money, not progress).
+// FulfillmentStage strips the payment dimension: it tracks where the FOOD is
+// (kitchen rollup + courier machine). Payment is shown separately as an icon
+// next to the total (✓ paid / hourglass pending) in BoardOrderCard.
+export type FulfillmentStage =
+  | 'new' | 'confirmed' | 'kitchen' | 'ready'
+  | 'picked_up' | 'in_transit'   // delivery-only (courier machine)
+  | 'closed' | 'cancelled';
+
+export function deriveFulfillmentStage(order: any): FulfillmentStage {
+  const st = order?.status;
+  // Order-level final states first.
+  if (st === 'completed' || st === 'closed' || st === 'served') return 'closed';
+  if (st === 'cancelled' || st === 'voided') return 'cancelled';
+  if (st === 'refunded' || st === 'partially_refunded') return 'closed';
+
+  // Courier machine (delivery) — outranks the kitchen rollup once the food is
+  // in the courier's hands (state_transitions: ready→picked_up→in_transit→
+  // delivered).
+  const d = order?.delivery_status;
+  if (d === 'delivered') return 'closed';
+  if (d === 'in_transit') return 'in_transit';
+  if (d === 'picked_up') return 'picked_up';
+
+  // Kitchen rollup (sync_order_kitchen_status trigger vocabulary:
+  // pending/sent/accepted/reserved/preparing/partially_ready/ready/completed/
+  // served/cancelled).
+  const k = order?.kitchen_status;
+  if (d === 'ready' || k === 'ready' || k === 'completed' || k === 'served') return 'ready';
+  if (d === 'preparing' || k === 'preparing' || k === 'partially_ready' ||
+      k === 'sent' || k === 'accepted' || k === 'reserved' || st === 'preparing') return 'kitchen';
+  if (st === 'confirmed' || k === 'pending') return 'confirmed';
+  return 'new';
 }

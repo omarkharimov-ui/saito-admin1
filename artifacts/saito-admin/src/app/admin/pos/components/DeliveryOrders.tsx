@@ -4,7 +4,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Plus, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical, Navigation, UserCheck, Route, Wallet, CheckCircle2 } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
+import { deriveFulfillmentStage, isOrderPaid, type FulfillmentStage } from '@/lib/order-stage';
 import { GridCell } from '@/lib/motion/GridCell';
 import BoardOrderCard from './BoardOrderCard';
 
@@ -25,7 +25,10 @@ export const DELIVERY_STATUS_CONFIG: Record<string, { bg: string; text: string; 
   in_kitchen:       { bg: 'bg-blue-50 border-blue-200',        text: 'text-blue-600',    dot: 'bg-blue-500',    bgDark: 'bg-blue-500/10 border-blue-500/20',    textDark: 'text-blue-400',   dotDark: 'bg-blue-400',   labelKey: 'delivery_status_in_kitchen',     subtitleKey: 'delivery_status_in_kitchen_sub' },
   ready:            { bg: 'bg-purple-50 border-purple-200',    text: 'text-purple-600',  dot: 'bg-purple-500',  bgDark: 'bg-purple-500/10 border-purple-500/20', textDark: 'text-purple-400', dotDark: 'bg-purple-400', labelKey: 'delivery_status_ready',          subtitleKey: 'delivery_status_ready_sub' },
   picked_up:        { bg: 'bg-cyan-50 border-cyan-200',        text: 'text-cyan-600',    dot: 'bg-cyan-500',    bgDark: 'bg-cyan-500/10 border-cyan-500/20',    textDark: 'text-cyan-400',   dotDark: 'bg-cyan-400',   labelKey: 'delivery_status_picked_up',      subtitleKey: 'delivery_status_picked_up_sub' },
-  delivered:        { bg: 'bg-emerald-50 border-emerald-200',  text: 'text-emerald-600', dot: 'bg-emerald-500', bgDark: 'bg-emerald-500/10 border-emerald-500/20', textDark: 'text-emerald-400', dotDark: 'bg-emerald-400', labelKey: 'delivery_status_delivered',        subtitleKey: 'delivery_status_delivered_sub' },
+   // 11n: courier step picked_up→in_transit was missing from the map — such
+   // orders fell to the 'pending' config (wrong label).
+   in_transit:       { bg: 'bg-blue-50 border-blue-200',        text: 'text-blue-600',    dot: 'bg-blue-500',    bgDark: 'bg-blue-500/15 border-blue-500/25',   textDark: 'text-blue-300',   dotDark: 'bg-blue-300',   labelKey: 'delivery_status_in_transit',     subtitleKey: 'delivery_status_in_transit_sub' },
+   delivered:        { bg: 'bg-emerald-50 border-emerald-200',  text: 'text-emerald-600', dot: 'bg-emerald-500', bgDark: 'bg-emerald-500/10 border-emerald-500/20', textDark: 'text-emerald-400', dotDark: 'bg-emerald-400', labelKey: 'delivery_status_delivered',        subtitleKey: 'delivery_status_delivered_sub' },
   payment_pending:  { bg: 'bg-zinc-900/10 border-zinc-900/25', text: 'text-zinc-900',    dot: 'bg-zinc-900',    bgDark: 'bg-orange-500/10 border-orange-500/20', textDark: 'text-orange-400', dotDark: 'bg-orange-400',  labelKey: 'delivery_status_payment_pending', subtitleKey: 'delivery_status_payment_pending_sub' },
   paid:             { bg: 'bg-green-50 border-green-200',      text: 'text-green-600',   dot: 'bg-green-500',   bgDark: 'bg-green-500/10 border-green-200/20',  textDark: 'text-green-400',  dotDark: 'bg-green-400',  labelKey: 'delivery_status_paid',             subtitleKey: 'delivery_status_paid_sub' },
   cancelled:        { bg: 'bg-red-50 border-red-200',          text: 'text-red-600',     dot: 'bg-red-500',     bgDark: 'bg-red-500/10 border-red-500/20',      textDark: 'text-red-400',    dotDark: 'bg-red-400',    labelKey: 'delivery_status_cancelled',      subtitleKey: 'delivery_status_cancelled_sub' },
@@ -66,14 +69,16 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
           {/* Motion System: delivered orders collapse + neighbors glide. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <AnimatePresence>
-             {orders.map((order) => {
-                // 2026-09-22: status is now DERIVED (payment + kitchen + status).
-               const stage = deriveOrderStage(order);
-               const DELIVERY_STAGE_MAP: Record<OrderStage, string> = {
-                 new: 'pending', confirmed: 'confirmed', kitchen: 'preparing',
-                 ready: 'ready', paid: 'paid', closed: 'delivered', cancelled: 'cancelled',
-               };
-               const status = DELIVERY_STATUS_CONFIG[DELIVERY_STAGE_MAP[stage]] || DELIVERY_STATUS_CONFIG.pending;
+              {orders.map((order) => {
+                // 11n (owner): the pill = FULFILLMENT (kitchen + courier),
+                // NEVER payment — money is the icon by the total.
+                const stage = deriveFulfillmentStage(order);
+                const DELIVERY_STAGE_MAP: Record<FulfillmentStage, string> = {
+                  new: 'pending', confirmed: 'confirmed', kitchen: 'preparing',
+                  ready: 'ready', picked_up: 'picked_up', in_transit: 'in_transit',
+                  closed: 'delivered', cancelled: 'cancelled',
+                };
+                const status = DELIVERY_STATUS_CONFIG[DELIVERY_STAGE_MAP[stage]] || DELIVERY_STATUS_CONFIG.pending;
                 // 2026-09-25 (owner redesign rounds 2-3): ONE card family for
                 // partner AND in-house orders (BoardOrderCard): flex-flow
                 // (no overlap by construction), glow + accent border (stronger
@@ -83,11 +88,11 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                 // Title rule (2026-09-23): in-house cards read "Çatdırılma 41".
                  return (
                    <GridCell key={order.id} className="col-span-1">
-                     <BoardOrderCard
-                       order={order}
-                       kind="delivery"
-                       stage={stage}
-                       status={status}
+                      <BoardOrderCard
+                        order={order}
+                        kind="delivery"
+                        paid={isOrderPaid(order)}
+                        status={status}
                        lightMode={lightMode}
                        t={t}
                        onSelect={onSelectOrder}

@@ -1,14 +1,43 @@
-# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-09-30, round 7)
+# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-01, rounds 7 → 11n)
 
-> Əsas: SAITO = bu repo-nun kodu üzrə verified feature set (round 1–7 E2E). Rəqiblər =
-> hər birinin müstəqil Restaurant POS məhsulunun müəssisəleşmiş core feature set-i
-> (vendor sənədlərinin cari versiyasını order-ixtisaslaşdırılmış detallar üçün yenidən yoxlamaq lazımdır).
- > Hədəf: hansı şeyin var, çatışmır və yaxşılaşdırılmalıdır — səbəb ilə.
- >
- > **STATUS (2026-09-30, rounds 11a–11e):** §2-dəki 5 əsas çatışmazlığın HAMISI bağlandı
- > (payroll 11a · purchasing 11b · analytics 11c · online ordering 11d · offline 11e —
- > hərəsi ayrıca commit, jurnallar MASTER_FEATURE_MAP.md §10). Qalan: §2.6 real PSP
- > (owner qərarı), §2.7 e-commerce (low priority), §2.8 franchise.
+> Əsas: SAITO = bu repo-nun kodu üzrə verified feature set. Rəqiblər = hər birinin
+> müstəqil Restaurant POS məhsulunun müəssisəleşmiş core feature set-i.
+>
+> **STATUS (2026-10-01, rounds 11a–11n):** 5 əsas çatışmazlığın HAMISI bağlandı
+> (payroll 11a · purchasing 11b · analytics 11c · online ordering 11d · offline 11e),
+> qalanlar 11f-də, backend consistency audit + Apple polish 11g-də, POS status axını
+> (fulfillment/payment ayrılığı) + served-lock + default serving 11n-də. Hər addımın
+> before/after müqayisəsi aşağıda (§0). Qalan: §2.6 real PSP (owner qərarı),
+> §2.7 e-commerce (low priority), §2.8 franchise, light-mode phase-2 (POS sheet-ləri).
+
+## 0. BEFORE / AFTER — 11a–11g dəyişikliklərinin tam müqayisəsi
+
+| Qabiliyyət | BEFORE (round 7 audit anı) | AFTER (11a–11g) |
+|---|---|---|
+| **Online ordering** | Yox idi — customer kanalının özü missing | Menü → table-suz checkout (takeaway/delivery) → server-price order → public tracking səhifəsi → KDS axını. Rate-limit + CRM link + zone/fee/min/ETA. 67 "qayıb" no-table order KDS-də görünür (bug fix) |
+| **Offline mode** | Yox idi — internet kəsilişində order qəbulu mümkün deyildi | Order intake + queue (idempotency-key, **iki-faza reserve/confirm**) + auto-replay + sync panel + force-test rejimi. Payment-lər də queued (7 caller, fake-success yox). Reload-dan sonra banner qorunur |
+| **Time-clock / payroll** | Scheduling var idi, punch + payroll export YOX | `get_payroll_export` RPC (LAG pairing + overtime + tips) + admin sheet (preview/CSV/history) + staff CSV + payroll_periods upsert |
+| **Analytics** | Statistik səhifə var idi amma staff panel DEAD idi (role column yox), peak hours yox | 24s peak (SİFARİŞ/GƏLİR toggle + PİK), product food-cost/net-profit drill-down, staff çəkiliş dəqiqəsi + CSV, panel canlanıldı (role_id fix) |
+| **Purchasing (PO)** | Stock return/waste/level var idi; PO/receiving/cost YOX | PO create (auto ingredient bind) → atomic `receive_purchase_order` RPC (row-lock, partial/full, WAC) → supplier counter (atomic inc/dec). `sync_product_availability` dead-schema fix — anbar artımı ilk dəfə real işləyir |
+| **VOID** | Sent xətt void olunanda DB düzülürdü, UI-da sətir GERİ ÇOXURDU (rehydration bug) | Voided/cancelled xəttsələr rehydration-da filtrlənir + `orderIsDead` → sent səttsələr drop. E2E: səttsə yox olur və qalmır |
+| **Room-charge / Corporate pay** | HƏMİŞƏ 400 (modal order_id-siz POST) — heç vaxt işləməyib | Modal input-only → parent canonical idempotent flow → reference `order_payments.reference`-da |
+| **Append (addItems) offline** | Manual queue idi (dup riski) — blind replay riskli sayılırdı | İki-faza idempotency (reserve→confirm) → **tam auto-replay-safe**; 5xx retry də duplicate-safe |
+| **Queue data loss** | Replay cavabı 200 {success:false} olsa da item SİLDİLİRDI (silent order loss) | Business-fail replay = MANUAL-a keçir (insan qərarı), sync toast səbəbi ilə |
+| **Devices page** | 500× React duplicate-key error (console spam) | Client dedup (device_id, ən yeni heartbeat) → console 0 |
+| **Payroll webhook POST** | SSRF (istənilən URL) + date injection (raw URL interpolation) | YYYY-MM-DD gate + public http(s)-only host guard |
+| **Online zone** | Naməlum zone_id → `zones[0]` (yanlış fee/min/ETA) | Explicit-invalid = 400; absent = default; min-order client-da göstərilir + disable |
+| **Checkout UX** | "Sifariş et" düyməsi invalid formda click → error toast | Düymə valid olana qədər disabled; delivery zona yoxdursa segment disabled; minimum order hint (progressive disclosure); track link eyni tab-da |
+| **Delivery status toast** | Server fail olsa belə "success" toast (transitionDelivery {success:false} ignored) | Result check → real success/error |
+| **UI (Apple polish)** | — | Payroll panel auto-load + meaningful empty state; peak-hours redundant footer aradan qaldırıldı; binding docs-a uyğun consistency (hər screen: content-first, one primary action) |
+| **Backend integrity** | Fire-and-forget idempotency writes; non-atomic goods-receipt (rollback dead code); read-modify-write races (supplier counter, double receive) | Reserve-before-create + blocking confirm; atomic RPC receive (FOR UPDATE); atomic counter RPC-ləri; in-route auth (middleware fail-open əməliyyatına qarşı) |
+| **Board status axını (11n)** | Chip = derived stage, "ÖDƏNİLDİ" stage idi → 33/34 takeaway kartı progress yox, pullu vəziyyət; `sent/accepted/reserved` rollup dəyərləri tanınmırdu ("Mətbəxdə" → "Təsdiqləndi"); in_transit config yoxdu (pending-ə düşürdü) | Chip = yalnız FULFILLMENT (kuryer maşini > kitchen rollup > order status); ödəniş = total yanında ikon (✓ / hourglass); sent/accepted/reserved/served düzgün axınır |
+| **Takeaway/delivery ikonları (11n)** | Mode switcher: Handbag (börüş); board: UserCheck | Takeaway = UserCheck (insan sifarişi götürür — owner tapşırığı), delivery = Bike; switcher + board eyniləşdi |
+| **Served məhsula yeni porsiyon (11n)** | SERVED xəttsədən eyni məhsulun YENİ porsiyonu əlavə olunmurdu (single-mode-da düymə yoxdu, multi-da kilidlə gizlənirdi — dead end) | "Yeni porsiyon əlavə et" (single + həmişə görünən multi "＋") → fresh draft, kilid yalnız göndərilmiş porsiyona |
+| **Serving üsulu (course) (11n)** | Hər məhsula 'main' (Ana yemak) SƏSSİZ təyin olunurdu + cart-da HƏMİŞƏ chip (chaos) | Ayarlar → Mətbəx: `default_course` (4 seçimi); yeni məhsul avtomatik default alır; chip YALNIZ fərqli seçimdə (Utensils ikon + course-tint, modifier chip-dən aydın fərqli) |
+
+**Qeyd:** "BEFORE" sütunu = round 7 audit-inin (bu faylın ilk versiyasının) verified durumu.
+Hər AFTER claim = round jurnalında (MASTER_FEATURE_MAP.md §10, 11a–11g) commit + E2E
+kanıtı ilə dəstəklənir.
 
 ## 1. BƏRABƏR / QÖNÇƏ (parity or better)
 

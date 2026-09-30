@@ -607,6 +607,11 @@ export const ru: TranslationMap = {
   kitchen_delay_label: 'Минуты задержки',
   kitchen_min: 'мин',
   kitchen_delay_status: 'Сейчас: заказы считаются опоздавшими после {n} минут. Граница карточки + круг стола становится красным, отображается предупреждение.',
+  // 11n (owner): default serving course — applied to every new item; the cart
+  // chip appears ONLY when a line deviates from this default.
+  kitchen_default_course_title: 'Курс по умолчанию',
+  kitchen_default_course_desc: 'Применяется автоматически ко всем новым позициям. Чип на строке показывается только при выборе другого курса; по умолчанию — без чипа.',
+  kitchen_default_course_label: 'Курс по умолчанию',
   kitchen_save: 'Сохранить',
   kitchen_saved: 'Сохранено',
 

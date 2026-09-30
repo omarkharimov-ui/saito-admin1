@@ -12,6 +12,10 @@ function svc() {
 }
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // 11g (freeze audit): defense-in-depth — the middleware is the first gate
+  // but it fails open on transient session-probe errors; verify in-route.
+  const auth = await requireAuth();
+  if (!auth.authenticated) return auth;
   try {
     const { id } = await params;
     const supabase = svc();
@@ -62,6 +66,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
   export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    // 11g (freeze audit): in-route auth (middleware fails open on probe errors).
+    const auth = await requireAuth();
+    if (!auth.authenticated) return auth;
     try {
       const { id } = await params;
       const supabase = svc();
@@ -74,11 +81,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const { error } = await supabase.from('purchase_orders').delete().eq('id', id);
       if (error) throw error;
       // Keep the supplier's order counter consistent (create increments it).
-      // supabase-js rpc() resolves to {data,error} — no .catch (TS2551); guard with try.
+      // supabase-js rpc() resolves to {data,error} — 11g: check .error and
+      // log it (11f's try/catch could never fire for a business error).
       if (po?.supplier_id) {
-        try {
-          await supabase.rpc('decrement_supplier_orders', { p_supplier_id: po.supplier_id });
-        } catch { /* counter consistency is best-effort */ }
+        const { error: decError } = await supabase.rpc('decrement_supplier_orders', { p_supplier_id: po.supplier_id });
+        if (decError) console.error('[purchase-orders] supplier total_orders decrement failed:', decError.message);
       }
       return NextResponse.json({ success: true });
     } catch (e: any) {

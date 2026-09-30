@@ -6,6 +6,7 @@ import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { isFinalOrderStatus } from '@/lib/pos-tables';
+import { getSettings } from '@/lib/settings-client';
 
 import type { PosProduct, PosTable, PosCart, PosCartItem, PosModifierSelection } from '../types/shared';
 
@@ -113,6 +114,10 @@ export function usePos() {
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
   const [posMode, setPosMode] = useState<'dine_in' | 'takeaway' | 'delivery'>('dine_in');
+  // 11n (owner): DEFAULT serving course (Ayarlar → Mətbəx). Every NEW cart line
+  // is stamped with this course automatically; the cart chip shows only lines
+  // that deviate from it. Loaded from the 'order' settings scope.
+  const [defaultCourse, setDefaultCourse] = useState<string>('main');
   const [cart, setCart] = useState<PosCart | null>(null);
   const [cartHydrating, setCartHydrating] = useState(false);
   const [tableOrderCache, setTableOrderCache] = useState<Record<number, any>>({});
@@ -280,6 +285,14 @@ export function usePos() {
   // re-syncs, so OOS cards / prices / availability follow the admin without
   // touching the cart or the floor.
   const catalogSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // 11n: load the default serving course once on mount (best-effort — 'main'
+  // is the safe fallback when the setting is absent or the fetch fails).
+  useEffect(() => {
+    getSettings('order').then((s: any) => {
+      const dc = s?.default_course;
+      if (dc && ['appetizer', 'main', 'dessert', 'drink'].includes(dc)) setDefaultCourse(dc);
+    }).catch(() => {});
+  }, []);
   useEffect(() => {
     catalogSyncRef.current = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return; // background tab: skip
@@ -326,7 +339,7 @@ export function usePos() {
                   note: item.note || null,
                   variant: null,
                   station: item.station || 'kitchen',
-                  course: item.course || 'main',
+                  course: item.course || defaultCourse,
                   priority: item.priority || 'normal',
                   hold_until: item.hold_until || null,
                   is_hold: !!item.hold_until,
@@ -683,7 +696,7 @@ export function usePos() {
               variant_id: item.variant_id || null,
               hold_until: item.hold_until || null,
               is_hold: !!item.hold_until,
-              course: item.course || 'main',
+              course: item.course || defaultCourse,
               is_combo: !!item.is_combo_parent,
               combo_id: item.combo_group_id || null,
               sentQuantity: item.quantity,
@@ -1169,13 +1182,16 @@ export function usePos() {
     // explicitly via the editor's "＋ Yeni sətir" button, not by tapping.
     {
       const addKey = cartLineKey(variantId, opts?.notes ?? '', mods as any);
-      const addCourse = opts?.course !== undefined ? opts.course : null;
+      // 11n: a plain tap (no explicit course) carries the DEFAULT course from
+      // Ayarlar — so it merges with other default-course lines (the "×4"
+      // behavior) and the cart never shows a chip for the default.
+      const addCourse = opts?.course !== undefined ? opts.course : defaultCourse;
       const addAllergens = JSON.stringify(opts?.allergens ?? []);
       const existing = items.find((i: any) =>
         String(i.product_id) === String(p.id)
         && !i.__isCombo && !i.is_combo
         && cartLineKey(i.variant_id, i.special_notes, i.modifiers as any) === addKey
-        && (i.course ?? null) === addCourse
+        && (i.course ?? defaultCourse) === addCourse
         && JSON.stringify(i.allergens ?? []) === addAllergens
       );
       if (existing) {
@@ -1203,6 +1219,10 @@ export function usePos() {
         modifiers: mods,
         variant_id: variantId,
         special_notes: opts?.notes ?? '',
+        // 11n: explicit course — default course from settings unless the
+        // caller passed one (panel edits pass the picked course, or null to
+        // reset to the house default).
+        course: opts?.course !== undefined ? opts.course : defaultCourse,
         allergens: opts?.allergens ?? [],
         campaign_id: campaignId,
         campaign_discount_amount: campaignDiscount,
@@ -1662,7 +1682,7 @@ export function usePos() {
            special_notes: x.item.special_notes || '',
            allergens: (x.item as any).allergens || null,
            variant_id: x.item.variant_id || null,
-           course: (x.item as any).course || 'main',
+           course: (x.item as any).course || defaultCourse,
           is_combo: x.item.is_combo || false,
           combo_id: x.item.combo_id || null,
           original_unit_price: x.item.original_unit_price || null,
@@ -2131,7 +2151,7 @@ export function usePos() {
         variant_id: item.variant_id || null,
         is_combo: !!item.is_combo_parent,
         combo_id: item.combo_group_id || null,
-        course: item.course || 'main',
+        course: item.course || defaultCourse,
         hold_until: item.hold_until || null,
         is_hold: !!item.hold_until,
         sentQuantity: item.quantity,
@@ -2429,7 +2449,7 @@ export function usePos() {
   };
 
     return {
-      floors, products, categories, combos, variantsByProduct, loading, floorLoadFailed, catalogLoadFailed, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode,
+      floors, products, categories, combos, variantsByProduct, loading, floorLoadFailed, catalogLoadFailed, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode, defaultCourse,
       fetchData, fetchFloor, patchFloor, selectTable, mergeTables, transferTable, dismissTable, releaseTable, clearTable, performUndo, seatTable,
       setActiveView, setCart, setSelectedTable, addToCart, applyInstanceEdits, cloneInstance, addComboToCart, updateCartItemQty, placeOrder, clearCart, resetCart, updateGuestCount,
       updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,

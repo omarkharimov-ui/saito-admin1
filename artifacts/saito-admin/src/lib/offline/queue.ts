@@ -228,6 +228,21 @@ async function replayOne(item: QueueItem): Promise<'dropped' | 'retried'> {
   if (idx === -1) return 'dropped';
 
   if (res.ok) {
+    // 11g (freeze audit, CRITICAL): /api/orders returns 200 {success:false}
+    // on business failure (table archived, validation, cross-location…).
+    // 11e dropped the item on ANY 2xx without reading the body → a queued
+    // customer order that could not land was SILENTLY LOST. Now: a
+    // business-failed replay is kept, marked MANUAL (a human decides), and
+    // reported via the sync toast.
+    let body: any = null;
+    try { body = await res.json(); } catch { /* non-JSON 2xx — treat as success */ }
+    if (body && body.success === false) {
+      item.lastError = `server: ${body.error || 'business failure'}`;
+      item.auto = false;
+      persist();
+      announceSync(0, item.lastError);
+      return 'dropped'; // out of the auto loop; item STAYS for manual review
+    }
     list.splice(idx, 1);
     persist();
     announceSync(1);

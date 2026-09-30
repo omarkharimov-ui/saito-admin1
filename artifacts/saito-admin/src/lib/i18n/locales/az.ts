@@ -577,6 +577,11 @@ export const az = {
   kitchen_delay_label: 'Gecikmə dəqiqəsi',
   kitchen_min: 'dəq',
   kitchen_delay_status: 'Hal-hazırda: {n} dəqiqədən sonra gecikmiş hesab olunur. Kart kənarı + masa dairəsi qırmızıya keçir, xəbərdarlıq göstərilir.',
+  // 11n (owner): default serving course — applied to every new item; the cart
+  // chip appears ONLY when a line deviates from this default.
+  kitchen_default_course_title: 'Standart Serving Üsulu',
+  kitchen_default_course_desc: 'Yeni əlavə olunan bütün məhsullara avtomatik tətbiq olunur. Sətirdə yalnız standartdan FƏRQLİ seçim edildikdə chip görünür; standartda chip gizlənir.',
+  kitchen_default_course_label: 'Standart mərhələ',
   kitchen_save: 'Yadda Saxla',
   kitchen_saved: 'Yadda saxlandı',
 

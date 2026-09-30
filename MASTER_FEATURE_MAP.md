@@ -809,6 +809,81 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11n: POS STATUS AXLINI AYRILDI + ÖDƏNİŞ İKONU + SERVED-LOCK + DEFAULT SERVING)
+
+Owner: (1) delivery-də qiymət yanında ödəniş ikonu (✓ / aydın "gözləyir" ikonu), (2) soldakı
+chip-də ödəniş YOX — mətbəx/kuryer statusu, (3) takeaway/delivery üçün uyğun ikonlar (takeaway
+= insan sifarişi götürür), (4) served məhsuldan YENİ porsiyon əlavə edilə bilməyən lock bug-ı,
+(5) serving üsulu default settings + chip yalnız fərqli seçimdə.
+
+1. **Fulfillment vs Payment AXINI AYRILDI (`deriveFulfillmentStage`, order-stage.ts):**
+   Board chip əvvəl `deriveOrderStage` işlədirdi — orada 'paid' STAGE idi → 33/34 takeaway
+   kartı "ÖDƏNİLDİ" göstərirdi (progress YOX, pullu vəziyyət). Yeni `FulfillmentStage`
+   (new/confirmed/kitchen/ready/picked_up/in_transit/closed/cancelled) = yeməyin NƏRƏDƏDİR:
+   kuryer maşini (state_transitions) > kitchen rollup > order status. Payment = yalnız
+   BoardOrderCard-da total yanında ikon: `CheckCircle2` (emerald, "Ödəniş alınıb") /
+   `Hourglass` (amber, "Ödəniş gözləyir"). `in_transit` config əlavə olundu (əvvəl 'pending'
+   config-ə düşürdü — yanlış label). E2E (r11n): takeaway #2929 "Mətbəxdə"+hourglass,
+   #051 "Hazırdır — Təhvil"+✓; delivery #071 "Hazırlanır"+hourglass — heç bir kartda
+   "Ödənildi" chip YOX, console 0.
+2. **TAKEAWAY İKONU = UserCheck** (insan + check = sifarişi götürən müştəri): mode switcher
+   (Handbag idi — owner "insanın sifarişi götürməsini ifadə edən" istədi) + board header
+   (hal-hazırda da UserCheck idi, indi eyniləşdi). Delivery = Bike (qalır).
+3. **SERVED-LOCK BUG (owner screenshot — Yasai Roll):** single-mode panel (1 xətt, SERVED)
+   da "Yeni porsiyon əlavə et" YOXDU idi (inst-strip yalnız multi-mode-da render olundu) +
+   multi-da "＋ Yeni variant" `!specLocked` ilə gizlənirdi → served məhsul dead end.
+   FIX: (a) single-mode-da dashed "Yeni porsiyon əlavə et" button; (b) "＋" həmişə görünür;
+   (c) `addNewInstance` specLocked-guard-sız; (d) seed draft-a `kitchen_status` daşıdıldı
+   (yeddi pill multi-strip-də UNLOCKED görünməsin). Kilid PER-INSTANCE qalır (served
+   porsiyon hələ də qalın — GERİ QAYTAR yolu), yeni draft öz spec-i ilə sərbəst.
+   E2E (r11n): dashed + → 2-ci pill ACTIVE, stepper/modifikatorlar/mərhələ UNLOCKED,
+   CTA "YADDA SAXLA · 2" ✓.
+4. **DEFAULT SERVING ÜSULU:** Ayarlar → Mətbəx → "Standart Serving Üsulu" (4 pill:
+   Başlanğıc/Ana yemək/Desert/İçki; settings 'order' scope `default_course`, default
+   'main'). usePos mount-da oxuyur → hər NEW xətt eksplisit default course alır
+   (plain tap merge key də default-la — "×4" behavior qorunur). Cart: course chip YALNIZ
+   `course !== defaultCourse`-da görünür (default = chip-siz). Chip FƏRQLİ: Utensils ikon +
+   course-tint border/fill + "Serving üsulu:" title (modifier chip = SlidersHorizontal +
+   neytral "N əlavə"). Panel Mərhələ pill: untouched course (null) = default GÖSTERİLİR
+   (auto-təyin görünür), save-də `__course: editCourse ?? undefined` (null default-sızmır).
+   E2E (r11n): Tea tap → chip YOX; panel Desert → SAVE → pink "🍴 Dessert" chip ✓.
+- **tsc 0, production build PASS, browser E2E 6/6 (TEST 4 partial→verified: Yasai Roll
+  OOS olduğuna Tea üzərində mexanizm kanıtlandı), console 0/0.**
+
+### Jurnal sətiri — 2026-09-30 (ROUND 11g: BACKEND CONSISTENCY AUDIT + FROZE-EVAL + APPLE POLISH)
+
+Owner: "Bütün sistemin peşəkar şəkildə qurulduğunu yoxla... kritik problemlər
+aradan qaldırıldıqdan sonra frozen elan et." 15 backend kandidatı yoxlanıldı, 12 fix:
+
+1. **İki-faza idempotency (CRITICAL):** `order_idempotency_keys.order_id` DROP NOT NULL;
+   /api/orders create = RESERVE (unique insert, `Prefer: return=representation,
+   resolution=ignore-duplicates` — əvvəl empty-body "Unexpected end of JSON" bug) +
+   CONFIRM (blocking, retry-li order_id write). Append key-recording 3 path-də də →
+   /api/orders TAM auto-replay-safe. Orphan reservation takeover.
+2. **Goods-receipt atomik RPC (CRITICAL):** `receive_purchase_order(p_po_id, p_items)`
+   plpgsql (FOR UPDATE row-lock, delta semantics, PO_NOT_FOUND/PO_<status>_CANNOT_RECEIVE).
+   Əvvəlki client-side rollback supabase-js {error} no-throw mənasiylə DEAD CODE idi.
+   Bug fix: delta round `*1000` (1000× böyümə — stock contamination -10000 adjustment
+   ilə təmizlənib, baseline 5060 bərpa).
+3. **Queue data loss (CRITICAL):** queue.ts replay 200{success:false}-da item SİLİLİRDI
+   → indi body oxunur, business-fail = MANUAL-a (insan qərarı).
+4. **Supplier counter race:** `increment_supplier_orders` RPC (atomic); PO delete decrement
+   .error check; in-route auth (middleware fail-open əməliyyatına qarşı).
+5. **Payroll webhook SSRF + date injection:** YYYY-MM-DD gate + public http(s) host guard.
+6. **Online zone:** unknown zone_id → 400 (əvvəl zones[0] silent fallback); min-order
+   client hint; rate-limit sweep; rollback cancel check.
+7. **UI (Apple polish + E2E catch):** POS delivery toast result-check; RoomCharge/
+   Corporate modal input-only (parent canonical payment — əvvəl HƏMİŞƏ 400); Terminals
+   duplicate-key spam (client dedup device_id); Payroll panel auto-load + empty state;
+   peak-hours redundant footer; /kitchen theme mount gate (hydration error → 0); menu
+   checkout disable-until-valid + delivery segment zone-sız disabled.
+8. **Light-mode rescue:** stats KPI/peak hardcoded white → theme vars (11c qalıqları);
+   stats-scope CSS rescue qatı (147 text-white, accent-collision YOXDUR verified);
+   POS light-mode KPI-ları görünür.
+- tsc 0, production build PASS, E2E sweep r11j/r11k/r11l 0 error.
+- FROZE qərarı: owner 11n-də konkret UX isteklər verdi → freeze elanı 11n sonrasına
+  sürüşdürüldü (comparison.md §0 before/after hazırdır).
+
 ### Jurnal sətiri — 2026-09-30 (ROUND 11f: QALANLAR TƏMAMI — offline phase-2 quick batch + VOID anomaly + 2 broken payment yol)
 
 Owner: "qalanlarida tezz tamamla". 4 istiqamet, hamisi E2E-verified:

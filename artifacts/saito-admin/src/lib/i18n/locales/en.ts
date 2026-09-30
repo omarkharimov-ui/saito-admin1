@@ -580,6 +580,11 @@ export const en: TranslationMap = {
   kitchen_delay_label: 'Delay minutes',
   kitchen_min: 'min',
   kitchen_delay_status: 'Currently: orders are considered late after {n} minutes. Card border + table circle turns red, warning is shown.',
+  // 11n (owner): default serving course — applied to every new item; the cart
+  // chip appears ONLY when a line deviates from this default.
+  kitchen_default_course_title: 'Default Serving Course',
+  kitchen_default_course_desc: 'Applied automatically to every new item. A chip appears on the line only when a different course is picked; the default stays chip-free.',
+  kitchen_default_course_label: 'Default course',
   kitchen_save: 'Save',
   kitchen_saved: 'Saved',
 

@@ -10,6 +10,11 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function checkRateLimit(ip: string) {
   const now = Date.now();
+  // 11g (freeze audit): the map was never evicted — unbounded growth per
+  // distinct client IP. Opportunistic sweep of expired entries.
+  if (rateLimitMap.size > 1000) {
+    for (const [k, v] of rateLimitMap) if (now > v.resetAt) rateLimitMap.delete(k);
+  }
   const entry = rateLimitMap.get(ip);
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
@@ -90,6 +95,7 @@ export async function POST(req: NextRequest) {
     let deliveryZoneName: string | null = null;
     let deliveryAddress: string | null = null;
     let estimatedMinutes: number | null = null;
+    let deliveryZone: any = null;
     if (orderType === 'delivery') {
       if (typeof body.delivery_address !== 'string' || body.delivery_address.trim().length < 5) {
         return NextResponse.json({ error: 'delivery_address required' }, { status: 400 });
@@ -101,7 +107,14 @@ export async function POST(req: NextRequest) {
       );
       const zones = (zonesRes.ok ? await zonesRes.json() : []) as any[];
       if (zones.length === 0) return NextResponse.json({ error: 'Delivery is not available right now' }, { status: 400 });
-      const zone = zones.find(z => z.id === body.delivery_zone_id) || zones[0];
+      // 11g (freeze audit): an unknown/foreign delivery_zone_id used to
+      // silently fall back to zones[0] → wrong fee/ETA/min-order billed.
+      // Explicit-but-invalid = 400; absent = default zone.
+      deliveryZone = body.delivery_zone_id
+        ? zones.find(z => z.id === body.delivery_zone_id)
+        : zones[0];
+      if (!deliveryZone) return NextResponse.json({ error: 'delivery_zone_id is not valid' }, { status: 400 });
+      const zone = deliveryZone;
       deliveryZoneName = zone.name;
       deliveryFee = Number(zone.fee) || 0;
       estimatedMinutes = Number(zone.estimated_minutes) || null;
@@ -131,15 +144,11 @@ export async function POST(req: NextRequest) {
     });
     const itemsTotal = pricedItems.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
 
-    // Delivery minimum order (items subtotal, before fee).
+    // Delivery minimum order (items subtotal, before fee). 11g: reuses the
+    // validated `zone` from above (it already carries min_order) — the old
+    // second fetch re-introduced the same silent-zones[0] fallback.
     if (orderType === 'delivery') {
-      const zonesRes2 = await fetch(
-        `${s.url}/rest/v1/delivery_zones?is_active=eq.true&select=id,min_order,fee&order=priority.asc`,
-        { headers: s.headers }
-      );
-      const zones2 = (zonesRes2.ok ? await zonesRes2.json() : []) as any[];
-      const zone = zones2.find(z => z.id === body.delivery_zone_id) || zones2[0];
-      const minOrder = Number(zone?.min_order) || 0;
+      const minOrder = Number(deliveryZone?.min_order) || 0;
       if (minOrder > 0 && itemsTotal + deliveryFee < minOrder) {
         return NextResponse.json({ error: `Minimum order for delivery: ₼${minOrder.toFixed(2)}` }, { status: 400 });
       }
@@ -223,10 +232,15 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(itemInserts),
     });
     if (!itemsRes.ok) {
-      await fetch(`${s.url}/rest/v1/orders?id=eq.${orderId}`, {
+      // 11g (freeze audit): the compensating cancel's result was ignored —
+      // a failed cancel left a CONFIRMED zero-item order dangling silently.
+      const cancelRes = await fetch(`${s.url}/rest/v1/orders?id=eq.${orderId}`, {
         method: 'PATCH', headers: s.headers,
         body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }),
       });
+      if (!cancelRes.ok) {
+        console.error('[online] CRITICAL: item insert failed AND rollback cancel failed — operator must cancel order', orderId, await cancelRes.text().catch(() => ''));
+      }
       return NextResponse.json({ error: `Order items creation failed` }, { status: 500 });
     }
 

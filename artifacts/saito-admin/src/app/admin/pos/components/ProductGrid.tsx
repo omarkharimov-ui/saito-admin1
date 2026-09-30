@@ -109,6 +109,9 @@ interface ProductGridProps {
   filterData?: { recent: { id: string; name: string }[]; popular: { id: string; name: string; qty: number }[] } | null;
   // 2026-09-27 (owner): the MƏTBƏX popup also shows the CURRENT table's state.
   currentTableKitchen?: { label: string; draft: number; prep: number; ready: number } | null;
+  // 11n (owner): the DEFAULT serving course from Settings → Mətbəx. New items
+  // show it pre-selected in the Mərhələ pills and are saved with it.
+  defaultCourse?: string;
   onAddProduct: (product: PosProduct) => void;
   /** 2026-09-28 (owner: pill tabs): atomic multi-instance save — replaces
       several exact cart lines in ONE setCart (usePos.applyInstanceEdits). */
@@ -177,7 +180,7 @@ function AllergenBadges({ item }: { item: GridItem | undefined; lightMode?: bool
 
 export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function ProductGrid({
   products, combos, categories, onAddProduct, onApplyInstanceEdits, onAddCombo, cartCounts, cartItemQtys, onLiveQtyChange, outOfStock, variantsByProduct,
-  catalogError, onRetryCatalog, filterData, currentTableKitchen
+  catalogError, onRetryCatalog, filterData, currentTableKitchen, defaultCourse = 'main'
 }, ref) {
   const { language, t } = useLanguage();
   const { lightMode } = useTheme();
@@ -794,11 +797,19 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   // path). Owner workflow: 2× Kremli → "+ Yeni variant" → 2× Yüngül →
   // "+ Yeni variant" → 4× Standart = 3 pills, save "· 8".
   const addNewInstance = () => {
-    if (!expandedItem || specLocked) return;
+    // 11n (owner: "eyni məhsuldan yenisi əlavə ediləndə eyni və ya fərqli
+    // modifier əlavə etmək mümkün olmalıdır"): adding a NEW portion is allowed
+    // even when the ACTIVE instance is SERVED/READY-locked — the new draft is
+    // a fresh, unsent line with its own spec. (The guard used to block this
+    // whole flow: a served product was a dead end.)
+    if (!expandedItem) return;
     commitInstanceDraft();
     const drafts: any[] = instDraftsRef.current;
     // Seed a base draft if we're currently in single-instance mode (no pills).
     if (drafts.length === 0) {
+      // 11n: carry the single-mode line's kitchen_status into the seeded base
+      // draft — without it a SERVED line's pill would render UNLOCKED in the
+      // new multi-strip (the lock is derived per pill from kitchen_status).
       drafts.push({
         lineIndex: editLineIndexRef.current ?? -1,
         __isNew: editLineIndexRef.current == null,
@@ -809,6 +820,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         course: editCourse,
         is_hold: editIsHold,
         allergens: selectedAllergens,
+        kitchen_status: editKs || undefined,
         hint: resolveHintName() || '',
         unitPrice: modalUnitPrice,
       });
@@ -1349,7 +1361,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
           const mod = (expandedItem.modifiers || []).find((x: any) => x.id === id);
           return { id, name: mod?.name || '', price: Number(mod?.price || 0), quantity: q };
         });
-      onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods, __editOf: identity ? { identity, lineIndex: editLineIndexRef.current ?? undefined } : undefined, __course: editCourse, __is_hold: editIsHold, __allergens: selectedAllergens, __newUnitPrice: modalUnitPrice } as any);
+      onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods, __editOf: identity ? { identity, lineIndex: editLineIndexRef.current ?? undefined } : undefined, __course: editCourse ?? undefined, __is_hold: editIsHold, __allergens: selectedAllergens, __newUnitPrice: modalUnitPrice } as any);
     }
     setNoteForProduct('');
     setSelectedVariant(undefined);
@@ -2043,10 +2055,15 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                                  no additive modifiers), NOT a clone of the active
                                  pill. (round-9 A merges identical taps, so a distinct
                                  variant is an explicit action). */}
-                            {!specLocked && (
-                              <motion.button
-                                onClick={addNewInstance}
-                                whileTap={{ scale: 0.9 }}
+                             {/* 11n: ALWAYS visible — even when the active pill is
+                                 SERVED/READY-locked, "+ Yeni variant" is the way
+                                 to add another portion (a fresh, editable draft).
+                                 Hiding it (the old `!specLocked` gate) made a
+                                 served product a dead end. */}
+                             {(
+                               <motion.button
+                                 onClick={addNewInstance}
+                                 whileTap={{ scale: 0.9 }}
                                 transition={SPRING}
                                 aria-label="Yeni variant əlavə et"
                                 title="Yeni variant əlavə et"
@@ -2062,9 +2079,30 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           </div>
                       </div>
                     )}
-                   {/* 2026-09-28 (owner): SERVED/COMPLETED line → spec lock
-                       banner; every control below is pointer-events-none + dimmed. */}
-                    {specLocked && (
+                    {/* 11n (owner: "eyni məhsuldan yenisi əlavə ediləndə həmin
+                        məhsula eyni və ya fərqli modifier əlavə etmək mümkün
+                        olmalıdır; kilid buna mane olurdu"): SINGLE-mode panels
+                        (one line, e.g. SERVED) had no instance strip → no way
+                        to add a new portion at all. This dashed pill creates a
+                        fresh draft instance alongside the locked one (own
+                        modifiers/course/qty — saved as a separate cart line). */}
+                    {!multiInst && (
+                      <motion.button
+                        onClick={addNewInstance}
+                        whileTap={{ scale: 0.97 }}
+                        transition={SPRING}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-wider"
+                        style={{
+                          color: lightMode ? '#6b7280' : 'rgba(255,255,255,0.55)',
+                          border: `1.5px dashed ${lightMode ? 'rgba(0,0,0,0.28)' : 'rgba(255,255,255,0.3)'}`,
+                        }}
+                      >
+                        <Plus size={14} /> Yeni porsiyon əlavə et
+                      </motion.button>
+                    )}
+                    {/* 2026-09-28 (owner): SERVED/COMPLETED line → spec lock
+                        banner; every control below is pointer-events-none + dimmed. */}
+                     {specLocked && (
                      <div className={`flex items-center gap-2 p-3 rounded-xl border text-[11px] font-bold ${lightMode ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white/[0.06] border-white/15 text-white/80'}`}>
                        <Lock size={12} className="flex-shrink-0" />
                        {lockLabel === 'Hazır (READY)'
@@ -2258,8 +2296,11 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 <div>
                   <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Mərhələ:</span>
                   <div className={`flex flex-wrap gap-2 mt-2 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
-                    {(['appetizer', 'main', 'dessert', 'drink'] as const).map(val => {
-                      const on = editCourse === val;
+                     {(['appetizer', 'main', 'dessert', 'drink'] as const).map(val => {
+                       // 11n: an untouched course (null) SHOWS the settings
+                       // default as active — the auto-assignment is visible in
+                       // the editor (the cart chip stays hidden for it).
+                       const on = (editCourse ?? defaultCourse) === val;
                       const key = val === 'appetizer' ? 'course_appetizers' : val === 'main' ? 'course_mains' : val === 'dessert' ? 'course_desserts' : 'course_drinks';
                       return (
                           // 2026-09-29 (owner: "kategori active pill qaradır deyə

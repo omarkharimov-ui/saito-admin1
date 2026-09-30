@@ -40,38 +40,40 @@ const StatsTopCards = ({
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
 
       {/* 1 — Dövriyyə */}
+      {/* 11g (E2E catch): 11c hardcoded `text-white`/`bg-white/*` — light mode-da
+          KPI qiymətləri ağ üzərində ağ idi (görünmürdü). Theme vars = both modes. */}
       <motion.div
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-3xl p-5 md:p-6 bg-white/[0.03] border border-white/[0.06]"
+        className="relative overflow-hidden rounded-3xl p-5 md:p-6 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
       >
         <div className="mb-4 text-[#D4AF37]/70"><DollarSign size={18} /></div>
-        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40 mb-2 font-medium">Ümumi Dövriyyə</p>
-        <h3 className="font-serif font-bold text-white text-2xl md:text-[1.7rem] leading-tight tracking-tight">₼ {fmt(totalRevenue)}</h3>
-        <p className="text-[11px] text-white/25 mt-2 font-medium">{totalOrders} sifariş</p>
+        <p className="text-[10px] uppercase tracking-[0.15em] text-[var(--theme-text-muted)] mb-2 font-medium">Ümumi Dövriyyə</p>
+        <h3 className="font-serif font-bold text-[var(--theme-text)] text-2xl md:text-[1.7rem] leading-tight tracking-tight">₼ {fmt(totalRevenue)}</h3>
+        <p className="text-[11px] text-[var(--theme-text-muted)] mt-2 font-medium">{totalOrders} sifariş</p>
       </motion.div>
 
       {/* 2 — Maya Dəyəri */}
       <motion.div
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="relative overflow-hidden rounded-3xl p-5 md:p-6 bg-white/[0.03] border border-white/[0.06]"
+        className="relative overflow-hidden rounded-3xl p-5 md:p-6 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
       >
         <div className="mb-4 text-orange-400/70"><Percent size={18} /></div>
-        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40 mb-2 font-medium">Maya Dəyəri</p>
-        <h3 className="font-serif font-bold text-white text-2xl md:text-[1.7rem] leading-tight tracking-tight">₼ {fmt(totalFoodCost)}</h3>
-        <p className="text-[11px] text-white/25 mt-2 font-medium">{foodCostPct.toFixed(1)}% Food Cost</p>
+        <p className="text-[10px] uppercase tracking-[0.15em] text-[var(--theme-text-muted)] mb-2 font-medium">Maya Dəyəri</p>
+        <h3 className="font-serif font-bold text-[var(--theme-text)] text-2xl md:text-[1.7rem] leading-tight tracking-tight">₼ {fmt(totalFoodCost)}</h3>
+        <p className="text-[11px] text-[var(--theme-text-muted)] mt-2 font-medium">{foodCostPct.toFixed(1)}% Food Cost</p>
       </motion.div>
 
       {/* 3 — İtki Xərci */}
       <motion.div
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="relative overflow-hidden rounded-3xl p-5 md:p-6 bg-white/[0.03] border border-white/[0.06]"
+        className="relative overflow-hidden rounded-3xl p-5 md:p-6 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
       >
         <div className="mb-4 text-rose-400/70"><XCircle size={18} /></div>
-        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40 mb-2 font-medium">İtki Xərci</p>
-        <h3 className="font-serif font-bold text-white text-2xl md:text-[1.7rem] leading-tight tracking-tight">₼ {fmt(totalWasteCost)}</h3>
-        <p className="text-[11px] text-white/25 mt-2 font-medium">israf və tənzimləmə</p>
+        <p className="text-[10px] uppercase tracking-[0.15em] text-[var(--theme-text-muted)] mb-2 font-medium">İtki Xərci</p>
+        <h3 className="font-serif font-bold text-[var(--theme-text)] text-2xl md:text-[1.7rem] leading-tight tracking-tight">₼ {fmt(totalWasteCost)}</h3>
+        <p className="text-[11px] text-[var(--theme-text-muted)] mt-2 font-medium">israf və tənzimləmə</p>
       </motion.div>
 
       {/* 4 — Təmiz Qazanc */}
@@ -85,11 +87,11 @@ const StatsTopCards = ({
         <div className={`mb-4 ${isProfit ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>
           {isProfit ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
         </div>
-        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40 mb-2 font-medium">Təmiz Qazanc</p>
+        <p className="text-[10px] uppercase tracking-[0.15em] text-[var(--theme-text-muted)] mb-2 font-medium">Təmiz Qazanc</p>
         <h3 className={`font-serif font-bold text-2xl md:text-[1.7rem] leading-tight tracking-tight ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
           {isProfit ? '' : '−'}₼ {fmt(Math.abs(netProfit))}
         </h3>
-        <p className="text-[11px] text-white/25 mt-2 font-medium">{isProfit ? 'mənfəət' : 'ziyan'}</p>
+        <p className="text-[11px] text-[var(--theme-text-muted)] mt-2 font-medium">{isProfit ? 'mənfəət' : 'ziyan'}</p>
       </motion.div>
 
     </div>

@@ -128,6 +128,42 @@ html[data-theme="dark"] {
 }
 body { background-color: var(--theme-bg); color: var(--theme-text); }
 
+/* ═══════════════════════════════════════════
+   11g freeze — light-mode rescue: /admin/stats
+   ───────────────────────────────────────────
+   Stats components (rounds 3–8) were written dark-first: 147 `text-white*`
+   instances on theme surfaces. In light mode they rendered white-on-white
+   (E2E r11k catch: KPI values, "Dərin Analitika", section headings invisible).
+   Verified 11g: ZERO `text-white` in the stats scope sits on an
+   accent/colored background, so overriding color under light mode is
+   collision-free. Scoped to `.stats-scope` (stats page root) — other
+   dark-first admin pages get the same treatment in phase 2 (debt: ~90
+   instances in POS sheets / staff / mobile).
+   */
+html[data-theme="light"] .stats-scope .text-white,
+html[data-theme="light"] .stats-scope .text-white\/80,
+html[data-theme="light"] .stats-scope .text-white\/70 { color: var(--theme-text); }
+
+html[data-theme="light"] .stats-scope .text-white\/65,
+html[data-theme="light"] .stats-scope .text-white\/60,
+html[data-theme="light"] .stats-scope .text-white\/50 { color: var(--theme-text-secondary); }
+
+html[data-theme="light"] .stats-scope .text-white\/40,
+html[data-theme="light"] .stats-scope .text-white\/35,
+html[data-theme="light"] .stats-scope .text-white\/30,
+html[data-theme="light"] .stats-scope .text-white\/25,
+html[data-theme="light"] .stats-scope .text-white\/20,
+html[data-theme="light"] .stats-scope .text-white\/15 { color: var(--theme-text-muted); }
+
+/* Placeholders (search inputs etc.) + recharts tick fill / grid stroke were
+   hardcoded rgba(255,255,255,…) — invisible on light cards. */
+html[data-theme="light"] .stats-scope input::placeholder,
+html[data-theme="light"] .stats-scope textarea::placeholder { color: var(--theme-text-muted); }
+html[data-theme="light"] .stats-scope .recharts-text { fill: var(--theme-text-muted) !important; }
+html[data-theme="light"] .stats-scope .recharts-cartesian-grid line { stroke: var(--theme-border) !important; }
+html[data-theme="light"] .stats-scope .recharts-legend-item-text,
+html[data-theme="light"] .stats-scope .recharts-legend-item-text span { color: var(--theme-text-secondary) !important; }
+
 /* Hide scrollbars globally but keep functionality */
 * {
   scrollbar-width: none !important; /* Firefox */

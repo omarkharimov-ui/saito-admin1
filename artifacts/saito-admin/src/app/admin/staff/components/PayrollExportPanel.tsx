@@ -92,6 +92,11 @@ export function PayrollExportPanel({ onClose }: { onClose: () => void }) {
 
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
+  // 11g (Apple polish — "content first, never empty-looking"): the panel
+  // opens with a sensible default (this month) — load it immediately so the
+  // user sees the report or a meaningful empty state, not a blank sheet.
+  useEffect(() => { void loadPreview(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, []);
+
   const handleCsvExport = async () => {
     setExporting(true);
     try {
@@ -217,8 +222,16 @@ export function PayrollExportPanel({ onClose }: { onClose: () => void }) {
             </div>
           </section>
 
+          {/* Preview — meaningful empty state (no punches in period) */}
+          {entries && entries.length === 0 && (
+            <section className="rounded-2xl border border-dashed border-white/[0.08] px-6 py-8 text-center">
+              <p className="text-sm text-[var(--theme-text-muted)]">Bu dövr üzrə vaxt qeydiyyatı məlumatı yoxdur.</p>
+              <p className="text-[11px] text-[var(--theme-text-muted)]/60 mt-1.5">İşçilər saat vurduqda (clock in/out) hesabat burada görünəcək.</p>
+            </section>
+          )}
+
           {/* Preview table */}
-          {entries && (
+          {entries && entries.length > 0 && (
             <section>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-[10px] font-bold uppercase tracking-wider text-[var(--theme-text-muted)]">

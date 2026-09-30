@@ -4,7 +4,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Plus, Phone, User, Clock, ShoppingBag, UserCheck, MoreVertical, Wallet, CheckCircle2 } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { deriveOrderStage, type OrderStage } from '@/lib/order-stage';
+import { deriveFulfillmentStage, isOrderPaid, type FulfillmentStage } from '@/lib/order-stage';
 import { GridCell } from '@/lib/motion/GridCell';
 import BoardOrderCard from './BoardOrderCard';
 
@@ -65,26 +65,27 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
               the list feels like a queue, not a re-render. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <AnimatePresence>
-             {orders.map((order) => {
-               // 2026-09-22: status is now DERIVED (payment + kitchen + status),
-               // not the raw DB status string — it updates automatically.
-               const stage = deriveOrderStage(order);
-               const TAKEAWAY_STAGE_MAP: Record<OrderStage, string> = {
-                 new: 'new', confirmed: 'confirmed', kitchen: 'in_kitchen',
-                 ready: 'ready', paid: 'paid', closed: 'closed', cancelled: 'cancelled',
-               };
-               const status = TAKEAWAY_STATUS_CONFIG[TAKEAWAY_STAGE_MAP[stage]] || TAKEAWAY_STATUS_CONFIG.confirmed;
+              {orders.map((order) => {
+                // 11n (owner): the pill = FULFILLMENT (kitchen rollup), NEVER
+                // payment — money is the icon by the total (✓ / hourglass).
+                const stage = deriveFulfillmentStage(order);
+                const TAKEAWAY_STAGE_MAP: Record<FulfillmentStage, string> = {
+                  new: 'new', confirmed: 'confirmed', kitchen: 'in_kitchen',
+                  ready: 'ready', picked_up: 'ready', in_transit: 'ready',
+                  closed: 'closed', cancelled: 'cancelled',
+                };
+                const status = TAKEAWAY_STATUS_CONFIG[TAKEAWAY_STAGE_MAP[stage]] || TAKEAWAY_STATUS_CONFIG.confirmed;
                 // 2026-09-25 (owner redesign rounds 2-3): same BoardOrderCard
                 // family (title rule 2026-09-23: in-house reads "Gel-Al 44",
                 // partner reads "#2812"). All in-house rows kept (QA bug 5:
                 // name + phone rows always render, "—" placeholders).
                  return (
                    <GridCell key={order.id} className="col-span-1">
-                     <BoardOrderCard
-                       order={order}
-                       kind="takeaway"
-                       stage={stage}
-                       status={status}
+                      <BoardOrderCard
+                        order={order}
+                        kind="takeaway"
+                        paid={isOrderPaid(order)}
+                        status={status}
                        lightMode={lightMode}
                        t={t}
                        onSelect={onSelectOrder}

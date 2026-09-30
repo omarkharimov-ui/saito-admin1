@@ -27,6 +27,10 @@ interface CartPanelProps {
   // 2026-09-27 (owner): global EDV switch (Settings → Payment → auto_apply_vat).
   // VAT line is HIDDEN when the switch is off (was hardcoded 18% always).
   vatEnabled?: boolean;
+  // 11n (owner): the DEFAULT serving course (Settings → Mətbəx). The course
+  // chip renders only for lines that DEVIATE from this default; the default
+  // itself stays chip-free.
+  defaultCourse?: string;
   cart: PosCart | null;
   cartHydrating?: boolean;
   onUpdateQty: (index: number, delta: number) => void;
@@ -184,8 +188,9 @@ export function CartPanel({
     onCouponRemoved,
     partnerSource,
     partnerOrder,
-    feeCalculating,
-    vatEnabled = true,
+     feeCalculating,
+     vatEnabled = true,
+     defaultCourse = 'main',
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -1638,25 +1643,31 @@ export function CartPanel({
                               <SlidersHorizontal size={10} />{group.modChips.reduce((s: number, c: any) => s + (c.count || 1), 0)} əlavə
                             </span>
                           )}
-                         {/* Course chip — only when EVERY instance shares the
-                             same course (mixed groups are edited per instance
-                             in the modal, where they always were). Tap cycles
-                             all unsent instances of the group. */}
-                         {group.course && (
-                           group.draftQty > 0 ? (
-                             <button
-                               onClick={(e) => { e.stopPropagation(); cycleGroupCourse(group); }}
-                               className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold tracking-normal transition-all active:scale-95 ${COURSE_STYLE[group.course] || COURSE_STYLE.main}`}
-                               title="Xidmət ardıcıllığı (dəyişmək üçün toxun)"
-                             >
-                               {COURSE_LABEL[group.course] || group.course}
-                             </button>
-                           ) : (
-                             <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold tracking-normal opacity-80 ${COURSE_STYLE[group.course] || COURSE_STYLE.main}`}>
-                               {COURSE_LABEL[group.course] || group.course}
-                             </span>
-                           )
-                         )}
+                          {/* Course chip — 11n (owner): shown ONLY when the
+                              course deviates from the SETTINGS DEFAULT (the
+                              default course is chip-free, so plain orders stop
+                              carrying a gold "Ana yemak" tag). Only when EVERY
+                              instance shares the same course (mixed groups are
+                              edited per instance in the modal). Visually
+                              DISTINCT from the modifier chip (neutral
+                              "⚙ N əlavə"): Utensils icon + course-tinted
+                              border/fill, no "əlavə" wording. Tap cycles all
+                              unsent instances of the group. */}
+                          {group.course && group.course !== defaultCourse && (
+                            group.draftQty > 0 ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); cycleGroupCourse(group); }}
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-bold tracking-normal transition-all active:scale-95 ${COURSE_STYLE[group.course] || COURSE_STYLE.main}`}
+                                title={`Serving üsulu: ${COURSE_LABEL[group.course] || group.course} (dəyişmək üçün toxun)`}
+                              >
+                                <Utensils size={10} strokeWidth={2.75} />{COURSE_LABEL[group.course] || group.course}
+                              </button>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-bold tracking-normal opacity-90 ${COURSE_STYLE[group.course] || COURSE_STYLE.main}`}>
+                                <Utensils size={10} strokeWidth={2.75} />{COURSE_LABEL[group.course] || group.course}
+                              </span>
+                            )
+                          )}
                           {/* 2026-09-29 (owner, figure 5: "hold/resume çox yer
                               tutur, animasiya yoxdur, transition yoxdur — ən
                               yaxşısını düşün"): the text chip "Saxlanılıb" is

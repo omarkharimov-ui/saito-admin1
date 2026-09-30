@@ -170,6 +170,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'webhook_url, period_start, and period_end are required' }, { status: 400 });
     }
 
+    // 11g (freeze audit): GET validates the dates but POST did not — the
+    // values were interpolated raw into PostgREST query strings. Same
+    // calendar-strict gate as GET.
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    if (!DATE_RE.test(String(period_start)) || !DATE_RE.test(String(period_end))) {
+      return NextResponse.json({ error: 'period_start/period_end must be YYYY-MM-DD' }, { status: 400 });
+    }
+
+    // 11g (freeze audit, SSRF): the webhook target is client-supplied.
+    // Allow public http(s) only — block loopback/private/link-local/internal
+    // names so this endpoint cannot be used to probe the host network.
+    const isUnsafeHost = (host: string): boolean => {
+      const h = host.toLowerCase().replace(/^\[|\]$/g, '');
+      if (h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal')) return true;
+      if (/^(127\.|10\.|0\.|169\.254\.|192\.168\.)/.test(h)) return true;
+      const m172 = h.match(/^172\.(\d{1,3})\./);
+      if (m172 && Number(m172[1]) >= 16 && Number(m172[1]) <= 31) return true;
+      if (h === '::1' || h === '0:0:0:0' || h.startsWith('fe80')) return true;
+      return false;
+    };
+    let wh: URL;
+    try { wh = new URL(String(webhook_url)); } catch {
+      return NextResponse.json({ error: 'webhook_url is not a valid URL' }, { status: 400 });
+    }
+    if (!/^https?:$/.test(wh.protocol) || isUnsafeHost(wh.hostname)) {
+      return NextResponse.json({ error: 'webhook_url must be a public http(s) URL' }, { status: 400 });
+    }
+
     const s = svc();
     const entries = await fetchPayrollEntries(s, period_start, period_end);
 

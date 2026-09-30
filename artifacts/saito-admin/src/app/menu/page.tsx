@@ -241,6 +241,16 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
   const effectivePhone = phone.trim() || savedPhone;
   const needsPhoneInput = !phoneValid(savedPhone); // first check on this device
 
+  // 11g (Apple polish — "predictable, one primary action"): the checkout
+  // button disables until the form can actually succeed, and the delivery
+  // mode hides itself when no zone is configured. No dead-end taps, no
+  // error toasts as the first feedback.
+  const deliveryAvailable = zones.length > 0;
+  const minOrder = selectedZone ? (Number(selectedZone.min_order) || 0) : 0;
+  const belowMinOrder = orderType === 'delivery' && minOrder > 0 && cartTotal + deliveryFee < minOrder;
+  const checkoutValid = customerName.trim().length >= 2 && phoneValid(phone)
+    && (orderType !== 'delivery' || (deliveryAvailable && address.trim().length >= 5 && !belowMinOrder));
+
   const createCheck = async () => {
     if (!tableNumber || cart.length === 0 || busy || !phoneValid(effectivePhone)) return;
     setBusy('create');
@@ -571,12 +581,16 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
 
               {/* Type toggle */}
               <div className="grid grid-cols-2 gap-1 bg-gray-100 rounded-full p-1 mb-4">
-                {([['takeaway', 'Takeaway'], ['delivery', 'Çatdırılma']] as const).map(([v, label]) => (
-                  <button key={v} type="button" onClick={() => setOrderType(v)}
-                    className={`py-2 rounded-full text-sm font-semibold transition-colors ${orderType === v ? 'bg-gray-900 text-white' : 'text-gray-500'}`}>
-                    {label}
-                  </button>
-                ))}
+                {([['takeaway', 'Takeaway'], ['delivery', 'Çatdırılma']] as const).map(([v, label]) => {
+                  const disabled = v === 'delivery' && !deliveryAvailable;
+                  return (
+                    <button key={v} type="button" disabled={disabled}
+                      onClick={() => setOrderType(v)}
+                      className={`py-2 rounded-full text-sm font-semibold transition-colors ${orderType === v ? 'bg-gray-900 text-white' : disabled ? 'text-gray-300' : 'text-gray-500 hover:text-gray-700'}`}>
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="space-y-3">
@@ -621,6 +635,11 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
                   </div>
                 )}
 
+                {belowMinOrder && (
+                  <p className="text-[11px] text-amber-600 -mt-1">
+                    Çatdırılma üçün minimum sifariş: {money(minOrder)} — sifarişiniz {money(minOrder - cartTotal - deliveryFee)} azdır.
+                  </p>
+                )}
                 <div className="flex items-center justify-between pt-2 text-sm">
                   <span className="text-gray-500">
                     {orderType === 'delivery' && deliveryFee > 0 ? `Ümumi (çatdırılma ₼${deliveryFee.toFixed(2)})` : 'Ümumi'}
@@ -631,8 +650,8 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
 
               <button
                 onClick={placeOnlineOrder}
-                disabled={busy !== ''}
-                className="mt-5 w-full py-3.5 rounded-2xl bg-gray-900 text-white text-sm font-semibold hover:bg-black disabled:opacity-50 transition-colors active:scale-[0.99]"
+                disabled={busy !== '' || !checkoutValid}
+                className="mt-5 w-full py-3.5 rounded-2xl bg-gray-900 text-white text-sm font-semibold hover:bg-black disabled:opacity-40 transition-colors active:scale-[0.99]"
               >
                 {busy === 'create' ? 'Göndərilir…' : 'Sifarişi göndər'}
               </button>
@@ -655,10 +674,13 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
                   ? 'Sifarişiniz mətbəxə göndərildi. Hazır olanda kuryer sizə zəng edəcək.'
                   : 'Sifarişiniz mətbəxə göndərildi. Hazır olanda sizə zəng edəcəyik.'}
               </p>
-              <a href={placedOrder.trackingUrl} target="_blank" rel="noreferrer"
+              {/* 11g: same-tab navigation — the customer stays inside one
+                  continuous flow (browse → order → track), no orphan tab. */}
+              <button type="button"
+                onClick={() => { window.location.href = placedOrder.trackingUrl; }}
                 className="mt-6 block w-full py-3 rounded-2xl bg-gray-900 text-white text-sm font-semibold hover:bg-black transition-colors">
                 Sifarişi izlə →
-              </a>
+              </button>
               <button onClick={() => setPlacedOrder(null)}
                 className="mt-3 text-xs text-gray-400 hover:text-gray-600 transition-colors">
                 Başqa sifariş ver

@@ -468,28 +468,84 @@ export async function POST(request: Request) {
 
        const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id, order_number, order_source, customer_phone, delivery_address, delivery_district, delivery_street, delivery_building, delivery_floor, delivery_apartment, delivery_intercom, delivery_zone, delivery_fee, estimated_delivery_time, scheduled_date, payment_method, is_rush, assigned_to, terminal_id, idempotency_key } = body;
 
-       // 11e (offline mode): order-level idempotency. When the client sends an
-       // idempotency_key, a re-send of the SAME request (offline queue replay,
-       // 5xx retry) returns the ORIGINAL order instead of creating a duplicate
-       // — this is what makes /api/orders safe for blind auto-replay.
-       const hasIdemKey = typeof idempotency_key === 'string' && idempotency_key.trim().length > 0 && idempotency_key.length <= 128;
-       if (hasIdemKey) {
-         try {
-           const dupRes = await fetch(
-             `${svc().url}/rest/v1/order_idempotency_keys?key=eq.${encodeURIComponent(idempotency_key)}&select=order_id&limit=1`,
-             { headers: svc().headers }
-           );
-           const dup = dupRes.ok ? await dupRes.json() : [];
-           if (Array.isArray(dup) && dup[0]?.order_id) {
-             const prevRes = await fetch(
-               `${svc().url}/rest/v1/orders?id=eq.${dup[0].order_id}&select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))`,
-               { headers: svc().headers }
-             );
-             const prev = prevRes.ok ? (await prevRes.json())?.[0] : null;
-             return { success: true, idempotent: true, data: prev || { id: dup[0].order_id } };
-           }
-         } catch { /* lookup failed → proceed to a normal (guarded) create */ }
-       }
+        // 11e → 11g (freeze audit): order-level idempotency, TWO-PHASE.
+        //   RESERVE — a unique insert (resolution=ignore-duplicates) BEFORE any
+        //   work: two concurrent same-key requests can NEVER both create (the
+        //   11e SELECT-then-INSERT had a race window).
+        //   CONFIRM — blocking, retried write of the order_id AFTER the order
+        //   lands (11e/11f wrote it fire-and-forget: a flaky write meant the
+        //   replay could not find the key → duplicate create). A failed
+        //   confirm is logged CRITICAL, never silent.
+        // A re-send of the SAME request (offline queue replay, 5xx retry)
+        // returns the ORIGINAL order — this is what makes /api/orders safe
+        // for blind auto-replay.
+        const hasIdemKey = typeof idempotency_key === 'string' && idempotency_key.trim().length > 0 && idempotency_key.length <= 128;
+        const idemKeyK = hasIdemKey ? idempotency_key.trim() : null;
+        let idemReserved = false;
+        if (idemKeyK) {
+          const tryReserve = async () => {
+            // return=representation is REQUIRED here: without it a fresh
+            // insert answers 201 with an EMPTY body (svc() headers carry no
+            // Prefer), which `ins.json()` cannot parse.
+            const ins = await fetch(`${svc().url}/rest/v1/order_idempotency_keys`, {
+              method: 'POST',
+              headers: { ...svc().headers, 'Prefer': 'return=representation,resolution=ignore-duplicates' },
+              body: JSON.stringify({ key: idemKeyK }),
+            });
+            const rows = ins.ok ? await ins.json() : [];
+            return ins.ok && Array.isArray(rows) && rows.length > 0;
+          };
+          if (!(await tryReserve())) {
+            // Key already reserved/confirmed — wait (≤3.6s) for the owner's order.
+            let prevOrderId: string | null = null;
+            for (let i = 0; i < 12 && !prevOrderId; i++) {
+              const dupRes = await fetch(
+                `${svc().url}/rest/v1/order_idempotency_keys?key=eq.${encodeURIComponent(idemKeyK)}&select=order_id&limit=1`,
+                { headers: svc().headers }
+              );
+              prevOrderId = dupRes.ok ? (await dupRes.json())?.[0]?.order_id || null : null;
+              if (!prevOrderId) await new Promise(r => setTimeout(r, 300));
+            }
+            if (prevOrderId) {
+              const prevRes = await fetch(
+                `${svc().url}/rest/v1/orders?id=eq.${prevOrderId}&select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))`,
+                { headers: svc().headers }
+              );
+              const prev = prevRes.ok ? (await prevRes.json())?.[0] : null;
+              return { success: true, idempotent: true, data: prev || { id: prevOrderId } };
+            }
+            // Orphan reservation (owner died between reserve and create) —
+            // take it over once. If that fails too, fail closed (503) rather
+            // than risk a duplicate.
+            await fetch(`${svc().url}/rest/v1/order_idempotency_keys?key=eq.${encodeURIComponent(idemKeyK)}`, {
+              method: 'DELETE', headers: svc().headers,
+            });
+            if (!(await tryReserve())) {
+              const err = new Error('IDEMPOTENCY_CONFLICT') as any;
+              err.status = 503;
+              throw err;
+            }
+          }
+          idemReserved = true;
+        }
+
+        // Blocking, retried confirmation that the reserved key points at the
+        // created order. Replaces the 11e/11f fire-and-forget `.catch(()=>{})`
+        // writes (a lost key = a duplicate on the next replay).
+        const confirmIdemKey = async (orderId: string) => {
+          if (!idemReserved || !idemKeyK) return;
+          for (let i = 0; i < 4; i++) {
+            try {
+              const c = await fetch(
+                `${svc().url}/rest/v1/order_idempotency_keys?key=eq.${encodeURIComponent(idemKeyK)}`,
+                { method: 'PATCH', headers: { ...svc().headers, 'Prefer': 'return=minimal' }, body: JSON.stringify({ order_id: orderId }) }
+              );
+              if (c.ok) return;
+            } catch { /* retry */ }
+            await new Promise(r => setTimeout(r, 200 * (i + 1)));
+          }
+          console.error('[POST /api/orders] CRITICAL: idempotency CONFIRM failed — a replay of this attempt may duplicate. key=', idemKeyK, 'order_id=', orderId);
+        };
       
       // Append items to an EXISTING active order (used by reservation-handoff tables
       // that already have a draft/active order, so we never create a 2nd active order).
@@ -582,18 +638,10 @@ export async function POST(request: Request) {
           { headers: svc().headers }
         );
         const updated = (await updatedRes.json())?.[0];
-        // 11f (offline phase 2): record the idempotency key for APPENDS too —
-        // the dedup check at the top of this branch already short-circuits a
-        // replayed addItems (returns the original order); the recorded key is
-        // what makes the replay recognizable. This also makes the 5xx retry in
-        // placeOrder safe for appends (same key → no double insert).
-        if (hasIdemKey) {
-          fetch(`${svc().url}/rest/v1/order_idempotency_keys`, {
-            method: 'POST',
-            headers: svc().headers,
-            body: JSON.stringify({ key: idempotency_key, order_id: id }),
-          }).catch(() => {});
-        }
+        // 11f/11g: confirm the reserved key for APPENDS (the two-phase reserve
+        // at the top of this branch already short-circuits a replayed
+        // addItems). Also makes the 5xx retry in placeOrder append-safe.
+        if (idemReserved) await confirmIdemKey(id);
         return updated || { id };
       }
 
@@ -897,15 +945,9 @@ export async function POST(request: Request) {
           const errText = await tablePatchRes2.text();
           console.error('[POST /api/orders] table_floors update failed:', tablePatchRes2.status, errText);
         }
-        // 11f: implicit-append path (a create request that found an active
+        // 11f/11g: implicit-append path (a create request that found an active
         // order on the table) — same idempotency contract as addItems.
-        if (hasIdemKey) {
-          fetch(`${svc().url}/rest/v1/order_idempotency_keys`, {
-            method: 'POST',
-            headers: svc().headers,
-            body: JSON.stringify({ key: idempotency_key, order_id: activeOrderId }),
-          }).catch(() => {});
-        }
+        if (idemReserved) await confirmIdemKey(activeOrderId);
       } else {
         // Create new order
         console.log('[API /orders POST] creating order', { table_number, total_amount: discountedTotal });
@@ -1161,23 +1203,19 @@ export async function POST(request: Request) {
       const finalOrderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}&select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))`, { headers: svc().headers });
       const finalOrder = (await finalOrderRes.json())?.[0];
 
-      // 11e: record the idempotency key AFTER the order exists (best-effort —
-      // a failed record just means a retry could create a duplicate, the
-      // normal (no-key) behavior; never block the order on it).
-      if (hasIdemKey && finalOrder?.id) {
-        fetch(`${svc().url}/rest/v1/order_idempotency_keys`, {
-          method: 'POST',
-          headers: svc().headers,
-          body: JSON.stringify({ key: idempotency_key, order_id: finalOrder.id }),
-        }).catch(() => {});
-        // Housekeeping (30-day retention) — advisory-locked + idempotent.
-        fetch(`${svc().url}/rest/v1/rpc/prune_order_idempotency_keys`, {
-          method: 'POST',
-          headers: svc().headers,
-        }).catch(() => {});
-      }
+       // 11g (freeze audit): the key was RESERVED before this order was
+       // created; now CONFIRM it (blocking, retried — a lost confirm would
+       // make the next replay duplicate the order). Prune is best-effort
+       // housekeeping (30-day retention, advisory-locked + idempotent).
+       if (idemReserved && finalOrder?.id) {
+         await confirmIdemKey(finalOrder.id);
+         fetch(`${svc().url}/rest/v1/rpc/prune_order_idempotency_keys`, {
+           method: 'POST',
+           headers: svc().headers,
+         }).catch(() => {});
+       }
 
-      return finalOrder || { id: activeOrderId };
+       return finalOrder || { id: activeOrderId };
     });
 
     if (!result.success && result.error === 'CONCURRENCY_CONFLICT') {

@@ -35,7 +35,10 @@ export async function GET(request: NextRequest) {
     const { url, headers } = svc();
     const queryParams = new URLSearchParams({
       select: '*,order_items(*,products(image_url,translations)),merged_into_table:orders!merged_into(table_number)',
-      'table_number': 'gt.0',
+      // Table orders OR no-table takeaway/delivery (online/POS). The old
+      // `table_number gt.0` silently EXCLUDED every takeaway/delivery order
+      // (they carry table_number NULL) — the kitchen never saw them.
+      'or': '(table_number.gt.0,order_type.eq.takeaway,order_type.eq.delivery)',
       'status': 'not.in.(paid,cancelled,closed,completed)',
       'kitchen_status': 'neq.completed',
       // G7: active-location scope

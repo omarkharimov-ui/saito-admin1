@@ -12,6 +12,10 @@ const PUBLIC_PATHS = [
   // the route's IP rate limit; location/org are server-trusted (table row).
   // NEVER gate this with staff requirePermission (it is not a staff path).
   '/api/orders/qr',
+  // 11d: online customer ordering (takeaway/delivery) — same public self-service
+  // model as G3: IP rate limit inside the route, server-trusted location,
+  // server-sourced prices (D13).
+  '/api/orders/online',
   '/api/kitchen-auth',
   '/staff/login',
   '/login',
@@ -57,6 +61,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
+    return NextResponse.next();
+  }
+
+  // 11d: customer order tracking — /api/orders/<uuid>/track (5 segments).
+  // Public by design: the order UUID is unguessable (the customer holds the
+  // link from the confirmation screen); no staff token involved.
+  if (pathname.startsWith('/api/orders/') && pathname.endsWith('/track') && pathname.split('/').length === 5) {
     return NextResponse.next();
   }
 

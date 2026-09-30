@@ -92,6 +92,7 @@ interface OrderItem {
 interface Order {
   id: string;
   table_number: number;
+  order_type?: string;
   items: OrderItem[];
   total_amount: number;
   created_at: string;
@@ -138,6 +139,15 @@ function isDelayed(order: Order, threshold = 15): boolean {
   return elapsedMinutes(order.kitchen_accepted_at) >= threshold && !isAllItemsReady(order);
 }
 
+// Order title for KDS surfaces (card, modal, toasts, undo): table orders show
+// "MASA N"; no-table takeaway/delivery (POS + online) show the channel name.
+function orderTitle(o: { table_number?: number | null; order_type?: string }): string {
+  if (o.table_number) return `MASA ${o.table_number}`;
+  if (o.order_type === 'delivery') return 'ÇATDIRILMA';
+  if (o.order_type === 'takeaway') return 'TAKEAWAY';
+  return 'MASA —';
+}
+
 function priorityWeight(order: Order): number {
   if (order.is_rush) return 0;
   if (isDelayed(order)) return 1;
@@ -172,6 +182,7 @@ function mapRawOrder(o: any, lang = 'az'): Order {
   return {
     id: o.id,
     table_number: o.table_number || 0,
+    order_type: o.order_type || 'dine_in',
     total_amount: o.total_amount || 0,
     created_at: o.created_at,
     kitchen_status: o.kitchen_status ?? '',
@@ -343,7 +354,9 @@ const CardWithCollapse = memo(function CardWithCollapse({
             <div>
               <div className="flex items-center gap-3 mb-1.5">
                 <h2 className="text-4xl font-black tracking-tight" style={{ color: allDone ? '#10b981' : isDelayed ? '#f87171' : (lightMode ? '#000' : '#fff') }}>
-                  {t.kitchen_masa || 'MASA'} {(order.merged_from_tables||[]).length > 0 ? `${order.table_number}+${order.merged_from_tables!.join('+')}` : order.table_number}
+                  {order.table_number
+                    ? `${t.kitchen_masa || 'MASA'} ${(order.merged_from_tables||[]).length > 0 ? `${order.table_number}+${order.merged_from_tables!.join('+')}` : order.table_number}`
+                    : orderTitle(order)}
                 </h2>
                 {order.is_rush && <span className="px-3 py-1 rounded-full text-xs font-black bg-orange-500/15 border border-orange-500/30 text-orange-400">{t.kitchen_rush||'TƏLƏSİR'}</span>}
               </div>
@@ -407,7 +420,7 @@ const CardWithCollapse = memo(function CardWithCollapse({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
               <h2 className="text-xl font-black leading-none tracking-tight" style={{ color: allDone ? '#10b981' : isDelayed ? '#f87171' : (lightMode ? '#000' : '#fff') }}>
-                {t.kitchen_masa||'MASA'} {order.table_number}
+                {order.table_number ? `${t.kitchen_masa||'MASA'} ${order.table_number}` : orderTitle(order)}
               </h2>
               {(order.merged_from_tables||[]).length > 0 && (
                 <div className="flex items-center gap-1">
@@ -696,8 +709,8 @@ export default function KitchenPage() {
   }, []);
 
   // ── Helper: Get merged table display name (e.g., "9+7" if tables are merged)
-  const getMergedTableName = useCallback(async (tableNum: number | null, orderId?: string): Promise<string> => {
-    if (!tableNum) return 'Naməlum masa';
+  const getMergedTableName = useCallback(async (tableNum: number | null, orderId?: string, orderType?: string): Promise<string> => {
+    if (!tableNum) return orderType === 'delivery' ? 'Çatdırılma' : orderType === 'takeaway' ? 'Takeaway' : 'Naməlum masa';
     if (!orderId) return `Masa ${tableNum}`;
     
     try {
@@ -735,7 +748,8 @@ export default function KitchenPage() {
 
       const queryParams = new URLSearchParams({
         select: '*,order_items(*,products(image_url,translations)),merged_into_table:orders!merged_into(table_number)',
-        'table_number': 'gt.0',
+        // Table orders OR no-table takeaway/delivery (same contract as /api/kitchen/orders).
+        'or': '(table_number.gt.0,order_type.eq.takeaway,order_type.eq.delivery)',
         'status': 'not.in.(paid,cancelled,closed,completed)',
         'kitchen_status': 'neq.completed',
         order: 'created_at.desc'
@@ -912,7 +926,7 @@ export default function KitchenPage() {
         if (isNewOrder && payload.new?.id) {
           recentlyInsertedRef.current.add(payload.new.id);
           const tableNum = payload.new?.table_number;
-          const tableName = await getMergedTableName(tableNum, payload.new?.id);
+          const tableName = await getMergedTableName(tableNum, payload.new?.id, payload.new?.order_type);
           toast.custom((_t) => (
             <motion.div
               initial={{ opacity: 0, y: -16, scale: 0.94 }}
@@ -946,7 +960,7 @@ export default function KitchenPage() {
         
         if (isReset) {
           const tableNum = payload.new?.table_number;
-          const tableName = await getMergedTableName(tableNum, payload.new?.id);
+          const tableName = await getMergedTableName(tableNum, payload.new?.id, payload.new?.order_type);
           toast.custom((_t) => (
             <motion.div
               initial={{ opacity: 0, y: -16, scale: 0.94 }}
@@ -1031,7 +1045,7 @@ export default function KitchenPage() {
         toast.custom((_t) => (
           <motion.div initial={{ opacity: 0, y: -16, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: [0, -1, 1, 0] }} transition={{ repeat: Infinity, repeatDelay: 0.8, duration: 0.3 }} exit={{ opacity: 0, x: 100 }} style={{ background: 'linear-gradient(135deg,#2a0a0a,#180808)', border: '1px solid rgba(239,68,68,0.45)', borderRadius: 18, padding: '14px 18px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', minWidth: 260, pointerEvents: 'auto' }} className="flex items-center gap-4">
             <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><AlertTriangle size={22} color="#f87171" /></div>
-            <div><p style={{ fontSize: 15, fontWeight: 800, color: '#fca5a5', lineHeight: 1.2 }}>Masa {order.table_number}</p><p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2, fontWeight: 600 }}>30 dəqiqədən artıq gecikdi!</p></div>
+            <div><p style={{ fontSize: 15, fontWeight: 800, color: '#fca5a5', lineHeight: 1.2 }}>{orderTitle(order)}</p><p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2, fontWeight: 600 }}>30 dəqiqədən artıq gecikdi!</p></div>
           </motion.div>
         ), { duration: 2500, position: 'top-right' });
         playDelaySound();
@@ -1110,7 +1124,7 @@ export default function KitchenPage() {
   const updateOrderStatus = async (id: string, newStatus: 'preparing' | 'ready' | 'completed') => {
     if (newStatus === 'completed') {
       const order = orders.find(o => o.id === id);
-      if (order) pushUndo(`MASA ${order.table_number} — tamamlandı`, order);
+      if (order) pushUndo(`${orderTitle(order)} — tamamlandı`, order);
     }
     const r = await kdsAction({ action: newStatus === 'completed' ? 'complete' : newStatus, order_id: id });
     if (!r.ok) {
@@ -1123,7 +1137,7 @@ export default function KitchenPage() {
   // Addım 2: Təhvil Ver — itemləri ready edir + stock deduction (atomik RPC)
   // mark_order_ready handles: FOR UPDATE, item status, order status, stock deduction, audit
   const markAllReadyAndNotify = async (order: Order) => {
-    pushUndo(`MASA ${order.table_number} — servise verildi`, order);
+    pushUndo(`${orderTitle(order)} — servise verildi`, order);
     const r = await kdsAction({ action: 'ready', order_id: order.id });
     if (!r.ok) {
       toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });

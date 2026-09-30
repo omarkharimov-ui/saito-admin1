@@ -75,6 +75,69 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
   const [relinkCode, setRelinkCode] = useState('');
   const [relinkError, setRelinkError] = useState('');
 
+  // ── ONLINE mode (no ?table= param): takeaway/delivery self-order ──────────
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [orderType, setOrderType] = useState<'takeaway' | 'delivery'>('takeaway');
+  const [customerName, setCustomerName] = useState('');
+  const [address, setAddress] = useState('');
+  const [zones, setZones] = useState<any[]>([]);
+  const [zoneId, setZoneId] = useState<string | null>(null);
+  const [placedOrder, setPlacedOrder] = useState<{ orderId: string; order_type: string; total: number; trackingUrl: string } | null>(null);
+
+  useEffect(() => {
+    if (!tableNumber) {
+      // No table context → load the online channel config (delivery zones).
+      fetch('/api/orders/online', { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.zones) {
+            setZones(d.zones);
+            if (d.zones[0]?.id) setZoneId(d.zones[0].id);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [tableNumber]);
+
+  const selectedZone = zones.find(z => z.id === zoneId) || zones[0] || null;
+  const deliveryFee = orderType === 'delivery' && selectedZone ? (Number(selectedZone.fee) || 0) : 0;
+
+  const placeOnlineOrder = async () => {
+    if (busy || cart.length === 0) return;
+    if (customerName.trim().length < 2) { toast.error('Adınızı daxil edin'); return; }
+    if (!phoneValid(effectivePhone)) { toast.error('Düzgün telefon nömrəsi daxil edin'); return; }
+    if (orderType === 'delivery' && address.trim().length < 5) { toast.error('Çatdırılma ünvanını daxil edin'); return; }
+    setBusy('create');
+    try {
+      const res = await fetch('/api/orders/online', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_type: orderType,
+          items: itemsPayload(),
+          customer_name: customerName.trim(),
+          customer_phone: phoneClean(effectivePhone),
+          delivery_zone_id: orderType === 'delivery' ? zoneId : undefined,
+          delivery_address: orderType === 'delivery' ? address.trim() : undefined,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        localStorage.setItem('saito_phone', phoneClean(effectivePhone));
+        setSavedPhone(phoneClean(effectivePhone));
+        setCart([]);
+        setCheckoutOpen(false);
+        setPlacedOrder({ orderId: data.orderId, order_type: data.order_type, total: Number(data.total), trackingUrl: data.trackingUrl });
+      } else {
+        toast.error(data?.error || 'Sifariş qəbul olunmadı');
+      }
+    } catch {
+      toast.error('Xəta baş verdi');
+    } finally {
+      setBusy('');
+    }
+  };
+
   const fetched = useRef(false);
 
   const fetchProducts = async () => {
@@ -358,8 +421,8 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
           >
             {/* phone — required at creation; hidden on devices that already
                 know the customer (silent reuse of the saved number) */}
-            {bar === 'create' && needsPhoneInput && (
-              <div className="max-w-2xl mx-auto px-6 pt-3">
+             {bar === 'create' && tableNumber && needsPhoneInput && (
+               <div className="max-w-2xl mx-auto px-6 pt-3">
                 <input
                   type="tel"
                   value={phone}
@@ -390,12 +453,18 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
                   </div>
                 )}
               </div>
-              {bar === 'create' && (
-                <button onClick={createCheck} disabled={busy !== '' || !phoneValid(effectivePhone)}
-                  className="text-sm font-semibold text-gray-900 hover:text-black disabled:opacity-40 transition-colors whitespace-nowrap">
-                  {busy === 'create' ? 'Göndərilir…' : 'Check aç →'}
-                </button>
-              )}
+               {bar === 'create' && tableNumber && (
+                 <button onClick={createCheck} disabled={busy !== '' || !phoneValid(effectivePhone)}
+                   className="text-sm font-semibold text-gray-900 hover:text-black disabled:opacity-40 transition-colors whitespace-nowrap">
+                   {busy === 'create' ? 'Göndərilir…' : 'Check aç →'}
+                 </button>
+               )}
+               {bar === 'create' && !tableNumber && (
+                 <button onClick={() => setCheckoutOpen(true)} disabled={busy !== ''}
+                   className="text-sm font-semibold text-gray-900 hover:text-black disabled:opacity-40 transition-colors whitespace-nowrap">
+                   Sifariş et →
+                 </button>
+               )}
               {bar === 'add' && (
                 <button onClick={addToCheck} disabled={busy !== ''}
                   className="text-sm font-semibold text-gray-900 hover:text-black disabled:opacity-40 transition-colors whitespace-nowrap">
@@ -479,6 +548,121 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
                   {busy === 'relink' ? 'Qoşulur…' : 'Qoşul →'}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Online checkout (no table): takeaway/delivery */}
+      <AnimatePresence>
+        {checkoutOpen && !tableNumber && (
+          <motion.div key="checkout" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/20 flex items-end sm:items-center justify-center">
+            <motion.div initial={{ y: 24 }} animate={{ y: 0 }} exit={{ y: 24, opacity: 0 }} transition={{ duration: 0.18 }}
+              className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-7">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">Onlayn sifariş</p>
+                  <p className="text-lg font-semibold text-gray-900 mt-1">{cartCount} mövqe · {money(cartTotal)}</p>
+                </div>
+                <button onClick={() => setCheckoutOpen(false)} aria-label="Bağla"
+                  className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 text-sm hover:bg-gray-200 transition-colors">✕</button>
+              </div>
+
+              {/* Type toggle */}
+              <div className="grid grid-cols-2 gap-1 bg-gray-100 rounded-full p-1 mb-4">
+                {([['takeaway', 'Takeaway'], ['delivery', 'Çatdırılma']] as const).map(([v, label]) => (
+                  <button key={v} type="button" onClick={() => setOrderType(v)}
+                    className={`py-2 rounded-full text-sm font-semibold transition-colors ${orderType === v ? 'bg-gray-900 text-white' : 'text-gray-500'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-3">
+                <input
+                  value={customerName}
+                  onChange={e => setCustomerName(e.target.value)}
+                  placeholder="Adınız"
+                  className="w-full outline-none text-sm text-gray-800 placeholder:text-gray-400 border-b border-gray-200 focus:border-gray-400 pb-2 transition-colors"
+                />
+                <input
+                  type="tel"
+                  value={phone || ''}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="Telefon nömrəniz"
+                  className="w-full outline-none text-sm text-gray-800 placeholder:text-gray-400 border-b border-gray-200 focus:border-gray-400 pb-2 transition-colors"
+                />
+                {phone.trim() !== '' && !phoneValid(phone) && (
+                  <p className="text-[11px] text-red-500 -mt-1">Düzgün nömrə daxil edin</p>
+                )}
+
+                {orderType === 'delivery' && (
+                  <div className="space-y-3 pt-1">
+                    {zones.length > 0 && (
+                      <select
+                        value={zoneId || ''}
+                        onChange={e => setZoneId(e.target.value)}
+                        className="w-full text-sm text-gray-800 bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-gray-200 focus:border-gray-400"
+                      >
+                        {zones.map(z => (
+                          <option key={z.id} value={z.id}>
+                            {z.name} · ₼{Number(z.fee || 0).toFixed(0)}{z.estimated_minutes ? ` · ~${z.estimated_minutes} dəq` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <input
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      placeholder="Çatdırılma ünvanı"
+                      className="w-full outline-none text-sm text-gray-800 placeholder:text-gray-400 border-b border-gray-200 focus:border-gray-400 pb-2 transition-colors"
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 text-sm">
+                  <span className="text-gray-500">
+                    {orderType === 'delivery' && deliveryFee > 0 ? `Ümumi (çatdırılma ₼${deliveryFee.toFixed(2)})` : 'Ümumi'}
+                  </span>
+                  <span className="font-semibold text-gray-900 tabular-nums">{money(cartTotal + deliveryFee)}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={placeOnlineOrder}
+                disabled={busy !== ''}
+                className="mt-5 w-full py-3.5 rounded-2xl bg-gray-900 text-white text-sm font-semibold hover:bg-black disabled:opacity-50 transition-colors active:scale-[0.99]"
+              >
+                {busy === 'create' ? 'Göndərilir…' : 'Sifarişi göndər'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Order placed — tracking moment */}
+      <AnimatePresence>
+        {placedOrder && (
+          <motion.div key="placed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/20 flex items-end sm:items-center justify-center">
+            <motion.div initial={{ y: 16 }} animate={{ y: 0 }} exit={{ y: 16, opacity: 0 }} transition={{ duration: 0.18 }}
+              className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-8 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">Sifarişiniz qəbul edildi</p>
+              <p className="text-4xl font-semibold text-gray-900 mt-4 tabular-nums">{money(placedOrder.total)}</p>
+              <p className="text-xs text-gray-500 mt-3 leading-relaxed">
+                {placedOrder.order_type === 'delivery'
+                  ? 'Sifarişiniz mətbəxə göndərildi. Hazır olanda kuryer sizə zəng edəcək.'
+                  : 'Sifarişiniz mətbəxə göndərildi. Hazır olanda sizə zəng edəcəyik.'}
+              </p>
+              <a href={placedOrder.trackingUrl} target="_blank" rel="noreferrer"
+                className="mt-6 block w-full py-3 rounded-2xl bg-gray-900 text-white text-sm font-semibold hover:bg-black transition-colors">
+                Sifarişi izlə →
+              </a>
+              <button onClick={() => setPlacedOrder(null)}
+                className="mt-3 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                Başqa sifariş ver
+              </button>
             </motion.div>
           </motion.div>
         )}

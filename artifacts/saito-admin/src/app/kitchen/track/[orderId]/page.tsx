@@ -16,7 +16,9 @@ interface TrackItem {
 
 interface TrackOrder {
   id: string;
-  table_number: number;
+  table_number: number | null;
+  order_type?: string;
+  status?: string;
   kitchen_status: string;
   kitchen_accepted_at?: string | null;
   kitchen_ready_at?: string | null;
@@ -88,7 +90,11 @@ export default function TrackPage() {
           </div>
           <div>
             <h1 className="text-lg font-black tracking-wide">Sifariş İzləmə</h1>
-            <p className="text-xs text-white/40">Masa {order.table_number}</p>
+            <p className="text-xs text-white/40">
+              {order.table_number != null
+                ? `Masa ${order.table_number}`
+                : order.order_type === 'delivery' ? 'Çatdırılma' : order.order_type === 'takeaway' ? 'Takeaway' : 'Onlayn sifariş'}
+            </p>
           </div>
         </div>
 

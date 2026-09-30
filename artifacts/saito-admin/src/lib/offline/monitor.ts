@@ -125,5 +125,10 @@ export function useNetState(): NetState {
 
 export function useIsOffline(): boolean {
   const s = useNetState();
-  return s === 'offline';
+  // 11e E2E catch: the force flag SURVIVES a full page reload (localStorage)
+  // but the in-memory `state` resets to 'online' — without this term the app
+  // silently QUEUES writes (isOffline() = true) while the banner stays hidden
+  // (hook = false). Force changes always run through setForcedOffline →
+  // emit → notify, so this check stays reactive.
+  return s === 'offline' || isForcedOffline();
 }

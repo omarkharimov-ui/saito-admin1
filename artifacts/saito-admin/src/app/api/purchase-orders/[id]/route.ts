@@ -61,15 +61,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-    const supabase = svc();
-    await supabase.from('purchase_order_items').delete().eq('purchase_order_id', id);
-    const { error } = await supabase.from('purchase_orders').delete().eq('id', id);
-    if (error) throw error;
-    return NextResponse.json({ success: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    try {
+      const { id } = await params;
+      const supabase = svc();
+      const { data: po } = await supabase
+        .from('purchase_orders')
+        .select('id, supplier_id')
+        .eq('id', id)
+        .maybeSingle();
+      await supabase.from('purchase_order_items').delete().eq('purchase_order_id', id);
+      const { error } = await supabase.from('purchase_orders').delete().eq('id', id);
+      if (error) throw error;
+      // Keep the supplier's order counter consistent (create increments it).
+      if (po?.supplier_id) {
+        await supabase.rpc('decrement_supplier_orders', { p_supplier_id: po.supplier_id }).catch(() => {});
+      }
+      return NextResponse.json({ success: true });
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
+    }
   }
-}

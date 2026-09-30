@@ -129,6 +129,7 @@ function InvoiceUploadSection() {
   const [result, setResult] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
+  const [selectedPoId, setSelectedPoId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchPos(); fetchReviews(); }, []);
@@ -178,15 +179,27 @@ function InvoiceUploadSection() {
   };
 
   const confirm = async () => {
+    // A pending PO exists → the invoice must be tied to one (stock + PO status).
+    if (pos.length > 0 && !selectedPoId) {
+      toast.error('Faktura üçün sifariş seçin');
+      return;
+    }
     setConfirming(true);
     try {
       const manualItems = lineItems.filter(l => l.matched_ingredient).map(l => ({
         product_name: l.product_name, quantity: l.quantity, unit: l.unit,
         unit_cost: l.unit_cost, total_cost: l.total_cost, ingredient_id: l.matched_ingredient!.id,
       }));
-      const r = await fetch('/api/procurement/receive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purchaseOrderId: null, invoiceImage, manualItems }) });
-      setResult(await r.json()); setStep('confirm'); fetchPos(); fetchReviews();
-    } catch {}
+      const r = await fetch('/api/procurement/receive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purchaseOrderId: selectedPoId, invoiceImage, manualItems }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.success) {
+        toast.error(data.error || 'Qəbul alınmadı');
+        return;
+      }
+      setResult(data); setStep('confirm'); setSelectedPoId(null); fetchPos(); fetchReviews();
+    } catch {
+      toast.error('Əlaqə xətası');
+    }
     setConfirming(false);
   };
 
@@ -229,22 +242,32 @@ function InvoiceUploadSection() {
             <div className="border-t pt-4" style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
               <p className="text-xs text-white/30 mb-3">Bu faktura hansı sifarişə aiddir? (köməkçi)</p>
               <div className="grid gap-2 md:grid-cols-2">
-                {pos.map((po, i) => (
-                  <div key={po.id}
-                    className="rounded-2xl border p-4 cursor-pointer hover:bg-white/[0.018] transition-all"
-                    style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="text-sm font-semibold text-white">{po.order_number}</h3>
-                        <p className="text-xs text-white/40 mt-0.5">{po.supplier?.name || '—'}</p>
+                {pos.map((po, i) => {
+                  const selected = selectedPoId === po.id;
+                  return (
+                    <div key={po.id}
+                      onClick={() => setSelectedPoId(selected ? null : po.id)}
+                      className="rounded-2xl border p-4 cursor-pointer hover:bg-white/[0.018] transition-all"
+                      style={{
+                        borderColor: selected ? 'rgba(212,175,55,0.5)' : 'var(--theme-border, rgba(255,255,255,0.06))',
+                        background: selected ? 'rgba(212,175,55,0.06)' : undefined,
+                      }}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                            {po.order_number}
+                            {selected && <CheckCircle size={14} className="text-[#D4AF37]" />}
+                          </h3>
+                          <p className="text-xs text-white/40 mt-0.5">{po.supplier?.name || '—'}</p>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${po.status === 'sent' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'bg-orange-500/15 text-orange-400 border border-orange-500/20'}`}>
+                          {po.status === 'sent' ? 'Göndərilib' : 'Qismən'}
+                        </span>
                       </div>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${po.status === 'sent' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'bg-orange-500/15 text-orange-400 border border-orange-500/20'}`}>
-                        {po.status === 'sent' ? 'Göndərilib' : 'Qismən'}
-                      </span>
+                      <div className="text-xs text-white/30">{po.total_amount?.toFixed(2)} ₼ • {new Date(po.ordered_at).toLocaleDateString('az')}</div>
                     </div>
-                    <div className="text-xs text-white/30">{po.total_amount?.toFixed(2)} ₼ • {new Date(po.ordered_at).toLocaleDateString('az')}</div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </>

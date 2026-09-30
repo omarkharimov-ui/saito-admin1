@@ -54,9 +54,15 @@ export async function POST(request: NextRequest) {
 
     if (orderError) throw orderError;
 
+    // Deterministic ingredient binding: exact (case-insensitive) catalog name
+    // match — receiving later then needs no AI/fuzzy step.
+    const { data: allIngredients } = await supabase.from('ingredients').select('id, name');
+    const byName = new Map<string, string>();
+    for (const ing of allIngredients || []) byName.set(ing.name.toLowerCase(), ing.id);
+
     const items = body.items.map((item) => ({
       purchase_order_id: order.id,
-      ingredient_id: item.ingredient_id || null,
+      ingredient_id: item.ingredient_id || byName.get(item.product_name.toLowerCase().trim()) || null,
       product_name: item.product_name,
       quantity: item.quantity,
       unit: item.unit,

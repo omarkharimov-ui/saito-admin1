@@ -18,27 +18,28 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const supabase = svc();
-    const { purchaseOrderId, invoiceImage, manualItems } = await request.json();
+      const supabase = svc();
+      const { purchaseOrderId, invoiceImage, manualItems } = await request.json();
 
-    if (!purchaseOrderId) {
-      return NextResponse.json({ error: 'purchaseOrderId required' }, { status: 400 });
-    }
+      // purchaseOrderId is OPTIONAL: invoice-only receiving (ad-hoc) stocks +
+      // creates reviews without a PO. With a PO, status/received_quantity update.
+      let po: any = null;
+      let poItems: any[] = [];
+      if (purchaseOrderId) {
+        const poRes = await supabase
+          .from('purchase_orders')
+          .select('*, supplier:supplier_id(name)')
+          .eq('id', purchaseOrderId)
+          .single();
+        po = poRes.data;
+        if (!po) return NextResponse.json({ error: 'PO not found' }, { status: 404 });
 
-    const { data: po } = await supabase
-      .from('purchase_orders')
-      .select('*, supplier:supplier_id(name)')
-      .eq('id', purchaseOrderId)
-      .single();
-    if (!po) return NextResponse.json({ error: 'PO not found' }, { status: 404 });
-
-    const { data: poItems } = await supabase
-      .from('purchase_order_items')
-      .select('*')
-      .eq('purchase_order_id', purchaseOrderId);
-    if (!poItems?.length) {
-      return NextResponse.json({ error: 'PO has no items' }, { status: 400 });
-    }
+        const itemsRes = await supabase
+          .from('purchase_order_items')
+          .select('*')
+          .eq('purchase_order_id', purchaseOrderId);
+        poItems = itemsRes.data || [];
+      }
 
     const { data: ingredients } = await supabase
       .from('ingredients')
@@ -64,8 +65,8 @@ export async function POST(request: NextRequest) {
         }));
         if (ocrData.supplierName || ocrData.invoiceNumber || ocrData.totalAmount) {
           const { data: inv } = await supabase.from('invoices').insert({
-            supplier_id: po.supplier_id || null,
-            purchase_order_id: po.id,
+            supplier_id: po?.supplier_id || null,
+            purchase_order_id: po?.id || null,
             invoice_number: ocrData.invoiceNumber || `OCR-${Date.now()}`,
             total_amount: ocrData.totalAmount || 0,
             status: 'draft',
@@ -81,13 +82,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (!invoiceItems.length) {
-      invoiceItems = poItems.map(i => ({
-        product_name: i.product_name,
-        quantity: i.quantity,
-        unit: i.unit,
-        unit_cost: i.unit_cost,
-        total_cost: i.total_cost,
-      }));
+      if (poItems.length) {
+        invoiceItems = poItems.map(i => ({
+          product_name: i.product_name,
+          quantity: i.quantity,
+          unit: i.unit,
+          unit_cost: i.unit_cost,
+          total_cost: i.total_cost,
+        }));
+      } else {
+        return NextResponse.json({ error: 'No items to receive — upload an invoice or provide manualItems' }, { status: 400 });
+      }
     }
 
     const autoStockUpdates: { ingredient_id: string; quantity: number; cost_per_unit: number; stock_before: number }[] = [];
@@ -114,7 +119,7 @@ export async function POST(request: NextRequest) {
         });
       } else {
         reviews.push({
-          purchase_order_id: po.id,
+          purchase_order_id: po?.id || null,
           invoice_id: invoice?.id || null,
           product_name: item.product_name || 'Unknown',
           quantity: item.quantity || 0,
@@ -127,7 +132,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const oldPoStatus = po.status;
+    const oldPoStatus = po?.status || null;
     const oldItemReceived: Record<string, number> = {};
     for (const pi of poItems) {
       oldItemReceived[pi.id] = pi.received_quantity;
@@ -147,8 +152,8 @@ export async function POST(request: NextRequest) {
               type: 'stock_in',
               quantity: upd.quantity,
               cost_per_unit: upd.cost_per_unit,
-              reason: `Auto-receive from PO ${po.order_number || po.id.slice(0, 8)}`,
-              order_id: po.id,
+              reason: po ? `Auto-receive from PO ${po.order_number || po.id.slice(0, 8)}` : 'Auto-receive from invoice',
+              order_id: po?.id,
             });
           }
         },
@@ -175,6 +180,7 @@ export async function POST(request: NextRequest) {
       {
         name: 'update_po',
         execute: async () => {
+          if (!po) return; // ad-hoc invoice receiving — no PO to update
           let poStatus = oldPoStatus;
           if (allMatched === totalItems) poStatus = 'received';
           else if (allMatched > 0) poStatus = 'partial';
@@ -194,6 +200,7 @@ export async function POST(request: NextRequest) {
           }
         },
         rollback: async () => {
+          if (!po) return;
           await supabase.from('purchase_orders').update({ status: oldPoStatus, received_at: null }).eq('id', po.id);
           for (const pi of poItems) {
             await supabase.from('purchase_order_items').update({ received_quantity: oldItemReceived[pi.id] }).eq('id', pi.id);

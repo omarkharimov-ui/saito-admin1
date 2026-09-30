@@ -1,0 +1,168 @@
+{
+  "entry": {
+    "d": {
+      "dh": 0,
+      "dw": 0,
+      "dx": 0,
+      "dy": 0
+    },
+    "first": {
+      "card": {
+        "b": 776,
+        "h": 34,
+        "op": "1",
+        "w": 122.9,
+        "x": 997,
+        "y": 742
+      },
+      "co": "0",
+      "kb": null,
+      "pill": {
+        "b": 776,
+        "h": 34,
+        "opComp": 1,
+        "opInline": "0",
+        "text": "Qeyd əlavə et",
+        "w": 122.9,
+        "x": 997,
+        "y": 742
+      },
+      "t": 3027
+    },
+    "firstIdx": 180,
+    "firstT": 3027,
+    "prev": {
+      "card": null,
+      "kb": null,
+      "pill": {
+        "b": 776,
+        "h": 34,
+        "opComp": 1,
+        "opInline": "",
+        "text": "Qeyd əlavə et",
+        "w": 122.9,
+        "x": 997,
+        "y": 742
+      },
+      "t": 2988
+    }
+  },
+  "exit": {
+    "cardOp_m1": null,
+    "cardOp_m5": null,
+    "cardWJump": {
+      "d": 45.4,
+      "from": 122.9,
+      "t": 3081,
+      "to": 168.3
+    },
+    "geo_cardLast_vs_pillLanding": null,
+    "landing": null,
+    "landingIdx": -1,
+    "last": {
+      "card": {
+        "b": 605.5,
+        "h": 241,
+        "op": "1",
+        "w": 420,
+        "x": 510,
+        "y": 364.5
+      },
+      "co": "1",
+      "kb": 619.5,
+      "pill": {
+        "b": 776,
+        "h": 34,
+        "opComp": 0,
+        "opInline": "0",
+        "text": "Qeyd əlavə et",
+        "w": 122.9,
+        "x": 997,
+        "y": 742
+      },
+      "t": 39154
+    },
+    "lastIdx": 2343,
+    "lifetime_lastToLand_ms": null,
+    "pillOp_m1": null,
+    "pillOp_m5": null,
+    "pillOp_p1": 1,
+    "pillOp_p10": 1,
+    "pillOp_p3": 1,
+    "pillOp_p30": 1
+  },
+  "kbNullFrames": 2344,
+  "open": {
+    "at1200": {
+      "card": null,
+      "kb": null,
+      "pill": {
+        "b": 776,
+        "h": 34,
+        "opComp": 1,
+        "opInline": "",
+        "text": "Qeyd əlavə et",
+        "w": 122.9,
+        "x": 997,
+        "y": 742
+      },
+      "t": 1204
+    },
+    "at300": {
+      "card": null,
+      "kb": null,
+      "pill": {
+        "b": 776,
+        "h": 34,
+        "opComp": 1,
+        "opInline": "",
+        "text": "Qeyd əlavə et",
+        "w": 122.9,
+        "x": 997,
+        "y": 742
+      },
+      "t": 304
+    },
+    "at800": {
+      "card": null,
+      "kb": null,
+      "pill": {
+        "b": 776,
+        "h": 34,
+        "opComp": 1,
+        "opInline": "",
+        "text": "Qeyd əlavə et",
+        "w": 122.9,
+        "x": 997,
+        "y": 742
+      },
+      "t": 804
+    },
+    "settled": {
+      "card": {
+        "b": 605.5,
+        "h": 241,
+        "op": "1",
+        "w": 420,
+        "x": 510,
+        "y": 364.5
+      },
+      "co": "1",
+      "kb": 619.5,
+      "pill": {
+        "b": 776,
+        "h": 34,
+        "opComp": 0,
+        "opInline": "0",
+        "text": "Qeyd əlavə et",
+        "w": 122.9,
+        "x": 997,
+        "y": 742
+      },
+      "t": 39154
+    }
+  },
+  "rel": {},
+  "riseViolation": null,
+  "total": 2344
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Handbag, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight, Lock, Bike } from '@/components/ui/saito-icons';
@@ -494,40 +494,272 @@ export function CartPanel({
   ];
   const activeOrderType = cart?.order_type || 'dine_in';
 
-  /* ─── Global note: portal + floating bar above the virtual keyboard ─── */
+  /* ─── Global note: pill ↔ card MORPH above the virtual keyboard ───
+     2026-09-30 (round 10f, owner: "et" — bring the order note card to the
+     same level as the product Qeyd morph, rounds 10c→10e). The old card
+     scale-in'd IN PLACE (spring 500/26, bottom = vkHeight+14 state jump) and
+     hard-cut away 1 frame after the keyboard collapsed (60fps E2E: the card
+     never visited the pill — Δ ≈ 491×340px, pill never hidden). Now it runs
+     the SAME one-clock engine as the product morph:
+       ENTRY 480ms — the card is born on the pill's rect (z ABOVE the keys)
+         and glides up on cubic-bezier(0.32,0.72,0,1); b rides a parallel
+         same-duration clock armed the frame the kb mounts; the card LEADS
+         the rising kb → zero occlusion by construction.
+       EXIT 380ms — the card glides back to the pill's LIVE rect. (The order
+         panel drifts only ~31px on the vk collapse and settles by ~180ms —
+         well before the 380ms landing — so the live target is already at
+         rest on landing: exact, no stale/ghost. Unlike the product modal,
+         which is pushed up by the full --vk-height, no var-remainder term.)
+         The pill (INLINE opacity 0 while open) is revealed UNDER the
+         dissolving card in the last 40% (NOTE_XFADE) → the label arrives
+         WITH the shape; the unmount happens while the card is transparent.
+       IDLE — b exact at min(pillBottom, kbTop−14); x/w/h/r static.
+     autofocus removed (it mounted the VKB in the commit frame — first-paint
+     stall, round 10c lesson); focus via the rAF caret effect below. */
+  const NOTE_CARD_RADIUS = 28; // rounded-[1.75rem]
+  const NOTE_GLIDE = 480;
+  const NOTE_RETURN = 380;
+  // The order pill rests ~34px BELOW the card's landing point (a longer
+  // travel than the product pill) → reveal the pill slightly later so its
+  // 120ms global button opacity transition completes under ~transparent card.
+  const NOTE_XFADE = 0.6;
+  const noteEase = (t: number): number => {
+    const p1x = 0.32, p1y = 0.72, p2x = 0, p2y = 1;
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    let u = t;
+    for (let i = 0; i < 6; i++) {
+      const om = 1 - u;
+      const x = 3 * p1x * u * om * om + 3 * p2x * u * u * om + u * u * u - t;
+      const dx = 3 * p1x * om * om - 6 * p1x * u * om + 6 * p2x * u * om - 3 * p2x * u * u + 3 * u * u;
+      if (Math.abs(dx) < 1e-6) break;
+      u = Math.min(1, Math.max(0, u - x / dx));
+    }
+    const om = 1 - u;
+    return 3 * p1y * u * om * om + 3 * p2y * u * u * om + u * u * u;
+  };
+  type NoteRectT = { x: number; y: number; w: number; h: number; r: number; b: number };
+  const notePillRef = useRef<HTMLButtonElement | null>(null);
+  const noteCardRef = useRef<HTMLDivElement | null>(null);
+  const noteContentRef = useRef<HTMLDivElement | null>(null);
+  const noteMorphRef = useRef<{
+    raf: number | null; mode: 'open' | 'close' | 'idle' | null;
+    t0: number; T: number;
+    from: NoteRectT; to: NoteRectT;
+    bT0: number;
+    lastPill: NoteRectT | null;
+  }>({ raf: null, mode: null, t0: 0, T: 0, from: { x: 0, y: 0, w: 0, h: 0, r: 0, b: 0 }, to: { x: 0, y: 0, w: 0, h: 0, r: 0, b: 0 }, bT0: 0, lastPill: null });
+
+  const pillRectLive = (): NoteRectT | null => {
+    const el = notePillRef.current;
+    if (!el) return null;
+    const q = el.getBoundingClientRect();
+    return { x: q.x, y: q.y, w: q.width, h: q.height, r: Math.min(q.width, q.height) / 2, b: q.bottom };
+  };
+
+  const stepNoteMorph = (now: number) => {
+    const m = noteMorphRef.current;
+    const card = noteCardRef.current;
+    if (!card) { m.raf = null; m.mode = null; return; }
+    const pr = pillRectLive();
+    if (pr) m.lastPill = pr;
+    const lp = m.lastPill!;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const kb = document.querySelector('[data-vk-panel]') as HTMLElement | null;
+    const kbTop = kb ? kb.getBoundingClientRect().top : null;
+    const write = (x: number, w: number, h: number, r: number, b: number) => {
+      card.style.left = `${x}px`;
+      card.style.top = `${b - h}px`;
+      card.style.width = `${w}px`;
+      card.style.height = `${h}px`;
+      card.style.borderRadius = `${r}px`;
+    };
+    if (m.mode === 'open') {
+      const p = Math.min(1, (now - m.t0) / m.T);
+      const e = noteEase(p);
+      if (!m.bT0 && kb) {
+        m.bT0 = now;
+        m.to.b = vh - kb.offsetHeight - 14; // exact rest bottom (kb height constant once mounted)
+      }
+      let b = m.from.b;
+      if (m.bT0) {
+        const pb = Math.min(1, (now - m.bT0) / m.T);
+        b = m.from.b + (m.to.b - m.from.b) * noteEase(pb);
+        if (kbTop != null) b = Math.min(b, kbTop - 14); // occlusion backstop (should never bind — card leads)
+      }
+      const x = m.from.x + (m.to.x - m.from.x) * e;
+      const w = m.from.w + (m.to.w - m.from.w) * e;
+      const h = m.from.h + (m.to.h - m.from.h) * e;
+      const r = m.from.r + (m.to.r - m.from.r) * e;
+      write(x, w, h, r, b);
+      if (noteContentRef.current) noteContentRef.current.style.opacity = String(Math.min(1, (now - m.t0) / 160));
+      if (p >= 1 && m.bT0 && now - m.bT0 >= m.T) {
+        write(m.to.x, m.to.w, m.to.h, m.to.r, m.to.b);
+        if (noteContentRef.current) noteContentRef.current.style.opacity = '1';
+        m.mode = 'idle';
+        m.raf = requestAnimationFrame(stepNoteMorph);
+        return;
+      }
+      m.raf = requestAnimationFrame(stepNoteMorph);
+      return;
+    }
+    if (m.mode === 'close') {
+      const p = Math.min(1, (now - m.t0) / m.T);
+      const e = noteEase(p);
+      // Target = the pill's LIVE rect (see the engine comment above: the
+      // panel drift settles by ~180ms, long before the 380ms landing).
+      const tx = lp.x, tw = lp.w, th = lp.h, tr = lp.r, tb = lp.b;
+      const x = m.from.x + (tx - m.from.x) * e;
+      const w = m.from.w + (tw - m.from.w) * e;
+      const h = m.from.h + (th - m.from.h) * e;
+      const r = m.from.r + (tr - m.from.r) * e;
+      const b = m.from.b + (tb - m.from.b) * e;
+      write(x, w, h, r, b);
+      if (noteContentRef.current) noteContentRef.current.style.opacity = String(Math.max(0, 1 - (now - m.t0) / 140));
+      // Identity handoff (round 10e pattern): reveal the pill (inline opacity)
+      // UNDER the still-opaque card when the dissolve starts; the card surface
+      // fades on the same bezier → the label arrives WITH the shape.
+      if (p >= NOTE_XFADE) {
+        const f = noteEase((p - NOTE_XFADE) / (1 - NOTE_XFADE));
+        card.style.opacity = String(Math.max(0, 1 - f));
+        const pill = notePillRef.current;
+        if (pill && pill.style.opacity !== '1') pill.style.opacity = '1';
+      }
+      if (p >= 1) {
+        write(tx, tw, th, tr, tb);
+        card.style.opacity = '0';
+        const pill = notePillRef.current;
+        if (pill) pill.style.opacity = '1';
+        if (noteContentRef.current) noteContentRef.current.style.opacity = '0';
+        m.mode = null;
+        m.raf = null;
+        setIsNoteOpen(false);
+        return;
+      }
+      m.raf = requestAnimationFrame(stepNoteMorph);
+      return;
+    }
+    // IDLE (settled): b exact at rest; x/w/h/r static (fixed rows=3 textarea).
+    const b = kbTop != null ? Math.min(lp.b, kbTop - 14) : lp.b;
+    const cw = Math.min(vw * 0.92, 420);
+    const x = (vw - cw) / 2;
+    m.to = { x, y: b - m.to.h, w: cw, h: m.to.h, r: NOTE_CARD_RADIUS, b };
+    write(x, cw, m.to.h, NOTE_CARD_RADIUS, b);
+    m.raf = requestAnimationFrame(stepNoteMorph);
+  };
+
+  const runNoteMorph = (mode: 'open' | 'close') => {
+    const m = noteMorphRef.current;
+    if (mode === 'open') {
+      if (m.raf == null && m.mode === 'open') {
+        m.t0 = performance.now();
+        m.raf = requestAnimationFrame(stepNoteMorph);
+      }
+      return;
+    }
+    if (m.mode === 'close') return; // re-anchor guard (double-close paths)
+    const card = noteCardRef.current;
+    const pr = pillRectLive() || m.lastPill;
+    if (!card || !pr) return;
+    const c = card.getBoundingClientRect();
+    if (notePillRef.current) notePillRef.current.style.opacity = '0'; // ghost-free from frame 0
+    m.mode = 'close';
+    m.t0 = performance.now();
+    m.T = NOTE_RETURN;
+    m.from = { x: c.x, y: c.y, w: c.width, h: c.height, r: NOTE_CARD_RADIUS, b: c.bottom };
+    m.to = { x: pr.x, y: pr.y, w: pr.w, h: pr.h, r: pr.r, b: pr.b }; // refined live in the step
+    if (m.raf == null) m.raf = requestAnimationFrame(stepNoteMorph);
+  };
+
   const openNoteEditor = () => {
+    if (isNoteOpen) return;
+    const p = pillRectLive();
+    if (!p) return;
+    // Hide the pill with INLINE opacity — the card is born on the pill's
+    // exact rect (z above the keys), so the 120ms 1→0 transition runs covered.
+    if (notePillRef.current) notePillRef.current.style.opacity = '0';
     loadedNoteRef.current = globalNote;
+    const m = noteMorphRef.current;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const cw = Math.min(vw * 0.92, 420);
+    m.from = p;
+    m.to = { x: (vw - cw) / 2, y: 0, w: cw, h: 245, r: NOTE_CARD_RADIUS, b: vh - 14 };
+    m.t0 = performance.now();
+    m.T = NOTE_GLIDE;
+    m.bT0 = 0;
+    m.mode = 'open';
+    m.lastPill = p;
     setIsNoteOpen(true);
   };
 
-  // Save current note (already persisted live on every keystroke) and close.
+  // Save current note (already persisted live on every keystroke) and close
+  // via the EXIT GLIDE (kb collapses in parallel; card rides back to the pill).
   const closeNoteEditor = () => {
-    setIsNoteOpen(false);
-    noteInputRef.current?.blur();
+    if (!isNoteOpen) return;
     closeVk();
+    runNoteMorph('close');
   };
 
   // GİZLƏ / LƏĞV ET → revert to the value the note had when the editor opened.
   const discardNote = () => {
+    if (!isNoteOpen) return;
     setGlobalNote(loadedNoteRef.current);
     onUpdateGlobalNote?.(loadedNoteRef.current);
-    setIsNoteOpen(false);
-    noteInputRef.current?.blur();
-    closeVk();
+    closeNoteEditor();
   };
 
-  // Keyboard dismissed via its backdrop / Gizlə key / Escape → close the note too.
-  // Only when the keyboard was ALREADY open and just closed, so the moment the
-  // note opens (keyboard not mounted yet) is never mistaken for a close.
+  // Keyboard dismissed via its backdrop / Gizlə key / Escape → close the note
+  // too (via the morph, not a hard cut). Only when the keyboard was ALREADY
+  // open and just closed, so the opening moment never misfires.
   const vkOpenPrevRef = useRef(vkOpen);
   useEffect(() => {
     const wasOpen = vkOpenPrevRef.current;
     vkOpenPrevRef.current = vkOpen;
-    if (wasOpen && !vkOpen && isNoteOpen) {
-      setIsNoteOpen(false);
-      noteInputRef.current?.blur();
-    }
+    if (wasOpen && !vkOpen && isNoteOpen) closeNoteEditor();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vkOpen, isNoteOpen]);
+
+  // Mount-frame (runs BEFORE paint): measure the content's natural height at
+  // final width, paint the card at the pill's snapshot rect, content hidden,
+  // then start the open glide. Pre-paint → no flash, no first-frame wobble.
+  useLayoutEffect(() => {
+    if (!isNoteOpen) return;
+    const m = noteMorphRef.current;
+    const card = noteCardRef.current;
+    if (!card || m.mode !== 'open') return;
+    const cw = Math.min(window.innerWidth * 0.92, 420);
+    card.style.width = `${cw}px`;
+    card.style.height = 'auto';
+    m.to.h = noteContentRef.current ? noteContentRef.current.offsetHeight : 245;
+    card.style.left = `${m.from.x}px`;
+    card.style.top = `${m.from.b - m.from.h}px`;
+    card.style.width = `${m.from.w}px`;
+    card.style.height = `${m.from.h}px`;
+    card.style.borderRadius = `${m.from.r}px`;
+    card.style.opacity = '1';
+    if (noteContentRef.current) noteContentRef.current.style.opacity = '0';
+    runNoteMorph('open');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNoteOpen]);
+
+  // Unmount / teardown safety: the morph loop never outlives the panel.
+  useEffect(() => () => {
+    const m = noteMorphRef.current;
+    if (m.raf != null) { cancelAnimationFrame(m.raf); m.raf = null; m.mode = null; }
+  }, []);
+
+  // Focus the textarea on the frame AFTER mount (autoFocus removed — it
+  // mounted the whole VKB in the commit frame, stalling first paint, round
+  // 10c) + caret at the end on re-open with existing text.
+  useEffect(() => {
+    if (!isNoteOpen) return;
+    const id = requestAnimationFrame(() => {
+      const el = noteInputRef.current;
+      if (!el) return;
+      try { el.focus(); const len = el.value.length; el.setSelectionRange(len, len); } catch {}
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isNoteOpen]);
 
   useEffect(() => {
     if (numpadOpen) {
@@ -1638,8 +1870,9 @@ export function CartPanel({
           {!isEmpty && posMode === 'dine_in' && (
             <div className="px-1">
               <button
+                ref={notePillRef}
                 onClick={openNoteEditor}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium border transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium border transition-colors ${isNoteOpen ? 'pointer-events-none' : ''} ${
                   lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
                 }`}
               >
@@ -1762,31 +1995,37 @@ export function CartPanel({
       />
 
       {/* 2026-09-27 (owner: "qeyd pill-i sexy yuxarı açılsın, eyni animasiya
-          çıxış, klaviye avtomatik açılsın və bağlansa"): floating pill —
-          spring 500/26 (kəsəy), grows from the "Qeyd alava et" pill upward,
-          autofocus = VKB auto-opens, close = VKB auto-closes (closeVk()). */}
+          çıxış, klaviye avtomatik açılsın və bağlansa") — 2026-09-30 (round
+          10f): the scale-in-in-place motion.div (spring 500/26, bottom state
+          jump, 1-frame hard cut on close) is replaced by the ONE-CLOCK pill↔
+          card morph — the same engine as the product Qeyd (rounds 10c→10e):
+          born on the pill's rect, glides up above the keys (z-10003), rides
+          back to the pill with an identity cross-fade (NOTE_XFADE). The
+          card geometry is driven ENTIRELY by the rAF loop (left/top/w/h/r);
+          it lives OUTSIDE AnimatePresence (the backdrop fades independently —
+          the round-10c "AnimatePresence hostage" bug). */}
       {createPortal(
-        <AnimatePresence>
+        <>
+          <AnimatePresence>
+            {isNoteOpen && (
+              <motion.div
+                key="note-backdrop"
+                className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[9998]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
+                onClick={closeNoteEditor}
+              />
+            )}
+          </AnimatePresence>
           {isNoteOpen && (
-            <motion.div
-              key="note-backdrop"
-              className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[9998]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
-              onClick={closeNoteEditor}
-            />
-          )}
-          {isNoteOpen && (
-            <motion.div
-              key="note-pill"
-              className={`fixed z-[10000] left-1/2 -translate-x-1/2 w-[min(92vw,420px)] rounded-[1.75rem] border shadow-elevated backdrop-blur-xl overflow-hidden ${lightMode ? 'bg-white/95 border-zinc-200' : 'bg-[#1D1D24]/97 border-white/12'}`}
-              style={{ bottom: vkHeight > 0 ? vkHeight + 14 : 18 }}
-              initial={{ y: 46, opacity: 0, scale: 0.92 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 34, opacity: 0, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+            <div
+              ref={noteCardRef}
+              className={`fixed z-[10003] overflow-hidden border shadow-elevated backdrop-blur-xl ${lightMode ? 'bg-white/95 border-zinc-200' : 'bg-[#1D1D24]/97 border-white/12'}`}
+              style={{ left: -9999, top: -9999, width: 0, height: 0, borderRadius: NOTE_CARD_RADIUS, willChange: 'left, top, width, height' }}
             >
+              <style>{`.cart-note-ta.vk-active{box-shadow:none!important}`}</style>
+              <div ref={noteContentRef} className="flex flex-col" style={{ opacity: 0 }}>
               {/* header */}
               <div className={`flex items-center gap-2 px-4 pt-3.5 pb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/8'}`}>
                 <span className={`w-7 h-7 rounded-xl flex items-center justify-center ${lightMode ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-500/12 text-emerald-400'}`}>
@@ -1809,13 +2048,12 @@ export function CartPanel({
               <div className="p-4 pt-3">
                 <textarea
                   ref={noteInputRef}
-                  autoFocus
                   value={globalNote}
                   onChange={e => { setGlobalNote(e.target.value); onUpdateGlobalNote?.(e.target.value); }}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); closeNoteEditor(); } if (e.key === 'Escape') { e.preventDefault(); closeNoteEditor(); } }}
                   placeholder={t('note_placeholder') || 'Qeyd yaz...'}
                   rows={3}
-                  className={`w-full text-[15px] leading-relaxed p-3.5 rounded-2xl border-2 focus:outline-none resize-none transition-colors ${lightMode ? 'bg-zinc-50 text-gray-900 border-zinc-200 focus:border-emerald-400 placeholder:text-zinc-400' : 'bg-[#15151A] text-white border-white/10 focus:border-emerald-400/70 placeholder:text-white/25'}`}
+                  className={`cart-note-ta w-full text-[15px] leading-relaxed p-3.5 rounded-2xl border-2 focus:outline-none resize-none transition-colors ${lightMode ? 'bg-zinc-50 text-gray-900 border-zinc-200 focus:border-emerald-400 placeholder:text-zinc-400' : 'bg-[#15151A] text-white border-white/10 focus:border-emerald-400/70 placeholder:text-white/25'}`}
                 />
                 <div className="flex items-center justify-end gap-2 mt-3">
                   <button
@@ -1834,9 +2072,10 @@ export function CartPanel({
                   </button>
                 </div>
               </div>
-            </motion.div>
+              </div>
+            </div>
           )}
-        </AnimatePresence>,
+        </>,
         document.body
       )}
 

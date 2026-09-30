@@ -377,6 +377,12 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   //     bezier) when the textarea auto-grows — no spring, no drift.
   const NOTE_GLIDE = 480;
   const NOTE_RETURN = 380;
+  // Round 10e — exit cross-fade window: the card's surface dissolves over the
+  // LAST 45% of the return glide (by p=0.55 the shape is already ~97% of the
+  // pill's size) while the pill is revealed UNDER it — the label arrives WITH
+  // the shape (owner: "yerine oturanda pill-dəki yazı görünmür, sanki pill
+  // olur sonradan dönür"). See stepNoteMorph close branch.
+  const NOTE_XFADE = 0.55;
   // cubic-bezier(0.32, 0.72, 0, 1) — fast committed start (slope 2.25), long
   // decelerating settle, EXACTLY zero velocity at t=1 (the smooth "oturması").
   const noteEase = (t: number): number => {
@@ -473,10 +479,38 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       const b = m.from.b + (tb - m.from.b) * e;
       write(x, w, h, r, b);
       if (noteContentRef.current) noteContentRef.current.style.opacity = String(Math.max(0, 1 - (now - m.t0) / 140));
+      // 2026-09-30 (round 10e — IDENTITY HANDOFF, owner: "yerine oturanda
+      // qerbielik var, pill-dəki yazı görünmür, öz forması/ölçüsü deyil kimi"):
+      // ROOT CAUSE found by 60fps E2E: the global rule
+      // `button:disabled { opacity: .4 }` (globals.css:322, specificity 0-1-1)
+      // OVERRODE the class `opacity-0` (0-1-0) for the whole time the pill
+      // was disabled-open → a 40% GHOST pill sat at the pill spot under the
+      // backdrop, and on landing the `disabled` release ran the global
+      // `transition: opacity .12s` (globals.css:319) → the label faded
+      // 0.4 → 1.0 AFTER the card unmounted (measured 0.4 → 0.713 → 1.0 over
+      // ~135ms) = "the text arrives late / the shape isn't the pill's own".
+      // FIX: the pill is hidden with INLINE opacity 0 (inline beats any
+      // stylesheet rule). When the card starts dissolving (last 45% of the
+      // glide — the shape is already within ~3% of the pill), the pill is
+      // revealed UNDER the still-opaque card (its own 120ms 0→1 transition
+      // runs fully covered) and the card surface fades out on the same
+      // bezier. The label therefore "arrives with" the shape, and the
+      // unmount happens while the card is already transparent → no empty
+      // landing, no ghost, no late fade, no pop.
+      if (p >= NOTE_XFADE) {
+        const f = noteEase((p - NOTE_XFADE) / (1 - NOTE_XFADE));
+        card.style.opacity = String(Math.max(0, 1 - f));
+        const pill = notePillRef.current;
+        if (pill && pill.style.opacity !== '1') pill.style.opacity = '1';
+      }
       if (p >= 1) {
-        // Land EXACTLY on the pill's rest rect, unmount + reveal in the same
-        // paint (the pill has been static since ~180ms) — invisible handoff.
+        // Land EXACTLY on the pill's rest rect: the card is already fully
+        // transparent (f=1) and the pill already opaque — unmount + state
+        // flip paint the pill in place, label included: invisible handoff.
         write(tx, tw, th, tr, tb);
+        card.style.opacity = '0';
+        const pill = notePillRef.current;
+        if (pill) pill.style.opacity = '1';
         if (noteContentRef.current) noteContentRef.current.style.opacity = '0';
         m.mode = null;
         m.raf = null;
@@ -521,6 +555,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     const pr = pillRectLive() || m.lastPill;
     if (!card || !pr) return;
     const c = card.getBoundingClientRect();
+    if (notePillRef.current) notePillRef.current.style.opacity = '0'; // ghost-free from frame 0
     m.mode = 'close';
     m.t0 = performance.now();
     m.T = NOTE_RETURN;
@@ -532,6 +567,12 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const openNoteEditor = () => {
     const p = pillRectLive();
     if (!p) return;
+    // Round 10e: hide the pill with INLINE opacity — the class `opacity-0`
+    // is overridden while open by the global `button:disabled { opacity:.4 }`
+    // rule (the pill is disabled-open) → a 40% ghost. Inline beats it. The
+    // card is born on the pill's exact rect, so the 120ms 1→0 transition
+    // runs fully covered by the card.
+    if (notePillRef.current) notePillRef.current.style.opacity = '0';
     const m = noteMorphRef.current;
     const vw = window.innerWidth, vh = window.innerHeight;
     const cw = Math.min(vw * 0.92, 420);

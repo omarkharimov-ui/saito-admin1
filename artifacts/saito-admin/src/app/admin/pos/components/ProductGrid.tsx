@@ -183,7 +183,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const { lightMode } = useTheme();
   // Yellow #2: when the on-screen keyboard is open, pad the grid's scroll
   // container so bottom fields/cards are never hidden under it.
-  const { height: vkHeight } = useVirtualKeyboard();
+  const { height: vkHeight, close: closeVk, isOpen: vkOpen } = useVirtualKeyboard();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   // 2026-09-27 (owner: OOS kartların "yanıb-sönməsi"): a failed image is marked
@@ -308,10 +308,44 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const noteEditorRef = useRef<HTMLTextAreaElement | null>(null);
   const closeNoteEditor = () => {
-    noteEditorRef.current?.blur(); // dismiss the VKB (focusout auto-close)
+    // 2026-09-30 (round 10b — "klaviye gec bağlanır", E2E frame trace): the
+    // old blur()-only path hit the VKB's own quirk — focus-to-BODY does NOT
+    // close the keyboard by design (control-tap guard), so the VKB waited for
+    // its 300ms DETACHED-ELEMENT POLL after the card unmounted: a 360–450ms
+    // dead gap with the keyboard frozen after the card was gone. Explicit
+    // closeVk() runs the keyboard exit (0.26s) IN PARALLEL with the card's
+    // exit morph — same pattern as the cart's closeNoteEditor.
+    closeVk();
     setNoteEditorOpen(false);
     commitInstanceDraft(); // persist the active instance's note into its draft
   };
+  // VKB dismissed from the OUTSIDE (✓ done key / GİZLƏ / outside tap) while
+  // the card is open → close the card too, or it strands (E2E bug #1/#2/#7:
+  // "keyboard hid, card left stranded; tapping the textarea can't restore it"
+  // because it still holds focus). Edge-detected (wasOpen && !vkOpen) so the
+  // opening moment (keyboard not mounted yet) never misfires — mirrors the
+  // cart's vkOpenPrevRef pattern.
+  const vkOpenPrevRef = useRef(vkOpen);
+  useEffect(() => {
+    const wasOpen = vkOpenPrevRef.current;
+    vkOpenPrevRef.current = vkOpen;
+    if (wasOpen && !vkOpen && noteEditorOpen) {
+      setNoteEditorOpen(false);
+      commitInstanceDraft();
+    }
+  }, [vkOpen, noteEditorOpen]);
+  // E2E bug #3: autoFocus left the caret at INDEX 0 on a re-opened editor with
+  // existing text — the first VKB character PREPENDED ("x" + "Bu məhsul…").
+  // Force the caret to the end after mount.
+  useEffect(() => {
+    if (!noteEditorOpen) return;
+    const id = requestAnimationFrame(() => {
+      const el = noteEditorRef.current;
+      if (!el) return;
+      try { el.focus(); const len = el.value.length; el.setSelectionRange(len, len); } catch {}
+    });
+    return () => cancelAnimationFrame(id);
+  }, [noteEditorOpen]);
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const expandedIdRef = useRef<string | null>(null);
@@ -1562,7 +1596,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 {/* Body: miqdar · variantlar · modifikatorlar · qeyd —
                     flex-1 + min-h-0: scroll region is bounded by the card's
                     92vh cap (footer can never overlap it). */}
-                 <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto">
+                 {/* 2026-09-30 (round 10b, E2E bug #9): the Qeyd pill (last
+                    section) sat half-hidden at the scroll edge right up against
+                    the sticky CTA footer — extra bottom breathing room. */}
+                <div className="p-5 pb-10 space-y-5 flex-1 min-h-0 overflow-y-auto">
                    {/* 2026-09-28 (owner: "tiktokdaki kimi surusdurme pilli... orada
                        qeyd edekki 1 ci filadelyiya kremli, 2 ci taba kecid edirsen
                        yungul yazirsan"): ONE pill per instance — numbered circle +
@@ -2118,68 +2155,111 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
                 onClick={closeNoteEditor}
               />
+              {/* 2026-09-30 (round 10b — owner: "popup-un UI-sini bəyənmirəm,
+                  daha qəşəng"): SINGLE-SURFACE card. The old design had a
+                  double surface (card box + inner textarea box with a 2px
+                  emerald focus border + 2px .vk-active ring = a "4px green
+                  box", the heaviest element in the card) + a cramped two-line
+                  header on a hairline + a dead band over small buttons. Now:
+                  the card IS the field — one surface, no inner box, no ring
+                  (the dimmed backdrop already signals "this is the active
+                  layer"), quiet one-line header, generous type, full-height
+                  actions. */}
               <motion.div
                 layoutId="prod-qeyd-pill"
-                transition={{ layout: { type: 'spring', stiffness: 420, damping: 34 } }}
-                className={`fixed left-1/2 -translate-x-1/2 z-[10000] w-[min(92vw,420px)] rounded-[1.75rem] border shadow-elevated backdrop-blur-xl overflow-hidden ${lightMode ? 'bg-white/95 border-zinc-200' : 'bg-[#1D1D24]/97 border-white/12'}`}
+                transition={{ layout: { type: 'spring', stiffness: 520, damping: 40 } }}
+                className={`fixed left-1/2 -translate-x-1/2 z-[10000] w-[min(92vw,420px)] rounded-3xl border shadow-elevated backdrop-blur-xl overflow-hidden ${lightMode ? 'bg-white/[0.97] border-zinc-200/80' : 'bg-[#1D1D24]/[0.98] border-white/10'}`}
                 initial={{ bottom: vkHeight > 0 ? vkHeight + 14 : 18 }}
                 animate={{ bottom: vkHeight > 0 ? vkHeight + 14 : 18 }}
               >
+                <style>{`.prod-qeyd-ta.vk-active { box-shadow: none !important; }`}</style>
                 {/* editor content: fades in AFTER the morph lands (delay),
-                    so the pill's label never ghost-fights the textarea mid-
-                    flight. */}
+                    so the pill's label never ghost-fights the field mid-flight. */}
                 <motion.div
                   className="flex flex-col"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1, transition: { delay: 0.14, duration: 0.16 } }}
                 >
-                {/* header */}
-                <div className={`flex items-center gap-2 px-4 pt-3.5 pb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/8'}`}>
-                  <span className={`w-7 h-7 rounded-xl flex items-center justify-center ${lightMode ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-500/12 text-emerald-400'}`}>
-                    <Tag size={13} />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-[11px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>Məhsul qeydi</p>
-                    <p className={`text-[9px] font-semibold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>bu instansiyanın qeydi</p>
-                  </div>
-                  <button
-                    onMouseDown={e => e.preventDefault()}
-                    onClick={closeNoteEditor}
-                    aria-label="Bağla"
-                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${lightMode ? 'text-zinc-400 hover:bg-zinc-100' : 'text-white/40 hover:bg-white/10'}`}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-                {/* body */}
-                <div className="p-4 pt-3">
-                  <textarea
-                    ref={noteEditorRef}
-                    autoFocus
-                    value={noteForProduct}
-                    onChange={e => setNoteForProduct(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); closeNoteEditor(); } if (e.key === 'Escape') { e.preventDefault(); closeNoteEditor(); } }}
-                    placeholder={t('note_placeholder') || 'Qeyd yaz...'}
-                    rows={3}
-                    className={`w-full text-[15px] leading-relaxed p-3.5 rounded-2xl border-2 focus:outline-none resize-none transition-colors ${lightMode ? 'bg-zinc-50 text-gray-900 border-zinc-200 focus:border-emerald-400 placeholder:text-zinc-400' : 'bg-[#15151A] text-white border-white/10 focus:border-emerald-400/70 placeholder:text-white/25'}`}
-                  />
-                  <div className="flex items-center justify-end gap-2 mt-3">
+                  {/* header — one quiet line, no hairline, no icon box */}
+                  <div className="flex items-center gap-2 pl-5 pr-3 pt-4">
+                    <Tag size={15} className={lightMode ? 'text-emerald-600' : 'text-emerald-400'} />
+                    <span className={`flex-1 text-xs font-black uppercase tracking-widest ${lightMode ? 'text-zinc-700' : 'text-white/80'}`}>Məhsul qeydi</span>
                     <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => setNoteForProduct('')}
-                      className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-white/8 text-white/60 hover:bg-white/15'}`}
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={closeNoteEditor}
+                      aria-label="Bağla"
+                      className={`w-8 h-8 -mr-1 rounded-full flex items-center justify-center transition-colors ${lightMode ? 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600' : 'text-white/40 hover:bg-white/10 hover:text-white/70'}`}
                     >
-                      Ləğv et
+                      <X size={16} />
                     </button>
+                  </div>
+                  {/* field — borderless, ringless, auto-grows (E2E bug #8:
+                      fixed 243px with internal scroll → the card now grows
+                      with the text up to 160px, then scrolls) */}
+                  <div className="px-5 pt-1.5 pb-1">
+                    <textarea
+                      ref={noteEditorRef}
+                      autoFocus
+                      value={noteForProduct}
+                      onChange={(e) => {
+                        setNoteForProduct(e.target.value);
+                        const el = e.currentTarget;
+                        el.style.height = 'auto';
+                        el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          // Matches the VKB's own ↵ semantics (textarea = newline).
+                          // Closing is ✓ done / Escape / × / Təsdiqlə / backdrop.
+                          e.preventDefault();
+                          const el = noteEditorRef.current;
+                          if (el) {
+                            const s = el.selectionStart ?? noteForProduct.length;
+                            const en = el.selectionEnd ?? noteForProduct.length;
+                            setNoteForProduct(noteForProduct.slice(0, s) + '\n' + noteForProduct.slice(en));
+                            requestAnimationFrame(() => {
+                              try {
+                                el.setSelectionRange(s + 1, s + 1);
+                                el.style.height = 'auto';
+                                el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+                              } catch {}
+                            });
+                          }
+                          return;
+                        }
+                        if (e.key === 'Escape') {
+                          // E2E bug #4: Escape used to close the popup AND the
+                          // whole product editor (the modal's own Escape
+                          // listener still fired). stopPropagation contains it.
+                          e.preventDefault();
+                          e.stopPropagation();
+                          closeNoteEditor();
+                        }
+                      }}
+                      placeholder={t('note_placeholder') || 'Qeyd...'}
+                      rows={2}
+                      className={`prod-qeyd-ta w-full bg-transparent text-[15px] leading-relaxed resize-none focus:outline-none min-h-[52px] max-h-[160px] ${lightMode ? 'text-gray-900 placeholder:text-zinc-400' : 'text-white placeholder:text-white/25'}`}
+                    />
+                  </div>
+                  {/* actions — Ləğv et only when there is text to clear */}
+                  <div className="flex items-center justify-between gap-2 px-4 pb-4 pt-2">
+                    {noteForProduct ? (
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => { setNoteForProduct(''); requestAnimationFrame(() => { const el = noteEditorRef.current; if (el) { el.style.height = 'auto'; el.focus(); try { el.setSelectionRange(0, 0); } catch {} } }); }}
+                        className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors ${lightMode ? 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600' : 'text-white/50 hover:bg-white/8 hover:text-white/80'}`}
+                      >
+                        Ləğv et
+                      </button>
+                    ) : <span />}
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={closeNoteEditor}
-                      className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-500 text-[#04211a] hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-colors"
+                      className="px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-emerald-500 text-[#04211a] hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-colors"
                     >
                       Təsdiqlə
                     </button>
                   </div>
-                </div>
                 </motion.div>
               </motion.div>
             </>

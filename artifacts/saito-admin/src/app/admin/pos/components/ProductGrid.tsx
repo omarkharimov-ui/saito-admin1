@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo, useEffect, useLayoutEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check, RotateCcw, Package, Trash2, ArrowLeft, Flame, Lock } from '@/components/ui/saito-icons';
+import { Search, X, Plus, Clock, Star, Heart, ShoppingCart, Ban, PackageOpen, AlertTriangle, RefreshCw, Pause, Check, RotateCcw, Package, Trash2, ArrowLeft, Flame, Lock, Tag } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
@@ -295,6 +296,22 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   // (log_audit / inventory_logs) and later used by the statistics page.
   const [returnReason, setReturnReason] = useState('');
   const [returnReasonText, setReturnReasonText] = useState('');
+  // 2026-09-30 (owner, round 10): the modal's Qeyd is now a ROUNDED PILL
+  // trigger (the cart's "Qeyd əlavə et" reference) that morph-opens a FLOATING
+  // editor above the virtual keyboard — portal + spring 500/26 entry from
+  // y:46, exit y:34 DOWN toward the keyboard (owner: "açılarkən morph olaraq
+  // klaviaturanın üzərinə yerləşsin, itməmişdən əvvəl klaviaturanın üzərinə
+  // doğru gəlsin"). autofocus → the VKB auto-opens and the sheet rides its top
+  // (bottom = vkHeight + 14); close blurs the field → VKB auto-closes. The
+  // sheet binds the ACTIVE instance's note (noteForProduct) and commits it on
+  // close. The old square rounded-xl input is gone.
+  const [noteEditorOpen, setNoteEditorOpen] = useState(false);
+  const noteEditorRef = useRef<HTMLTextAreaElement | null>(null);
+  const closeNoteEditor = () => {
+    noteEditorRef.current?.blur(); // dismiss the VKB (focusout auto-close)
+    setNoteEditorOpen(false);
+    commitInstanceDraft(); // persist the active instance's note into its draft
+  };
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const expandedIdRef = useRef<string | null>(null);
@@ -608,6 +625,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       editLineIndexRef.current = null;
       setReturnCtx(null);
       setReturnView(false);
+      setNoteEditorOpen(false); // the floating Qeyd editor dies with the modal
       setSingleLocked(false);
       setEditKs(null);
       // Multi-instance drafts die with the modal — the next open must start
@@ -1013,6 +1031,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const compactPriceMuted = lightMode ? 'text-gray-500' : 'text-white/50';
 
   return (
+    <>
     <div className="flex flex-col h-full relative">
       {/* Search Bar — Apple style focus: border + glow + soft shadow */}
       <div className="relative mb-4 flex-shrink-0">
@@ -1944,47 +1963,52 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                                  e.stopPropagation();
                                  setSelectedAllergens(prev => on ? prev.filter(x => x !== code) : [...prev, code]);
                                }}
-                               /* Touch-friendly (owner 2026-09-22): min 38px
-                                  target, bigger text/icon — the old
-                                  px-2/py-0.5/text-[10px] pill was a 16px
-                                  tap hole. 2026-09-29: capsule + 200ms state
-                                  crossfade (owner: "state-machine transition"). */
-                               className={`inline-flex items-center gap-1.5 min-h-[38px] px-4 py-2 rounded-full border text-xs font-bold [transition:background-color_0.2s_ease,border-color_0.2s_ease,color_0.2s_ease] ${on ? 'bg-red-500/15 border-red-500/60 text-red-500' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/10 text-white/50'}`}
-                             >
-                                <Icon size={14} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
-                                {/* 2026-09-29 (owner, figure 2: "tik bayaq necə
-                                    eləmişik eynisindən"): the same SVG
-                                    STROKE-DRAW as the TableCard selection
-                                    tick — pathLength 0→1, left→vertex→right
-                                    (~280ms), never a scale-pop. */}
-                                 {/* 2026-09-29 (owner, round 7 #4: "seçim zamanı
-                                     millisanıyəlik görünən-itən yüngül bug"):
-                                     the tick used to MOUNT/UNMOUNT via
-                                     AnimatePresence on every toggle — a remount
-                                     is the only way a sub-100ms disappear/
-                                     reappear can happen (and it shifted the
-                                     chip width by 14px each time). Now the
-                                     path is PERSISTENT (always rendered in a
-                                     fixed 14px slot — zero layout shift) and
-                                     only its STATE animates: draw on select
-                                     (pathLength 0→1, ~280ms), quick fade off.
-                                     initial={false} → a pre-selected allergen
-                                     opens already drawn (no mount flash). */}
-                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0">
-                                   <motion.path
-                                     d="M4 12.5 L9.5 18 L20 6.5"
-                                     stroke="currentColor"
-                                     strokeWidth={3.4}
-                                     strokeLinecap="round"
-                                     strokeLinejoin="round"
-                                     initial={false}
-                                     animate={on ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
-                                     transition={{
-                                       pathLength: on ? { duration: 0.28, ease: 'easeOut', delay: 0.06 } : { duration: 0.12 },
-                                       opacity: { duration: 0.08 },
-                                     }}
-                                   />
-                                 </svg>
+                                /* Touch-friendly (owner 2026-09-22): the old
+                                   px-2/py-0.5/text-[10px] pill was a 16px tap
+                                   hole. 2026-09-29: capsule + 200ms state
+                                   crossfade. 2026-09-30 (round 10, E2E
+                                   diagnostic — "Allergens bölməsində bug"):
+                                   the chip now speaks the SAME language as the
+                                   sibling MƏRHƏLƏ/SERVİNQ chips (px-4 py-2.5,
+                                   text-sm, UNFILLED resting state — the old
+                                   solid bg-zinc-100 fill made the row look
+                                   greener/chunkier: 38px vs 34px, grey vs
+                                   transparent). */
+                                className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border text-sm font-bold [transition:background-color_0.2s_ease,border-color_0.2s_ease,color_0.2s_ease,box-shadow_0.2s_ease] ${on ? 'bg-red-500/15 border-red-500/60 text-red-500 shadow-lg shadow-red-500/10' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/80 hover:bg-white/5'}`}
+                              >
+                                 <Icon size={15} /> {def?.label || (a && typeof a === 'object' ? (a.name || code) : code)}
+                                  {/* 2026-09-30 (round 10, E2E diagnostic — "tick
+                                      işarəsində bug"): the framer motion.path rig was
+                                      DEAD — the dasharray snapped 0→1 with zero
+                                      tween (the tick hard-popped before the chip
+                                      finished turning red, and vanished instantly on
+                                      unselect). The draw is now NATIVE SVG + a CSS
+                                      transition: pathLength=1 normalizes the path,
+                                      strokeDasharray 1 + strokeDashoffset 1→0 draws
+                                      left→vertex→right (~280ms, 60ms delay so the
+                                      red state leads), quick un-draw+fade on
+                                      deselect. The 14px slot stays PERSISTENT
+                                      (round 7: zero layout shift). CSS transitions
+                                      can't remount-flash — the tick state is purely
+                                      attribute-driven. */}
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0">
+                                    <path
+                                      d="M4 12.5 L9.5 18 L20 6.5"
+                                      pathLength={1}
+                                      stroke="currentColor"
+                                      strokeWidth={3.4}
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      style={{
+                                        strokeDasharray: 1,
+                                        strokeDashoffset: on ? 0 : 1,
+                                        opacity: on ? 1 : 0,
+                                        transition: on
+                                          ? 'stroke-dashoffset 0.28s ease-out 0.06s, opacity 0.08s ease'
+                                          : 'stroke-dashoffset 0.14s ease, opacity 0.12s ease',
+                                      }}
+                                    />
+                                  </svg>
                              </motion.button>
                            );
                          })}
@@ -1993,11 +2017,36 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                    );
                  })()}
 
-                 {/* Qeyd — now AFTER allergens (owner 2026-09-29 swap). */}
-                 <div className={specLocked ? 'pointer-events-none opacity-40' : ''}>
-                   <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Qeyd:</span>
-                   <input type="text" value={noteForProduct} onChange={(e) => setNoteForProduct(e.target.value)} placeholder={t('add_note')} disabled={specLocked} className={`mt-2 w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} focus:border-zinc-400/50`} />
-                 </div>
+                  {/* Qeyd — now AFTER allergens (owner 2026-09-29 swap).
+                      2026-09-30 (round 10, owner reference = the cart's
+                      "Qeyd əlavə et" pill): the square input is GONE. The
+                      resting state is a rounded-full pill (Tag icon +
+                      "Qeyd əlavə et" or the note text); tapping it morph-opens
+                      the floating editor over the virtual keyboard (portal at
+                      the component root — see createPortal below). */}
+                  <div className={specLocked ? 'pointer-events-none opacity-40' : ''}>
+                    <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Qeyd:</span>
+                    {/* 2026-09-30 (round 10, owner CORRECTION — "o pill itmədən
+                        hərəkət edib mərkəzdə açılan popup olsun, klaviaturanın
+                        üzərində"): the pill is the SHARED ELEMENT. It never
+                        "disappears" — on tap it unmounts and the portal card
+                        mounts with the SAME layoutId, so framer morphs the pill's
+                        rect (position + size + radius + bg) INTO the card's rect
+                        (centered, over the keyboard), and back on close. One
+                        continuous element, not "pill stays + new popup springs". */}
+                    {!noteEditorOpen && (
+                    <motion.button
+                      layoutId="prod-qeyd-pill"
+                      onClick={() => { if (!specLocked) setNoteEditorOpen(true); }}
+                      whileTap={{ scale: 0.97 }} transition={TAP}
+                      disabled={specLocked}
+                      className={`mt-2 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border text-xs font-bold ${noteForProduct ? (lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-700' : 'bg-white/8 border-white/15 text-white/85') : (lightMode ? 'bg-transparent border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-transparent border-white/10 text-white/40 hover:bg-white/5')}`}
+                    >
+                      <Tag size={12} />
+                      <span className="truncate max-w-[260px]">{noteForProduct || t('add_note')}</span>
+                    </motion.button>
+                    )}
+                  </div>
               </div>
 
                 {/* Footer: ƏLAVƏ ET full-width — sticky (flex-shrink-0).
@@ -2043,8 +2092,101 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
            setReturnPinOpen(false);
            if (v?.valid) setReturnView(true);
          }}
-         action="void_item"
-       />
-     </div>
-   );
- });
+          action="void_item"
+        />
+      </div>
+
+      {/* 2026-09-30 (round 10, owner CORRECTION — shared-element morph): the
+          note editor is the SAME element as the Qeyd pill (layoutId
+          "prod-qeyd-pill"). Open: pill rect → card rect (centered, riding the
+          keyboard top: `bottom` animates to vkHeight+14 as the VKB settles
+          under the autofocus). Close: card rect → pill rect. The element never
+          disappears — it MOVES and reshapes (owner: "pill itmədən hərəkət
+          edib mərkəzdə açılan popup olsun, klaviaturanın üzərində"). Portals to
+          document.body because the modal lives in a transformed (scaled)
+          container where `fixed` children would be trapped. autofocus → VKB
+          auto-opens; blur (X / Təsdiqlə / backdrop / Enter) → VKB auto-closes. */}
+      {createPortal(
+        <AnimatePresence>
+          {noteEditorOpen && (
+            <>
+              <motion.div
+                key="prod-note-backdrop"
+                className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[9998]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
+                onClick={closeNoteEditor}
+              />
+              <motion.div
+                layoutId="prod-qeyd-pill"
+                transition={{ layout: { type: 'spring', stiffness: 420, damping: 34 } }}
+                className={`fixed left-1/2 -translate-x-1/2 z-[10000] w-[min(92vw,420px)] rounded-[1.75rem] border shadow-elevated backdrop-blur-xl overflow-hidden ${lightMode ? 'bg-white/95 border-zinc-200' : 'bg-[#1D1D24]/97 border-white/12'}`}
+                initial={{ bottom: vkHeight > 0 ? vkHeight + 14 : 18 }}
+                animate={{ bottom: vkHeight > 0 ? vkHeight + 14 : 18 }}
+              >
+                {/* editor content: fades in AFTER the morph lands (delay),
+                    so the pill's label never ghost-fights the textarea mid-
+                    flight. */}
+                <motion.div
+                  className="flex flex-col"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1, transition: { delay: 0.14, duration: 0.16 } }}
+                >
+                {/* header */}
+                <div className={`flex items-center gap-2 px-4 pt-3.5 pb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/8'}`}>
+                  <span className={`w-7 h-7 rounded-xl flex items-center justify-center ${lightMode ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-500/12 text-emerald-400'}`}>
+                    <Tag size={13} />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[11px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-700' : 'text-white/85'}`}>Məhsul qeydi</p>
+                    <p className={`text-[9px] font-semibold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>bu instansiyanın qeydi</p>
+                  </div>
+                  <button
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={closeNoteEditor}
+                    aria-label="Bağla"
+                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${lightMode ? 'text-zinc-400 hover:bg-zinc-100' : 'text-white/40 hover:bg-white/10'}`}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                {/* body */}
+                <div className="p-4 pt-3">
+                  <textarea
+                    ref={noteEditorRef}
+                    autoFocus
+                    value={noteForProduct}
+                    onChange={e => setNoteForProduct(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); closeNoteEditor(); } if (e.key === 'Escape') { e.preventDefault(); closeNoteEditor(); } }}
+                    placeholder={t('note_placeholder') || 'Qeyd yaz...'}
+                    rows={3}
+                    className={`w-full text-[15px] leading-relaxed p-3.5 rounded-2xl border-2 focus:outline-none resize-none transition-colors ${lightMode ? 'bg-zinc-50 text-gray-900 border-zinc-200 focus:border-emerald-400 placeholder:text-zinc-400' : 'bg-[#15151A] text-white border-white/10 focus:border-emerald-400/70 placeholder:text-white/25'}`}
+                  />
+                  <div className="flex items-center justify-end gap-2 mt-3">
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setNoteForProduct('')}
+                      className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-white/8 text-white/60 hover:bg-white/15'}`}
+                    >
+                      Ləğv et
+                    </button>
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={closeNoteEditor}
+                      className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-500 text-[#04211a] hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-colors"
+                    >
+                      Təsdiqlə
+                    </button>
+                  </div>
+                </div>
+                </motion.div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
+    );
+  });

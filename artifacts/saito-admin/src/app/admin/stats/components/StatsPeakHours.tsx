@@ -1,65 +1,162 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Clock } from '@/components/ui/saito-icons';
-import { motion } from 'framer-motion';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 
-interface PeakHour {
+interface HourPoint {
   hour: number;
-  count: number;
+  orders: number;
+  revenue: number;
 }
 
-interface Props {
-  peakHours: PeakHour[];
-  timeFilter: string;
+interface StatsPeakHoursProps {
+  hourlyBreakdown: HourPoint[];
+  peakHour: string;
+  loading?: boolean;
 }
 
-const StatsPeakHours = ({ peakHours, timeFilter }: Props) => {
-  const { t } = useLanguage();
+const fmtManat = (v: number) =>
+  v.toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₼';
 
-  const periodLabel =
-    timeFilter === 'today' ? t('period_label_today') :
-    timeFilter === 'week' ? t('period_label_week') :
-    timeFilter === 'month' ? t('period_label_month') :
-    timeFilter === '3months' ? t('period_label_3months') :
-    t('period_label_year');
-
-  return (
-    <div className="bg-card border border-white/5 p-4 md:p-8 rounded-2xl">
-      <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-        <div className="p-1.5 md:p-2 bg-[var(--theme-surface-soft)] text-orange-400 rounded-xl">
-          <Clock size={15} className="md:w-5 md:h-5" />
-        </div>
-        <h3 className="text-base md:text-xl font-serif font-bold text-white">{t('peak_hours')}</h3>
-        <span className="text-[9px] md:text-[10px] text-white/30 uppercase tracking-widest ml-auto">{periodLabel}</span>
-      </div>
-      {peakHours.length === 0 ? (
-        <p className="text-white/20 text-sm text-center py-8">{t('no_data_for_period')}</p>
-      ) : (
-        <div className="space-y-3">
-          {peakHours.map((h, i) => {
-            const maxVal = peakHours[0]?.count || 1;
-            const pct = Math.round((h.count / maxVal) * 100);
-            return (
-              <div key={h.hour} className="flex items-center gap-4">
-                <span className="text-[var(--theme-text-muted)] text-xs w-16 flex-shrink-0 font-mono">{String(h.hour).padStart(2, '0')}:00</span>
-                <div className="flex-1 h-2 bg-[var(--theme-surface-soft)] rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.6, delay: i * 0.05 }}
-                    className={`h-full rounded-full ${i === 0 ? 'bg-gold shadow-[0_0_8px_rgba(212,175,55,0.5)]' : 'bg-gold/40'}`}
-                  />
-                </div>
-                <span className="text-xs font-bold text-white/60 w-10 text-right tabular-nums">{h.count}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+const fmtHour = (h: number) => {
+  const hh = h % 24;
+  return `${String(hh).padStart(2, '0')}:00`;
 };
 
-export default StatsPeakHours;
+export default function StatsPeakHours({ hourlyBreakdown, peakHour, loading }: StatsPeakHoursProps) {
+  const [metric, setMetric] = useState<'orders' | 'revenue'>('orders');
+
+  const points: HourPoint[] = useMemo(() => {
+    // Normalize to a full 24h series (fallback when the API predates hourlyBreakdown).
+    const base: HourPoint[] = Array.from({ length: 24 }, (_, h) => ({ hour: h, orders: 0, revenue: 0 }));
+    (hourlyBreakdown || []).forEach((p) => {
+      if (p && Number.isFinite(p.hour) && p.hour >= 0 && p.hour < 24) {
+        base[p.hour].orders = p.orders || 0;
+        base[p.hour].revenue = p.revenue || 0;
+      }
+    });
+    return base;
+  }, [hourlyBreakdown]);
+
+  const active = useMemo(() => points.filter((p) => (metric === 'orders' ? p.orders : p.revenue) > 0), [points, metric]);
+  const max = useMemo(
+    () => Math.max(1, ...points.map((p) => (metric === 'orders' ? p.orders : p.revenue))),
+    [points, metric]
+  );
+  const peak = useMemo(() => {
+    let best: HourPoint | null = null;
+    for (const p of points) {
+      const v = metric === 'orders' ? p.orders : p.revenue;
+      if (v > 0 && (!best || v > (metric === 'orders' ? best.orders : best.revenue))) best = p;
+    }
+    return best;
+  }, [points, metric]);
+
+  return (
+    <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-3xl p-6 sm:p-8">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gold/15 text-gold flex items-center justify-center">
+            <Clock size={20} />
+          </div>
+          <div>
+            <h3 className="text-white font-bold text-lg">PİK SAATLƏR</h3>
+            <p className="text-sm text-white/40">Xidmət gününün tam paylanması · {active.length} saat aktiv</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-full p-1">
+          <button
+            type="button"
+            onClick={() => setMetric('orders')}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-colors ${
+              metric === 'orders' ? 'bg-gold text-black' : 'text-white/40 hover:text-white/70'
+            }`}
+          >
+            SİFARİŞ
+          </button>
+          <button
+            type="button"
+            onClick={() => setMetric('revenue')}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-colors ${
+              metric === 'revenue' ? 'bg-gold text-black' : 'text-white/40 hover:text-white/70'
+            }`}
+          >
+            GƏLİR
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="h-40 flex items-center justify-center">
+          <div className="w-5 h-5 rounded-full border-2 border-white/10 border-t-gold animate-spin" />
+        </div>
+      ) : (
+        <>
+          {/* Full 24h timeline */}
+          <div className="flex items-end gap-[3px] h-40">
+            {points.map((p) => {
+              const v = metric === 'orders' ? p.orders : p.revenue;
+              const hPct = Math.max(v > 0 ? 4 : 2, (v / max) * 100);
+              const isPeak = peak?.hour === p.hour;
+              return (
+                <div
+                  key={p.hour}
+                  className="flex-1 flex flex-col items-center justify-end h-full"
+                  title={`${fmtHour(p.hour)} — ${v > 0 ? (metric === 'orders' ? `${p.orders} sifariş` : fmtManat(p.revenue)) : '—'}${isPeak ? ' · PİK' : ''}`}
+                >
+                  <div
+                    className={`w-full rounded-t-sm transition-all duration-300 ${
+                      v === 0 ? 'bg-white/[0.06]' : isPeak ? 'bg-gold' : 'bg-white/25'
+                    }`}
+                    style={{ height: `${hPct}%` }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          {/* Hour labels every 2h */}
+          <div className="flex gap-[3px] mt-2">
+            {points.map((p) => (
+              <div key={p.hour} className="flex-1 text-center text-[9px] text-white/30 tabular-nums">
+                {p.hour % 2 === 0 ? String(p.hour).padStart(2, '0') : ''}
+              </div>
+            ))}
+          </div>
+
+          {/* Peak callout */}
+          {peak ? (
+            <div className="mt-5 flex items-center justify-between rounded-2xl bg-gold/[0.07] border border-gold/20 px-4 py-3">
+              <div className="text-sm text-white/60">
+                <span className="text-gold font-semibold">Pik saat:</span> {fmtHour(peak.hour)}
+              </div>
+              <div className="text-sm font-semibold text-white tabular-nums">
+                {metric === 'orders' ? `${peak.orders} sifariş` : fmtManat(peak.revenue)}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5 flex items-center justify-center rounded-2xl bg-white/[0.03] border border-white/[0.06] px-4 py-3">
+              <p className="text-sm text-white/40">Bu dövr üçün aktiv saat yoxdur</p>
+            </div>
+          )}
+
+          {/* Top-3 list (same data, list form) */}
+          {active.length > 0 && (
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {active.slice(0, 3).map((p, i) => (
+                <div key={p.hour} className="rounded-xl bg-white/[0.03] border border-white/[0.06] px-3.5 py-2.5">
+                  <p className="text-[10px] uppercase tracking-wider text-white/30">
+                    #{i + 1} · {fmtHour(p.hour)}
+                  </p>
+                  <p className="text-sm font-semibold text-white tabular-nums mt-0.5">
+                    {metric === 'orders' ? `${p.orders} sifariş` : fmtManat(p.revenue)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      <p className="text-[10px] text-white/20 mt-3">PİK SAAT (top banner): {peakHour || '—'}</p>
+    </div>
+  );
+}

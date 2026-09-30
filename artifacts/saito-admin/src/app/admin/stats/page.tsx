@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { getSettings } from '@/lib/settings-client';
-import { TrendingUp, BarChart3, Sparkles } from '@/components/ui/saito-icons';
+import { TrendingUp, BarChart3, Sparkles, Download } from '@/components/ui/saito-icons';
 import { motion } from 'framer-motion';
 import StatsTopCards from './components/StatsTopCards';
 import StatsAIForecast from './components/StatsAIForecast';
@@ -38,7 +38,7 @@ const StatsPage = () => {
   
   const [stats, setStats] = useState<any>({
     totalRevenue: 0, totalOrders: 0, aov: 0, peakHour: '—', topProduct: '—',
-    missedRevenue: 0, peakHours: [], activeTables: 0, chartData: [], productPerformance: [],
+    missedRevenue: 0, peakHours: [], hourlyBreakdown: [], activeTables: 0, chartData: [], productPerformance: [],
     cancellationReasons: [], totalFoodCost: 0, totalWasteCost: 0, laborCost: 0, utilityCost: 0, 
     grossProfit: 0, netProfit: 0,
     foodCostPct: 0, topProfitableItems: [], financeChartData: [], staffPerformance: [],
@@ -150,6 +150,7 @@ const StatsPage = () => {
         topProfitableItems: data.topProfitableItems ?? [],
         financeChartData: data.financeChartData ?? [],
         staffPerformance: data.staffPerformance ?? [],
+        hourlyBreakdown: data.hourlyBreakdown ?? [],
       };
       
       setStats(statsData);
@@ -227,7 +228,33 @@ const StatsPage = () => {
 
           {stats.staffPerformance?.length > 0 && (
             <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-3xl p-6 sm:p-8">
-              <h3 className="text-white font-bold text-lg mb-6">Komanda Performansı</h3>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-white font-bold text-lg">Komanda Performansı</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const csv = [
+                      ['Staff', 'Roll', 'Sifariş', 'Gəlir', 'Orta Çek', 'Orta Çəkiliş (dəq)'].join(','),
+                      ...stats.staffPerformance.map((s: any) =>
+                        [s.name, s.role, s.orders, s.revenue, s.avgCheck, s.ticketCount ? s.avgTicketMinutes : '—'].join(',')
+                      ),
+                    ].join('\n');
+                    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `staff-performance-${timeFilter}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success('Komanda performansı CSV yükləndi');
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[11px] font-semibold text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors"
+                  title="Dövrün komanda performansı (CSV)"
+                >
+                  <Download size={13} />
+                  CSV
+                </button>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {stats.staffPerformance.map((s: any) => (
                   <div key={s.id} className="bg-[var(--theme-surface-soft)] rounded-2xl p-5 border border-[var(--theme-border)]">
@@ -240,7 +267,7 @@ const StatsPage = () => {
                         <p className="text-white/40 text-xs">{s.role}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="grid grid-cols-2 gap-3 text-center">
                       <div className="bg-[var(--theme-bg)] rounded-xl p-3">
                         <p className="text-white font-bold text-sm">{s.orders}</p>
                         <p className="text-white/30 text-[10px] uppercase tracking-wider mt-1">Sifariş</p>
@@ -253,6 +280,10 @@ const StatsPage = () => {
                         <p className="text-white font-bold text-sm">₼{fmt(s.avgCheck)}</p>
                         <p className="text-white/30 text-[10px] uppercase tracking-wider mt-1">Orta çek</p>
                       </div>
+                      <div className="bg-[var(--theme-bg)] rounded-xl p-3">
+                        <p className="text-white font-bold text-sm">{s.ticketCount ? `${s.avgTicketMinutes} dəq` : '—'}</p>
+                        <p className="text-white/30 text-[10px] uppercase tracking-wider mt-1">Çəkiliş</p>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -260,7 +291,11 @@ const StatsPage = () => {
             </div>
           )}
 
-          <StatsPeakHours peakHours={stats.peakHours || []} timeFilter={timeFilter} />
+          <StatsPeakHours
+            hourlyBreakdown={stats.hourlyBreakdown}
+            peakHour={stats.peakHour}
+            loading={loading}
+          />
 
           <StatsCancellationChart
             cancellationReasons={cancellationDetails}

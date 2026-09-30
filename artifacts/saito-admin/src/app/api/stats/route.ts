@@ -69,10 +69,11 @@ export async function GET(request: Request) {
       activeOrdersRes,
       clockEventsRes,
       staffRes,
+      rolesRes,
       expensesRes,
       returnWasteRes,
     ] = await Promise.all([
-      fetch(`${supabaseUrl}/rest/v1/orders?select=id,total_amount,created_at,status,table_number,created_by,assigned_to&status=eq.paid&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}&order=created_at.asc`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/orders?select=id,total_amount,created_at,paid_at,status,table_number,created_by,assigned_to&status=eq.paid&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}&order=created_at.asc`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/order_items?select=*,order:orders!inner(id,status,created_at)&order.status=eq.paid&order.created_at=gte.${isoStartDate}&order.created_at=lte.${isoEndDate}`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/products?select=id,name,price,image_url,views_count,is_ready_product,direct_ingredient_id,category:categories(id,name)`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/categories?select=id,name,translations&order=name`, { headers: H }),
@@ -82,14 +83,17 @@ export async function GET(request: Request) {
       fetch(`${supabaseUrl}/rest/v1/inventory_logs?select=quantity,cost_per_unit,ingredient_id&or=(type.eq.waste,type.eq.adjustment)&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/orders?select=table_number&or=(status.eq.new,status.eq.confirmed)`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/clock_events?select=*&clock_in=gte.${isoStartDate}`, { headers: H }),
-      fetch(`${supabaseUrl}/rest/v1/staff?select=id,full_name,role,phone`, { headers: H }),
+      // NOTE: staff has full_name/role_id (NO `role` column — the old select
+      // failed, leaving staffPerformance permanently empty).
+      fetch(`${supabaseUrl}/rest/v1/staff?select=id,name,full_name,role_id`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/roles?select=id,name`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/expenses?select=amount,category,expense_date&expense_date=gte.${isoStartDate}&expense_date=lte.${isoEndDate}`, { headers: H }),
       // 2026-09-25: Return & Waste — mandatory reason codes (return_to_stock /
       // item_waste) from the canonical audit log (feeds the statistics panel).
       fetch(`${supabaseUrl}/rest/v1/audit_logs_canonical?select=action,new_data,created_at&or=(action.eq.return_to_stock,action.eq.item_waste)&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}`, { headers: H }),
     ]);
 
-    const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs, activeOrders, clockEvents, staff, expenses, returnWaste] = await Promise.all([
+    const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs, activeOrders, clockEvents, staff, roles, expenses, returnWaste] = await Promise.all([
       ordersRes.json(),
       orderItemsRes.json(),
       productsRes.json(),
@@ -101,6 +105,7 @@ export async function GET(request: Request) {
       activeOrdersRes.json(),
       clockEventsRes.json(),
       staffRes.json(),
+      rolesRes.json(),
       expensesRes.json(),
       returnWasteRes.json(),
     ]);
@@ -130,14 +135,24 @@ export async function GET(request: Request) {
     const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
     const hourMap: Record<number, number> = {};
+    const hourRevenueMap: Record<number, number> = {};
     orders?.forEach((o: any) => {
       const h = new Date(o.created_at).getHours();
       hourMap[h] = (hourMap[h] || 0) + 1;
+      hourRevenueMap[h] = (hourRevenueMap[h] || 0) + (Number(o.total_amount) || 0);
     });
     const peakHours = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: hourMap[h] || 0 }))
       .filter(h => h.count > 0)
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
+
+    // Full 24-hour timeline (drill-down: the peak panel shows the whole service
+    // day with orders + revenue, not just the top-N hours).
+    const hourlyBreakdown = Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      orders: hourMap[h] || 0,
+      revenue: Math.round((hourRevenueMap[h] || 0) * 100) / 100,
+    }));
 
 
     const productMap = new Map();
@@ -264,6 +279,22 @@ export async function GET(request: Request) {
       .sort((a, b) => b.net_profit - a.net_profit)
       .slice(0, 10);
 
+    // Merge cost/profit into productPerformance — the stats product table renders
+    // food_cost/markup columns from these fields (they used to be topProfitableItems-only,
+    // so the table's MAYA/MARKUP/QAZANC columns showed zero).
+    (productPerformance as any[]).forEach((p) => {
+      const prof = profitByProduct.get(p.id);
+      if (prof) {
+        p.food_cost = Math.round(prof.food_cost * 100) / 100;
+        p.net_profit = Math.round((prof.revenue - prof.food_cost) * 100) / 100;
+        p.markup_pct = prof.food_cost > 0 ? Math.round(((prof.revenue - prof.food_cost) / prof.food_cost) * 100) : null;
+      } else {
+        p.food_cost = 0;
+        p.net_profit = Math.round(p.revenue * 100) / 100;
+        p.markup_pct = null;
+      }
+    });
+
     const profitDateMap: Record<string, { revenue: number; profit: number }> = {};
     (Array.isArray(orders) ? orders : []).forEach((o: any) => {
       const d = new Date(o.created_at);
@@ -325,10 +356,14 @@ export async function GET(request: Request) {
 
     const missedRevenue = cancelledOrders?.reduce((s: number, c: any) => s + (Number(c.total_amount) || 0), 0) || 0;
 
-    // Staff performance calculation
-    const staffMap = new Map<string, { id: string; name: string; role: string; orders: number; revenue: number }>();
+    // Staff performance calculation (orders, revenue, avg check + avg ticket
+    // speed from created_at→paid_at — the "speed" drill-down competitors show).
+    const roleMap = new Map<string, string>(
+      (Array.isArray(roles) ? roles : []).map((r: any) => [r.id, r.name] as [string, string])
+    );
+    const staffMap = new Map<string, { id: string; name: string; role: string; orders: number; revenue: number; ticketMs: number; ticketCount: number }>();
     (Array.isArray(staff) ? staff : []).forEach((s: any) => {
-      staffMap.set(s.id, { id: s.id, name: s.full_name || 'Naməlum', role: s.role || '—', orders: 0, revenue: 0 });
+      staffMap.set(s.id, { id: s.id, name: s.full_name || s.name || 'Naməlum', role: roleMap.get(s.role_id) || '—', orders: 0, revenue: 0, ticketMs: 0, ticketCount: 0 });
     });
     (Array.isArray(orders) ? orders : []).forEach((o: any) => {
       const staffId = o.created_by || o.assigned_to;
@@ -337,14 +372,20 @@ export async function GET(request: Request) {
       if (entry) {
         entry.orders += 1;
         entry.revenue += Number(o.total_amount) || 0;
+        if (o.paid_at) {
+          const ms = new Date(o.paid_at).getTime() - new Date(o.created_at).getTime();
+          if (ms > 0 && ms < 24 * 3600 * 1000) { entry.ticketMs += ms; entry.ticketCount += 1; }
+        }
       }
     });
     const staffPerformance = Array.from(staffMap.values())
       .filter(s => s.orders > 0)
       .sort((a, b) => b.revenue - a.revenue)
-      .map(s => ({
+      .map(({ ticketMs, ticketCount, ...s }) => ({
         ...s,
         avgCheck: s.orders > 0 ? Math.round((s.revenue / s.orders) * 100) / 100 : 0,
+        avgTicketMinutes: ticketCount > 0 ? Math.round(ticketMs / ticketCount / 60000) : 0,
+        ticketCount,
       }));
 
     const dateValueMap: Record<string, number> = {};
@@ -394,6 +435,7 @@ export async function GET(request: Request) {
       missedRevenue,
       peakHours,
       peakHour,
+      hourlyBreakdown,
       topProduct,
       productPerformance,
       cancellationReasons,

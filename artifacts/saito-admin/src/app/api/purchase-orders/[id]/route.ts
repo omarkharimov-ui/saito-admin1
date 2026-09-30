@@ -74,8 +74,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const { error } = await supabase.from('purchase_orders').delete().eq('id', id);
       if (error) throw error;
       // Keep the supplier's order counter consistent (create increments it).
+      // supabase-js rpc() resolves to {data,error} — no .catch (TS2551); guard with try.
       if (po?.supplier_id) {
-        await supabase.rpc('decrement_supplier_orders', { p_supplier_id: po.supplier_id }).catch(() => {});
+        try {
+          await supabase.rpc('decrement_supplier_orders', { p_supplier_id: po.supplier_id });
+        } catch { /* counter consistency is best-effort */ }
       }
       return NextResponse.json({ success: true });
     } catch (e: any) {

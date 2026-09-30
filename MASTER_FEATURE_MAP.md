@@ -809,6 +809,17 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-30 (ROUND 11c: ANALYTICS DRILL-DOWN (competitive gap 4) — marathon 3-cü gap)
+
+- **Diagnoz:** stats page "shallow" görünürdü amma 3 drill-down paneli artıq var idi (peak hours / product table / staff cards). REAL çatışmazlıqlar (LIVE DB + API verified):
+  1. **Komanda Performansı paneli HEÇ VAXT data göstərməyib** (latent bug): `/api/stats` `staff?select=id,full_name,role,phone` sorğulayır — `staff` cədvəlində `role` kolonu YOXDUR (var: role_id + roles cədvəli) → select fail → staff=[] → panel `length>0` şərti ilə gizli.
+  2. **Məhsul cədvəli MAYA/MARKUP/QAZANC sütunları həmişə 0**: `productPerformance` food_cost saxlamırdı (profit yalnız `topProfitableItems`-də idi, cədvəl `p.food_cost`-dən oxuyurdu → undefined→0).
+  3. Peak hours = top-8 count-only (günün tam paylanması + revenue YOXDU).
+  4. Staff "sürət" metrikası YOXDU (rəqib drill-down-u).
+- **API (`api/stats/route.ts`):** (a) staff select fix `id,name,full_name,role_id` + ayrı `roles` fetch + roleMap (2 Promise.all destructuring sinxron); (b) `hourlyBreakdown` = 24h {hour, orders, revenue} tam timeline; (c) `productPerformance`-a profit merge (food_cost/net_profit/markup_pct ← profitByProduct, recipe-suz item-lər 0 cost); (d) staff `avgTicketMinutes` + `ticketCount` (orders.paid_at − created_at, 24h guard).
+- **UI:** `StatsPeakHours` rewrite: SİFARİŞ/GƏLİR metric toggle (gold pill) + 24h mini-bar timeline (peak = gold, labels hər 2s) + peak callout + top-3 kartları; Komanda paneli: 4-metrik kart (Çəkiliş dəq) + **CSV export** (staff-performance-<period>.csv, BOM).
+- **E2E (API level, browser batch 11-final-də):** /api/stats?timeFilter=month → staff 4 canlı (Kassir 37 sif / 1037₼ / 39 dəq; tofiq 9 sif / 35 dəq; roll adları: cashier/courier/superadmin ✓), hourlyBreakdown 24h (11:00→5 sif/256₼...), products 15 / 14 food_cost-lu (Saito Special: 630₼ rev, 66.69 cost, 845% markup). tsc clean.
+
 ### Jurnal sətiri — 2026-09-30 (ROUND 11b: SATINALMA/PO + QƏBUL + WAC COST (competitive gap 5) — marathon 2-ci gap)
 
 - **Diagnoz:** PO sistemi UI-də 90% hazırdı (PO page: create modal/status dropdown/delete/receive modal; SuppliersSection: CRUD + WhatsApp + score; OCR invoice flow) amma **bütün qəbul axını sükut içində qırlırdı** — iki müstəqil root cause:

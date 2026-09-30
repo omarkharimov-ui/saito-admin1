@@ -25,6 +25,91 @@ interface PayrollEntry {
   net_pay: number;
 }
 
+const r2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+
+/**
+ * Resolve (create-or-update) the payroll period row for a date range and
+ * return its id. Keeps payroll_periods.total_gross_pay/total_hours current
+ * so the history view shows real totals per period.
+ */
+async function upsertPeriod(s: { url: string; headers: Record<string, string> }, start: string, end: string, entries: PayrollEntry[]): Promise<string | null> {
+  const totalGross = r2(entries.reduce((a, e) => a + Number(e.gross_pay || 0), 0));
+  const totalHours = r2(entries.reduce((a, e) => a + Number(e.hours_worked || 0), 0));
+
+  const foundRes = await fetch(
+    `${s.url}/rest/v1/payroll_periods?period_start=eq.${start}&period_end=eq.${end}&select=id&limit=1`,
+    { headers: s.headers }
+  );
+  const found = await foundRes.json();
+  if (Array.isArray(found) && found.length > 0) {
+    await fetch(`${s.url}/rest/v1/payroll_periods?id=eq.${found[0].id}`, {
+      method: 'PATCH',
+      headers: { ...s.headers, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ total_gross_pay: totalGross, total_hours: totalHours }),
+    }).catch(() => {});
+    return found[0].id;
+  }
+
+  const createdRes = await fetch(`${s.url}/rest/v1/payroll_periods`, {
+    method: 'POST',
+    headers: { ...s.headers, 'Prefer': 'return=representation' },
+    body: JSON.stringify({ period_start: start, period_end: end, status: 'open', total_gross_pay: totalGross, total_hours: totalHours }),
+  });
+  // PostgREST return=representation responds with an ARRAY for a single INSERT.
+  const created = await createdRes.json().catch(() => null);
+  const row = Array.isArray(created) ? created[0] : created;
+  return row?.id || null;
+}
+
+/** Record one export row in payroll_exports (real schema: period_id/export_format/file_path/exported_by/exported_at). */
+async function recordExport(s: { url: string; headers: Record<string, string> }, periodId: string, exportFormat: string, filePath: string, exportedBy: string) {
+  await fetch(`${s.url}/rest/v1/payroll_exports`, {
+    method: 'POST',
+    headers: { ...s.headers, 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ period_id: periodId, export_format: exportFormat, file_path: filePath, exported_by: exportedBy }),
+  }).catch(() => {});
+}
+
+const CSV_HEADER = ['staff_id', 'staff_name', 'role_name', 'period_start', 'period_end', 'hours_worked', 'hourly_rate', 'overtime_hours', 'overtime_rate', 'tips_earned', 'tip_shortfall', 'gross_pay', 'deductions', 'net_pay'];
+
+function toCsv(entries: PayrollEntry[]): string {
+  const esc = (v: unknown) => {
+    const str = String(v ?? '');
+    return /[",\n;]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+  };
+  const lines = [CSV_HEADER.join(',')];
+  for (const e of entries) {
+    lines.push(CSV_HEADER.map(h => esc((e as unknown as Record<string, unknown>)[h])).join(','));
+  }
+  const total: Record<string, unknown> = {
+    staff_name: 'TOTAL',
+    hours_worked: r2(entries.reduce((a, e) => a + Number(e.hours_worked || 0), 0)),
+    overtime_hours: r2(entries.reduce((a, e) => a + Number(e.overtime_hours || 0), 0)),
+    tips_earned: r2(entries.reduce((a, e) => a + Number(e.tips_earned || 0), 0)),
+    gross_pay: r2(entries.reduce((a, e) => a + Number(e.gross_pay || 0), 0)),
+    net_pay: r2(entries.reduce((a, e) => a + Number(e.net_pay || 0), 0)),
+  };
+  lines.push(CSV_HEADER.map(h => esc(total[h])).join(','));
+  return lines.join('\r\n');
+}
+
+async function fetchPayrollEntries(s: { url: string; headers: Record<string, string> }, periodStart: string, periodEnd: string) {
+  // RPC computes from LIVE data: time_clock_entries pairing (clock_in→clock_out),
+  // approved overtime_records, tip_distributions, staff.hourly_rate/overtime_rate.
+  const rpcRes = await fetch(`${s.url}/rest/v1/rpc/get_payroll_export`, {
+    method: 'POST',
+    headers: s.headers,
+    body: JSON.stringify({ p_period_start: periodStart, p_period_end: periodEnd }),
+  });
+  const rpcData = await rpcRes.json().catch(() => null);
+  if (!rpcRes.ok || !rpcData || !Array.isArray(rpcData.entries)) {
+    const msg = (rpcData as any)?.error || (rpcData as any)?.message || `get_payroll_export failed (${rpcRes.status})`;
+    throw new Error(msg);
+  }
+  return rpcData.entries as PayrollEntry[];
+}
+
+// GET /api/payroll/export?period_start=YYYY-MM-DD&period_end=YYYY-MM-DD&format=json|csv&staff_id=<optional>
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth();
@@ -33,64 +118,36 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const periodStart = searchParams.get('period_start');
     const periodEnd = searchParams.get('period_end');
+    const format = (searchParams.get('format') || 'json').toLowerCase();
     const staffId = searchParams.get('staff_id');
 
     if (!periodStart || !periodEnd) {
       return NextResponse.json({ error: 'period_start and period_end are required' }, { status: 400 });
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(periodStart) || !/^\d{4}-\d{2}-\d{2}$/.test(periodEnd)) {
+      return NextResponse.json({ error: 'period_start/period_end must be YYYY-MM-DD' }, { status: 400 });
+    }
+    if (periodStart > periodEnd) {
+      return NextResponse.json({ error: 'period_start must be before period_end' }, { status: 400 });
+    }
 
     const s = svc();
-    let query = `${s.url}/rest/v1/staff?select=id,name,role:role_id(name),hourly_rate,overtime_rate&is_active=eq.true`;
-    if (staffId) query += `&id=eq.${staffId}`;
+    let entries = await fetchPayrollEntries(s, periodStart, periodEnd);
+    if (staffId) entries = entries.filter(e => e.staff_id === staffId);
 
-    const staffRes = await fetch(query, { headers: s.headers });
-    const staffList = await staffRes.json();
+    if (format === 'csv') {
+      const filename = `payroll-${periodStart}_${periodEnd}${staffId ? '_staff' : ''}.csv`;
+      // Record the export (never block the download on bookkeeping failure).
+      try {
+        const periodId = await upsertPeriod(s, periodStart, periodEnd, entries);
+        if (periodId) await recordExport(s, periodId, 'csv', filename, auth.user!.id);
+      } catch { /* bookkeeping must not block the download */ }
 
-    const entries: PayrollEntry[] = [];
-
-    for (const staff of Array.isArray(staffList) ? staffList : []) {
-      const timeRes = await fetch(`${s.url}/rest/v1/time_clock_entries?staff_id=eq.${staff.id}&clock_in=gte.${periodStart}&clock_out=lte.${periodEnd}&select=clock_in,clock_out`, { headers: s.headers });
-      const timeEntries = await timeRes.json();
-
-      let totalHours = 0;
-      let overtimeHours = 0;
-
-      for (const entry of Array.isArray(timeEntries) ? timeEntries : []) {
-        if (entry.clock_in && entry.clock_out) {
-          const hours = (new Date(entry.clock_out).getTime() - new Date(entry.clock_in).getTime()) / (1000 * 60 * 60);
-          totalHours += hours;
-          if (hours > 8) overtimeHours += hours - 8;
-        }
-      }
-
-      const tipsRes = await fetch(`${s.url}/rest/v1/shift_reviews?staff_id=eq.${staff.id}&select=declared_cash_tips,shifts!inner(opened_at)&shifts.opened_at=gte.${periodStart}&shifts.opened_at=lte.${periodEnd}`, { headers: s.headers });
-      const tipsData = await tipsRes.json();
-      const tipsEarned = Array.isArray(tipsData) ? tipsData.reduce((sum: number, r: any) => sum + (r.declared_cash_tips || 0), 0) : 0;
-
-      const shortfallRes = await fetch(`${s.url}/rest/v1/tip_shortfalls?staff_id=eq.${staff.id}&period_start=gte.${periodStart}&period_end=lte.${periodEnd}&select=shortfall_amount`, { headers: s.headers });
-      const shortfallData = await shortfallRes.json();
-      const tipShortfall = Array.isArray(shortfallData) && shortfallData.length > 0 ? shortfallData[0].shortfall_amount : 0;
-
-      const hourlyRate = Number(staff.hourly_rate) || 0;
-      const overtimeRate = Number(staff.overtime_rate) || (hourlyRate * 1.5);
-      const grossPay = (totalHours * hourlyRate) + (overtimeHours * overtimeRate) + tipsEarned;
-      const netPay = grossPay - tipShortfall;
-
-      entries.push({
-        staff_id: staff.id,
-        staff_name: staff.name,
-        role_name: staff.role?.name || '—',
-        period_start: periodStart,
-        period_end: periodEnd,
-        hours_worked: totalHours,
-        hourly_rate: hourlyRate,
-        overtime_hours: overtimeHours,
-        overtime_rate: overtimeRate,
-        tips_earned: tipsEarned,
-        tip_shortfall: tipShortfall,
-        gross_pay: grossPay,
-        deductions: tipShortfall,
-        net_pay: netPay,
+      return new NextResponse('\uFEFF' + toCsv(entries), {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${filename}"`,
+        },
       });
     }
 
@@ -100,6 +157,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// POST /api/payroll/export — push the period export to an external payroll provider webhook.
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth();
@@ -113,20 +171,14 @@ export async function POST(request: NextRequest) {
     }
 
     const s = svc();
-
-    const exportRes = await fetch(`${s.url}/rest/v1/rpc/get_payroll_export?p_period_start=${period_start}&p_period_end=${period_end}`);
-    const exportData = await exportRes.json();
-
-    if (!exportData || !Array.isArray(exportData.entries)) {
-      return NextResponse.json({ error: 'Failed to generate payroll export' }, { status: 400 });
-    }
+    const entries = await fetchPayrollEntries(s, period_start, period_end);
 
     const payload = {
       provider: provider || 'custom',
-      period_start: period_start,
-      period_end: period_end,
+      period_start,
+      period_end,
       exported_at: new Date().toISOString(),
-      entries: exportData.entries,
+      entries,
     };
 
     try {
@@ -143,21 +195,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `Webhook failed: ${webhookRes.status}` }, { status: 400 });
       }
 
-      await fetch(`${s.url}/rest/v1/payroll_exports`, {
-        method: 'POST',
-        headers: { ...s.headers, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({
-          provider,
-          period_start: period_start,
-          period_end: period_end,
-          webhook_url,
-          status: 'sent',
-          sent_at: new Date().toISOString(),
-          entries_count: exportData.entries.length,
-        }),
-      }).catch(() => {});
+      // Record the export with the REAL payroll_exports schema (period_id/export_format/file_path/exported_by).
+      try {
+        const periodId = await upsertPeriod(s, period_start, period_end, entries);
+        if (periodId) await recordExport(s, periodId, 'webhook', webhook_url, auth.user!.id);
+      } catch { /* bookkeeping must not fail the send */ }
 
-      return NextResponse.json({ success: true, entries: exportData.entries.length });
+      return NextResponse.json({ success: true, entries: entries.length });
     } catch (webhookError: any) {
       return NextResponse.json({ error: `Webhook error: ${webhookError.message}` }, { status: 500 });
     }

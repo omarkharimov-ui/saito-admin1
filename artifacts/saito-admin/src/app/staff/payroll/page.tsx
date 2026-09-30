@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Wallet, Clock, TrendingUp, ChevronRight, Receipt } from '@/components/ui/saito-icons';
+import { Wallet, Clock, TrendingUp, ChevronRight, Receipt, Download } from '@/components/ui/saito-icons';
 import { useStaffApp } from '../hooks/useStaffApp';
 
 interface PayrollData {
@@ -24,23 +24,51 @@ export default function StaffPayroll() {
   const [periodKey, setPeriodKey] = useState('this_week');
   const [data, setData] = useState<PayrollData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [csvLoading, setCsvLoading] = useState(false);
+
+  // Resolve the current period dates (shared by the loader and the CSV export).
+  const currentPeriod = () => {
+    const today = new Date();
+    const start = new Date();
+    if (periodKey === 'this_week') {
+      start.setDate(start.getDate() - start.getDay() + 1);
+    } else if (periodKey === 'this_month') {
+      start.setDate(1);
+    } else if (periodKey === 'last_month') {
+      start.setMonth(start.getMonth() - 1);
+      start.setDate(1);
+    }
+    // Local-calendar dates (toISOString() shifts the day in UTC+4 timezones).
+    const dstr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return { start: dstr(start), end: dstr(today) };
+  };
+
+  const downloadCsv = async () => {
+    if (!profile?.id) return;
+    setCsvLoading(true);
+    try {
+      const { start, end } = currentPeriod();
+      const res = await fetch(`/api/payroll/export?format=csv&period_start=${start}&period_end=${end}&staff_id=${profile.id}`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `payroll-${start}_${end}_men.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setCsvLoading(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      const today = new Date();
-      const start = new Date();
-      if (periodKey === 'this_week') {
-        start.setDate(start.getDate() - start.getDay() + 1);
-      } else if (periodKey === 'this_month') {
-        start.setDate(1);
-      } else if (periodKey === 'last_month') {
-        start.setMonth(start.getMonth() - 1);
-        start.setDate(1);
-      }
-      params.set('period_start', start.toISOString().split('T')[0]);
-      params.set('period_end', today.toISOString().split('T')[0]);
+    const params = new URLSearchParams();
+    const { start, end } = currentPeriod();
+    params.set('period_start', start);
+    params.set('period_end', end);
       const res = await fetch(`/api/staff/payroll?${params.toString()}`);
       if (res.ok) setData(await res.json());
     } finally {
@@ -65,7 +93,18 @@ export default function StaffPayroll() {
 
   return (
     <div className="px-5 pt-8">
-      <h1 className="text-2xl font-black tracking-tight mb-1">Maaş & Ucma</h1>
+      <div className="flex items-start justify-between mb-1">
+        <h1 className="text-2xl font-black tracking-tight">Maaş & Ucma</h1>
+        <button
+          onClick={downloadCsv}
+          disabled={csvLoading || !profile?.id}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.05] border border-white/10 text-xs font-semibold text-white/70 hover:bg-white/[0.09] hover:text-white transition-colors active:scale-95 disabled:opacity-40"
+          title="Bu dövrün rəsmi maaş hesabatını CSV kimi yüklə"
+        >
+          <Download size={13} />
+          {csvLoading ? 'Yüklənir...' : 'CSV'}
+        </button>
+      </div>
       <p className="text-xs text-white/50 mb-5">Qazandığınız məbləğ və ucma ödənişləri</p>
 
       {/* Period selector */}

@@ -14,6 +14,7 @@ import {
 import { DragTabSwitcher } from '@/components/ui/DragTabSwitcher';
 
 import { TimeClockPanel } from './components/TimeClockPanel';
+import { PayrollExportPanel } from './components/PayrollExportPanel';
 import { ScheduleCalendar } from './components/ScheduleCalendar';
 import { TipManagement } from './components/TipManagement';
 import { BreakManagement } from './components/BreakManagement';
@@ -147,6 +148,7 @@ export default function StaffPage() {
   const [search, setSearch] = useState('');
   const [activeView, setActiveView] = useState<'all' | 'on_shift' | 'off_shift' | 'schedule' | 'owners' | 'couriers'>('all');
   const [showCreateSheet, setShowCreateSheet] = useState(false);
+  const [showPayrollExport, setShowPayrollExport] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
 
   const isFirstLoad = useFirstLoad(400, loading);
@@ -298,6 +300,14 @@ export default function StaffPage() {
           >
             <Download size={14} />
             {t('st_export')}
+          </button>
+          <button
+            onClick={() => setShowPayrollExport(true)}
+            title="Vaxt qeydiyyatı əsasında maaş hesabatı (CSV eksport + tarixçə)"
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-xs font-medium text-emerald-300 hover:bg-emerald-500/20 transition-all"
+          >
+            <FileText size={14} />
+            Maaş eksportu
           </button>
           <button
             onClick={() => setShowCreateSheet(true)}
@@ -483,6 +493,13 @@ export default function StaffPage() {
       <AnimatePresence>
         {showCreateSheet && (
           <CreateStaffSheet onClose={() => setShowCreateSheet(false)} onSuccess={fetchDirectory} />
+        )}
+      </AnimatePresence>
+
+      {/* Payroll Export Sheet */}
+      <AnimatePresence>
+        {showPayrollExport && (
+          <PayrollExportPanel onClose={() => setShowPayrollExport(false)} />
         )}
       </AnimatePresence>
 

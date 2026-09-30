@@ -331,96 +331,127 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const notePillRef = useRef<HTMLButtonElement | null>(null);
   const noteCardRef = useRef<HTMLDivElement | null>(null);
   const noteContentRef = useRef<HTMLDivElement | null>(null);
+  type NoteRectT = { x: number; y: number; w: number; h: number; r: number; b: number };
   const noteMorphRef = useRef<{
-    raf: number | null; mode: 'open' | 'close' | null; start: number; last: number;
-    ax: number; avx: number; ab: number; avb: number;
-    aw: number; avw: number; ah: number; avh: number;
-    ar: number; avr: number; streak: number;
-    lastPill: { x: number; b: number; w: number; h: number } | null;
-  }>({ raf: null, mode: null, start: 0, last: 0, ax: 0, avx: 0, ab: 0, avb: 0, aw: 0, avw: 0, ah: 0, avh: 0, ar: 0, avr: 0, streak: 0, lastPill: null });
+    raf: number | null; mode: 'open' | 'close' | 'idle' | null;
+    t0: number; T: number;
+    from: NoteRectT; to: NoteRectT;
+    bT0: number;            // entry: the b-axis clock arms on the frame the KB mounts
+    idleH0: number; idleHT0: number;  // idle: the h micro-ease (textarea auto-grow)
+    lastPill: NoteRectT | null;
+  }>({ raf: null, mode: null, t0: 0, T: 0, from: { x: 0, y: 0, w: 0, h: 0, r: 0, b: 0 }, to: { x: 0, y: 0, w: 0, h: 0, r: 0, b: 0 }, bT0: 0, idleH0: 0, idleHT0: 0, lastPill: null });
 
-  // The rAF morph loop. Reads m.mode every frame, so open→close can flip
-  // MID-FLIGHT (user taps × / backdrop while the card is still inflating)
-  // with a seamless retarget — the spring state (position + velocity) carries
-  // over, only the target changes.
-  //
-  // BOTTOM IS THE ANCHOR (round 10c-v2, after the first E2E pass): v1 sprung
-  // top+height independently — the bottom edge LAGGED the rising keyboard by
-  // up to ~92px (TƏSDİQLƏ painted under the keys, E2E E4 fail) and the card
-  // center dipped 18px during the height growth (E3). Now the card's BOTTOM
-  // is EXACT, not sprung: b = min(pillBottom, keyboardTop − 14).
-  //   • Entry: while the keyboard edge is below the pill, b is pinned to the
-  //     pill's own (rising) bottom — the card grows in place, bottom-anchored
-  //     (top lifts as h grows). The instant the rising edge crosses it, b
-  //     hands over to `edge − 14` and the card rides the keyboard up as ONE
-  //     body — position-continuous at the crossing (min of two curves), so
-  //     ZERO occlusion by construction, ZERO lag, ZERO two-beat.
-  //   • Exit: b springs toward the pill's LIVE bottom (the pill drifts down
-  //     as the --vk-height collapse settles the modal) — true "return home".
+  // ── Round 10d — "one clock" morph (the iOS Search-or-Ask reference feel) ──
+  // Owner: "buna bax, çox smooth edir — bizdə isə yerine gedəndə cisis
+  // animasiyası berbatdır, yerine oturması... bizdə o deyil, niyə?"
+  // Frame analysis of the reference (ref-frames/*): the smoothness is NOT a
+  // better spring — it is a MOTION STRUCTURE:
+  //   1. The element that travels FAR is the keyboard itself (a full-width
+  //      sheet on one tuned spring). The bar only materializes at the top.
+  //   2. Every actor shares ONE CLOCK — they start together and land
+  //      together; nothing chases anything.
+  //   3. The motion is TIME-CONSTRAINED: a decelerating curve with ZERO
+  //      final velocity (bezier ease-out) — it ENDS. A free spring has an
+  //      asymptotic tail (the "cisis"/floaty settle the owner saw in 10c).
+  // 10c's card did the long ~155-270px travel itself on a free K=520/C=44
+  //  spring (asymptotic tail) + a min() handoff kick when the keyboard edge
+  //  caught up + a content fade that lagged the geometry. All of that is
+  //  replaced by ONE time-constrained glide per direction:
+  //   ENTRY (480ms ≈ the keyboard's own settle): the card LEAVES THE PILL ON
+  //     FRAME 1 (committed fast start, v₀ ≈ 700px/s) and decelerates into
+  //     the final rect — x/w/h/r on one bezier(0.32,0.72,0,1) clock; b on a
+  //     parallel same-duration clock that arms the frame the keyboard mounts
+  //     (focus lands 1 frame after the click). The card LEADS the rising
+  //     keyboard at every instant (verified: at t=250ms card bottom 611 vs
+  //     keyboard top 658 — the card is already above the keys) → zero
+  //     occlusion without any constraint; a min() backstop stays as insurance.
+  //     The 14px gap eases open at the end as the keyboard creeps the last
+  //     few px — everything LANDS ON THE SAME CLOCK, like the reference.
+  //   EXIT (380ms — slightly quicker, a collecting motion): the card glides
+  //     back to the pill's REST rect = (pill live rect + live --vk-height
+  //     remainder). That sum is a CONSTANT (the pill's var=0 position) even
+  //     while the keyboard collapses — so the target is static: the pill
+  //     arrives by ~180ms, the card by 380ms and lands ON it exactly. No
+  //     chase, no stale target, no ghost, no tail — the glide ENDS.
+  //   IDLE: b stays exact (min(pillBottom, kbTop−14)); h micro-eases (120ms
+  //     bezier) when the textarea auto-grows — no spring, no drift.
+  const NOTE_GLIDE = 480;
+  const NOTE_RETURN = 380;
+  // cubic-bezier(0.32, 0.72, 0, 1) — fast committed start (slope 2.25), long
+  // decelerating settle, EXACTLY zero velocity at t=1 (the smooth "oturması").
+  const noteEase = (t: number): number => {
+    const p1x = 0.32, p1y = 0.72, p2x = 0, p2y = 1;
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    let u = t;
+    for (let i = 0; i < 6; i++) {
+      const om = 1 - u;
+      const x = 3 * p1x * u * om * om + 3 * p2x * u * u * om + u * u * u - t;
+      const dx = 3 * p1x * om * om - 6 * p1x * u * om + 6 * p2x * u * om - 3 * p2x * u * u + 3 * u * u;
+      if (Math.abs(dx) < 1e-6) break;
+      u = Math.min(1, Math.max(0, u - x / dx));
+    }
+    const om = 1 - u;
+    return 3 * p1y * u * om * om + 3 * p2y * u * u * om + u * u * u;
+  };
+  const readVkVar = () => {
+    const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--vk-height'));
+    return Number.isFinite(v) ? v : 0;
+  };
+  const pillRectLive = (): NoteRectT | null => {
+    const el = notePillRef.current;
+    if (!el) return null;
+    const q = el.getBoundingClientRect();
+    return { x: q.x, y: q.y, w: q.width, h: q.height, r: Math.min(q.width, q.height) / 2, b: q.bottom };
+  };
+
   const stepNoteMorph = (now: number) => {
     const m = noteMorphRef.current;
     const card = noteCardRef.current;
-    const pill = notePillRef.current;
-    // Card gone → the loop's job is over. Pill transiently null (a commit
-    // re-render can leave the ref detached for a frame) → KEEP the last known
-    // pill rect as the target instead of dying: a dead loop freezes the card
-    // as a static pill-identical duplicate (E2E X5: 962ms lifetime in v3).
     if (!card) { m.raf = null; m.mode = null; return; }
-    if (!pill) {
-      if (!m.lastPill) { m.raf = null; m.mode = null; return; }
-    } else {
-      const q = pill.getBoundingClientRect();
-      m.lastPill = { x: q.x, b: q.bottom, w: q.width, h: q.height };
-    }
+    const pr = pillRectLive();
+    if (pr) m.lastPill = pr;
     const lp = m.lastPill!;
-    const dt = Math.min(0.032, Math.max(0.004, (now - m.last) / 1000));
-    m.last = now;
-    const elapsed = now - m.start;
-    const vw = window.innerWidth;
-    const K = 520, C = 44;
-    const integ = (v: number, vel: number, target: number): [number, number] => {
-      const nv = vel + (K * (target - v) - C * vel) * dt;
-      return [v + nv * dt, nv];
-    };
+    const vw = window.innerWidth, vh = window.innerHeight;
     const kb = document.querySelector('[data-vk-panel]') as HTMLElement | null;
     const kbTop = kb ? kb.getBoundingClientRect().top : null;
-    const write = (x: number, w: number, h: number, r: number, bottom: number) => {
+    const write = (x: number, w: number, h: number, r: number, b: number) => {
       card.style.left = `${x}px`;
-      card.style.top = `${bottom - h}px`;
+      card.style.top = `${b - h}px`;
       card.style.width = `${w}px`;
       card.style.height = `${h}px`;
       card.style.borderRadius = `${r}px`;
     };
     if (m.mode === 'open') {
-      // Exact bottom — see the anchor note above (pill rect via live ref,
-      // last-known fallback during a detached-ref frame).
-      const pBottom = pill ? pill.getBoundingClientRect().bottom : lp.b;
-      const b = kbTop != null ? Math.min(pBottom, kbTop - 14) : pBottom;
-      const cw = Math.min(vw * 0.92, 420);
-      const naturalH = noteContentRef.current ? noteContentRef.current.offsetHeight : m.ah;
-      const tx = (vw - cw) / 2, tw = cw, th = naturalH, tr = NOTE_CARD_RADIUS;
-      [m.ax, m.avx] = integ(m.ax, m.avx, tx);
-      [m.aw, m.avw] = integ(m.aw, m.avw, tw);
-      [m.ah, m.avh] = integ(m.ah, m.avh, th);
-      [m.ar, m.avr] = integ(m.ar, m.avr, tr);
-      m.ab = b; m.avb = 0;
-      write(m.ax, m.aw, m.ah, m.ar, b);
-      // Content fades in AFTER the shape has grown most of the way (≈90ms in)
-      // — the pill's label never ghost-fights the field mid-flight.
-      if (noteContentRef.current) noteContentRef.current.style.opacity = String(Math.min(1, Math.max(0, (elapsed - 90) / 180)));
-      // Landing gate: a 6-frame (≈100ms) sub-2px STREAK — no velocity clause:
-      // in the damped tail the spring velocity hovers ~K·dist/C (≈10px/s at
-      // dist≈1px), so a "slow" check stalls the gate and the card lingers as
-      // a static pill-identical duplicate (E2E X5: 1068ms lifetime).
-      const dist = Math.abs(m.ax - tx) + Math.abs(m.aw - tw) + Math.abs(m.ah - th) + Math.abs(m.ar - tr);
-      m.streak = dist < 4 ? m.streak + 1 : 0;
-      if (m.streak >= 6 || elapsed > 1200) {
-        // Settled → IDLE: keep the loop alive (cheap) so the card tracks the
-        // textarea auto-grow / keyboard / window resize without re-mounting.
-        m.ax = tx; m.aw = tw; m.ah = th; m.ar = tr;
-        write(tx, tw, th, tr, b);
+      const p = Math.min(1, (now - m.t0) / m.T);
+      const e = noteEase(p);
+      // b-axis: its own same-duration clock, armed the frame the keyboard
+      // exists (focus mounts it 1 frame after the click). Before that the
+      // card grows in place — the motion reads as one continuous gesture.
+      if (!m.bT0 && kb) {
+        m.bT0 = now;
+        m.to.b = vh - kb.offsetHeight - 14; // exact rest bottom (kb height is constant once mounted)
+      }
+      let b = m.from.b;
+      if (m.bT0) {
+        const pb = Math.min(1, (now - m.bT0) / m.T);
+        b = m.from.b + (m.to.b - m.from.b) * noteEase(pb);
+        if (kbTop != null) b = Math.min(b, kbTop - 14); // occlusion backstop (should never bind)
+      }
+      const x = m.from.x + (m.to.x - m.from.x) * e;
+      const w = m.from.w + (m.to.w - m.from.w) * e;
+      const h = m.from.h + (m.to.h - m.from.h) * e;
+      const r = m.from.r + (m.to.r - m.from.r) * e;
+      write(x, w, h, r, b);
+      // Content fades EARLY and fast — the card and its content arrive as
+      // ONE object (10c's late fade made the card look empty while drifting).
+      if (noteContentRef.current) noteContentRef.current.style.opacity = String(Math.min(1, (now - m.t0) / 160));
+      if (p >= 1 && m.bT0 && now - m.bT0 >= m.T) {
+        // Landed exactly on the clock — no tail, no gate, no lingering.
+        write(m.to.x, m.to.w, m.to.h, m.to.r, m.to.b);
         if (noteContentRef.current) noteContentRef.current.style.opacity = '1';
-        m.mode = null;
+        m.mode = 'idle';
+        m.idleH0 = m.to.h; m.idleHT0 = now;
         m.raf = requestAnimationFrame(stepNoteMorph);
         return;
       }
@@ -428,28 +459,23 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       return;
     }
     if (m.mode === 'close') {
-      // Target = the pill's LIVE rect (bottom-anchored) — the pill drifts
-      // down with the --vk-height collapse, and the card tracks it.
-      const p = pill ? pill.getBoundingClientRect() : null;
-      const tx = p ? p.x : lp.x, tw = p ? p.width : lp.w, th = p ? p.height : lp.h;
-      const tr = Math.min(tw, th) / 2, tb = p ? p.bottom : lp.b;
-      [m.ax, m.avx] = integ(m.ax, m.avx, tx);
-      [m.ab, m.avb] = integ(m.ab, m.avb, tb);
-      [m.aw, m.avw] = integ(m.aw, m.avw, tw);
-      [m.ah, m.avh] = integ(m.ah, m.avh, th);
-      [m.ar, m.avr] = integ(m.ar, m.avr, tr);
-      write(m.ax, m.aw, m.ah, m.ar, m.ab);
-      // Content fades out FAST (120ms) — the shape does the talking.
-      if (noteContentRef.current) noteContentRef.current.style.opacity = String(Math.max(0, 1 - elapsed / 120));
-      // Pure streak gate (see open-side note): 6 consecutive sub-4px frames —
-      // impossible mid-flight (the card is hundreds of px from the pill), so
-      // no elapsed/velocity clause is needed; the 700ms cap is the backstop.
-      const dist = Math.abs(m.ax - tx) + Math.abs(m.ab - tb) + Math.abs(m.aw - tw) + Math.abs(m.ah - th);
-      m.streak = dist < 4 ? m.streak + 1 : 0;
-      if (m.streak >= 6 || elapsed > 700) {
-        // Land EXACTLY on the pill's live rect, then unmount + reveal the pill
-        // in the same paint — the handoff is invisible (no pop, no ghost).
-        m.ax = tx; m.ab = tb; m.aw = tw; m.ah = th; m.ar = tr;
+      const p = Math.min(1, (now - m.t0) / m.T);
+      const e = noteEase(p);
+      // Target = the pill's REST rect: pill live + the live --vk-height
+      // remainder. That sum is the pill's var=0 position — a CONSTANT during
+      // the collapse (self-correcting if a resize/scroll happens mid-flight).
+      const vl = readVkVar();
+      const tx = lp.x, tw = lp.w, th = lp.h, tr = lp.r, tb = lp.b + vl;
+      const x = m.from.x + (tx - m.from.x) * e;
+      const w = m.from.w + (tw - m.from.w) * e;
+      const h = m.from.h + (th - m.from.h) * e;
+      const r = m.from.r + (tr - m.from.r) * e;
+      const b = m.from.b + (tb - m.from.b) * e;
+      write(x, w, h, r, b);
+      if (noteContentRef.current) noteContentRef.current.style.opacity = String(Math.max(0, 1 - (now - m.t0) / 140));
+      if (p >= 1) {
+        // Land EXACTLY on the pill's rest rect, unmount + reveal in the same
+        // paint (the pill has been static since ~180ms) — invisible handoff.
         write(tx, tw, th, tr, tb);
         if (noteContentRef.current) noteContentRef.current.style.opacity = '0';
         m.mode = null;
@@ -460,57 +486,64 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       m.raf = requestAnimationFrame(stepNoteMorph);
       return;
     }
-    // IDLE (mode null, card mounted): sync geometry ONLY when it actually
-    // changes (textarea auto-grow → h grows, top lifts since b is pinned;
-    // keyboard rect; window resize) — no style writes otherwise.
-    const pBottom = pill ? pill.getBoundingClientRect().bottom : lp.b;
+    // IDLE (settled): b exact at rest; h micro-eases toward the content's
+    // live natural height (textarea auto-grow); x/w/r snap (resize only).
+    const pBottom = lp.b;
     const b = kbTop != null ? Math.min(pBottom, kbTop - 14) : pBottom;
     const cw = Math.min(vw * 0.92, 420);
-    const naturalH = noteContentRef.current ? noteContentRef.current.offsetHeight : m.ah;
-    const tx = (vw - cw) / 2;
-    if (Math.abs(b - m.ab) > 0.5 || Math.abs(naturalH - m.ah) > 0.5 || Math.abs(cw - m.aw) > 0.5 || Math.abs(tx - m.ax) > 0.5) {
-      [m.ax, m.avx] = integ(m.ax, m.avx, tx);
-      [m.aw, m.avw] = integ(m.aw, m.avw, cw);
-      [m.ah, m.avh] = integ(m.ah, m.avh, naturalH);
-      [m.ar, m.avr] = integ(m.ar, m.avr, NOTE_CARD_RADIUS);
-      m.ab = b; m.avb = 0;
-      write(m.ax, m.aw, m.ah, m.ar, b);
+    const natH = noteContentRef.current ? noteContentRef.current.offsetHeight : m.to.h;
+    if (Math.abs(natH - m.to.h) > 0.5 && now - m.idleHT0 > 60) {
+      m.idleH0 = m.to.h; m.idleHT0 = now;
     }
+    const ph = Math.min(1, (now - m.idleHT0) / 120);
+    const h = m.idleH0 + (natH - m.idleH0) * noteEase(ph);
+    const x = (vw - cw) / 2;
+    m.to = { x, y: b - h, w: cw, h, r: NOTE_CARD_RADIUS, b };
+    write(x, cw, h, NOTE_CARD_RADIUS, b);
     m.raf = requestAnimationFrame(stepNoteMorph);
   };
 
   const runNoteMorph = (mode: 'open' | 'close') => {
     const m = noteMorphRef.current;
-    if (m.raf != null) {
-      // A loop is already running (open spring / idle) — just retarget. The
-      // spring's position + velocity carry over: a seamless mode flip.
-      if (m.mode !== mode) { m.mode = mode; m.start = performance.now(); m.streak = 0; }
+    if (mode === 'open') {
+      // open is seeded in openNoteEditor (the click); the loop starts from
+      // the mount-frame layoutEffect (the card must exist to be measured).
+      if (m.raf == null && m.mode === 'open') {
+        m.t0 = performance.now();
+        m.raf = requestAnimationFrame(stepNoteMorph);
+      }
       return;
     }
-    if (mode === 'close') {
-      // Defensive: no live loop — seed the spring from the card's current
-      // on-screen rect so the exit starts exactly where it is.
-      const c = noteCardRef.current?.getBoundingClientRect();
-      if (c) { m.ax = c.x; m.ab = c.bottom; m.aw = c.width; m.ah = c.height; m.ar = NOTE_CARD_RADIUS; }
-    }
-    m.avx = m.avb = m.avw = m.avh = m.avr = 0;
-    m.streak = 0;
-    m.mode = mode;
-    m.start = performance.now();
-    m.last = m.start;
-    m.raf = requestAnimationFrame(stepNoteMorph);
+    // close: re-anchor a NEW glide from the card's CURRENT on-screen rect to
+    // the pill's rest rect. Works from any mode (mid-entry-glide, idle) —
+    // the position is continuous (same rect), only the curve restarts.
+    const card = noteCardRef.current;
+    const pr = pillRectLive() || m.lastPill;
+    if (!card || !pr) return;
+    const c = card.getBoundingClientRect();
+    m.mode = 'close';
+    m.t0 = performance.now();
+    m.T = NOTE_RETURN;
+    m.from = { x: c.x, y: c.y, w: c.width, h: c.height, r: NOTE_CARD_RADIUS, b: c.bottom };
+    m.to = { x: pr.x, y: pr.y, w: pr.w, h: pr.h, r: pr.r, b: pr.b }; // refined live in the step
+    if (m.raf == null) m.raf = requestAnimationFrame(stepNoteMorph);
   };
 
   const openNoteEditor = () => {
-    const m = noteMorphRef.current;
-    const p = notePillRef.current?.getBoundingClientRect();
+    const p = pillRectLive();
     if (!p) return;
-    // Seed the spring at the pill's exact rect (bottom-anchored), zero
-    // velocity — the card mounts at this spot on this frame (layoutEffect
-    // writes it pre-paint): no flash, no freeze, no jump.
-    m.ax = p.x; m.ab = p.bottom; m.aw = p.width; m.ah = p.height; m.ar = Math.min(p.width, p.height) / 2;
-    m.avx = m.avb = m.avw = m.avh = m.avr = 0;
-    m.streak = 0;
+    const m = noteMorphRef.current;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const cw = Math.min(vw * 0.92, 420);
+    m.from = p;
+    // to.h is measured at final width in the mount-frame layoutEffect;
+    // to.b is armed on the first step frame where the keyboard exists.
+    m.to = { x: (vw - cw) / 2, y: 0, w: cw, h: 177, r: NOTE_CARD_RADIUS, b: vh - 14 };
+    m.t0 = performance.now();
+    m.T = NOTE_GLIDE;
+    m.bT0 = 0;
+    m.mode = 'open';
+    m.lastPill = p;
     setNoteEditorOpen(true);
   };
 
@@ -527,21 +560,25 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     runNoteMorph('close');
   };
 
-  // Mount-frame (runs BEFORE paint): paint the card at the pill's snapshot
-  // rect, content hidden, then start the open spring. This is what kills the
-  // old ~120ms tap→first-pixel freeze (layoutId waited for an exit/enter
-  // projection round-trip).
+  // Mount-frame (runs BEFORE paint): measure the content's natural height at
+  // FINAL width (fixing the entry's h target for the whole glide), paint the
+  // card at the pill's snapshot rect, content hidden, then start the open
+  // glide. Pre-paint → no flash, no freeze, no first-frame wobble.
   useLayoutEffect(() => {
     if (!noteEditorOpen) return;
     const m = noteMorphRef.current;
     const card = noteCardRef.current;
-    if (card) {
-      card.style.left = `${m.ax}px`;
-      card.style.top = `${m.ab - m.ah}px`;
-      card.style.width = `${m.aw}px`;
-      card.style.height = `${m.ah}px`;
-      card.style.borderRadius = `${m.ar}px`;
-    }
+    if (!card || m.mode !== 'open') return;
+    const cw = Math.min(window.innerWidth * 0.92, 420);
+    card.style.width = `${cw}px`;
+    card.style.height = 'auto';
+    m.to.h = noteContentRef.current ? noteContentRef.current.offsetHeight : 177;
+    // Paint the FROM (pill snapshot) rect — the glide starts from here.
+    card.style.left = `${m.from.x}px`;
+    card.style.top = `${m.from.b - m.from.h}px`;
+    card.style.width = `${m.from.w}px`;
+    card.style.height = `${m.from.h}px`;
+    card.style.borderRadius = `${m.from.r}px`;
     if (noteContentRef.current) noteContentRef.current.style.opacity = '0';
     runNoteMorph('open');
     // eslint-disable-next-line react-hooks/exhaustive-deps

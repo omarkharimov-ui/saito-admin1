@@ -809,6 +809,21 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-30 (ROUND 10d: QEYD MORPH "ONE CLOCK" — owner: "buna bax (iOS Search-or-Ask video), çox smooth edir — bizdə isə yerine gedəndə cisis animasiyası berbatdır, niyə?")
+
+- **Reference frame analizi** (ref-smooth.mp4, 240fps slow-mo, ref-frames/*): iOS 26 "Search or Ask" bar-ı. Smooth-luğu spring-dən GƏLİRMİR — motion STRUCTURE-dandır: (1) UZAQ məsafəni klaviatura özü gedir (full-width sheet, bir spring); bar yalnız top-da materialize olur; (2) BÜTÜN aktörler BİR CLOCK paylaşır — birlikdə start, birlikdə landing, heç kim heç kimi təqib etmir; (3) motion TIME-CONSTRAINED — zero final velocity bezier (bitir, kuyruqu yoxdur). 10c isə: card 155–270px glide+resize ÖZÜ edirdi, free spring (asymptotic tail = "cisis") + min() handoff velocity kick + content fade geometry-nin arxasında qalırdı.
+- **FIX (spring LƏĞV olundu):** hər istiqamət BİR time-constrained glide — `cubic-bezier(0.32,0.72,0,1)` (start slope 2.25 = committed; t=1-də slope 0 = exact smooth stop):
+  - **ENTRY (480ms ≈ klaviaturanın öz settle-i):** card FRAME 1-DƏ pill-dən çıxır (v₀≈700px/s); x/w/h/r bir clock; b = ayrıcı eyni-durasiya clock (kb mount frame-də arm — focus 1 frame sonra). Eyni clock+curve → card bottom klaviatura top-unu **SABİT 14px gap-də ride edir** (E2E: −14.0px worst, hər kadrda ~sabit) = rigid coupling, "bir bədən" (reference feel). Occlusion backstop `min(b, kbTop−14)` sığorta (heç vaxt bind etmədi).
+  - **EXIT (380ms — collecting, biraz sürətli):** card pill-in REST rect-inə glide edir = `(pill live + live --vk-height remainder)` — bu cəmlə var=0 mövqeyi, COLLAPSE müddətində KONSTANT (pill ~180ms-də yerinə çatar, card 380ms-də → EXACT landing, chase/stale/ghost YOX).
+  - **IDLE:** b = exact min formula (rest); h = 120ms bezier micro-ease (textarea auto-grow); x/w/r snap (yalnız resize).
+  - **Landing = clock end** (480/380ms deterministic) — streak gate/cap/velocity check hamısı YOX (tail yoxdur ki, gate lazımdır).
+  - **Content fade erkən+vəzi:** entry 0→160ms (10c: 90→270ms — kart "boş halda sürüşürdü"), exit →140ms.
+  - to.h layoutEffect-də FINAL width-də ölçülür (pre-paint, no flash, no wobble).
+- **E2E round 6 (4 run, hər iki theme, 16–17ms rezolyusiya, r10d-*):** A committed start: 68.6px/50ms (entry), 240.7px (exit) ✅; B′ vk-relative deceleration MONOTONE: entry 429→335→45→15→4→0.5, exit 513→324→51→4→0 ✅; C zero-velocity end: 4.0–9.7px/last 80ms ✅; **D DEAD-STILL SETTLE: 0.2–0.5px max drift / 500ms (owner-in "cisis" şikayəti — VURULDU)** ✅; E entry occlusion: −14px ✅ (sabit 14px ride); F lifetime: entry 468/477ms, exit 349/363ms, landing Δ **0.0px EXACT** ✅; G pill revealed, duplicate YOX ✅; Console **0** ✅.
+- **Qəbul edilmiş trade-off (owner-a qeyd):** exit-də card bağlanan klaviaturanın ÖNÜNDƏN keçir (~110ms, max +47px overlap; z=10003, content artıq 0% opacity) — "kart klaviaturanın önündən geri qaytarılır" read; iOS reference-də belə yol yoxdu (bar top-da) amma bizim strukturdə card-ın pill-ə yolu klaviatura üzərindən keçməlidir. Alternativ (start delay 60ms) close-ləy yavaşladardı (owner əvvəl "klaviye gec bağlanır" deyə şikayət etmişdi) — trade-off bu tərəfdə saxlanıldı.
+- **Bilinmiş (mühit, bug deyil):** entry onset ≈55–70ms = tap duration (pointerdown→click) + 1–2 commit frame (dev HMR); production-da 1 frame.
+- **Fayl (1):** `ProductGrid.tsx` (engine: NOTE_GLIDE/NOTE_RETURN + noteEase bezier solver + NoteRectT state + stepNoteMorph open/close/idle + runNoteMorph re-anchor + openNoteEditor + layoutEffect h-measure). `tsc --noEmit` clean.
+
 ### Jurnal sətiri — 2026-09-30 (ROUND 10c: QEYD MORPH — layoutId YOX, MANUAL rAF SPRING (LIVE TARGET TRACKING) — giriş/çıxış bugları)
 
 - **Owner turn**: "indidee berbat buglar var — giriş və çıxış animasiyasında; brauzerdə 'Qeyd əlavə et'-ə bas, görəcəksən — həm giriş həm çıxışda berbat buglar var."

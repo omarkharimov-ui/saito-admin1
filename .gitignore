@@ -73,3 +73,6 @@ SECRETS.local.md
 .audit-*.cjs
 .audit-*.json
 .audit-*.txt
+
+# derived reference-video frames (regenerate: ffmpeg -i e2e-shots/ref-smooth.mp4 -vf fps=12 e2e-shots/ref-frames/f_%03d.png)
+artifacts/saito-admin/e2e-shots/ref-frames/

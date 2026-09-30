@@ -112,6 +112,14 @@ export function TableProvider({ children }: { children: React.ReactNode }) {
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Payment failed');
+      const data = await res.json().catch(() => ({}));
+      if (data?.queued) {
+        // 11f (offline): payment captured into the queue — it will be applied
+        // server-side on reconnect (idempotency key prevents double charge).
+        toast.success('Ödəniş offline növbəyə yazıldı — bağlantı qayıdanda avtomatik işlənəcək ✓');
+        await refresh();
+        return;
+      }
       toast.success('Bill closed');
       await refresh();
     } catch (e: unknown) {

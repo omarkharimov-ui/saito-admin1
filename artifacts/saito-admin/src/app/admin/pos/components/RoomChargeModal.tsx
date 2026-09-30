@@ -6,15 +6,20 @@ import { Building2, X, User } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
-import { apiFetch } from '@/lib/api-fetch';
-import { toast } from '@/lib/toast';
 import { appleCard, fastExit } from '@/lib/modal-transitions';
 
 interface RoomChargeModalProps {
   open: boolean;
   onClose: () => void;
   amount: number;
-  onSuccess: () => void;
+  // 11f: the modal is now INPUT-ONLY. It no longer POSTs /api/orders/pay
+  // itself — that call was structurally broken (sent `method`/`amount` with
+  // NO order_id, so the server's `order_id is required` guard 400'd every
+  // room-charge payment). The canonical payment is made by the parent via
+  // onPaymentMethodSelect('room_charge') → runPaymentFlow, which carries the
+  // order_id, payment_method and an idempotency key. We pass the collected
+  // reference (room · guest) so it lands in order_payments.reference.
+  onSuccess: (reference?: string) => void;
 }
 
 export function RoomChargeModal({ open, onClose, amount, onSuccess }: RoomChargeModalProps) {
@@ -23,37 +28,17 @@ export function RoomChargeModal({ open, onClose, amount, onSuccess }: RoomCharge
   const keyboardHeight = useKeyboardHeight();
   const [roomNumber, setRoomNumber] = useState('');
   const [guestName, setGuestName] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
   const canPay = roomNumber.length >= 1 && guestName.length >= 1;
 
-  const handlePay = async () => {
+  const handlePay = () => {
     if (!canPay) return;
-    setLoading(true);
-    try {
-      const res = await apiFetch('/api/orders/pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'room_charge',
-          amount,
-          room_number: roomNumber,
-          guest_name: guestName,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(t('room_charge_success') || 'Otaq hesabına yazıldı');
-        onSuccess();
-        onClose();
-      } else {
-        toast.error(data.error || t('room_charge_failed') || 'Ödəniş uğursuz oldu');
-      }
-    } catch {
-      toast.error(t('network_error') || 'Şəbəkə xətası');
-    } finally {
-      setLoading(false);
-    }
+    // 11f: input-only. The reference is recorded on the payment by the
+    // parent's canonical runPaymentFlow('room_charge', …, ref) call.
+    const reference = `Otaq ${roomNumber} · ${guestName}`;
+    onSuccess(reference);
+    onClose();
   };
 
   return (

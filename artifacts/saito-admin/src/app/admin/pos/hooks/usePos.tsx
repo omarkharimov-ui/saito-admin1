@@ -660,7 +660,11 @@ export function usePos() {
           // price × qty → cart 41.00 vs real order 35.00, Row B's modifiers +
           // allergen chip lost). Each server order_item IS one instance →
           // one cart line, no merge.
-          for (const item of orderItems.filter((i: any) => groupIds.has(i.order_id))) {
+          // 11f (VOID anomaly, part 1): a PARTIAL void keeps the order active
+          // (primary is found) but /api/orders returns order_items(*) with no
+          // status filter — voided/cancelled rows would re-enter the cart as
+          // live sent lines. Drop them at the rehydration boundary.
+          for (const item of orderItems.filter((i: any) => groupIds.has(i.order_id) && !['voided', 'cancelled'].includes(i.kitchen_status))) {
             const mapped = {
               id: item.id,
               product_id: item.product_id,
@@ -742,9 +746,26 @@ export function usePos() {
           // THIS table's drafts (data-only restore + tap), keep them — they
           // belong here. Only drafts of a DIFFERENT table get cleared.
           const draftsAreThisTables = cart?.table_number === table.table_number;
+          // 11f (VOID anomaly, part 2 — the reported bug): voiding the LAST
+          // sent line CANCELS the whole order server-side (DB-verified:
+          // item `voided`, order `cancelled`). Old code kept the local cart
+          // untouched when re-hydrating the SAME table → the voided row
+          // reappeared right after the success toast. If this table's final
+          // orders ended as voided/cancelled, the sent lines no longer exist
+          // server-side → drop them (local drafts survive). PAID orders keep
+          // the old behavior (sent rows = repeat-order affordance).
+          const orderIsDead = orders.some((o: any) =>
+            o.table_number === table.table_number
+            && isFinalOrderStatus(o.status)
+            && (o.status === 'voided' || o.status === 'cancelled')
+          );
           setCart(prev => {
             if (!prev) return null;
-            if (draftsAreThisTables) return prev;
+            if (draftsAreThisTables) {
+              return orderIsDead
+                ? { ...prev, items: prev.items.filter(i => (i.sentQuantity ?? 0) === 0) }
+                : prev;
+            }
             // Keep only sent (server-synced) items, drop all drafts
             const kept = prev.items.filter(i => (i.sentQuantity ?? 0) > 0);
             if (kept.length === prev.items.length) return prev; // nothing to clear
@@ -1693,17 +1714,18 @@ export function usePos() {
       // subtracts it exactly once (create) / re-applies it on item-sum
       // recomputes (addItems) and stamps the order with the campaign_id.
       const coupon = (cart as any).coupon;
-      // 11e (offline): a stable per-attempt idempotency key for NEW-order
-      // creates — the offline queue replays the SAME body (same key), and the
-      // server dedupes by key, so a create that actually landed before the
-      // network died can never be double-created on replay/retry.
-      const createIdemKey = crypto.randomUUID();
+      // 11e/11f (offline): a stable per-attempt idempotency key for BOTH
+      // creates AND appends (11f) — the offline queue replays the SAME body
+      // (same key), and the server dedupes by key, so a send that actually
+      // landed before the network died can never be double-created/double-
+      // inserted on replay, 5xx retry, or manual re-sync.
+      const sendIdemKey = crypto.randomUUID();
       const orderBody = JSON.stringify(
           activeOrderId
-            ? { action: 'addItems', id: activeOrderId, items: unsent, terminal_id: terminalId, ...(coupon ? { coupon: { campaign_id: coupon.campaign_id, amount: coupon.discount_amount } } : {}) }
+            ? { action: 'addItems', id: activeOrderId, idempotency_key: sendIdemKey, items: unsent, terminal_id: terminalId, ...(coupon ? { coupon: { campaign_id: coupon.campaign_id, amount: coupon.discount_amount } } : {}) }
             : {
                 ...(cart.table_number !== undefined && cart.table_number !== null ? { table_number: cart.table_number } : {}),
-                idempotency_key: createIdemKey,
+                idempotency_key: sendIdemKey,
                 terminal_id: terminalId,
                 items: unsent,
                 status: 'confirmed',

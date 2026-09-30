@@ -59,7 +59,7 @@ interface ActionSheetProps {
   onCancelTable?: () => void;
   onReleaseTable?: () => void;
   onOpenPayment?: () => void;
-  onPaymentMethodSelect?: (method: PaymentMethod, tenderedAmount?: number, tipAmount?: number) => void;
+  onPaymentMethodSelect?: (method: PaymentMethod, tenderedAmount?: number, tipAmount?: number, cardRef?: string) => void;
   onSplitConfirm?: (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }, tipAmount?: number) => void;
   onDismissGroup?: () => void;
   onBackFromPayment?: () => void;
@@ -1328,7 +1328,7 @@ export function ActionSheet({
         open={roomChargeModalOpen}
         onClose={() => setRoomChargeModalOpen(false)}
         amount={table?.total_amount || 0}
-        onSuccess={() => { onPaymentMethodSelect?.('room_charge', undefined, parseFloat(tipAmount) || 0); }}
+        onSuccess={(ref) => { onPaymentMethodSelect?.('room_charge', undefined, parseFloat(tipAmount) || 0, ref); }}
       />
 
       {/* Corporate Modal */}
@@ -1336,7 +1336,7 @@ export function ActionSheet({
         open={corporateModalOpen}
         onClose={() => setCorporateModalOpen(false)}
         amount={table?.total_amount || 0}
-        onSuccess={() => { onPaymentMethodSelect?.('corporate', undefined, parseFloat(tipAmount) || 0); }}
+        onSuccess={(ref) => { onPaymentMethodSelect?.('corporate', undefined, parseFloat(tipAmount) || 0, ref); }}
       />
     </>
   );

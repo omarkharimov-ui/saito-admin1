@@ -809,6 +809,50 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-30 (ROUND 11f: QALANLAR TƏMAMI — offline phase-2 quick batch + VOID anomaly + 2 broken payment yol)
+
+Owner: "qalanlarida tezz tamamla". 4 istiqamet, hamisi E2E-verified:
+
+1. **VOID ANOMALY DÜZƏLDİLDİ (long-standing known issue):** root cause =
+   `usePos.selectTable` re-hydration. Void edən zaman DB: item `voided` + (sonuncu
+   xətsə void olunsa) order `cancelled` → GET `/api/orders` (order_items(*) filter-siz)
+   → `primary=null` → else branch `if (draftsAreThisTables) return prev` = cart toxunulmaz
+   qalırdı → void edilmiş xətt success toast-dan dərhal SOVURULURDU. FIX (2 qat):
+   (a) partial-void: serverItems filter + `!['voided','cancelled'].includes(kitchen_status)`
+   (order active qalsa da voided xəttsə cart-a qayıtmır); (b) full-void: else branch
+   `orderIsDead` (final order voided/cancelled) → sent xəttsələri drop, drafts qalır.
+   PAID order-lar köhnə behavior saxlayır (sent rows = repeat-order affordance).
+   E2E (r11i): Masa 97 Coke göndər → void → toast "1x Coca-Cola — 3.00₼ ləğv edildi" →
+   cart "MƏHSUL YOXDUR" və 3s rehydration-dan sonra DAHA boş qalır ✓ console 0.
+2. **Append (addItems) idempotency — offline auto-replay SAF oldu:** key-recording əvvəl
+   create-branch-də idi; indi addItems branch + implicit-append (existingOrder) path-də
+   də yazılır. `usePos.placeOrder`: `sendIdemKey` (əvvəl createIdemKey) BOTH branch-lərə
+   gedir → /api/orders tam auto-replay-safe (create + append). Bonus: 5xx retry append üçün
+   də duplicate-safe oldu. API E2E (Masa 10): create ₼3 → addItems(key A) ₼6 → EYNİ key A
+   replay → `idempotent:true`, total ₼6 (items=2 DB-verified, duplicate YOX) ✓.
+3. **Offline PAYMENT UI:** `/api/orders/pay` (AUTO_REPLAY, server idempotency tələb edir)
+   202-{queued} cavabını 7 caller-dən yalnız 1-i (multi-pay) işləyirdi → indi hamısı:
+   single-order pay, split (hər 2 loop), retryFailedPayments, TableContext.closeBill,
+   RoomCharge, Corporate — "Ödəniş offline növbəyə yazıldı ✓" toast, fake "paid" YOX.
+4. **ROOM-CHARGE / CORPORATE payment TƏMAMEN BROKEN idi (pre-existing):** modallar öz
+   `/api/orders/pay` POST-unu `method`+`amount`+order_id-siz atırdılar → server
+   `order_id is required` 400 → HƏR room/corporate ödənişi fail + success toast yox.
+   Arxitektura: real ödəniş parent `runPaymentFlow(method)`-dən keçir (order_id +
+   idempotency_key + idarə olunan). FIX: modallar INPUT-ONLY → `onSuccess(reference)` →
+   `onPaymentMethodSelect(method, …, ref)` → `runPaymentFlow(…, cardRef=ref)` →
+   `card_reference` = "Otaq 12 · John" / "ACME · PO-123" (order_payments.reference).
+5. **Settings Terminals duplicate-key spam (500× "two children with same key"):**
+   `/api/devices` location filter-siz → eyni fiziki cihaz (stabil device_id) iki
+   location-da heartbeat atanda 2 sətir = eyni React key. FIX: client dedup
+   (Map by device_id, ən yeni last_seen qalır). E2E (r11i): console 0/0 ✓.
+- **Fayl (9):** `api/orders/route.ts` (2 key-record), `usePos.tsx` (sendIdemKey + void
+  filter + orderIsDead), `TableContext.tsx`, `admin/pos/page.tsx` (4 pay sitesi +
+  cardRef forward), `ActionSheet.tsx` (type + 2 onSuccess), `RoomChargeModal.tsx`,
+  `CorporateModal.tsx` (input-only rewrite), `TerminalsTab.tsx` (dedup). tsc clean.
+- **Artıq known open YOX:** VOID anomaly closed. Qalan known: offline append REPLAY
+  cavabının cart order_id-a bağlanması (UI cosmetic — server self-heal append edir),
+  real PSP (owner qərarı).
+
 ### Jurnal sətiri — 2026-09-30 (ROUND 11e: OFFLINE ORDER INTAKE + SYNC (competitive gap 2) — marathon sonuncu (5-ci) gap)
 
 - **Scope:** offline phase 1 (monitor/queue/cache/apiFetch/OFFLINE_BLOCKED money routes/OfflineBanner) ZİRƏDƏN VARDI — qalan nüvə = order CREATE-in offline-queue replay-ə SAF olması. Pay/void/refund = phase 2 (blocklu qalır, fake "paid" heç vaxt yoxdur).

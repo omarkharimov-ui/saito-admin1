@@ -68,10 +68,21 @@ const TerminalsTab = () => {
     if (!silent) setRefreshing(true);
     try {
       const res = await apiFetch('/api/devices');
-      if (res.ok) {
-        const j = await res.json();
-        setDevices(j.devices || []);
-      }
+        if (res.ok) {
+          const j = await res.json();
+          // 11f (E2E catch — "two children with the same key" ×500): the
+          // server list has NO location filter, so the same physical device
+          // (stable device_id UUID) that heartbeats under two locations
+          // produces two rows with the SAME React key. Dedupe client-side:
+          // keep the freshest heartbeat per device.
+          const byKey = new Map<string, (typeof j.devices)[number]>();
+          for (const d of j.devices || []) {
+            const k = d.device_id || `${d.type}::${d.name}`;
+            const ex = byKey.get(k);
+            if (!ex || (d.last_seen_at || '') > (ex.last_seen_at || '')) byKey.set(k, d);
+          }
+          setDevices([...byKey.values()]);
+        }
     } catch { /* network hata — növbəti poll */ }
     finally { setLoading(false); setRefreshing(false); }
   }, []);

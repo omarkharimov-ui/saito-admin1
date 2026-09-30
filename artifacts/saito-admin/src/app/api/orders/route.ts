@@ -582,6 +582,18 @@ export async function POST(request: Request) {
           { headers: svc().headers }
         );
         const updated = (await updatedRes.json())?.[0];
+        // 11f (offline phase 2): record the idempotency key for APPENDS too —
+        // the dedup check at the top of this branch already short-circuits a
+        // replayed addItems (returns the original order); the recorded key is
+        // what makes the replay recognizable. This also makes the 5xx retry in
+        // placeOrder safe for appends (same key → no double insert).
+        if (hasIdemKey) {
+          fetch(`${svc().url}/rest/v1/order_idempotency_keys`, {
+            method: 'POST',
+            headers: svc().headers,
+            body: JSON.stringify({ key: idempotency_key, order_id: id }),
+          }).catch(() => {});
+        }
         return updated || { id };
       }
 
@@ -884,6 +896,15 @@ export async function POST(request: Request) {
         if (!tablePatchRes2.ok) {
           const errText = await tablePatchRes2.text();
           console.error('[POST /api/orders] table_floors update failed:', tablePatchRes2.status, errText);
+        }
+        // 11f: implicit-append path (a create request that found an active
+        // order on the table) — same idempotency contract as addItems.
+        if (hasIdemKey) {
+          fetch(`${svc().url}/rest/v1/order_idempotency_keys`, {
+            method: 'POST',
+            headers: svc().headers,
+            body: JSON.stringify({ key: idempotency_key, order_id: activeOrderId }),
+          }).catch(() => {});
         }
       } else {
         // Create new order

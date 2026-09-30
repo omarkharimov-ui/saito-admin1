@@ -6,15 +6,17 @@ import { Building2, X } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
-import { apiFetch } from '@/lib/api-fetch';
-import { toast } from '@/lib/toast';
 import { appleCard, fastExit } from '@/lib/modal-transitions';
 
 interface CorporateModalProps {
   open: boolean;
   onClose: () => void;
   amount: number;
-  onSuccess: () => void;
+  // 11f: input-only (see RoomChargeModal) — the modal's own /api/orders/pay
+  // POST was structurally broken (no order_id, `method` instead of
+  // payment_method → 400 every time). The parent makes the canonical,
+  // idempotent payment; we hand it the collected reference.
+  onSuccess: (reference?: string) => void;
 }
 
 export function CorporateModal({ open, onClose, amount, onSuccess }: CorporateModalProps) {
@@ -23,37 +25,17 @@ export function CorporateModal({ open, onClose, amount, onSuccess }: CorporateMo
   const keyboardHeight = useKeyboardHeight();
   const [companyName, setCompanyName] = useState('');
   const [reference, setReference] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
   const canPay = companyName.length >= 2;
 
-  const handlePay = async () => {
+  const handlePay = () => {
     if (!canPay) return;
-    setLoading(true);
-    try {
-      const res = await apiFetch('/api/orders/pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'corporate',
-          amount,
-          company_name: companyName,
-          reference: reference || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(t('corporate_success') || 'Korporativ hesaba yazıldı');
-        onSuccess();
-        onClose();
-      } else {
-        toast.error(data.error || t('corporate_failed') || 'Ödəniş uğursuz oldu');
-      }
-    } catch {
-      toast.error(t('network_error') || 'Şəbəkə xətası');
-    } finally {
-      setLoading(false);
-    }
+    // 11f: input-only. The reference (company · ref) is recorded on the
+    // payment by the parent's canonical runPaymentFlow('corporate', …, ref).
+    const ref = reference.trim() ? `${companyName} · ${reference.trim()}` : companyName;
+    onSuccess(ref);
+    onClose();
   };
 
   return (

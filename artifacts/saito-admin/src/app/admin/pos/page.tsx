@@ -1162,11 +1162,22 @@ export default function POSPage() {
             pos.fetchData();
             return;
           }
-          toast.error(err.error || t('payment_failed'), { id: 'action-toast' });
-          return;
-        }
+           toast.error(err.error || t('payment_failed'), { id: 'action-toast' });
+           return;
+         }
 
-        toast.success(t('order_paid'), { id: 'action-toast' });
+         // 11f (offline): queued payment — it will be applied on reconnect
+         // (idempotency key prevents double charge). Do NOT toast "paid".
+         if (payRes.status === 202) {
+           const qd = await payRes.json().catch(() => ({}));
+           if (qd.queued) {
+             toast.success('Ödəniş offline növbəyə yazıldı — bağlantı qayıdanda avtomatik işlənəcək ✓', { id: 'action-toast' });
+             pos.fetchData();
+             return;
+           }
+         }
+
+         toast.success(t('order_paid'), { id: 'action-toast' });
         const receiptSettings = await getReceiptSettings().catch(() => null);
         const paymentNow = new Date();
         setReceiptView({
@@ -1352,7 +1363,7 @@ export default function POSPage() {
     }
   };
 
-  const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge' | string, tenderedAmount?: number, tipAmount?: number) => {
+  const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge' | string, tenderedAmount?: number, tipAmount?: number, cardRef?: string) => {
     // 2026-09-28 (owner: "Kart terminalı modalını əvvəlki versiyadakı kimi
     // geri qaytar"): RESTORE the tap-to-handheld step (the 2026-09-27 bypass
     // `6b519ad8` is reverted). Card → TerminalTapModal (idle → tapping →
@@ -1363,7 +1374,9 @@ export default function POSPage() {
       setTerminalState({ amount: cartTotalNow(), method, tendered: tenderedAmount, tip: tipAmount });
       return;
     }
-    await runPaymentFlow(method, tenderedAmount, tipAmount);
+    // 11f: cardRef carries the room-charge / corporate reference from the
+    // input modals (recorded in order_payments.reference via the pay body).
+    await runPaymentFlow(method, tenderedAmount, tipAmount, cardRef);
   };
 
   const handleSplitConfirm = async (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }, tipAmount?: number) => {
@@ -1435,14 +1448,23 @@ export default function POSPage() {
             }),
           });
           
-          if (!res.ok) {
-            const err = await res.json();
-            failedOrders.push(activeOrder.id);
-            console.error(`Split payment failed for order ${activeOrder.id}:`, err);
-          }
-        }
-      } else {
-        // Proportional split across orders
+           // 11f (offline): a queued split payment is NOT yet applied —
+           // toast the queue state and skip the failure bookkeeping.
+           if (res.status === 202) {
+             const qd = await res.json().catch(() => ({}));
+             if (qd.queued) {
+               toast.success('Ödəniş offline növbəyə yazıldı — bağlantı qayıdanda avtomatik işlənəcək ✓', { id: 'action-toast' });
+               continue;
+             }
+           }
+           if (!res.ok) {
+             const err = await res.json();
+             failedOrders.push(activeOrder.id);
+             console.error(`Split payment failed for order ${activeOrder.id}:`, err);
+           }
+         }
+       } else {
+         // Proportional split across orders
         for (let i = 0; i < orderCount; i++) {
           const activeOrder = activeOrders[i];
           const orderTotal = Number(activeOrder.total_amount) || 0;
@@ -1464,17 +1486,25 @@ export default function POSPage() {
               idempotency_key: payKeyFor(activeOrder.id),
             }),
           });
-          if (!res.ok) {
-            const err = await res.json();
-            failedOrders.push(activeOrder.id);
-            console.error(`Split payment failed for order ${activeOrder.id}:`, err);
-          }
-        }
-      }
+           // 11f (offline): queued split payment — see the per-item branch above.
+           if (res.status === 202) {
+             const qd = await res.json().catch(() => ({}));
+             if (qd.queued) {
+               toast.success('Ödəniş offline növbəyə yazıldı — bağlantı qayıdanda avtomatik işlənəcək ✓', { id: 'action-toast' });
+               continue;
+             }
+           }
+           if (!res.ok) {
+             const err = await res.json();
+             failedOrders.push(activeOrder.id);
+             console.error(`Split payment failed for order ${activeOrder.id}:`, err);
+           }
+         }
+       }
 
-      if (failedOrders.length > 0) {
-        const failedOrdersRaw = activeOrders.filter((o: any) => failedOrders.includes(o.id));
-        setPayOutcome({ okCount: activeOrders.length - failedOrders.length, failed: failedOrdersRaw, method: 'split' });
+       if (failedOrders.length > 0) {
+         const failedOrdersRaw = activeOrders.filter((o: any) => failedOrders.includes(o.id));
+         setPayOutcome({ okCount: activeOrders.length - failedOrders.length, failed: failedOrdersRaw, method: 'split' });
         pos.fetchData();
         if (pos.selectedTable && tableNumbers.includes(pos.selectedTable.table_number)) pos.resetCart();
         return;
@@ -2129,12 +2159,18 @@ export default function POSPage() {
           idempotency_key: payKeyFor(order.id),
         }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: t('payment_failed') }));
-        stillFailed.push({ ...order, error: (err.error === 'ORDER_ALREADY_PAID' || err.already_paid) ? t('order_already_paid') : err.error });
-      } else {
-        retried++;
-      }
+       if (!res.ok) {
+         const err = await res.json().catch(() => ({ error: t('payment_failed') }));
+         stillFailed.push({ ...order, error: (err.error === 'ORDER_ALREADY_PAID' || err.already_paid) ? t('order_already_paid') : err.error });
+       } else {
+         // 11f (offline): a 202-queued retry will be applied on reconnect —
+         // treat it as handled (same key, no double charge) but say so.
+         if (res.status === 202) {
+           const qd = await res.json().catch(() => ({}));
+           if (qd.queued) toast.success('Ödəniş offline növbəyə yazıldı — bağlantı qayıdanda avtomatik işlənəcək ✓', { id: 'action-toast' });
+         }
+         retried++;
+       }
     }
     if (stillFailed.length === 0) {
       toast.success(t('all_orders_paid'), { id: 'action-toast' });

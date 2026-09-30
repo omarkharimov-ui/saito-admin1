@@ -809,6 +809,26 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-09-30 (ROUND 10c: QEYD MORPH — layoutId YOX, MANUAL rAF SPRING (LIVE TARGET TRACKING) — giriş/çıxış bugları)
+
+- **Owner turn**: "indidee berbat buglar var — giriş və çıxış animasiyasında; brauzerdə 'Qeyd əlavə et'-ə bas, görəcəksən — həm giriş həm çıxışda berbat buglar var."
+- **Diagnostic (60fps geometry sampler + frame screenshots, fx-e*/fx-x*/fx-d*):**
+  - **GİRİŞ (iki vuruş):** ~120ms tap→first-pixel FREEZE → card pill-in AŞAĞI y-sində (TƏSDİQLƏ klaviatura arxasında) inflate olur → vkHeight state-i enəndə AYRI ~270px yuxarı glide (non-uniform scale squash: scaleX .317 vs scaleY .212).
+  - **ÇIXIŞ (ən pis — "ghost"):** card uçuşda cross-fade-ə çıxır (~190ms-də 153×48, pill-dən ~135px yuxarıda opacity→0) — pill-in ÜZƏRİNƏ morph OLMUR; real pill isə klaviatura çökdükdən ~140ms SONRA ~140px AŞAĞIDAKI yerində "pop" olur. İki element fərqli mövqedə eyni anda.
+  - **KÖK SƏBƏB:** layoutId pill-in rect-ini LIVE layout-dən ölçür, layout isə HƏR iki transition-da HƏRƏKƏTDƏDİR — VKB-in `--vk-height` push-u modalı yuxarı çəkir/aşağı burur. Exit-də morph target = STALE (140px sürüşmə). Console clean (səssiz bug).
+- **FIX (v2 engine, 4 E2E pass — r10c*/r10c2*/r10c3*/r10c4*/r10c5*):** `layoutId` TAM YOX (pill + card hər ikisindən). Manual rAF morph engine (`stepNoteMorph`):
+  - **Pill HƏMİŞƏ mounted** (open-də `opacity-0 pointer-events-none`) — tracked anchor; `getBoundingClientRect` hər frame live.
+  - **BUTTOM = ANCHOR (exact, sprung DEYİL):** `b = min(pillBottom, kbTop−14)` (kb = `[data-vk-panel]` visual rect). Entry: klaviatura kənarı pill-in altına qədər card yerində (pill alt-anchored) genişlənir; kənar keçən anda b = `kbTop−14`-ə handoff → card klaviaturanı **BİR BƏDƏN** kimi daşıyır (min-of-two-curves → position-continuous, ZERO lag → **ZERO occlusion by construction** — TƏSDİQLƏ heç vaxt klaviatura altında qalmır).
+  - **x/w/h/r = spring** (K=520/C=44 ≈ critical, semi-implicit Euler per axis, h = content natural height → textarea auto-grow card-ı canlı izləyir — IDLE modda yalnız dəyişən kadrda style write).
+  - **EXIT:** b/x/w/h/r pill-in LIVE rect-inə spring → --vk-height collapse-də modal aşağı sürüşdükən card pill-ini FRAME-BY-FRAME izləyir (stale target YOX, cross-fade YOX, ghost YOX). Landing: pill-in live rect-inə EXACT snap → card unmount + pill reveal eyni paint (0px handoff).
+  - **Landing gate (v3/v4 itaiblər):** pure 6-frame sub-4px STREAK (velocity/elapsed clause YOX — damped tail-də velocity ~K·dist/C ≈ 10px/s qalır və gate'i sonsuza qədər dayandırırdı: v3 lifetime 962ms); dead-loop guard (pill ref transiently null → `lastPill` fallback, loop MÖRSƏYMİR — frozen static duplicate yaradırdı).
+  - **AnimatePresence hostajı (v4 E2E catch):** card AnimatePresence İÇİNDE idi → landing-də backdrop-in 0.3s exit fade-i card-ı static pill-duplicate kimi 603ms saxlayırdı → card AnimatePresence-İN XARICİNƏ (backdrop ayrıca fade).
+  - **First-frame stall (v3):** `autoFocus` attr commit-frame-də VKB mount edirdi (70–140ms) → YOX; focus = mövcud rAF caret effect (növbəti frame).
+  - **z-order sığortası:** card `z-[10003]` > kb `z-[10002]` → 1-frame-stale rAF kadrda belə painted frame-də TƏSDİQLƏ klaviatura altında qala bilməz (settle: exact 14px gap, 0.0px).
+- **E2E (round 5, both themes, 5 browser pass cəmi):** ENTRY: first paint 25–70ms · worst painted occlusion YOX (dark −4.2px margin) · settle `card.b == kb.y−14` exact 0.0px · single continuous glide. EXIT: lifetime **446–457ms (dark) / 600ms (light)** (v1: ~1100ms+pop) · landing Δ **0.00px** · unmount-gap strict **0–33ms** (v4: 603ms static duplicate) · pill revealed opaque, floating card/duplicate YOX (after1/after2/after-light) · kb parallel dismiss. Console **0** error/warning (hər iki theme). Masa 98 təmiz, sifariş toxunulmadı.
+- **Bilinmiş (artefakt, bug DEYİL):** rAF sampler 1-frame stale oxuyur (sampler callback loop callback-dan ƏVVƏL işləyir → JSON-da transient `card.b − kb.y ≈ +95px` görünür, painted frame-də YOX — eyni-frame min() + z-order sığortası). Wide pill (committed note, 312px) → card aspect cross-ı (morph-in tabii xassəsi).
+- **Fayl (1):** `ProductGrid.tsx` (engine: notePillRef/noteCardRef/noteContentRef/noteMorphRef + stepNoteMorph/runNoteMorph/openNoteEditor/closeNoteEditor + mount-frame layoutEffect + teardown guards; pill always-mounted; card plain fixed div; portal restructure). `tsc --noEmit` clean.
+
 ### Jurnal sətiri — 2026-09-30 (ROUND 9b: PILL DÜZƏLİŞLƏRİ — delete ×, capsule clip, FRESH DEFAULT "Standart" + is_default SSOT fix)
 
 - **Owner turn** (4-pill screenshot + 3 nöqtə): (1) "2 beli tebikii" — collapsed cart sətiri QALIR (data 3 sətir, KDS 3 ticket); default pill-də "Standart" label-i görünməlidir; (2) "＋ var, eger basdıqsa onu silmək olmur" — pill silmək yolunu əlavə et; (3) "active pill texti tam tutmur, yarimciq qalir" — capsule ölçüsünü düzəlt; (4) "yeni spec yaradanda copy edir — onu düzəlt" — "＋ Yeni variant" aktiv pill-in spec-ini KOPYA ETMƏLİ, FRESH DEFAULT başlamalı.

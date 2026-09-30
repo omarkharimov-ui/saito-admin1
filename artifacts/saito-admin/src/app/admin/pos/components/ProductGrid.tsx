@@ -296,47 +296,280 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   // (log_audit / inventory_logs) and later used by the statistics page.
   const [returnReason, setReturnReason] = useState('');
   const [returnReasonText, setReturnReasonText] = useState('');
-  // 2026-09-30 (owner, round 10): the modal's Qeyd is now a ROUNDED PILL
-  // trigger (the cart's "Qeyd əlavə et" reference) that morph-opens a FLOATING
-  // editor above the virtual keyboard — portal + spring 500/26 entry from
-  // y:46, exit y:34 DOWN toward the keyboard (owner: "açılarkən morph olaraq
-  // klaviaturanın üzərinə yerləşsin, itməmişdən əvvəl klaviaturanın üzərinə
-  // doğru gəlsin"). autofocus → the VKB auto-opens and the sheet rides its top
-  // (bottom = vkHeight + 14); close blurs the field → VKB auto-closes. The
-  // sheet binds the ACTIVE instance's note (noteForProduct) and commits it on
-  // close. The old square rounded-xl input is gone.
+  // 2026-09-30 (owner, round 10 → 10c): the modal's Qeyd is a ROUNDED PILL
+  // (the cart's "Qeyd əlavə et" reference) that morph-opens a FLOATING editor
+  // above the virtual keyboard (owner: "pill itmədən hərəkət edib mərkəzdə
+  // açılan popup olsun, klaviaturanın üzərində"). Round 10/10b did this with
+  // framer layoutId ("prod-qeyd-pill") — the 60fps E2E frame trace (fx-e*/fx-x*)
+  // proved TWO-BEAT BUGS on both directions:
+  //   ENTRY: ~120ms freeze → the card inflated in place at the pill's LOW y
+  //     (TƏSDİQLƏ occluded by the rising keyboard) → then a SEPARATE ~270px
+  //     upward glide when the vkHeight state finally landed (plus a
+  //     non-uniform scale squash mid-flight).
+  //   EXIT: layoutId RE-MEASURES the pill AFTER the keyboard's --vk-height
+  //     push collapsed and the modal drifted back down ~140px — the morph
+  //     target was STALE: the card cross-faded to nothing mid-flight while
+  //     the real pill popped in 140px lower (ghost/double element).
+  // ROOT CAUSE: layoutId resolves against the LIVE layout, and that layout is
+  // MOVING during both transitions (the VKB's @property --vk-height push).
+  // FIX (round 10c): no layoutId at all — a MANUAL rAF spring (semi-implicit
+  // Euler per axis, K=520/C=44 ≈ critical, the same stiffness as the old
+  // layout spring) that TRACKS A LIVE TARGET every frame:
+  //   ENTRY: snapshot the pill's rect on tap → spring the card (x/y/w/h/r)
+  //     toward the final card rect whose bottom rides the LIVE --vk-height
+  //     (getComputedStyle on the REGISTERED custom property returns the value
+  //     mid-transition, so the card lifts with the keyboard as ONE body —
+  //     one continuous glide, no inflate-then-slide, no occlusion).
+  //   EXIT: spring toward the pill's LIVE getBoundingClientRect — the pill
+  //     stays mounted (opacity 0) and MOVES as the keyboard collapses, and
+  //     the card follows it frame by frame (no stale target, no cross-fade,
+  //     no ghost). The card unmounts only on landing, when it IS the pill's
+  //     rect — the handoff to the revealed pill is invisible.
+  const NOTE_CARD_RADIUS = 24; // rounded-3xl
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const noteEditorRef = useRef<HTMLTextAreaElement | null>(null);
-  const closeNoteEditor = () => {
-    // 2026-09-30 (round 10b — "klaviye gec bağlanır", E2E frame trace): the
-    // old blur()-only path hit the VKB's own quirk — focus-to-BODY does NOT
-    // close the keyboard by design (control-tap guard), so the VKB waited for
-    // its 300ms DETACHED-ELEMENT POLL after the card unmounted: a 360–450ms
-    // dead gap with the keyboard frozen after the card was gone. Explicit
-    // closeVk() runs the keyboard exit (0.26s) IN PARALLEL with the card's
-    // exit morph — same pattern as the cart's closeNoteEditor.
-    closeVk();
-    setNoteEditorOpen(false);
-    commitInstanceDraft(); // persist the active instance's note into its draft
+  const notePillRef = useRef<HTMLButtonElement | null>(null);
+  const noteCardRef = useRef<HTMLDivElement | null>(null);
+  const noteContentRef = useRef<HTMLDivElement | null>(null);
+  const noteMorphRef = useRef<{
+    raf: number | null; mode: 'open' | 'close' | null; start: number; last: number;
+    ax: number; avx: number; ab: number; avb: number;
+    aw: number; avw: number; ah: number; avh: number;
+    ar: number; avr: number; streak: number;
+    lastPill: { x: number; b: number; w: number; h: number } | null;
+  }>({ raf: null, mode: null, start: 0, last: 0, ax: 0, avx: 0, ab: 0, avb: 0, aw: 0, avw: 0, ah: 0, avh: 0, ar: 0, avr: 0, streak: 0, lastPill: null });
+
+  // The rAF morph loop. Reads m.mode every frame, so open→close can flip
+  // MID-FLIGHT (user taps × / backdrop while the card is still inflating)
+  // with a seamless retarget — the spring state (position + velocity) carries
+  // over, only the target changes.
+  //
+  // BOTTOM IS THE ANCHOR (round 10c-v2, after the first E2E pass): v1 sprung
+  // top+height independently — the bottom edge LAGGED the rising keyboard by
+  // up to ~92px (TƏSDİQLƏ painted under the keys, E2E E4 fail) and the card
+  // center dipped 18px during the height growth (E3). Now the card's BOTTOM
+  // is EXACT, not sprung: b = min(pillBottom, keyboardTop − 14).
+  //   • Entry: while the keyboard edge is below the pill, b is pinned to the
+  //     pill's own (rising) bottom — the card grows in place, bottom-anchored
+  //     (top lifts as h grows). The instant the rising edge crosses it, b
+  //     hands over to `edge − 14` and the card rides the keyboard up as ONE
+  //     body — position-continuous at the crossing (min of two curves), so
+  //     ZERO occlusion by construction, ZERO lag, ZERO two-beat.
+  //   • Exit: b springs toward the pill's LIVE bottom (the pill drifts down
+  //     as the --vk-height collapse settles the modal) — true "return home".
+  const stepNoteMorph = (now: number) => {
+    const m = noteMorphRef.current;
+    const card = noteCardRef.current;
+    const pill = notePillRef.current;
+    // Card gone → the loop's job is over. Pill transiently null (a commit
+    // re-render can leave the ref detached for a frame) → KEEP the last known
+    // pill rect as the target instead of dying: a dead loop freezes the card
+    // as a static pill-identical duplicate (E2E X5: 962ms lifetime in v3).
+    if (!card) { m.raf = null; m.mode = null; return; }
+    if (!pill) {
+      if (!m.lastPill) { m.raf = null; m.mode = null; return; }
+    } else {
+      const q = pill.getBoundingClientRect();
+      m.lastPill = { x: q.x, b: q.bottom, w: q.width, h: q.height };
+    }
+    const lp = m.lastPill!;
+    const dt = Math.min(0.032, Math.max(0.004, (now - m.last) / 1000));
+    m.last = now;
+    const elapsed = now - m.start;
+    const vw = window.innerWidth;
+    const K = 520, C = 44;
+    const integ = (v: number, vel: number, target: number): [number, number] => {
+      const nv = vel + (K * (target - v) - C * vel) * dt;
+      return [v + nv * dt, nv];
+    };
+    const kb = document.querySelector('[data-vk-panel]') as HTMLElement | null;
+    const kbTop = kb ? kb.getBoundingClientRect().top : null;
+    const write = (x: number, w: number, h: number, r: number, bottom: number) => {
+      card.style.left = `${x}px`;
+      card.style.top = `${bottom - h}px`;
+      card.style.width = `${w}px`;
+      card.style.height = `${h}px`;
+      card.style.borderRadius = `${r}px`;
+    };
+    if (m.mode === 'open') {
+      // Exact bottom — see the anchor note above (pill rect via live ref,
+      // last-known fallback during a detached-ref frame).
+      const pBottom = pill ? pill.getBoundingClientRect().bottom : lp.b;
+      const b = kbTop != null ? Math.min(pBottom, kbTop - 14) : pBottom;
+      const cw = Math.min(vw * 0.92, 420);
+      const naturalH = noteContentRef.current ? noteContentRef.current.offsetHeight : m.ah;
+      const tx = (vw - cw) / 2, tw = cw, th = naturalH, tr = NOTE_CARD_RADIUS;
+      [m.ax, m.avx] = integ(m.ax, m.avx, tx);
+      [m.aw, m.avw] = integ(m.aw, m.avw, tw);
+      [m.ah, m.avh] = integ(m.ah, m.avh, th);
+      [m.ar, m.avr] = integ(m.ar, m.avr, tr);
+      m.ab = b; m.avb = 0;
+      write(m.ax, m.aw, m.ah, m.ar, b);
+      // Content fades in AFTER the shape has grown most of the way (≈90ms in)
+      // — the pill's label never ghost-fights the field mid-flight.
+      if (noteContentRef.current) noteContentRef.current.style.opacity = String(Math.min(1, Math.max(0, (elapsed - 90) / 180)));
+      // Landing gate: a 6-frame (≈100ms) sub-2px STREAK — no velocity clause:
+      // in the damped tail the spring velocity hovers ~K·dist/C (≈10px/s at
+      // dist≈1px), so a "slow" check stalls the gate and the card lingers as
+      // a static pill-identical duplicate (E2E X5: 1068ms lifetime).
+      const dist = Math.abs(m.ax - tx) + Math.abs(m.aw - tw) + Math.abs(m.ah - th) + Math.abs(m.ar - tr);
+      m.streak = dist < 4 ? m.streak + 1 : 0;
+      if (m.streak >= 6 || elapsed > 1200) {
+        // Settled → IDLE: keep the loop alive (cheap) so the card tracks the
+        // textarea auto-grow / keyboard / window resize without re-mounting.
+        m.ax = tx; m.aw = tw; m.ah = th; m.ar = tr;
+        write(tx, tw, th, tr, b);
+        if (noteContentRef.current) noteContentRef.current.style.opacity = '1';
+        m.mode = null;
+        m.raf = requestAnimationFrame(stepNoteMorph);
+        return;
+      }
+      m.raf = requestAnimationFrame(stepNoteMorph);
+      return;
+    }
+    if (m.mode === 'close') {
+      // Target = the pill's LIVE rect (bottom-anchored) — the pill drifts
+      // down with the --vk-height collapse, and the card tracks it.
+      const p = pill ? pill.getBoundingClientRect() : null;
+      const tx = p ? p.x : lp.x, tw = p ? p.width : lp.w, th = p ? p.height : lp.h;
+      const tr = Math.min(tw, th) / 2, tb = p ? p.bottom : lp.b;
+      [m.ax, m.avx] = integ(m.ax, m.avx, tx);
+      [m.ab, m.avb] = integ(m.ab, m.avb, tb);
+      [m.aw, m.avw] = integ(m.aw, m.avw, tw);
+      [m.ah, m.avh] = integ(m.ah, m.avh, th);
+      [m.ar, m.avr] = integ(m.ar, m.avr, tr);
+      write(m.ax, m.aw, m.ah, m.ar, m.ab);
+      // Content fades out FAST (120ms) — the shape does the talking.
+      if (noteContentRef.current) noteContentRef.current.style.opacity = String(Math.max(0, 1 - elapsed / 120));
+      // Pure streak gate (see open-side note): 6 consecutive sub-4px frames —
+      // impossible mid-flight (the card is hundreds of px from the pill), so
+      // no elapsed/velocity clause is needed; the 700ms cap is the backstop.
+      const dist = Math.abs(m.ax - tx) + Math.abs(m.ab - tb) + Math.abs(m.aw - tw) + Math.abs(m.ah - th);
+      m.streak = dist < 4 ? m.streak + 1 : 0;
+      if (m.streak >= 6 || elapsed > 700) {
+        // Land EXACTLY on the pill's live rect, then unmount + reveal the pill
+        // in the same paint — the handoff is invisible (no pop, no ghost).
+        m.ax = tx; m.ab = tb; m.aw = tw; m.ah = th; m.ar = tr;
+        write(tx, tw, th, tr, tb);
+        if (noteContentRef.current) noteContentRef.current.style.opacity = '0';
+        m.mode = null;
+        m.raf = null;
+        setNoteEditorOpen(false);
+        return;
+      }
+      m.raf = requestAnimationFrame(stepNoteMorph);
+      return;
+    }
+    // IDLE (mode null, card mounted): sync geometry ONLY when it actually
+    // changes (textarea auto-grow → h grows, top lifts since b is pinned;
+    // keyboard rect; window resize) — no style writes otherwise.
+    const pBottom = pill ? pill.getBoundingClientRect().bottom : lp.b;
+    const b = kbTop != null ? Math.min(pBottom, kbTop - 14) : pBottom;
+    const cw = Math.min(vw * 0.92, 420);
+    const naturalH = noteContentRef.current ? noteContentRef.current.offsetHeight : m.ah;
+    const tx = (vw - cw) / 2;
+    if (Math.abs(b - m.ab) > 0.5 || Math.abs(naturalH - m.ah) > 0.5 || Math.abs(cw - m.aw) > 0.5 || Math.abs(tx - m.ax) > 0.5) {
+      [m.ax, m.avx] = integ(m.ax, m.avx, tx);
+      [m.aw, m.avw] = integ(m.aw, m.avw, cw);
+      [m.ah, m.avh] = integ(m.ah, m.avh, naturalH);
+      [m.ar, m.avr] = integ(m.ar, m.avr, NOTE_CARD_RADIUS);
+      m.ab = b; m.avb = 0;
+      write(m.ax, m.aw, m.ah, m.ar, b);
+    }
+    m.raf = requestAnimationFrame(stepNoteMorph);
   };
+
+  const runNoteMorph = (mode: 'open' | 'close') => {
+    const m = noteMorphRef.current;
+    if (m.raf != null) {
+      // A loop is already running (open spring / idle) — just retarget. The
+      // spring's position + velocity carry over: a seamless mode flip.
+      if (m.mode !== mode) { m.mode = mode; m.start = performance.now(); m.streak = 0; }
+      return;
+    }
+    if (mode === 'close') {
+      // Defensive: no live loop — seed the spring from the card's current
+      // on-screen rect so the exit starts exactly where it is.
+      const c = noteCardRef.current?.getBoundingClientRect();
+      if (c) { m.ax = c.x; m.ab = c.bottom; m.aw = c.width; m.ah = c.height; m.ar = NOTE_CARD_RADIUS; }
+    }
+    m.avx = m.avb = m.avw = m.avh = m.avr = 0;
+    m.streak = 0;
+    m.mode = mode;
+    m.start = performance.now();
+    m.last = m.start;
+    m.raf = requestAnimationFrame(stepNoteMorph);
+  };
+
+  const openNoteEditor = () => {
+    const m = noteMorphRef.current;
+    const p = notePillRef.current?.getBoundingClientRect();
+    if (!p) return;
+    // Seed the spring at the pill's exact rect (bottom-anchored), zero
+    // velocity — the card mounts at this spot on this frame (layoutEffect
+    // writes it pre-paint): no flash, no freeze, no jump.
+    m.ax = p.x; m.ab = p.bottom; m.aw = p.width; m.ah = p.height; m.ar = Math.min(p.width, p.height) / 2;
+    m.avx = m.avb = m.avw = m.avh = m.avr = 0;
+    m.streak = 0;
+    setNoteEditorOpen(true);
+  };
+
+  const closeNoteEditor = () => {
+    if (!noteEditorOpen) return;
+    commitInstanceDraft(); // persist the active instance's note into its draft
+    // 2026-09-30 (round 10b — "klaviye gec bağlanır"): explicit closeVk() runs
+    // the keyboard exit IN PARALLEL with the card's exit morph (the blur-only
+    // path hit the VKB's control-tap guard and waited for the 300ms detached
+    // poll — a 360–450ms dead gap). Round 10c: that parallel --vk-height
+    // collapse is exactly what the exit tracks — the card follows the pill's
+    // live rect down as the modal settles.
+    closeVk();
+    runNoteMorph('close');
+  };
+
+  // Mount-frame (runs BEFORE paint): paint the card at the pill's snapshot
+  // rect, content hidden, then start the open spring. This is what kills the
+  // old ~120ms tap→first-pixel freeze (layoutId waited for an exit/enter
+  // projection round-trip).
+  useLayoutEffect(() => {
+    if (!noteEditorOpen) return;
+    const m = noteMorphRef.current;
+    const card = noteCardRef.current;
+    if (card) {
+      card.style.left = `${m.ax}px`;
+      card.style.top = `${m.ab - m.ah}px`;
+      card.style.width = `${m.aw}px`;
+      card.style.height = `${m.ah}px`;
+      card.style.borderRadius = `${m.ar}px`;
+    }
+    if (noteContentRef.current) noteContentRef.current.style.opacity = '0';
+    runNoteMorph('open');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteEditorOpen]);
+
+  // Unmount / modal-teardown safety: the morph loop never outlives the grid
+  // (an orphaned rAF writing into a dead portal would be the old "stranded
+  // card" bug in a different costume).
+  useEffect(() => () => {
+    const m = noteMorphRef.current;
+    if (m.raf != null) { cancelAnimationFrame(m.raf); m.raf = null; m.mode = null; }
+  }, []);
+
   // VKB dismissed from the OUTSIDE (✓ done key / GİZLƏ / outside tap) while
-  // the card is open → close the card too, or it strands (E2E bug #1/#2/#7:
-  // "keyboard hid, card left stranded; tapping the textarea can't restore it"
-  // because it still holds focus). Edge-detected (wasOpen && !vkOpen) so the
-  // opening moment (keyboard not mounted yet) never misfires — mirrors the
-  // cart's vkOpenPrevRef pattern.
+  // the card is open → close the card too, or it strands (E2E bug #1/#2/#7).
+  // Edge-detected (wasOpen && !vkOpen) so the opening moment (keyboard not
+  // mounted yet) never misfires — mirrors the cart's vkOpenPrevRef pattern.
   const vkOpenPrevRef = useRef(vkOpen);
   useEffect(() => {
     const wasOpen = vkOpenPrevRef.current;
     vkOpenPrevRef.current = vkOpen;
-    if (wasOpen && !vkOpen && noteEditorOpen) {
-      setNoteEditorOpen(false);
-      commitInstanceDraft();
-    }
+    if (wasOpen && !vkOpen && noteEditorOpen) closeNoteEditor();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vkOpen, noteEditorOpen]);
   // E2E bug #3: autoFocus left the caret at INDEX 0 on a re-opened editor with
   // existing text — the first VKB character PREPENDED ("x" + "Bu məhsul…").
-  // Force the caret to the end after mount.
+  // Force the caret to the end after mount. (The autofocus itself also opens
+  // the VKB in PARALLEL with the entry spring — the card rides its rise.)
   useEffect(() => {
     if (!noteEditorOpen) return;
     const id = requestAnimationFrame(() => {
@@ -659,6 +892,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       editLineIndexRef.current = null;
       setReturnCtx(null);
       setReturnView(false);
+      // 2026-09-30 (round 10c): kill the morph loop first — the card and the
+      // pill both die with the modal, so no orphaned rAF / stranded portal.
+      const nm = noteMorphRef.current;
+      if (nm.raf != null) { cancelAnimationFrame(nm.raf); nm.raf = null; nm.mode = null; }
       setNoteEditorOpen(false); // the floating Qeyd editor dies with the modal
       setSingleLocked(false);
       setEditKs(null);
@@ -2063,26 +2300,22 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                       the component root — see createPortal below). */}
                   <div className={specLocked ? 'pointer-events-none opacity-40' : ''}>
                     <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Qeyd:</span>
-                    {/* 2026-09-30 (round 10, owner CORRECTION — "o pill itmədən
-                        hərəkət edib mərkəzdə açılan popup olsun, klaviaturanın
-                        üzərində"): the pill is the SHARED ELEMENT. It never
-                        "disappears" — on tap it unmounts and the portal card
-                        mounts with the SAME layoutId, so framer morphs the pill's
-                        rect (position + size + radius + bg) INTO the card's rect
-                        (centered, over the keyboard), and back on close. One
-                        continuous element, not "pill stays + new popup springs". */}
-                    {!noteEditorOpen && (
+                    {/* 2026-09-30 (round 10c): the pill NEVER unmounts — it is
+                        the tracked anchor of the manual spring morph. While the
+                        card is up it sits at opacity 0 (layout intact, rect live-
+                        trackable via getBoundingClientRect every frame); the card
+                        unmounts only on landing, when it exactly IS the pill's
+                        rect — so the handoff is invisible (no pop, no ghost). */}
                     <motion.button
-                      layoutId="prod-qeyd-pill"
-                      onClick={() => { if (!specLocked) setNoteEditorOpen(true); }}
+                      ref={notePillRef}
+                      onClick={() => { if (!specLocked) openNoteEditor(); }}
                       whileTap={{ scale: 0.97 }} transition={TAP}
-                      disabled={specLocked}
-                      className={`mt-2 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border text-xs font-bold ${noteForProduct ? (lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-700' : 'bg-white/8 border-white/15 text-white/85') : (lightMode ? 'bg-transparent border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-transparent border-white/10 text-white/40 hover:bg-white/5')}`}
+                      disabled={specLocked || noteEditorOpen}
+                      className={`mt-2 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border text-xs font-bold ${noteEditorOpen ? 'opacity-0 pointer-events-none' : ''} ${noteForProduct ? (lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-700' : 'bg-white/8 border-white/15 text-white/85') : (lightMode ? 'bg-transparent border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-transparent border-white/10 text-white/40 hover:bg-white/5')}`}
                     >
                       <Tag size={12} />
                       <span className="truncate max-w-[260px]">{noteForProduct || t('add_note')}</span>
                     </motion.button>
-                    )}
                   </div>
               </div>
 
@@ -2133,20 +2366,26 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         />
       </div>
 
-      {/* 2026-09-30 (round 10, owner CORRECTION — shared-element morph): the
-          note editor is the SAME element as the Qeyd pill (layoutId
-          "prod-qeyd-pill"). Open: pill rect → card rect (centered, riding the
-          keyboard top: `bottom` animates to vkHeight+14 as the VKB settles
-          under the autofocus). Close: card rect → pill rect. The element never
-          disappears — it MOVES and reshapes (owner: "pill itmədən hərəkət
-          edib mərkəzdə açılan popup olsun, klaviaturanın üzərində"). Portals to
-          document.body because the modal lives in a transformed (scaled)
-          container where `fixed` children would be trapped. autofocus → VKB
-          auto-opens; blur (X / Təsdiqlə / backdrop / Enter) → VKB auto-closes. */}
+      {/* 2026-09-30 (round 10c — manual spring morph): the note editor IS the
+          Qeyd pill's shape, carried by a single fixed element whose
+          left/top/width/height/border-radius are integrated per rAF frame
+          (see stepNoteMorph above). Entry target = viewport-centered card
+          riding the LIVE --vk-height; exit target = the pill's LIVE rect.
+          Portals to document.body because the modal lives in a transformed
+          (scaled) container where `fixed` children would be trapped.
+          autofocus → VKB opens in parallel; × / Ləğv / Təsdiqlə / backdrop /
+          ✓ / GİZLƏ / Escape → closeNoteEditor() (card morphs home to the pill
+          while the keyboard collapses — they move as one body). */}
       {createPortal(
-        <AnimatePresence>
-          {noteEditorOpen && (
-            <>
+        <>
+          {/* The backdrop fades independently (AnimatePresence). The CARD is
+              deliberately OUTSIDE it: on landing the card must unmount
+              IMMEDIATELY (it is the pill's exact rect at that moment — keeping
+              it mounted for the backdrop's 0.3s exit fade would leave a static
+              pill-identical duplicate on screen; E2E v4: 603ms conv→unmount).
+              The veil fades behind the revealed pill instead. */}
+          <AnimatePresence>
+            {noteEditorOpen && (
               <motion.div
                 key="prod-note-backdrop"
                 className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[9998]"
@@ -2155,30 +2394,34 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.45, 0, 0.55, 1] } }}
                 onClick={closeNoteEditor}
               />
-              {/* 2026-09-30 (round 10b — owner: "popup-un UI-sini bəyənmirəm,
-                  daha qəşəng"): SINGLE-SURFACE card. The old design had a
-                  double surface (card box + inner textarea box with a 2px
-                  emerald focus border + 2px .vk-active ring = a "4px green
-                  box", the heaviest element in the card) + a cramped two-line
-                  header on a hairline + a dead band over small buttons. Now:
-                  the card IS the field — one surface, no inner box, no ring
-                  (the dimmed backdrop already signals "this is the active
-                  layer"), quiet one-line header, generous type, full-height
-                  actions. */}
-              <motion.div
-                layoutId="prod-qeyd-pill"
-                transition={{ layout: { type: 'spring', stiffness: 520, damping: 40 } }}
-                className={`fixed left-1/2 -translate-x-1/2 z-[10000] w-[min(92vw,420px)] rounded-3xl border shadow-elevated backdrop-blur-xl overflow-hidden ${lightMode ? 'bg-white/[0.97] border-zinc-200/80' : 'bg-[#1D1D24]/[0.98] border-white/10'}`}
-                initial={{ bottom: vkHeight > 0 ? vkHeight + 14 : 18 }}
-                animate={{ bottom: vkHeight > 0 ? vkHeight + 14 : 18 }}
+            )}
+          </AnimatePresence>
+          {/* 2026-09-30 (round 10b — owner: "popup-un UI-sini bəyənmirəm,
+              daha qəşəng"): SINGLE-SURFACE card. The old design had a
+              double surface (card box + inner textarea box with a 2px
+              emerald focus border + 2px .vk-active ring = a "4px green
+              box", the heaviest element in the card) + a cramped two-line
+              header on a hairline + a dead band over small buttons. Now:
+              the card IS the field — one surface, no inner box, no ring
+              (the dimmed backdrop already signals "this is the active
+              layer"), quiet one-line header, generous type, full-height
+              actions. Geometry (left/top/width/height/borderRadius) is
+              driven ENTIRELY by the rAF spring loop — no layoutId, no framer
+              projection, no re-layout beats; the initial style block is
+              overwritten pre-paint by the mount-frame layoutEffect. */}
+          {noteEditorOpen && (
+            <div
+              ref={noteCardRef}
+                className={`fixed z-[10003] overflow-hidden border shadow-elevated backdrop-blur-xl ${lightMode ? 'bg-white/[0.97] border-zinc-200/80' : 'bg-[#1D1D24]/[0.98] border-white/10'}`}
+                style={{ left: -9999, top: -9999, width: 0, height: 0 }}
               >
                 <style>{`.prod-qeyd-ta.vk-active { box-shadow: none !important; }`}</style>
-                {/* editor content: fades in AFTER the morph lands (delay),
-                    so the pill's label never ghost-fights the field mid-flight. */}
-                <motion.div
+                {/* content: the rAF morph loop drives its opacity (fades in
+                    after the shape grows, fades out fast on the way home). */}
+                <div
+                  ref={noteContentRef}
                   className="flex flex-col"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, transition: { delay: 0.14, duration: 0.16 } }}
+                  style={{ opacity: 0 }}
                 >
                   {/* header — one quiet line, no hairline, no icon box */}
                   <div className="flex items-center gap-2 pl-5 pr-3 pt-4">
@@ -2199,7 +2442,14 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                   <div className="px-5 pt-1.5 pb-1">
                     <textarea
                       ref={noteEditorRef}
-                      autoFocus
+                      // 2026-09-30 (round 10c-v2): NO autoFocus attribute — it
+                      // focused synchronously in the COMMIT frame, mounting the
+                      // whole VKB (~30 keys + RO + CSS) in the same tick as the
+                      // card (E2E: 70–140ms before the card's first paint). The
+                      // rAF caret effect below focuses on the NEXT frame instead:
+                      // the card's entry starts clean, the keyboard rides in 1
+                      // frame later (imperceptible), and the caret-at-end fix
+                      // (E2E bug #3) still applies.
                       value={noteForProduct}
                       onChange={(e) => {
                         setNoteForProduct(e.target.value);
@@ -2260,11 +2510,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                       Təsdiqlə
                     </button>
                   </div>
-                </motion.div>
-              </motion.div>
-            </>
+                </div>
+              </div>
           )}
-        </AnimatePresence>,
+        </>,
         document.body
       )}
     </>

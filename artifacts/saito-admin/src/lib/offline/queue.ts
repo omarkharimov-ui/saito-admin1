@@ -42,6 +42,14 @@ const AUTO_REPLAY_ROUTES = new Set<string>([
   '/api/reservations/pre-order-items',
 ]);
 
+// 11e: /api/orders auto-replays ONLY when the captured body carries an
+// idempotency_key (server dedupes by key — a replayed create returns the
+// original order). Keyless writes to this route (addItems/updates) stay
+// manual: a blind re-send would duplicate items.
+const KEYED_AUTO_ROUTES = new Set<string>([
+  '/api/orders',
+]);
+
 // Captured (queued, manual) but NOT auto-replayed: append-type or
 // counter-type routes where a blind re-send could duplicate items.
 export const OFFLINE_WRITE_ROUTES = new Set<string>([
@@ -130,7 +138,7 @@ export function enqueue(url: string, method: string, body: string | null, idemKe
     method: method.toUpperCase(),
     body,
     idemKey,
-    auto: AUTO_REPLAY_ROUTES.has(route),
+    auto: AUTO_REPLAY_ROUTES.has(route) || (KEYED_AUTO_ROUTES.has(route) && !!idemKey),
     createdAt: Date.now(),
     attempts: 0,
     lastError: null,

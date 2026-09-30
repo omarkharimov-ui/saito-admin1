@@ -1693,11 +1693,17 @@ export function usePos() {
       // subtracts it exactly once (create) / re-applies it on item-sum
       // recomputes (addItems) and stamps the order with the campaign_id.
       const coupon = (cart as any).coupon;
+      // 11e (offline): a stable per-attempt idempotency key for NEW-order
+      // creates — the offline queue replays the SAME body (same key), and the
+      // server dedupes by key, so a create that actually landed before the
+      // network died can never be double-created on replay/retry.
+      const createIdemKey = crypto.randomUUID();
       const orderBody = JSON.stringify(
           activeOrderId
             ? { action: 'addItems', id: activeOrderId, items: unsent, terminal_id: terminalId, ...(coupon ? { coupon: { campaign_id: coupon.campaign_id, amount: coupon.discount_amount } } : {}) }
             : {
                 ...(cart.table_number !== undefined && cart.table_number !== null ? { table_number: cart.table_number } : {}),
+                idempotency_key: createIdemKey,
                 terminal_id: terminalId,
                 items: unsent,
                 status: 'confirmed',
@@ -1769,9 +1775,47 @@ export function usePos() {
           fetchFloor().catch(() => {});
           return;
         }
-        createdOrderId = data.data?.id || data.id || data.order?.id || activeOrderId;
-        console.log('[placeOrder] success', { createdOrderId, data });
-        toast.success(t('order_sent'));
+         // 11e (offline): a whitelisted write captured into the offline queue
+         // comes back as 202 {queued:true} — NO server order exists yet. The
+         // body (with its idempotency key for creates) auto-replays on
+         // reconnect; the server dedupes by key, so exactly one order lands.
+         // Do NOT toast "sent", do NOT log an operation against a nonexistent
+         // order id, do NOT enqueue a kitchen print for a phantom order.
+         // sentQuantity is still advanced so the user cannot re-tap and mint
+         // a second key (which would be a second order on replay).
+         const queuedOffline = res.status === 202 && !!data?.queued;
+         if (queuedOffline) {
+           console.log('[placeOrder] OFFLINE queued', { queueId: data.queueId, hadKey: !activeOrderId });
+           toast.success('Sifariş offline növbəyə yazıldı — internet qayıdanda avtomatik göndəriləcək ✓', { id: 'action-toast' });
+           setCart(prev => {
+             if (!prev) return null;
+             return {
+               ...prev,
+               items: prev.items.map(i => {
+                 const ident = (i as any).instance_id ?? (i as any).id ??
+                   `${i.product_id}__${i.variant_id || ''}__${i.is_combo ? 'c' : 'p'}`;
+                 if (!sentIdentity.has(ident)) return i;
+                 const newSent = Math.min(i.quantity, (i.sentQuantity || 0) + (i.quantity - (i.sentQuantity || 0)));
+                 return { ...i, sentQuantity: Math.max(i.sentQuantity || 0, newSent) };
+               })
+             };
+           });
+           if (posMode !== 'dine_in') {
+             setCart(prev => prev ? { ...prev, items: [] } : null);
+           }
+           setActiveView('floor');
+           fetchFloor().catch(() => {});
+           return;
+         }
+         // 11e: an idempotent replay comes back nested —
+         // {data: {success, idempotent, data: {order…}}} — unwrap it so the
+         // retry path still binds the ORIGINAL order id (print/log operate
+         // on it; the kitchen trigger is per-order idempotent, so re-print
+         // is guarded server-side).
+         const idemUnwrap = data.data?.idempotent ? data.data.data : data.data;
+         createdOrderId = idemUnwrap?.id || data.id || data.order?.id || activeOrderId;
+         console.log('[placeOrder] success', { createdOrderId, data });
+         toast.success(t('order_sent'));
         logOperation('place_order', {
           order_id: createdOrderId,
           table_number: cart.table_number,

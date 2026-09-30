@@ -3,7 +3,12 @@
 > Əsas: SAITO = bu repo-nun kodu üzrə verified feature set (round 1–7 E2E). Rəqiblər =
 > hər birinin müstəqil Restaurant POS məhsulunun müəssisəleşmiş core feature set-i
 > (vendor sənədlərinin cari versiyasını order-ixtisaslaşdırılmış detallar üçün yenidən yoxlamaq lazımdır).
-> Hədəf: hansı şeyin var, çatışmır və yaxşılaşdırılmalıdır — səbəb ilə.
+ > Hədəf: hansı şeyin var, çatışmır və yaxşılaşdırılmalıdır — səbəb ilə.
+ >
+ > **STATUS (2026-09-30, rounds 11a–11e):** §2-dəki 5 əsas çatışmazlığın HAMISI bağlandı
+ > (payroll 11a · purchasing 11b · analytics 11c · online ordering 11d · offline 11e —
+ > hərəsi ayrıca commit, jurnallar MASTER_FEATURE_MAP.md §10). Qalan: §2.6 real PSP
+ > (owner qərarı), §2.7 e-commerce (low priority), §2.8 franchise.
 
 ## 1. BƏRABƏR / QÖNÇƏ (parity or better)
 
@@ -28,11 +33,11 @@
 
 ## 2. ÇATISMIYAN (missing — prioritized)
 
-1. **Online ordering / customer-facing channel** (Toast Online, Lightspeed Online Ordering, Square Online) — SAITO-da yoxdur. Customer order → POS/KDS axını. *Ən böyük çatışmazlıq* (gəlir kanalı).
-2. **Offline mode** (Toast/Lightspeed/Square: drawer + order + receipt offline, sync after) — SAITO realtime DB-ə bağlıdır; internet kəsilişində order qəbulu mümkün deyil.
-3. **İş vaxtı/time-clock + meşğulluq planlaması** (Staff scheduling, breaks, hours) — SAITO-da scheduling var (round 4 restore) lakin time-in/out punch + payroll export yoxdur.
-4. **Advanced reporting/analytics dashboard** (peak hours, item popularity, staff performance, revenue forecasting) — SAITO-da statistik səhifə var (audit/exception əsaslı) lakin rəqiblərin drill-down dashboard dərinliyi yoxdur.
-5. **Inventory purchasing (PO/receiving/supplier)** — SAITO-da stock return/waste/level var; supplier purchase order + receiving + cost tracking yoxdur.
+1. ~~**Online ordering / customer-facing channel**~~ — ✅ **BAĞLANDI (11d):** `api/orders/online` (takeaway/delivery, server price + CRM link + zone/fee/min/ETA) + public `/api/orders/[orderId]/track` (tracking səhifəsi) + menu no-table checkout. Bonus: KDS `table_number gt.0` bug fix — 67 mövcud no-table order KDS-də ilk dəfə görünür.
+2. **Offline mode** — ✅ **PHASE 1 BAĞLANDI (11e):** offline order intake + idempotency-key dedup + auto-replay sync (banner + sinxron panel). Qalan (phase 2): offline cash drawer ledger + append dedup.
+3. ~~**İş vaxtı/time-clock + payroll export**~~ — ✅ **BAĞLANDI (11a):** `get_payroll_export` RPC (punch LAG pairing + overtime + tips) + admin/staff CSV export + payroll_periods upsert + history.
+4. ~~**Advanced reporting/analytics dashboard**~~ — ✅ **BAĞLANDI (11c):** 24s peak hours (SİFARİŞ/GƏLİR toggle), product food-cost/net-profit drill-down, staff performance (fix: dead `role` column) + çəkiliş dəqiqəsi + CSV.
+5. ~~**Inventory purchasing (PO/receiving/supplier)**~~ — ✅ **BAĞLANDI (11b):** PO create (auto ingredient bind) + goods-receipt (delta, partial/full, WAC cost) + supplier order counter + `sync_product_availability` dead-schema fix.
 6. **Hardware terminals (Square Terminal, Toast Station/stand)** — SAITO-da card terminal = SIMULATOR (adapter arxitekturası hazırdır, real PSP bağlı deyil).
 7. **E-commerce sync (Lightspeed)** — B2C store sync yoxdur (SAITO restaurant-first olduğu üçün low priority).
 8. **Franchise/multi-org hierarchy (Lightspeed)** — SAITO multi-location var; franchise royalty/reporting yoxdur.
@@ -57,9 +62,9 @@
 
 ## 5. TÖVSIYYƏ (roadmap order)
 
-1. Real PSP card terminal (adapter hazırdır) — payment reliability.
-2. Offline mode (order+drawer cache, sync) — operation continuity.
-3. Online ordering (MVP: takeaway/delivery, QR order) — new revenue channel.
-4. End-of-day analytics summary + daily report print.
-5. Inventory purchasing (PO/receiving) — cost control.
-6. Staff time-clock + scheduling polish.
+1. Real PSP card terminal (adapter hazırdır) — payment reliability. *(yeganə qalan əsas item — owner qərarı)*
+2. ~~Offline mode~~ — ✅ 11e (phase 1: order intake+sync; phase 2: cash ledger)
+3. ~~Online ordering (MVP)~~ — ✅ 11d
+4. ~~Analytics summary~~ — ✅ 11c (peak hours + staff/product drill-down + CSV)
+5. ~~Inventory purchasing (PO/receiving)~~ — ✅ 11b
+6. ~~Staff time-clock + payroll~~ — ✅ 11a

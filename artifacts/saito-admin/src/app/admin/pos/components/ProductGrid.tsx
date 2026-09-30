@@ -491,16 +491,40 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     const d = drafts[i];
     if (!d) return;
     if (d.kitchen_status && LOCKED_KS.includes(d.kitchen_status)) return;
+    // 2026-09-30 (owner, round 9c): a line with ALREADY-SENT units (sentQty>0,
+    // status 'sent'/'preparing') can't be pulled from the modal — applyInstance
+    // Edits clamps to the sent portion, so removing the pill locally would
+    // desync pill↔cart (the line would reappear on reopen). Returns go through
+    // GERİ QAYTAR. Fresh (__isNew) and fully-unsent lines are unaffected.
+    const sent = Number(d.sentQuantity) || 0;
+    if (!d.__isNew && d.lineIndex >= 0 && sent > 0) {
+      toast.error('Bu sətirdə mətbəxə göndərilmiş hissə var — əvvəl GERİ QAYTAR edin');
+      return;
+    }
     commitInstanceDraft();
     const removedLineIndex: number = d.lineIndex;
     const isLocal = d.__isNew || removedLineIndex < 0;
     if (!isLocal && onApplyInstanceEdits) {
+      // 2026-09-30 (owner, round 9c — "× basmaq olmur"): ROOT CAUSE of a DEAD
+      // delete button. The draft stores modifiers as a Record {id: qty}, but
+      // applyInstanceEdits expects PosModifierSelection[] and does
+      // `nextMods.map` — passing the Record threw `TypeError: nextMods.map is
+      // not a function` on EVERY saved-line removal (silence in the UI — the
+      // pill just stayed). Convert to the selection array (name/price from the
+      // product's modifier list) before handing off.
+      const modDefs: any[] = (expandedItem as any)?.modifiers || [];
+      const modsArr = Object.entries(d.modifiers || {})
+        .filter(([, q]) => Number(q) > 0)
+        .map(([id, q]) => {
+          const def = modDefs.find((m: any) => m.id === id);
+          return { id, name: def?.name || id, price: Number(def?.price) || 0, quantity: Number(q) || 1 };
+        });
       onApplyInstanceEdits(expandedItem as any, [{
         lineIndex: removedLineIndex,
         quantity: 0,
         variantId: d.variantId ?? null,
         notes: d.note || '',
-        modifiers: { ...(d.modifiers || {}) },
+        modifiers: modsArr,
         course: d.course ?? null,
         isHold: !!d.is_hold,
         allergens: d.allergens ?? [],
@@ -1607,30 +1631,36 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                                       to delete it (local drop for unsaved drafts;
                                       cart-line remove + re-index for existing).
                                       stopPropagation keeps it from also switching. */}
-                                  {on && !instLocked && (
-                                    <span
-                                      role="button"
-                                      tabIndex={-1}
-                                      aria-label="Bu variantı sil"
-                                      title="Bu variantı sil"
-                                      onClick={(e) => { e.stopPropagation(); removeInstance(i); }}
-                                       className="relative z-10 shrink-0 flex items-center justify-center w-[18px] h-[18px] rounded-full ml-0.5"
-                                       style={{
-                                         // 2026-09-30 (round 9b, dark-theme E2E catch):
-                                         // the × renders ONLY on the active pill, so
-                                         // its token must mirror the ACTIVE CAPSULE's
-                                         // contrast — light-mode capsule is BLACK
-                                         // (→ white ×), dark-mode capsule is WHITE
-                                         // (→ dark ×). The old dark token was white
-                                         // on the white capsule = invisible (same
-                                         // swap bug as the round-8c ×qty badge).
-                                         color: lightMode ? 'rgba(255,255,255,0.9)' : '#18181b',
-                                         backgroundColor: lightMode ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.10)',
-                                       }}
-                                    >
-                                      <X size={11} />
-                                    </span>
-                                  )}
+                              {/* 2026-09-30 (owner, round 9c — "x buttonu active
+                                  pill-in içində olsun"): the delete × lives ONLY
+                                  on the ACTIVE pill (round 9b placement, confirmed
+                                  by owner). Tap target grew from round 9b's 18px
+                                  → 20px circle + 4px padding ≈ 28px press area.
+                                  stopPropagation keeps a delete tap from also
+                                  switching tabs. Locked (ready/served) pills stay
+                                  delete-free (GERİ QAYTAR path). NOTE: round 9c
+                                  briefly showed × on every pill — owner rejected
+                                  ("onu deməyirəm") and it was reverted. */}
+                              {on && !instLocked && (
+                                <span
+                                  onClick={(e) => { e.stopPropagation(); removeInstance(i); }}
+                                  className="relative z-10 shrink-0 p-[4px] -mr-[3px] cursor-pointer"
+                                  title="Varyantı sil"
+                                >
+                                  <span
+                                    className="flex items-center justify-center w-[20px] h-[20px] rounded-full"
+                                    style={{
+                                      /* active pill only → mirror the capsule
+                                         contrast (round 9b — light: white ×/black
+                                         capsule, dark: dark ×/white capsule) */
+                                      color: lightMode ? 'rgba(255,255,255,0.9)' : '#18181b',
+                                      backgroundColor: lightMode ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.10)',
+                                    }}
+                                  >
+                                    <X size={12} strokeWidth={2.5} />
+                                  </span>
+                                </span>
+                              )}
                                 </button>
                               );
                             })}

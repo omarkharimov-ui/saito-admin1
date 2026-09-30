@@ -1312,6 +1312,12 @@ export function usePos() {
     if (!base) return;
     const items = base.items.map(i => ({ ...i }));
     let touched = 0;
+    // 2026-09-30 (owner, round 9c — pill "×" delete): qty-0 edits on UNSENT
+    // lines are REMOVALS. The old path set quantity=0 in place, leaving a
+    // ghost 0-₼ row in the cart (E2E console: "Filadelfiya · − 0 + · ARA
+    // CƏMI 0.00 ₼"). Collected here and spliced after the loop (descending
+    // order) so earlier edits' indices stay valid.
+    const removeIdx: number[] = [];
     // 2026-09-28 (owner P1: "sonradan edilən modifikator dəyişiklikləri ayrıca
     // mətbəxə göndərilməlidir"): spec changes on ALREADY-SENT lines are synced
     // to the server via updateItem — the KDS reads order_items live, so the
@@ -1381,6 +1387,11 @@ export function usePos() {
       const allergensChanged = e.allergens !== undefined && JSON.stringify(target.allergens ?? []) !== JSON.stringify(e.allergens);
       const sentQty = target.sentQuantity ?? 0;
       const newQty = e.quantity != null ? Math.max(e.quantity, sentQty) : target.quantity;
+      if (e.quantity === 0 && sentQty === 0) {
+        removeIdx.push(li);
+        touched++;
+        continue;
+      }
       const qtyChanged = newQty !== target.quantity;
       if (!modsChanged && !variantChanged && !noteChanged && !courseChanged && !holdChanged && !allergensChanged && !qtyChanged) continue;
       let unit: number = target.unit_price;
@@ -1439,6 +1450,9 @@ export function usePos() {
           },
         });
       }
+    }
+    if (removeIdx.length > 0) {
+      for (const di of [...removeIdx].sort((a, b) => b - a)) items.splice(di, 1);
     }
     if (touched > 0) setCart({ ...base, items });
     if (specSyncs.length > 0 && base.order_id) {

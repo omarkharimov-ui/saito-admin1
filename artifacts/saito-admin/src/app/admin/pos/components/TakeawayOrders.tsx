@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence } from 'framer-motion';
-import { Plus, Phone, User, Clock, ShoppingBag, UserCheck, MoreVertical, Wallet, CheckCircle2 } from '@/components/ui/saito-icons';
+import { Plus, Phone, User, Clock, ShoppingBag, TakeawayPickup, MoreVertical, Wallet, CheckCircle2 } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveFulfillmentStage, isOrderPaid, type FulfillmentStage } from '@/lib/order-stage';
@@ -38,7 +38,8 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className={`text-2xl font-black ${lightMode ? 'text-black' : 'text-white'} flex items-center gap-2`}>
-            <UserCheck size={24} className="text-emerald-500" />
+            {/* 11o v2: person + takeout bag — "the customer picks up the order" */}
+            <TakeawayPickup size={24} className="text-emerald-500" />
               {t('takeaway_orders_title')}
           </h2>
           <p className={`text-xs mt-1 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>

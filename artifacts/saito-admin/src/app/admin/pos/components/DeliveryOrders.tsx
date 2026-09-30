@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence } from 'framer-motion';
-import { Plus, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical, Navigation, UserCheck, Route, Wallet, CheckCircle2 } from '@/components/ui/saito-icons';
+import { Plus, User, MapPin, Moped, Clock, ShoppingBag, MoreVertical, Navigation, Route, Wallet, CheckCircle2 } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveFulfillmentStage, isOrderPaid, type FulfillmentStage } from '@/lib/order-stage';
@@ -43,7 +43,8 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className={`text-2xl font-black ${lightMode ? 'text-black' : 'text-white'} flex items-center gap-2`}>
-            <Bike size={24} className="text-blue-500" />
+            {/* 11o: Tabler moped (MIT) — Baku couriers ride scooters, not bikes */}
+            <Moped size={24} className="text-blue-500" />
             {t('delivery_orders_title')}
           </h2>
           <p className={`text-xs mt-1 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>

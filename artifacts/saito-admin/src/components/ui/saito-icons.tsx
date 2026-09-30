@@ -505,3 +505,44 @@ export const Wheat = adapt(_Wheat);
 export const Wifi = adapt(_Wifi);
 export const WifiOff = adapt(_WifiOff);
 export const Zap = adapt(_Zap);
+
+// ── CUSTOM icons (11o — owner: "brauzerdən derin axtarış et, custom ikon
+//    download et; takeaway = person sifarişi götürür, Apple felsefəsi") ──────
+// Deep browser search across lucide / lucide-lab / tabler / iconoir / phosphor
+// / material / hugeicons: NO mainstream set ships a true "person picking up a
+// takeout bag" stroke icon. Best stroke candidates downloaded:
+//
+// TakeawayPickup (11o, v2) — the browser-searched Hugeicons `hand-bag-01`
+// rendered as a HANDBAG/PURSE (no hand — verified at 420px, owner-rejected
+// class). No mainstream set has a person+pickup stroke icon, so this is a
+// HAND-COMPOSED minimal in the exact lucide/SF grid (24, stroke 2, round):
+// the universal "local pickup" pictogram — PERSON + TAKEOUT BAG the customer
+// collects. Two balanced glyphs, nothing else.
+export function TakeawayPickup({ size = 24, strokeWidth = 2, className, color, ...rest }: SaitoIconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size as number} height={size as number} viewBox="0 0 24 24"
+      fill="none" stroke={color || 'currentColor'} strokeLinecap="round" strokeLinejoin="round"
+      strokeWidth={strokeWidth} className={className} aria-hidden {...rest}>
+      {/* person — head + shoulders (lucide user-round weight) */}
+      <circle cx="7.5" cy="6" r="3" />
+      <path d="M2.5 20.5v-2.5a5 5 0 0 1 10 0v2.5" />
+      {/* takeout bag — trapezoid body + handle */}
+      <path d="M15.5 10h6l-.6 5.6a2 2 0 0 1-2 1.9h-4.8a2 2 0 0 1-2-1.9Z" />
+      <path d="M17.5 10V8.8a2 2 0 0 1 4 0V10" />
+    </svg>
+  );
+}
+
+// Moped — Tabler `moped` (MIT): the delivery courier (Baku couriers ride
+// scooters, not bicycles — semantic upgrade over the old Bike icon).
+export function Moped({ size = 24, strokeWidth = 2, className, color, ...rest }: SaitoIconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size as number} height={size as number} viewBox="0 0 24 24"
+      fill="none" stroke={color || 'currentColor'} strokeLinecap="round" strokeLinejoin="round"
+      strokeWidth={strokeWidth} className={className} aria-hidden {...rest}>
+      <path d="M16 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M5 16v1a2 2 0 0 0 4 0v-5h-3a3 3 0 0 0 -3 3v1h10a6 6 0 0 1 5 -4v-5a2 2 0 0 0 -2 -2h-1" />
+      <path d="M6 9l3 0" />
+    </svg>
+  );
+}

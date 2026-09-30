@@ -2292,7 +2292,14 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                   );
                 })()}
 
-                {/* Course (mərhələ) — preserved across re-opens (was lost) */}
+                {/* Course (mərhələ) — preserved across re-opens (was lost).
+                    11o (owner: "modifikatoru olmayan məhsulda servinq üsulu
+                    həmişə standart qalsın; chip yalnız real seçimdə"): the
+                    section renders ONLY for products that have modifier options
+                    — as a separate selection inside the spec panel, with the
+                    settings default pre-selected. Modifier-less products keep
+                    the house default silently (nothing shown, no chip). */}
+                {(((expandedItem as any)?.modifiers || []).length > 0 || ((expandedItem as any)?.modifier_groups || []).length > 0) && (
                 <div>
                   <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Mərhələ:</span>
                   <div className={`flex flex-wrap gap-2 mt-2 ${specLocked ? 'pointer-events-none opacity-40' : ''}`}>
@@ -2322,6 +2329,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     })}
                   </div>
                 </div>
+                )}
                 {/* Hold state (read-only badge — hold/resume is managed in the cart) */}
                 {editIsHold && (
                   <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border text-[11px] font-bold ${lightMode ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-orange-500/10 border-orange-500/25 text-orange-300/90'}`}>

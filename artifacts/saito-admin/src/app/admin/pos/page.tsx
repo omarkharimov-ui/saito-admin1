@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap, morphView } from '@/lib/modal-transitions';
 import { GridCell } from '@/lib/motion/GridCell';
-import { X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, Hourglass } from '@/components/ui/saito-icons';
+import { X, Calendar, Utensils, TakeawayPickup, Moped, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users, Loader2, AlertTriangle, Table2, RefreshCw, Printer, ArrowLeft, Hourglass } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useDeviceHeartbeat } from '@/lib/device-heartbeat';
@@ -2352,15 +2352,22 @@ export default function POSPage() {
              <div className="flex-shrink-0">
              <DragTabSwitcher
                items={[
-                   // 2026-09-28 (owner): Utensils (dine-in dining) / Bike (delivery
-                   // courier). 2026-09-29: ShoppingBag→Handbag (pickup bag).
-                   // 2026-10-01 (owner, 11n: "takeaway ikonu insanın sifarişi
-                   // götürməsini ifadə edən sadə və intuitiv ikon olsun"): back to a
-                   // PERSON icon — UserCheck (person + check = the customer picks
-                   // up the order). Matches the takeaway board header.
+                   // 2026-09-28: Utensils (dine-in). 2026-09-29: ShoppingBag→Handbag.
+                   // 2026-10-01 (owner, 11o: "brauzerdən derin axtarış et, custom
+                   // ikon download et; takeaway = person sifarişi götürür; Apple
+                   // felsefəsi"): deep browser search (lucide/tabler/iconoir/
+                   // phosphor/material/hugeicons) — no mainstream set has a true
+                   // person-pickup stroke icon, so the closest stroke designs were
+                   //    found + hand-composed in the same grid:
+                   //  · takeaway = TakeawayPickup — PERSON + TAKEOUT BAG (the
+                   //    universal "customer collects the order" pictogram; the
+                   //    Hugeicons hand-bag candidate rendered as a purse — rejected
+                   //    at 420px by E2E v1).
+                   //  · delivery = Moped (Tabler, MIT) — Baku couriers ride
+                   //    scooters, not bicycles (old Bike was semantically weak).
                    { id: 'dine_in', label: t('dine_in'), icon: Utensils, dotColor: '#10b981' },
-                   { id: 'takeaway', label: t('takeaway'), icon: UserCheck, dotColor: '#10b981' },
-                  { id: 'delivery', label: t('delivery'), icon: Bike, dotColor: '#3b82f6' },
+                   { id: 'takeaway', label: t('takeaway'), icon: TakeawayPickup, dotColor: '#10b981' },
+                  { id: 'delivery', label: t('delivery'), icon: Moped, dotColor: '#3b82f6' },
                ]}
                value={posMode}
                onChange={(mode) => {

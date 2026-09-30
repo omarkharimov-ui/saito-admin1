@@ -884,6 +884,38 @@ aradan qaldırıldıqdan sonra frozen elan et." 15 backend kandidatı yoxlanıld
 - FROZE qərarı: owner 11n-də konkret UX isteklər verdi → freeze elanı 11n sonrasına
   sürüşdürüldü (comparison.md §0 before/after hazırdır).
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11o: CHIP MƏNTİĞİ + CUSTOM İKONLAR + ACTION-SHEET BACK)
+
+Owner: (1) chip yalnız REAL seçimdə (default stamping chip yaratmamalı; modifikatoru
+olmayan məhsulda Mərhələ belə görünməsin), (2) "brauzerdən derin axtarış, custom ikon
+download et; takeaway = person sifarişi götürür; Apple felsefəsi", (3) ActionSheet-də
+back button.
+
+1. **Chip = yalnız real selection (11n-dən geri qaytarma):** plain tap indi xəttə
+   `course: null` yazır (11n default course eksplisit stamp edirdi — owner bunu
+   "səsiz təyin + chip" olaraq gördü). null = house default (placeOrder/panel
+   `|| defaultCourse` ilə həmişə real dəyərlə yola çıxır), merge key null-semantikaya
+   qaytdı ("×4" qorunur). Cart chip gate eyni qaldı (`course && course !== defaultCourse`)
+   — null olduqdan sonra default-heç vaxt chip gətirmir. Panel: Mərhələ section YALNIZ
+   məhsulun modifier options varsa render olunur (`modifiers.length>0 ||
+   modifier_groups.length>0`) — modifikatorsuz məhsulda səsiz default.
+   E2E (r11o): Tea tap → chip YOX + panel-də Mərhələ YOX; Filadelfiya tap → "1 əlavə"
+   chip (real modifikator) + Mərhələ panel-də (default gold); Desert → SAVE → "🍴
+   Dessert" chip (pink, modifier chip-dən fərqli) ✓.
+2. **CUSTOM İKONLAR (deep browser search, 7 set, Iconify API):** heç bir mainstream setdə
+   "person + pickup" stroke ikonu YOXDUR (yeganə person+bag = pinhead map-pictogram, CC0,
+   detallı). Hugeicons `hand-bag-01` (MIT) candidate E2E v1-də 420px-də HANDBAG/PURSE
+   olduguna görə REJECT. Final: `TakeawayPickup` = hand-composed universal local-pickup
+   piktogramı (person: head+shoulders | bag: trapezoid+handle — exact lucide 24/stroke-2
+   grid) + `Moped` (Tabler, MIT — Baku kuryerləri skuter sürür, Bike semantic zəif idi).
+   Yeri: mode switcher + board header-lər (takeaway emerald, delivery blue).
+3. **ActionSheet back button (owner: "geri çıxmaq üçün button lazım"):** main actions
+   sheet-də görünən dismiss YALNIZ backdrop-tap idi → iOS-standard circular chevron
+   (top-4 left-4, frosted, theme-aware, aria "Geri") əlavə olundu; click = onClose.
+   Sub-view-lərdəki BackButton pill-ləri artıq vardı (2026-09-29 fix).
+- **tsc 0, production build PASS, browser E2E v1 (takeaway icon REJECT → v2) + v2 4/4
+  PASS, console 0/0.**
+
 ### Jurnal sətiri — 2026-09-30 (ROUND 11f: QALANLAR TƏMAMI — offline phase-2 quick batch + VOID anomaly + 2 broken payment yol)
 
 Owner: "qalanlarida tezz tamamla". 4 istiqamet, hamisi E2E-verified:

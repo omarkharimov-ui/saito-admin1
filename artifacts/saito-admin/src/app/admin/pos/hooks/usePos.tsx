@@ -1182,16 +1182,17 @@ export function usePos() {
     // explicitly via the editor's "＋ Yeni sətir" button, not by tapping.
     {
       const addKey = cartLineKey(variantId, opts?.notes ?? '', mods as any);
-      // 11n: a plain tap (no explicit course) carries the DEFAULT course from
-      // Ayarlar — so it merges with other default-course lines (the "×4"
-      // behavior) and the cart never shows a chip for the default.
-      const addCourse = opts?.course !== undefined ? opts.course : defaultCourse;
+      // 11o (owner: "yalnız real seçimdə chip; default stamping chip yaratma"):
+      // a plain tap carries NO explicit course (null = house default). null
+      // merges with other null/default lines (the "×4" behavior) and the cart
+      // never chips the default. Only a real Mərhələ pick (non-null) differs.
+      const addCourse = opts?.course !== undefined ? opts.course : null;
       const addAllergens = JSON.stringify(opts?.allergens ?? []);
       const existing = items.find((i: any) =>
         String(i.product_id) === String(p.id)
         && !i.__isCombo && !i.is_combo
         && cartLineKey(i.variant_id, i.special_notes, i.modifiers as any) === addKey
-        && (i.course ?? defaultCourse) === addCourse
+        && (i.course ?? null) === addCourse
         && JSON.stringify(i.allergens ?? []) === addAllergens
       );
       if (existing) {
@@ -1219,10 +1220,10 @@ export function usePos() {
         modifiers: mods,
         variant_id: variantId,
         special_notes: opts?.notes ?? '',
-        // 11n: explicit course — default course from settings unless the
-        // caller passed one (panel edits pass the picked course, or null to
-        // reset to the house default).
-        course: opts?.course !== undefined ? opts.course : defaultCourse,
+        // 11o: null unless the caller explicitly picked a course (panel Mərhələ).
+        // null = house default from settings (applied at order time + panel
+        // display); the cart chip renders only for explicit non-default picks.
+        course: opts?.course !== undefined ? opts.course : null,
         allergens: opts?.allergens ?? [],
         campaign_id: campaignId,
         campaign_discount_amount: campaignDiscount,

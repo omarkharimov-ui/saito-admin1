@@ -1,4 +1,4 @@
-# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-01, rounds 7 → 11n)
+# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-01, rounds 7 → 11o)
 
 > Əsas: SAITO = bu repo-nun kodu üzrə verified feature set. Rəqiblər = hər birinin
 > müstəqil Restaurant POS məhsulunun müəssisəleşmiş core feature set-i.
@@ -6,7 +6,8 @@
 > **STATUS (2026-10-01, rounds 11a–11n):** 5 əsas çatışmazlığın HAMISI bağlandı
 > (payroll 11a · purchasing 11b · analytics 11c · online ordering 11d · offline 11e),
 > qalanlar 11f-də, backend consistency audit + Apple polish 11g-də, POS status axını
-> (fulfillment/payment ayrılığı) + served-lock + default serving 11n-də. Hər addımın
+> (fulfillment/payment ayrılığı) + served-lock + default serving 11n-də, chip mənatiqi +
+> custom ikonlar (person+bag / moped) + action-sheet back 11o-da. Hər addımın
 > before/after müqayisəsi aşağıda (§0). Qalan: §2.6 real PSP (owner qərarı),
 > §2.7 e-commerce (low priority), §2.8 franchise, light-mode phase-2 (POS sheet-ləri).
 
@@ -31,9 +32,9 @@
 | **UI (Apple polish)** | — | Payroll panel auto-load + meaningful empty state; peak-hours redundant footer aradan qaldırıldı; binding docs-a uyğun consistency (hər screen: content-first, one primary action) |
 | **Backend integrity** | Fire-and-forget idempotency writes; non-atomic goods-receipt (rollback dead code); read-modify-write races (supplier counter, double receive) | Reserve-before-create + blocking confirm; atomic RPC receive (FOR UPDATE); atomic counter RPC-ləri; in-route auth (middleware fail-open əməliyyatına qarşı) |
 | **Board status axını (11n)** | Chip = derived stage, "ÖDƏNİLDİ" stage idi → 33/34 takeaway kartı progress yox, pullu vəziyyət; `sent/accepted/reserved` rollup dəyərləri tanınmırdu ("Mətbəxdə" → "Təsdiqləndi"); in_transit config yoxdu (pending-ə düşürdü) | Chip = yalnız FULFILLMENT (kuryer maşini > kitchen rollup > order status); ödəniş = total yanında ikon (✓ / hourglass); sent/accepted/reserved/served düzgün axınır |
-| **Takeaway/delivery ikonları (11n)** | Mode switcher: Handbag (börüş); board: UserCheck | Takeaway = UserCheck (insan sifarişi götürür — owner tapşırığı), delivery = Bike; switcher + board eyniləşdi |
+| **Takeaway/delivery ikonları (11n→11o)** | Mode switcher: Handbag (börüş); board: UserCheck; delivery: Bike | Deep browser search (7 icon seti, Iconify API) → custom: Takeaway = **TakeawayPickup** (person + takeout bag — universal "customer picks up" piktogramı, lucide grid-də), Delivery = **Moped** (Tabler, MIT — Baku kuryer skuteri). Candidate v1 (Hugeicons hand-bag) E2E-də handbag olduğu üçün reject → v2 |
 | **Served məhsula yeni porsiyon (11n)** | SERVED xəttsədən eyni məhsulun YENİ porsiyonu əlavə olunmurdu (single-mode-da düymə yoxdu, multi-da kilidlə gizlənirdi — dead end) | "Yeni porsiyon əlavə et" (single + həmişə görünən multi "＋") → fresh draft, kilid yalnız göndərilmiş porsiyona |
-| **Serving üsulu (course) (11n)** | Hər məhsula 'main' (Ana yemak) SƏSSİZ təyin olunurdu + cart-da HƏMİŞƏ chip (chaos) | Ayarlar → Mətbəx: `default_course` (4 seçimi); yeni məhsul avtomatik default alır; chip YALNIZ fərqli seçimdə (Utensils ikon + course-tint, modifier chip-dən aydın fərqli) |
+| **Serving üsulu (course) (11n→11o)** | Hər məhsula 'main' (Ana yemak) SƏSSİZ təyin olunurdu + cart-da HƏMİŞƏ chip (chaos) | Ayarlar → Mətbəx: `default_course` (4 seçimi); plain tap = null (səsiz default, chip-siz); Mərhələ section yalnız modifier-lı məhsulda (panel-də, default gold); chip YALNIZ real + fərqli seçimdə (Utensils ikon + course-tint, "1 əlavə" mod chip-dən aydın fərqli) |
 
 **Qeyd:** "BEFORE" sütunu = round 7 audit-inin (bu faylın ilk versiyasının) verified durumu.
 Hər AFTER claim = round jurnalında (MASTER_FEATURE_MAP.md §10, 11a–11g) commit + E2E

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
   User, Phone, Smartphone, Building2, Gift, ArrowLeftRight,
-  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag, Star, Shield, Navigation,
+  ChevronRight, ChevronLeft, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck, Tag, Star, Shield, Navigation,
 } from '@/components/ui/saito-icons';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
@@ -350,13 +350,35 @@ export function ActionSheet({
                     : 'rounded-7xl p-8 w-[92%] max-w-md mx-auto'
                }`}
             >
-              {/* Apple Maps style drag indicator */}
-              {currentView === 'actions' && (
-                <div className="flex justify-center mb-5">
-                  <div className={`w-10 h-1.5 rounded-full ${lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
-                </div>
-              )}
-              <AnimatePresence mode="popLayout" initial={false}>
+               {/* Apple Maps style drag indicator */}
+               {currentView === 'actions' && (
+                 <div className="flex justify-center mb-5">
+                   <div className={`w-10 h-1.5 rounded-full ${lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
+                 </div>
+               )}
+               {/* 11o (owner: "actionsheetde back button əlavə et — geri çıxmaq
+                   üçün button lazimdir"): the main actions sheet had NO visible
+                   dismiss control — only backdrop-tap (easy to miss on a small
+                   sheet) and the subview pills. iOS-standard circular chevron,
+                   top-left of the capsule, theme-aware. */}
+               {currentView === 'actions' && (
+                 <motion.button
+                   onClick={onClose}
+                   title={t('back')}
+                   aria-label={t('back')}
+                   whileTap={{ scale: 0.88 }}
+                   transition={TAP}
+                   className="absolute top-4 left-4 z-20 flex items-center justify-center w-9 h-9 rounded-full active:scale-95"
+                   style={{
+                     background: lightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)',
+                     border: `1px solid ${lightMode ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.12)'}`,
+                     color: lightMode ? '#374151' : 'rgba(255,255,255,0.75)',
+                   }}
+                 >
+                   <ChevronLeft size={18} strokeWidth={2.5} />
+                 </motion.button>
+               )}
+               <AnimatePresence mode="popLayout" initial={false}>
                 {currentView === 'actions' && (
                   <motion.div key="ui-actions" {...morphView} transition={fastExit}>
                     <div className="text-center mb-6">

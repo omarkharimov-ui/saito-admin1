@@ -3,7 +3,7 @@ import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { resolveWriteLocationContext } from '@/lib/location-context';
 import { osrmRoute } from '../lib/osrm';
 import { geoCacheGet, geoCacheSet } from '../lib/geo-cache';
-import { localStreetPoint, localCityPoint } from '../lib/gazetteer';
+import { localStreetPoint, localCityPoint, numberMismatch } from '../lib/gazetteer';
 
 // ============================================================================
 // 2026-09-26 (owner, Task 55): address → km for the delivery fee engine.
@@ -407,6 +407,16 @@ async function nominatim(
     }
     const r = await nominatimOnce(c.text);
     if (r) {
+      // 12b (owner: "sumqayit 34 sayli mekteb yaziram — 11 saylı gəlir"):
+      // Nominatim free-text fuzzy-matches NAME NUMBERS. If the candidate
+      // query names entity #34 and the hit is entity #11 (its own name
+      // number, queried one absent) → DIFFERENT building → miss. House
+      // numbers ("Nizami 12") never qualify — the guard stays silent.
+      if (numberMismatch(transliterate(c.text).toLowerCase(), transliterate(r.display).toLowerCase())) {
+        geoMiss.set(key, Date.now());
+        if (geoMiss.size > 200) geoMiss.delete(geoMiss.keys().next().value as string);
+        continue;
+      }
       if (farGuard && farGuard(r.lat, r.lng)) {
         geoMiss.set(key, Date.now()); // suspicious — keep trying
         if (geoMiss.size > 200) geoMiss.delete(geoMiss.keys().next().value as string);

@@ -4,6 +4,7 @@ import { resolveWriteLocationContext } from '@/lib/location-context';
 // Shared with /api/geocode (same process, same IP — one Nominatim policy):
 // the venue bootstrap must produce the SAME point as the geocode route.
 import { transliterate, candidates, haversineKm, nominatimOnce, detectPlace, venueCityOf, normalizeOrdinal, microCandidates, cityPoint } from '../route';
+import { numberMismatch } from '../../lib/gazetteer';
 // 11y: local gazetteer helpers moved to ../lib/gazetteer (shared with
 // /api/geocode's offline fallback — one index, one behavior, no cycles).
 import { localPrefix, localFuzzy, localCityPoint } from '../../lib/gazetteer';
@@ -201,6 +202,10 @@ export async function GET(req: NextRequest) {
     // 11x (E2E catch): Nominatim can return EMPTY lat/lon strings —
     // Number("") === 0 → a (0,0) row 6734.9 km "away". Reject empty,
     // non-finite and null-island rows before mapping.
+    // 12b (owner: "34 saylı məktəb" → dropdown-da "11 saylı Məktəb" görünür):
+    // a Nominatim row whose own NAME NUMBER conflicts with the typed one is a
+    // different numbered entity — drop it (house numbers never conflict).
+    const qFold = transliterate(raw).toLowerCase();
     const rawItems: SuggestItem[] = rows
       .filter(x => {
         const la = typeof x.lat === 'string' ? x.lat.trim() : x.lat;
@@ -210,6 +215,7 @@ export async function GET(req: NextRequest) {
         const lng = Number(lo);
         return Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
       })
+      .filter(x => !numberMismatch(qFold, transliterate(x.display_name || '').toLowerCase()))
       .map(x => ({
         name: (x.display_name || x.name || '').replace(/,?\s*Azərbaycan$/i, '').trim(),
         lat: Number(x.lat),

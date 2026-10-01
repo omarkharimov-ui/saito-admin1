@@ -809,6 +809,27 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12b: NAME-NUMBER GUARD — "34 SAYLI MƏKTƏB" YANLIŞ MƏKTƏB GÖSTƏRMƏMƏSİ)
+
+Owner: "bu xəritədə tam olaraq istədiyimiz konumu girdikdə — 'sumqayit 34 saylı məktəb' yazıram, işləmir, düzgün məktəbi göstərmir… sən düşünürsən ki yaxşıdır, amma deyil"
+
+**Problem:** "sumqayit 34 sayli mekteb" → sistem **"11 saylı Məktəb, Sumqayıt"** qaytarırdı (fərqli rəqəmli MƏKTƏB — aldanıcı "düzgün cavab"). Kök səbəb: OSM-in Sumqayıt məktəb datası seyrəkdir ("məktəb Sumqayıt" axtarışı cəmi 2 nəticə; **"34 saylı" OSM-də ÜMUMİYYƏTLƏ YOXDUR** — Nominatim 0 hit) → Nominatim free-text **"34"-u "11"-ə fuzzy uyğunlaşdırıb** qonşu məktəbi cavab etmişdi; local Levenshtein tier-i də eyni riski daşıyırdı ("34 sayli mekteb" ≈2 "11 sayli mekteb").
+
+**Fix — name-number guard (`lib/gazetteer.ts`, 3 route-a bağlandı):**
+- `nameNumbers(folded)`: **STRUKTURAL rəqəmləri** çıxarır — rəqəmin təsiri `sayl*|nomr*|cu|ci` ilə bitən ("34 saylı", "12 nömrəli", "9-cü", "9cu"). `\d{1,3}` = 4-rəqəmli poçt kodları toxunulmur. **House number QORUNUR**: "Nizami 12"-də 12-nin təsiri küçə adıdır → name-number DEYİL → guard HEÇ VAXT ev-ünvanlarına toxunmur.
+- `numberMismatch(query, candidate)`: sorğuda name-number var + candidata-da ÖZ name-number-u var + sorğunun rəqəmi candidate-də YOXDUR → fərqli rəqəmli entitet → reject.
+- Bağlanma nöqtələri: (1) `geocode/route.ts nominatim()` — Nominatim hit acceptance (farGuard-dan ƏVVƏL, local check); (2) `localStreetPoint` Levenshtein tier-i (streets + POIs); (3) `localFuzzy` (suggest); (4) suggest route Nominatim row-ları.
+
+**Doğru davranış (owner-un gözlədiyi):** OSM-də olmayan konum üçün sistem **yanlış binanı "cavab" etməz** → city-focus (Sumqayıt z13 + "xəritəyə tıkla" badge) → operator xəritədə məktəbi **1 tap** ilə pinləyir (reverse-geocode + route + fee auto).
+
+**A/B verification (git stash):** BEFORE: "34 sayli mekteb"→"11 saylı Məktəb" (bug) / AFTER: →"Sumqayıt, Azərbaycan" (city) ✓. Regression matrix (hamısı PASS): "Nizami 12, Bakı"→"12, Nizami küçəsi" 1.2km address ✓ (house number toxunulmayıb); "20 yanvar berde"→"20 Yanvar, Bərdə" 302.4km ✓; "Nizami Cəfərov 27, Bakı"→"Nizami küçəsi" 2.3km ✓; "bravo sumqayit 9cu mikrorayon" suggest→"9-cu Mikrorayon" 25.3km ✓; geocode "9cu" davranışı BEFORE/AFTER **eyni** (city fallback — 11x-də belə idi, suggest+pick yolu). Unit: 10/10.
+
+**E2E (browser, r12b-1-34sayli.png):** POS-da "sumqayit 34 sayli mekteb" yazıldı → satır **"32.4 km (təxmini) · Sumqayıt, Azərbaycan"** (DOM-scan: "11 sayl" YOXDUR ✓) → xəritəyə tap → reverse-geocode "İlyas Bayramov küç., Masazır" + **KM 15.9 + fee ₼2.45** (pin-flow ✓) — console 0.
+
+**Qeyd:** OSM-də olmayan binalar üçün bu, KEYLESS dünyada doğru həlldir (Google Places API keyli = rədd olundu). Əgər owner istəsə: tez-tez sorğulanan konkret binalar üçün kiçik override cədvəli (ad→koordinat) əlavə etmək olar — hazırda lazım deyil (1 tap pin).
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12a: KURYE TRACKING + KURYE ÜÇÜN APP (PIN LOGIN, STATUS AXINI, LIVE GPS, DISPATCH XƏRİTƏSİ))
 
 Owner: "kuryer tracking hətta kurye üçün də bir app yaz sən özünün, bir də Toast/Lightspeed/Square ilə də müqayisə et"

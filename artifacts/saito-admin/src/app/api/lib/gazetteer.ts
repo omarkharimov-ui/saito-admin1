@@ -143,6 +143,34 @@ function lev(a: string, b: string, max: number): number {
   return prev[n];
 }
 
+// 12b (owner: "sumqayit 34 sayli mekteb yaziram — yanlış məktəb gəlir
+// (11 saylı)"): NAME NUMBERS = digits that IDENTIFY the entity itself —
+// "34 saylı məktəb", "12 nömrəli", "9-cü mikrorayon". A house number
+// ("Nizami 12") is NOT a name number: the digit is not followed by
+// saylı/say/nömrəli/-cü/-ci, so this guard can never block house queries.
+// Input is FOLDED (ASCII, lowercase). \d{1,3} excludes 4-digit postals.
+const NAME_NUM_RE = /\b(\d{1,3})(?:\s*[-\s]?(?:sayl\w*|nomr\w*|cu|ci))\b/g;
+export function nameNumbers(folded: string): string[] {
+  const out = new Set<string>();
+  NAME_NUM_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = NAME_NUM_RE.exec(folded)) !== null) out.add(m[1]);
+  return [...out];
+}
+
+// 12b: the query carries a name number ("34") and the candidate carries its
+// OWN name number ("11") but not the queried one → a DIFFERENT numbered
+// entity ("11 saylı Məktəb" is not "34 saylı məktəb") → reject. If either
+// side has no name number at all → no conflict (Nominatim street answers
+// rarely carry the house number — those must keep flowing).
+export function numberMismatch(queryFolded: string, candidateFolded: string): boolean {
+  const q = nameNumbers(queryFolded);
+  if (!q.length) return false;
+  const c = nameNumbers(candidateFolded);
+  if (!c.length) return false;
+  return q.every((n) => !c.includes(n));
+}
+
 /**
  * Typos against the FULL name ("nizami" → "nizamii" is shorter than
  * "nizami cefarov") AND against a same-length PREFIX ("nizamii" ≈ the first
@@ -156,6 +184,7 @@ export function localFuzzy(q: string, vLat: number, vLng: number, cap: number, s
   const scored: { d: number; it: LocalStreetItem }[] = [];
   for (const s of GAZETTEER) {
     if (skip.has(s.n)) continue;
+    if (numberMismatch(fq, s.f)) continue; // 12b: name numbers are identity
     if (s.f.startsWith(fq) || fq.startsWith(s.f)) continue; // prefix = localPrefix's job
     let d = lev(fq, s.f, maxDist);
     if (d > maxDist && s.f.length > fq.length) {
@@ -178,6 +207,7 @@ export function localFuzzy(q: string, vLat: number, vLng: number, cap: number, s
   for (const p of POIS) {
     if (scored.length >= 36) break;
     if (skip.has(p.n)) continue;
+    if (numberMismatch(fq, p.f)) continue; // 12b: name numbers are identity
     if (p.f.startsWith(fq) || fq.startsWith(p.f)) continue; // prefix = localPrefix's job
     let d = lev(fq, p.f, maxDist);
     if (d > maxDist && p.f.length > fq.length) d = lev(fq, p.f.slice(0, fq.length), maxDist);
@@ -310,12 +340,16 @@ export function localStreetPoint(
   const maxDist = fq.length < 7 ? 1 : 2;
   const fuzzy: Cand[] = [];
   for (const s of GAZETTEER) {
+    // 12b: a Levenshtein hit across NAME NUMBERS is a different entity
+    // ("34 saylı məktəb" ≈2 "11 saylı məktəb" — that is NOT the answer).
+    if (numberMismatch(fq, s.f)) continue;
     let d = lev(fq, s.f, maxDist);
     if (d > maxDist && s.f.length > fq.length) d = lev(fq, s.f.slice(0, fq.length), maxDist);
     if (d === 0 || d > maxDist) continue;
     fuzzy.push({ d, it: s });
   }
   if (!fuzzy.length) for (const p of POIS) {
+    if (numberMismatch(fq, p.f)) continue; // 12b
     let d = lev(fq, p.f, maxDist);
     if (d > maxDist && p.f.length > fq.length) d = lev(fq, p.f.slice(0, fq.length), maxDist);
     if (d === 0 || d > maxDist) continue;

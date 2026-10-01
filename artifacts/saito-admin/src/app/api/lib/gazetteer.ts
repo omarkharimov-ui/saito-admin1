@@ -133,8 +133,12 @@ function lev(a: string, b: string, max: number): number {
       cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
       if (cur[j] < rowMin) rowMin = cur[j];
     }
-    if (rowMin > max) break;
     prev = cur;
+    // 11z: early-exit at ROW END only — breaking the inner loop and using
+    // the partial row corrupts later rows and can return a distance LOWER
+    // than the true one (caught: "nizami" vs "xizi" = 2 instead of 3, which
+    // let a street name masquerade as the city "Xızı" in detectPlace).
+    if (rowMin > max) return max + 1;
   }
   return prev[n];
 }

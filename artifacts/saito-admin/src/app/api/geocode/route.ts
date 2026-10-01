@@ -153,7 +153,13 @@ for (const p of AZ_PLACES) {
   for (const v of p.variants) PLACE_LOOKUP.set(v, p.name);
 }
 
-// 11z: tiny Levenshtein (cap 2) — fuzzy city-token detection in detectPlace.
+// 11z: tiny Levenshtein (capped) — fuzzy city-token detection in detectPlace.
+// CAUTION (11z bug caught in test): breaking the INNER loop when
+// rowMin > max and then using the PARTIAL row corrupts the next rows and can
+// return a distance LOWER than the true one ("nizami" vs "xizi" reported 2
+// instead of 3 → the street name "Nizami" was detected as city "Xızı"!).
+// Correct early-exit: break the WHOLE computation at row end (row minima are
+// non-decreasing across rows, so final > max is guaranteed).
 function levAZ(a: string, b: string, mx: number): number {
   if (Math.abs(a.length - b.length) > mx) return mx + 1;
   let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
@@ -164,8 +170,8 @@ function levAZ(a: string, b: string, mx: number): number {
       cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
       if (cur[j] < rowMin) rowMin = cur[j];
     }
-    if (rowMin > mx) break;
     prev = cur;
+    if (rowMin > mx) return mx + 1;
   }
   return prev[b.length];
 }
@@ -381,6 +387,13 @@ async function nominatim(
   // candidate is answered from the gazetteer — ZERO Nominatim calls and the
   // correct OSM town point, no matter what Nominatim's flaky free-text says.
   cityShortcut?: CityShortcut | null,
+  // 11z: CITY VALIDATION — when the address names a city, a Nominatim hit
+  // whose display lacks that city is a WRONG-CITY free-text garbage (caught:
+  // "Nizami 12, sumahit" → Nominatim answered a road named "Xızı" 100 km
+  // away, type=road so the coarse downgrade couldn't see it, farGuard let it
+  // through, and the local fallback was skipped under 'address'). Reject →
+  // the chain continues to the city-qualified candidate.
+  expectCityFold?: string | null,
 ): Promise<{ lat: number; lng: number; display: string; precision: 'address' | 'area' } | null> {
   for (const c of candidates(q, anchorCity)) {
     const key = transliterate(c.text).toLowerCase();
@@ -396,6 +409,12 @@ async function nominatim(
     if (r) {
       if (farGuard && farGuard(r.lat, r.lng)) {
         geoMiss.set(key, Date.now()); // suspicious — keep trying
+        if (geoMiss.size > 200) geoMiss.delete(geoMiss.keys().next().value as string);
+        continue;
+      }
+      if (expectCityFold && !transliterate(r.display).toLowerCase().includes(expectCityFold)) {
+        // wrong-city free-text hit — treat as a miss, keep the chain going
+        geoMiss.set(key, Date.now());
         if (geoMiss.size > 200) geoMiss.delete(geoMiss.keys().next().value as string);
         continue;
       }
@@ -561,13 +580,16 @@ export async function GET(request: NextRequest) {
         const cityShortcut0 = localCity0 && dpL0
           ? { nameFold: transliterate(dpL0.city).toLowerCase(), lat: localCity0.lat, lng: localCity0.lng, display: localCity0.display }
           : null;
-        c = await nominatim(q, null, farGuard, cityShortcut0);
+        c = await nominatim(q, null, farGuard, cityShortcut0,
+          dpL0?.city ? transliterate(dpL0.city).toLowerCase() : null);
         if (!c && noPlaceToken) {
           // 11s: input names no AZ place token ("Nizami Cəfərov 12") → retry
           // anchored on the venue's own city ("Nizami Cəfərov 12, Bakı").
           const anchor = await venueCityOf(vLat, vLng!);
           if (anchor) {
             const anchorLocal = localCityPoint(anchor);
+            // no expectCity here — the anchor is a GUESS (no typed city), so
+            // free-text hits stay allowed (the local fallback still upgrades).
             c = await nominatim(q, anchor, farGuard,
               anchorLocal
                 ? { nameFold: transliterate(anchor).toLowerCase(), lat: anchorLocal.lat, lng: anchorLocal.lng, display: anchorLocal.display }

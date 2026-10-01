@@ -880,13 +880,31 @@ map davranışı etməlidir."
      `delivery-eta` fetch-i ilə gəlir (eyni OSRM response, 0 extra call).
    - Manual pin (map tap/drag): reverse geocode + eta — ikisi də geometry
      daşıyır.
-5. **E2E (r11z-1..3, browser, console 0):** T1 "nizami" → 6 sətir 6 rayon
+5b. **Typo şəhər (owner sualı: "sumahit yazsam anlayacaq?")** — test
+   "Nizami 12, sumahit" → 100km **"Xızı, Azərbaycan"** qaytardı! İki bug:
+   (a) **Levenshtein early-exit korrupt** — inner-loop-da `rowMin > max`
+   break + partial row istifadəsi → məsafə DÜZGÜNDƏN AŞAĞI çıxır
+   (`lev('nizami','xizi')` 2 deyil 3 idi) → küçə adı "nizami" şəhər "Xızı"
+   kimi detect olunurdu. Eyni pattern `levAZ` + gazetteer `lev`-də (11w-D-dan
+   irsi) → ikisi də düzəldildi (early-exit YALNIZ tam row sonunda).
+   (b) **Nominatim wrong-city street-hit** — "Nizami 12, sumahit" → Nominatim
+   "Xızı" adlı ROAD (type=road → coarse-downgrade görmür, farGuard 100<500
+   keçirir) qaytarırdı → **city validation** əlavə olundu: şəhər yazılıbsa,
+   hit-in display-ında həmin şəhər YOXDURSA = miss, chain davam edir.
+   Nəticə: "Nizami 12, sumahit" → **27.9km "25/12, Nizami, Sumqayıt, 5006"**
+   ₼8.45 (address precision, cache-ə geometry-lə persist) + route xətt.
+   "sumahit" yalnzı → 32.4km Sumqayıt merkezi. "9cu mikrorayon"-klass
+   deqradasiya: Nominatim miss-də → şəhər merkezi (32.4km vs 25.3km —
+   graceful, suggest-də dəqiq sətir yenə görünür).
+5. **E2E (r11z-1..4, browser, console 0):** T1 "nizami" → 6 sətir 6 rayon
    (Abşeron 28.3 / Sabirabad 104.9 / **Lerik 215.5** / Goranboy 281.6 / Gəncə
    294.3+294.6); T2 "Nizami cucecı 12, Lerik" → **≈288.4 km (təxmini) · Nizami,
    Lerik rayonu**, **₼138.70 OOB fee GÖRÜNÜR**, xəritədə **yaşıl əyrili yol
    xətti** (mavi venue + qırmızı müşteri) + "288.4 km" pill, **country zoom**
    (Naxçıvan/Mingəçevir/Türkmənbaşı görünür); T3 "Nizami 27, Bakı" → 2.3 km,
-   ₼2, qısa yaşıl xətt + "2.3 km" pill, local zoom.
+   ₼2, qısa yaşıl xətt + "2.3 km" pill, local zoom; T4 (r11z-4) "Nizami 12,
+   sumahit" TYPO → 27.9km "25/12, Nizami, Sumqayıt, 5006" ₼8.45 + yaşıl route
+   + "27.9 km" pill, regional zoom (z9), console 0.
    Curl matrix: "Nizami cucecı 12, Lerik" 288.4km routed ✓ / "Cayli cucecı,
    Isemayilli" 185.4km "Çaylı küç., İsmayıllı rayonu" ✓ (fuzzy city + street) /
    "Nizami Cəfərov 27, Bakı" 2.3km ✓ (first-token tier) / "Nizami 27, Bakı"

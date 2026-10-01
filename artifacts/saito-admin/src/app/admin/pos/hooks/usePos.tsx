@@ -1639,6 +1639,7 @@ export function usePos() {
     delivery_intercom?: string;
     delivery_zone?: string;
     delivery_fee?: number;
+    delivery_km?: number;
     estimated_delivery_time?: string;
     payment_method?: string;
   }, assignedTo?: string) => {
@@ -1764,9 +1765,11 @@ export function usePos() {
                  delivery_floor: checkoutOverrides?.delivery_floor || cart.delivery_floor || null,
                  delivery_apartment: checkoutOverrides?.delivery_apartment || cart.delivery_apartment || null,
                  delivery_intercom: checkoutOverrides?.delivery_intercom || cart.delivery_intercom || null,
-                 delivery_zone: checkoutOverrides?.delivery_zone || cart.delivery_zone || null,
-                 delivery_fee: checkoutOverrides?.delivery_fee ?? cart.delivery_fee ?? 0,
-                 estimated_delivery_time: checkoutOverrides?.estimated_delivery_time || cart.estimated_delivery_time || null,
+                  delivery_zone: checkoutOverrides?.delivery_zone || cart.delivery_zone || null,
+                  delivery_fee: checkoutOverrides?.delivery_fee ?? cart.delivery_fee ?? 0,
+                  // 11z: audit pair with the fee — the km it was charged for.
+                  delivery_km: checkoutOverrides?.delivery_km ?? cart.delivery_km ?? null,
+                  estimated_delivery_time: checkoutOverrides?.estimated_delivery_time || cart.estimated_delivery_time || null,
                  scheduled_date: cart.scheduled_date || null,
                  reservation_id: cart.reservation_id || null,
                  assigned_to: isValidUUID(assignedTo) ? assignedTo : null,

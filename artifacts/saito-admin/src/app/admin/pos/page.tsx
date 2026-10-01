@@ -2268,6 +2268,9 @@ export default function POSPage() {
         customer_note: pos.cart?.notes || undefined,
         delivery_address: pos.cart?.delivery_address || undefined,
         delivery_fee: pos.cart?.delivery_fee || 0,
+        // 11z: audit pair with the fee — the km it was charged for (OSRM
+        // road km from the geocode/eta flow; undefined for zone-only orders).
+        delivery_km: pos.cart?.delivery_km ?? undefined,
         estimated_delivery_time: pos.cart?.estimated_delivery_time || undefined,
         payment_method: pos.cart?.payment_method || 'cash',
       }, posSession?.staffId);

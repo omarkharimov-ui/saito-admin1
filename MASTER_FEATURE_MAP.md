@@ -909,6 +909,16 @@ map davranışı etməlidir."
    Isemayilli" 185.4km "Çaylı küç., İsmayıllı rayonu" ✓ (fuzzy city + street) /
    "Nizami Cəfərov 27, Bakı" 2.3km ✓ (first-token tier) / "Nizami 27, Bakı"
    2.3km ✓. Cache təmiz (yalnız 'address' persist olur).
+5c. **DELIVERY FEE AUDIT GAP (owner: "db-də saxlanılır mı, çox güclü
+   səviyyədə qurulubmu")** — yoxlama: fee DB-də idi (`orders.delivery_fee`
+   numeric, RPC `calculate_delivery_fee(zone, amount, km)` server-resolved,
+   total-a creation-da DAXİL: 17.00+13.25=30.25 proof) amma **KM saxlanılmır
+   Dİ** → "nəyə görə ₼13.25?" disputesinə DB-də cavab YOXDU. Fix:
+   `orders.delivery_km numeric(8,1)` (migration 20261002000000) — fee-in
+   cümləsi (fee+km = audit pair), orders/route-da 0–500 clamp, usePos +
+   page payload. DB proof: ORD f2091bde = km 27.9 + fee 8.45 + total 108.45
+   (100+8.45) ✓. Zone ehtiyacı: YOX (11y model) — auto KM-band → zone, OOB
+   = zone-ehtiyacsız distance fee; zone chip = optional pin (flat wins).
 6. **Qeyd:** `suggest` API paramı = `address` (deyil `q`) — test-lərdə
    boş-nəticə kökü. Dev server: EADDRINUSE catch — `kill` yalnız pnpm parent-ı
    öldürür, next-server child PID portu saxlayır; `lsof -ti :3000`-dən BÜTÜN

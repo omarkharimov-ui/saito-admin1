@@ -809,6 +809,44 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11v: AUTO ZONE (TOAST MODELİ) + OSRM LIVE SÜRÜŞMƏ VAXTI (FREE API) + 40-ŞƏHƏR LÜĞƏTİ)
+
+Owner: "toast/lightspeed/square-da çatdırılma sistemi necedir — manual yoxsa?" → rəqib
+analizi: hamısı ünvan-dan **auto zone** seçir, amma ETA **statis** zone-range-dir; "tamam
+eynisindenn et hetta daha da yaxssini et, gor tapa bilirsense internetde free api onlada
+tetbiq elede onlardan daha yaxsi olsun".
+
+1. **AUTO ZONE (Toast modeli) — `page.tsx`:** `zoneAutoRef` auto-dan manual zone-u fərqləndirir.
+   KM məlumdur (geocode/suggest pick) + zone YOXDURSA → `autoZoneForKm(km)` KM-band ilə
+   **auto seç + price** (ilk band-dan aşağı → ilk zone; bütün band-lardan yuxarı → null).
+   Chip tap (select/DESELECT) = **MANUAL** → `zoneAutoRef=false`, zone heç vaxt daha flip
+   olunmur (11t "men seçmirem" qaydası qorunur). Auto zone + KM band-dan çıxır → auto
+   re-resolve (band tapılıb → yeni zone, yox → zone düş). Bütün radius-lar-dan kənardır →
+   zone YOX + panel-də amber warning "**N km — radius kənarında: zone-nu sən seç**" (Toast:
+   "outside delivery area"). Order dəyişmə/yeni order-da ref reset. **Send-gate dəyişməz:**
+   zone-sız delivery order YARADILMIR (server cart-da olanı bill edir; zone-sız = ₼0 =
+   pulsuz çatdırılma riski).
+2. **OSRM LIVE SÜRÜŞMƏ VAXTI (free, keyless) — `src/app/api/delivery-eta/route.ts` (YENİ):**
+   venue→customer OSRM driving route (`router.project-osrm.org`, API key YOX) → `{km,
+   minutes}`. 100m grid cache (300s), 6s timeout, 502 `eta_unavailable` graceful.
+   **Client (`CustomerPhasePanel`):** `driveEta` state (11q `eta` = mutfak dynamic ETA —
+   fərqli şey, ad toqquşması üçün rename) — suggest pick → non-blocking fetch → hint
+   "≈ 4.7 km … · **~9 dəq** · <address>". Address/mode dəyişəndə clear (effect `address`-dən
+   SONRA bəyənlənib — TDZ). **Rəqib gapı:** Toast/Lightspeed/Square = statik zone ETA
+   ("20–30 dəq"); biz = DEQİQ ünvan üçün REAL sürüşmə dəqiqəsi — free API-lə.
+3. **SUGGEST FİX — "20 yanvar berde" → 0 row (E2E catch):** (a) `AZ_PLACES` 26→**40 şəhər**
+   (11v əlavə: Bərdə, Neftçala, Samux, Şəmkir, Hacıqəbələ, Biləsuvar, Qobustan, Ağcabədi,
+   Gədəbəy, Xızı, İsgəndərli, Lerik, Tovuz, Qax); (b) suggest Nominatim query indi
+   **CANDIDATE-DRIVEN** (11s /api/geocode chain-i: "20 yanvar berde" → "20 yanvar, Bərdə";
+   ASCII variant last resort; ≤2 call) — əvvəl raw string-only idi (Nominatim free-text
+   comma-sız street+city-də düşürdü).
+- **E2E (r11v-1..2):** suggest pick (4.7 km) → zone **auto "Bakı Mərkəz 0–15"**, fee **₼2**,
+  hint "**~8 dəq**" (OSRM live) — operator zone-a toxunmayıb; out-of-radius pick → zone YOX +
+  amber "radius kənarında: zone-nu sən seç". Console 0. Curl: "20 yanvar berde" →
+  "20 Yanvar, Bərdə, Bərdə rayonu, 0900" 229.5 km ✓; "20 yanvar" → km-sorted (Bakı 4.6/4.7
+  üstə, Neftçala 121.3, Yevlax 226.9, Bərdə 229.5) ✓; eta: Bakı nöqtəsi 6.3 km/9 dəq ✓,
+  Bərdə 302.4 km/223 dəq. tsc clean.
+
 ### Jurnal sətiri — 2026-10-01 (ROUND 11u: INSTANT 1-CHAR SUGGEST — LOCAL STREET GAZETTEER)
 
 Owner: "nie limitli sekilde dropdown-da cixir — men 2 yazsam birden-bire netice

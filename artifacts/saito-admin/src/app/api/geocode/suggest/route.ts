@@ -167,18 +167,18 @@ export async function GET(req: NextRequest) {
 
     const raw = address.replace(/\s+/g, ' ');
     let rows: any[] = [];
-    const r = await throttledFetch(q(raw));
-    if (r?.ok) rows = await r.json();
-
-    // Variant fallback: the input's other script (AZ chars ↔ ASCII) may match
-    // OSM tags better — one extra call, only when the first was weak.
+    // 11v (owner E2E: "20 yanvar berde" → 0 rows): CANDIDATE-DRIVEN, like
+    // /api/geocode — raw string first, then the smart decomposition
+    // ("20 yanvar berde" → "20 yanvar, Bərdə"; Nominatim free-text fails on
+    // comma-less "street city"), plus the other script as a last resort.
+    // Max 2 Nominatim calls per suggest query.
+    const chain = candidates(raw).map(c => c.text);
     const ascii = transliterate(raw);
-    if (rows.length < 2 && ascii !== raw) {
-      const r2 = await throttledFetch(q(ascii));
-      if (r2?.ok) {
-        const rows2: any[] = await r2.json();
-        if (rows2.length > rows.length) rows = rows2;
-      }
+    if (ascii !== raw && !chain.includes(ascii)) chain.push(ascii);
+    for (const cq of chain.slice(0, 2)) {
+      if (rows.length >= 2) break;
+      const r = await throttledFetch(q(cq));
+      if (r?.ok) rows = await r.json();
     }
 
     // Dedup: one street often has several OSM ways 100-500m apart that render

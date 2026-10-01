@@ -2002,6 +2002,25 @@ export default function POSPage() {
   // (DB: calculate_delivery_fee returns {fee:2, is_free:true} at ₼100).
   // 2026-09-26 (owner, Task 50): fee RPC in flight → shimmer "hesablayır…"
   const [deliveryFeeCalculating, setDeliveryFeeCalculating] = useState(false);
+
+  // 11v (owner: "Toast modeli et — rəqiblərdə zone auto seçilir"): true =
+  // the current delivery_zone was AUTO-selected from the KM band (safe to
+  // re-resolve when the KM moves); false = the operator tapped a chip
+  // (MANUAL — never flip it, 11t rule).
+  const zoneAutoRef = useRef(false);
+
+  // 11v: resolve the zone whose KM band contains the distance. km below the
+  // first band → first zone; above every band → null (out of radius — the
+  // operator decides; the panel shows the warning).
+  const autoZoneForKm = (km: number) => {
+    const zs = (deliveryZones || []).filter((z: any) => z.is_active !== false);
+    if (!zs.length) return null;
+    const sorted = [...zs].sort((a: any, b: any) => (a.min_km ?? 0) - (b.min_km ?? 0));
+    const hit = sorted.find((z: any) => km >= (z.min_km ?? 0) && (z.max_km == null || km <= z.max_km));
+    if (hit) return hit;
+    if (km < (sorted[0].min_km ?? 0)) return sorted[0];
+    return null;
+  };
   // 2026-09-26 (owner, Task 55): live smart-surge info for the fee hint
   // (weather/peak multiplier + reason + base fee) — Wolt-class badge.
   const [deliverySurge, setDeliverySurge] = useState<{ mult: number; reason: 'weather' | 'peak'; base: number } | null>(null);
@@ -2103,6 +2122,10 @@ export default function POSPage() {
 
   const handleZoneSelect = async (zoneName: string) => {
     if (!pos.cart) return;
+    // 11v: a chip tap (select OR deselect) is an EXPLICIT operator decision —
+    // it overrides (and ends) the auto-zone state; the zone never flips again
+    // without a tap.
+    zoneAutoRef.current = false;
     const nextCart = { ...pos.cart, delivery_zone: zoneName || null };
     if (!zoneName) {
       pos.setCart({ ...nextCart, delivery_fee: 0 });
@@ -3056,24 +3079,24 @@ export default function POSPage() {
                 key="takeaway-list"
                 orders={takeawayOrders}
                 onRefresh={fetchTakeawayOrders}
-                 onNewOrder={() => {
-                   pos.initializeTakeawayCart();
-                   setEditingOrder(null);
-                   setPosPhase('products'); setCustomerFocus(null);;
-                   pos.setActiveView('order');
-                 }}
-                 onSelectOrder={(order) => {
-                   setEditingOrder(order);
-                   setPosPhase('products'); setCustomerFocus(null);;
-                   pos.loadOrderIntoCart(order);
-                   pos.setActiveView('order');
-                 }}
-                onOpenActionSheet={handleOpenOrderSheet}
-              />
+                  onNewOrder={() => {
+                    pos.initializeTakeawayCart();
+                    setEditingOrder(null);
+                    setPosPhase('products'); setCustomerFocus(null);;
+                    pos.setActiveView('order');
+                  }}
+                  onSelectOrder={(order) => {
+                    setEditingOrder(order);
+                    setPosPhase('products'); setCustomerFocus(null);;
+                    pos.loadOrderIntoCart(order);
+                    pos.setActiveView('order');
+                  }}
+                 onOpenActionSheet={handleOpenOrderSheet}
+               />
               </motion.div>
             )}
 
-            {/* DELIVERY: Active orders list */}
+             {/* DELIVERY: Active orders list */}
            {posMode === 'delivery' && pos.activeView === 'floor' && (
                 <motion.div
                    key="delivery-wrapper"
@@ -3090,12 +3113,14 @@ export default function POSPage() {
                 orders={deliveryOrders}
                 onRefresh={fetchDeliveryOrders}
                  onNewOrder={() => {
+                   zoneAutoRef.current = false; // 11v: fresh order → no auto-zone state
                    pos.initializeTakeawayCart();
                    setEditingOrder(null);
                    setPosPhase('products'); setCustomerFocus(null);;
                    pos.setActiveView('order');
                  }}
                  onSelectOrder={(order) => {
+                   zoneAutoRef.current = false; // 11v: loaded order's zone is its saved (explicit) zone
                    setEditingOrder(order);
                    setPosPhase('products'); setCustomerFocus(null);;
                    pos.loadOrderIntoCart(order);
@@ -3159,18 +3184,49 @@ export default function POSPage() {
                                   const next = { ...pos.cart, [field]: value };
                                   pos.setCart(next);
                                   if (posMode !== 'delivery') return;
-                                   // 11t (owner: "zonanı özün seçir, men
-                                   // seçmirem" — 2026-10-01): the address-typing
-                                   // auto-commit of the top-priority zone is
-                                   // REMOVED. Zone = an explicit operator
-                                   // decision (chip tap). A KM change only
-                                   // re-prices the ALREADY-SELECTED zone
-                                   // (pinZone: explicit zone always wins) — it
-                                   // never flips the zone by km-range.
-                                   if (field === 'delivery_km' && Number(value) >= 0.1 && next.delivery_zone) {
-                                     recalcDeliveryFee(next, next.delivery_zone, { pinZone: true });
-                                   }
-                                }}
+                                   // 11v (owner: "Toast modeli — rəqiblərdə zone
+                                   // ünvan-dan AUTO seçilir; onlardan yaxşı
+                                   // edək"): KM is now known (suggestion pick,
+                                   // geocode, or manual typing) →
+                                   //  • zone MANUAL (chip tap) → pinZone re-price
+                                   //    only — the operator's choice never flips
+                                   //    (11t rule kept).
+                                   //  • zone AUTO (11v) → if the KM left its
+                                   //    band, re-resolve to the band's zone;
+                                   //    out of every radius → drop it (panel
+                                   //    shows "radius kənarında").
+                                   //  • NO zone → AUTO-SELECT by KM band + price
+                                   //    (Toast: the address decides the zone).
+                                   if (field === 'delivery_km' && Number(value) >= 0.1) {
+                                     const km = Number(value);
+                                     if (next.delivery_zone) {
+                                       const zObj = deliveryZones.find((z: any) => z.name === next.delivery_zone);
+                                       const inBand = !!zObj && km >= (zObj.min_km ?? 0) && (zObj.max_km == null || km <= zObj.max_km);
+                                       if (zoneAutoRef.current && !inBand) {
+                                         const nz = autoZoneForKm(km);
+                                         if (nz) {
+                                           zoneAutoRef.current = true;
+                                           const withZone = { ...next, delivery_zone: nz.name };
+                                           pos.setCart(withZone);
+                                           recalcDeliveryFee(withZone, nz.name, { pinZone: true });
+                                         } else {
+                                           zoneAutoRef.current = false;
+                                           pos.setCart({ ...next, delivery_zone: null });
+                                         }
+                                       } else {
+                                         recalcDeliveryFee(next, next.delivery_zone, { pinZone: true });
+                                       }
+                                     } else {
+                                       const z = autoZoneForKm(km);
+                                       if (z) {
+                                         zoneAutoRef.current = true;
+                                          const withZone = { ...next, delivery_zone: z.name };
+                                          pos.setCart(withZone);
+                                          recalcDeliveryFee(withZone, z.name, { pinZone: true });
+                                        }
+                                      }
+                                    }
+                                 }}
                                 onZoneSelect={handleZoneSelect}
                                 onBack={() => { setPosPhase('products'); setCustomerFocus(null); }}
                                 focusField={customerFocus}
@@ -3318,7 +3374,7 @@ export default function POSPage() {
                             partnerOrder={(editingOrder as any)?.partner_source ? (editingOrder as any) : null}
                             feeCalculating={deliveryFeeCalculating}
                            onRecordLoss={handleRecordLoss}
-                         onClearDraft={() => pos.clearCart()}
+                         onClearDraft={() => { zoneAutoRef.current = false; pos.clearCart(); }}
                          mergedChildNumbers={posMode === 'dine_in' ? activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number) : undefined}
                          customerId={pos.cart?.customer_id}
                          customerName={pos.cart?.customer_name}

@@ -24,7 +24,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, User, Route, Wallet, MessageCircle, PauseCircle, CloudRain, Clock, MapPin } from '@/components/ui/saito-icons';
+import { ArrowLeft, User, Route, Wallet, MessageCircle, PauseCircle, CloudRain, Clock, MapPin, AlertTriangle } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -116,6 +116,14 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   // re-opened with 1 row after a pick). Cleared on any manual keystroke.
   const suggestPickedRef = useRef<string | null>(null);
 
+  // 11v (owner: "onlardan daha yaxşı olsun" — free OSRM, keyless): live
+  // DRIVING time for the picked exact point. Competitors show a static zone
+  // ETA ("20–30 dəq"); we show the real route minutes per address.
+  // Non-blocking: the hint appears when the ETA arrives. (Named driveEta —
+  // the 11q `eta` state above is the DYNAMIC kitchen ETA, a different thing.)
+  const [driveEta, setDriveEta] = useState<{ km: number; minutes: number } | null>(null);
+  const etaAbort = useRef<AbortController | null>(null);
+
   // 11q (owner, idea D: "mutfaktaki anlık yoğunluğa göre dinamik ETA"): the
   // promised ETA tracks the LIVE kitchen queue — zone base range + queued
   // items (all order types), capped. Re-fetched every 30s while a zone is
@@ -142,6 +150,13 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const phone = (cart?.customer_phone || '').trim();
   const name = (cart?.customer_name || '').trim();
   const address = (cart?.delivery_address || '').trim();
+  // 11v: a new address (or mode) invalidates the driving-time hint.
+  // (Declared HERE, not with the state above — `address` would be in its TDZ.)
+  useEffect(() => {
+    setDriveEta(null);
+    etaAbort.current?.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, mode]);
   // 2026-09-28 (owner: "umumi inputlarda space qoymaq problemi"): the CONTROLLED
   // input `value` must be the RAW cart value, NOT a trimmed one. Feeding the
   // trimmed string back as `value` re-snaps the DOM after every re-render and
@@ -283,7 +298,18 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
     setGeoApprox(false);
     setSuggestOpen(false);
     setSuggestResults([]);
+    // 11v: the KM update drives AUTO zone selection in page.tsx (Toast model
+    // — the address decides the zone; chips stay a manual override).
     if (Number(cart?.delivery_km ?? -1) !== it.km) onUpdate('delivery_km', it.km);
+    // 11v: live driving time (OSRM, free) for this exact point — non-blocking;
+    // competitors only show a static zone ETA ("20–30 dəq").
+    etaAbort.current?.abort();
+    const ac = new AbortController();
+    etaAbort.current = ac;
+    fetch(`/api/delivery-eta?lat=${it.lat}&lng=${it.lng}`, { cache: 'no-store', signal: ac.signal })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!ac.signal.aborted && d && d.minutes) setDriveEta({ km: d.km, minutes: d.minutes }); })
+      .catch(() => { /* OSRM down → hint shows km only (graceful) */ });
   };
 
   return (
@@ -373,6 +399,20 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                {zones.length > 0 && (
                 <div>
                   <p className={labelCls}>{t('delivery_zone')}</p>
+                  {/* 11v: out-of-radius warning — no zone auto-selected when
+                      the distance is beyond every configured band (Toast:
+                      "outside delivery area"); operator picks deliberately. */}
+                  {(() => {
+                    const maxBand = zones.length ? Math.max(...zones.map((zz: any) => zz.max_km ?? 0)) : 0;
+                    const oob = geoKm != null && Number(geoKm) >= 0.1 && !zoneName && maxBand > 0 && Number(geoKm) > maxBand;
+                    if (!oob) return null;
+                    return (
+                      <div className={`mt-2 flex items-center gap-1.5 text-[10px] font-bold ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>
+                        <AlertTriangle size={12} />
+                        {geoKm} km — radius kənarında: zone-nu sən seç
+                      </div>
+                    );
+                  })()}
                   <div className="flex flex-wrap gap-2">
                     {zones.map(z => {
                       const on = zoneName === z.name;
@@ -467,11 +507,14 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                      Məsafə hesablanır… <span className="vk-geo-bar" />
                    </p>
                  )}
-                  {geoStatus === 'ok' && geoKm != null && (
-                    <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
-                      ≈ {geoKm} km{geoApprox ? ' (təxmini)' : ''} <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>· {geoDisplay.slice(0, 48)}</span>
-                    </p>
-                  )}
+                        {geoStatus === 'ok' && geoKm != null && (
+                          <span className={`text-xs font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                            {geoApprox ? '≈ ' : ''}{geoKm} km{geoApprox ? ' (təxmini)' : ''}
+                            {/* 11v: live OSRM driving time — beats competitors' static zone ETA */}
+                            {driveEta ? ` · ~${driveEta.minutes} dəq` : ''}
+                            {' · '}{geoDisplay}
+                          </span>
+                        )}
                   {/* Geocode failed (address not in OSM) — point the operator
                       to the manual KM field so the fee can still be exact. */}
                   {/* 2026-09-28 (owner: light mode — yalnız mavi/qara) */}

@@ -84,6 +84,22 @@ const AZ_PLACES: { name: string; variants: string[] }[] = [
   { name: 'Şabran', variants: ['shabran'] },
   { name: 'İsmayıllı', variants: ['ismayilli'] },
   { name: 'Masallı', variants: ['masalli'] },
+  // 11v (owner E2E: "20 yanvar berde" → 0 rows — Bərdə missing): the rest of
+  // the realistic delivery-range cities (all within ~400 km of the venue).
+  { name: 'Bərdə', variants: ['berde', 'barda'] },
+  { name: 'Neftçala', variants: ['neftcala', 'neftchala', 'nafchala'] },
+  { name: 'Samux', variants: ['samux', 'samuch'] },
+  { name: 'Şəmkir', variants: ['shamkir', 'shemkir'] },
+  { name: 'Hacıqəbələ', variants: ['haciqebale', 'haciqabala'] },
+  { name: 'Biləsuvar', variants: ['bilasuvar', 'bilasovar'] },
+  { name: 'Qobustan', variants: ['qobustan', 'gobustan'] },
+  { name: 'Ağcabədi', variants: ['agcabadi', 'agjabedi'] },
+  { name: 'Gədəbəy', variants: ['gedabeq', 'gadabay'] },
+  { name: 'Xızı', variants: ['xizi', 'khizi'] },
+  { name: 'İsgəndərli', variants: ['isgendarli'] },
+  { name: 'Lerik', variants: ['leric', 'lerix'] },
+  { name: 'Tovuz', variants: ['tovuz'] },
+  { name: 'Qax', variants: ['qax', 'kakh'] },
   { name: 'Naxçıvan', variants: ['naxcivan', 'nakhchivan'] },
 ];
 const PLACE_LOOKUP = new Map<string, string>();

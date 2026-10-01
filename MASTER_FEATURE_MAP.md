@@ -809,6 +809,95 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11z: NATIONWIDE OSM GAZETTEER — BÜTÜN AZƏRBAYCAN ÜZRƏ KÜÇƏ/POI/ŞƏHƏR TANIYI + XƏRİTƏDƏ ROUTE XƏTTİ (SAİTO→MÜŞTƏRİ))
+
+Owner: "sıradakına keç — ən yaxşı səviyyəyə gətir, mənə təhvil ver"
+(11u-da ertələnmiş nationwide build) + "xəritə bizi aparsın ora — hərif
+daxil etdikcə və ya oranı seçdikcə; çoxda dibinə girməsin; ARADAKI ROUTE
+görsünsün, birbaşa yeri YOX — Saito-dan oradakı məsafənin mapini göstərməlidir,
+map davranışı etməlidir."
+
+1. **NATIONWIDE GAZETTEER (bina/küçə/obyekt — bütün Azərbaycan, 100% keyless):**
+   - Pipeline (deterministic, `scripts/build-gazetteer-nationwide.py`):
+     Geofabrik `asia/azerbaijan-latest.osm.pbf` (46MB, OSM-in rəsmi extract) +
+     `osmium tags-filter` + Python centroid (way/rel = bütün koordinatların
+     ortalaması) + city cascade (al6→al8→al4 rayon-label) + foreign-name /
+     garbage-name filtri + İ U+0130 no-case-pair handling. Overpass-dan fərq:
+     public Overpass endpoint-ləri down idi (11u) — Geofabrik = stabil.
+   - `src/data/streets-az.json`: 1,124 → **18,252 küçə** (1,514KB) — "Nizami"
+     indi 10+ şəhərdə (Lerik, Abşeron, Sabirabad, Goranboy, Gəncə…).
+   - `src/data/pois-az.json` (YENİ): **23,177 adlandırılmış POI** (2,038KB) —
+     shop/amenity/tourism/office/craft; "bravo" → 28 malla (Bravo Səbail 1km,
+     28 mall Sumqayıt…); "salyan" → Salyan Bazar POI 113.9km.
+   - `src/data/cities-az.json` (YENİ): **106 şəhər/qəsəbə merkezi** (5.4KB) —
+     OSM place=city/town/village. Hacıqəbələ (40.8586/47.0236) + İsgəndərli
+     (40.5786/47.9653) = **MANUEL** (OSM-in bu iki şəhər haqqında heç data
+     yoxdur — Nominatim/PBF/Wikipedia hamısı boş; owner verify etməlidir).
+2. **Gazetteer MATCHİNG (11z redesign — `lib/gazetteer.ts`):**
+   - `localStreetPoint`: **PER-TIER city filter** — hər tier (street exact →
+     POI exact → street prefix → POI prefix → first-token prefix → Levenshtein)
+     müstəqil city-filtrlənir, in-city pool boşdıysa növbəti tier-ə düşür.
+     Köhnə kodda "Nizami" 64 xarici şəhər dəqiq-hit ilə pool-u doldurub, Bakı
+     filter-i boşaldıb → null (Bakı-dakı "Nizami Cəfərov" prefix-tier-də idi —
+     heç çatmırdı).
+   - **First-token tier** (4b): OSM name drift — "Nizami Cəfərov 27, Bakı"
+     (OSM-də belə küçə YOX, "Nizami küçəsi" var) → ilk token "nizami" →
+     "Nizami küçəsi, Bakı" 2.3km ✓.
+   - **Typo-suffix fold**: "cucı/cucesi" (küçəsi-nin k-siz typo-su) Levenshtein
+     ≤2 ilə suffix-list-dən tanınır → "nizami" ✓.
+   - `localCityPoint` (YENİ): exact fold + lev≤2 (OSM spelling drift:
+     "Xırdalar" → OSM "Xırdalan").
+   - Suggest: "nizami" → 8 sətir (Lerik 215.5km daxil), "salyan" → Salyan
+     şossesi 8.4km + POI, "goygol" → Gəncə 294.3km + göl.
+3. **GEOCODE KÖK SƏHVLƏRİ (E2E-diagnoz, 3 bug):**
+   - **AZ_PLACES lookup-bug:** Lerik variants `['leric','lerix']` — "lerik"
+     ÖZÜDƏN İXTİBAR (canonical folded name lookup-da əlavə olunmadı) →
+     detectPlace null → noPlaceToken → farGuard 500→**120km** → Lerik-in
+     215km hit-i rədd → anchor-retry "Bakı" = VENUE nöqtəsi → km=0. Fix:
+     canonical folded name PLACE_LOOKUP-a.
+   - **Fuzzy city detection** (YENİ): "Isemayilli" (İsmayıllı typo, lev 2) →
+     token ≥5 char, variant-lərə lev≤2 → city tapılır ✓.
+   - **Nominatim coarse-hit downgrade** (YENİ): `nominatimOnce` indi OSM
+     `type` qaytarır; 'address'-namizədi altında city/station/lake hit-i →
+     'area' (30-gün persist OLMAZ, lokal fallback işləyir). "q=Bakı" = venue
+     nöqtəsi, "q=nizami" = metro stansiyası — bunlar address cavabı deyil.
+   - **candidates() re-order**: bare anchor city (venue nöqtəsi!) comma-suffix
+     -lərdən SONRA (köhnə order "… , Lerik" → "Bakı" venue cavabı verirdi).
+   - **Local city shortcut**: chain-in city namizədi 0 Nominatim call ilə
+     `cities-az.json` centroid-dan cavablanır; son fallback = city centroid
+     (typo-küçə + məlum şəhər → 404 YOX, merkezi nöqtə).
+4. **XƏRİTƏDƏ ROUTE XƏTTİ (owner: "aradaki route görünsün"):**
+   - `osrm.ts`: `overview=simplified` + **`geometries=geojson`** (OSRM default
+     = polyline5 STRING — ilk curl test-də routed=true amma 0 nöqtə idi) →
+     ≤120 nöqtəyə server-də thinned `[lng,lat]` array.
+   - `/api/geocode` → `route_geometry` sahəsi; **persistent cache-ində də
+     saxlanılır** (regular = 0 Nominatim + 0 OSRM, route xətti də cached).
+   - `PosMiniMap`: yaşıl route xətti (Apple-Maps üslubu, dashed fallback
+     OSRM down-da) + xəttin ortaında **KM pill** ("288.4 km") — məsafə İNDİ
+     MAP-da da görünür. Fit `maxZoom 16→14` + pad 0.3 ("dibinə girməsin" —
+     route overview, street-dive yox).
+   - Suggest-pick yolu: terminal-state geocode re-run ETMƏDİYİ üçün geometry
+     `delivery-eta` fetch-i ilə gəlir (eyni OSRM response, 0 extra call).
+   - Manual pin (map tap/drag): reverse geocode + eta — ikisi də geometry
+     daşıyır.
+5. **E2E (r11z-1..3, browser, console 0):** T1 "nizami" → 6 sətir 6 rayon
+   (Abşeron 28.3 / Sabirabad 104.9 / **Lerik 215.5** / Goranboy 281.6 / Gəncə
+   294.3+294.6); T2 "Nizami cucecı 12, Lerik" → **≈288.4 km (təxmini) · Nizami,
+   Lerik rayonu**, **₼138.70 OOB fee GÖRÜNÜR**, xəritədə **yaşıl əyrili yol
+   xətti** (mavi venue + qırmızı müşteri) + "288.4 km" pill, **country zoom**
+   (Naxçıvan/Mingəçevir/Türkmənbaşı görünür); T3 "Nizami 27, Bakı" → 2.3 km,
+   ₼2, qısa yaşıl xətt + "2.3 km" pill, local zoom.
+   Curl matrix: "Nizami cucecı 12, Lerik" 288.4km routed ✓ / "Cayli cucecı,
+   Isemayilli" 185.4km "Çaylı küç., İsmayıllı rayonu" ✓ (fuzzy city + street) /
+   "Nizami Cəfərov 27, Bakı" 2.3km ✓ (first-token tier) / "Nizami 27, Bakı"
+   2.3km ✓. Cache təmiz (yalnız 'address' persist olur).
+6. **Qeyd:** `suggest` API paramı = `address` (deyil `q`) — test-lərdə
+   boş-nəticə kökü. Dev server: EADDRINUSE catch — `kill` yalnız pnpm parent-ı
+   öldürür, next-server child PID portu saxlayır; `lsof -ti :3000`-dən BÜTÜN
+   PID-ləri kill et.
+
+---
+
 ### Jurnal sətiri — 2026-10-01 (ROUND 11y: APPLE-ÜSLUB XƏRİTƏ + RADIUS-KƏNARI MƏSƏFƏ HAQQI (ZONE-EHTİYACSIZ) + MARŞRUT + PERSISTENT AXTARIŞ CACHE)
 
 Owner: "axtarış sistemi hər dəfə düzgün və sürətli işləsin, gecikmə və ya qəfil

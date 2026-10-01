@@ -100,6 +100,12 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   // precision 'area' = the street wasn't in OSM; the km is a city/area-level
   // estimate — the UI marks it "təxmini" so the operator can correct via KM.
   const [geoApprox, setGeoApprox] = useState(false);
+  // 11z (owner: "aradaki route görünsün — Saito-dan oraya məsafənin mapini
+  // göstərməlidir, birbaşa yeri yox"): the actual road polyline [lng,lat]×N
+  // venue→customer. The mini-map draws it (green line + KM pill). null =
+  // OSRM had no route / not resolved yet → the map falls back to a dashed
+  // straight line between the two dots.
+  const [routeGeom, setRouteGeom] = useState<[number, number][] | null>(null);
   const kmManualRef = useRef(false);
 
   // ── 11t (owner: "google maps kimi davrananda olmaz??") — live suggest ──
@@ -269,6 +275,7 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
       setGeoStatus('idle'); setGeoKm(null); setGeoDisplay('');
       // 11w-B: address emptied → the map pin goes with it (no stale point).
       setCustomerPoint(null);
+      setRouteGeom(null); // 11z: no point → no route line
       // 11s: address emptied → stale auto-KM goes with it (manual KM stays).
       if (!kmManualRef.current && cart && cart.delivery_km != null) onUpdate('delivery_km', null);
       return;
@@ -298,11 +305,15 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
           if (Number.isFinite(d.venue_lat) && Number.isFinite(d.venue_lng)) {
             setVenuePoint({ lat: d.venue_lat, lng: d.venue_lng });
           }
+          // 11z: the road polyline for the mini-map's route line (OSRM
+          // geometry, ≤120 pts; null → the map draws a straight fallback).
+          setRouteGeom(Array.isArray(d.route_geometry) && d.route_geometry.length >= 2 ? d.route_geometry : null);
           if (Number(cart?.delivery_km || 0) !== Number(d.km)) onUpdate('delivery_km', Number(d.km));
         } else {
           setGeoStatus('fail');
           setGeoKm(null);
           setGeoApprox(false);
+          setRouteGeom(null);
           // 11s: a failed geocode must not silently KEEP the previous
           // address's auto-filled KM (pre-fix repro: Test A 24.4 → Test B
           // fail → KM still 24.4). Manual KM (kmManualRef) is never touched.
@@ -376,6 +387,7 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
     if (Number(cart?.delivery_km ?? -1) !== it.km) onUpdate('delivery_km', it.km);
     // 11w-B: mini-xəritə pin = the exact picked point.
     setCustomerPoint({ lat: it.lat, lng: it.lng });
+    setRouteGeom(null); // 11z: the route line arrives with the ETA fetch below
     // 11v: live driving time (OSRM, free) for this exact point — non-blocking;
     // competitors only show a static zone ETA ("20–30 dəq").
     etaAbort.current?.abort();
@@ -386,6 +398,10 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
       .then(d => {
         if (ac.signal.aborted || !d || !d.minutes) return;
         setDriveEta({ km: d.km, minutes: d.minutes });
+        // 11z: the SAME OSRM response carries the route polyline → the
+        // mini-map draws the actual road (the suggest path never re-runs the
+        // geocode effect — terminal state — so this is its geometry source).
+        if (Array.isArray(d.geometry) && d.geometry.length >= 2) setRouteGeom(d.geometry);
         // 11w-C: FEE distance = REAL road km (OSRM), not the haversine set
         // above — the KM field + fee follow it (chip · KM · fee = ONE
         // triple, owner law "zonalarda qairisqliq olmasin"). The page's KM
@@ -421,6 +437,9 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
           suggestPickedRef.current = d.display;  // no re-suggest loop
           onUpdate('delivery_address', d.display);
         }
+        // 11z: the manual pin gets its route line too (reverse geocode runs
+        // the same OSRM step — the geometry comes along for free).
+        setRouteGeom(Array.isArray(d.route_geometry) && d.route_geometry.length >= 2 ? d.route_geometry : null);
         if (Number(cart?.delivery_km ?? -1) !== Number(d.km)) onUpdate('delivery_km', Number(d.km));
       })
       .catch(() => { setGeoStatus('fail'); });
@@ -435,6 +454,8 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
         setGeoStatus('ok');
         setDriveEta({ km: d.km, minutes: d.minutes });
         setGeoKm(d.km);
+        // 11z: route line (if step 1's reverse geocode didn't bring one).
+        if (Array.isArray(d.geometry) && d.geometry.length >= 2) setRouteGeom(d.geometry);
         if (Number(cart?.delivery_km ?? -1) !== d.km) onUpdate('delivery_km', d.km);
       })
       .catch(() => { /* OSRM down → step-1 km stays */ });
@@ -732,6 +753,8 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                       lightMode={lightMode}
                       onPickPoint={handleMapPick}
                       focus={customerPoint ? null : areaPoint}
+                      route={routeGeom}
+                      km={geoKm}
                     />
                   )}
                   {/* 11y (owner: "'Marşrut' düyməsi ilə istifadəçini həmin

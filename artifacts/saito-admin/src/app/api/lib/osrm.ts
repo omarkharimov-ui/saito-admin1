@@ -13,21 +13,36 @@ const OSRM = 'https://router.project-osrm.org';
 /** Single driving route (venue → customer). null when OSRM has no route. */
 export async function osrmRoute(
   vLng: number, vLat: number, cLng: number, cLat: number, timeoutMs = 6000,
-): Promise<{ km: number; minutes: number } | null> {
+): Promise<{ km: number; minutes: number; geometry: [number, number][] | null } | null> {
   const ctrl = new AbortController();
   const to = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
+    // 11z (owner: "aradaki route görünsün, Saito-dan oraya məsafəni map
+    // göstərməlidir"): overview=simplified + geometries=geojson → the actual
+    // road polyline for the POS mini-map. CAUTION: the OSRM v1 default
+    // geometry encoding is polyline5 (a STRING, not GeoJSON) — without
+    // geometries=geojson the map would receive a string and draw nothing
+    // (caught by the first curl test: routed=true, 0 points). Thinned
+    // server-side to ≤ 120 points (a 200 km route can be 1000+ points).
     const res = await fetch(
-      `${OSRM}/route/v1/driving/${vLng},${vLat};${cLng},${cLat}?overview=false&alternatives=false`,
+      `${OSRM}/route/v1/driving/${vLng},${vLat};${cLng},${cLat}?overview=simplified&geometries=geojson&alternatives=false`,
       { signal: ctrl.signal, headers: { Accept: 'application/json' } },
     );
     if (!res.ok) return null;
     const d: any = await res.json();
     const r0 = d?.routes?.[0];
     if (r0 && r0.distance > 0 && r0.duration > 0) {
+      const coords: [number, number][] = Array.isArray(r0.geometry?.coordinates) ? r0.geometry.coordinates : [];
+      let geometry: [number, number][] | null = null;
+      if (coords.length >= 2) {
+        geometry = coords.length <= 120
+          ? coords
+          : coords.filter((_, i) => i % Math.ceil(coords.length / 120) === 0 || i === coords.length - 1);
+      }
       return {
         km: Math.round((r0.distance / 1000) * 10) / 10,
         minutes: Math.max(1, Math.ceil(r0.duration / 60)),
+        geometry,
       };
     }
     return null;

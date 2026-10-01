@@ -26,6 +26,9 @@ export interface GeoCacheEntry {
   lng: number;
   display: string;
   precision: 'address' | 'area';
+  // 11z: the road polyline ([lng,lat]×≤120) for the mini-map route line — a
+  // repeat address (regular) must show the route WITHOUT re-calling OSRM.
+  routeGeometry?: [number, number][] | null;
   t: number;
 }
 

@@ -38,6 +38,13 @@ interface PosMiniMapProps {
   // operator sees the district's street labels on the OSM tiles and clicks
   // the exact spot. (The tiles carry the data; the search index doesn't.)
   focus?: { name: string; lat: number; lng: number } | null;
+  // 11z (owner: "aradaki route görünsün — Saito-dan oraya məsafənin mapini
+  // göstərməlidir, birbaşa yeri yox"): the ACTUAL road polyline venue→customer
+  // ([lng,lat]×N from /api/geocode's OSRM geometry). The map draws the route
+  // itself (green line) + a KM pill at its midpoint — the operator sees the
+  // journey, not just two dots. null → a dashed straight line (OSRM down).
+  route?: [number, number][] | null;
+  km?: number | null;
 }
 
 const PIN_ICON = L.divIcon({
@@ -76,13 +83,16 @@ const VENUE_ICON = L.divIcon({
 // map (E2E round-2 catch). 256px source, CSS filter does the styling.
 const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPickPoint, focus }: PosMiniMapProps) {
+export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPickPoint, focus, route, km }: PosMiniMapProps) {
   const divRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileRef = useRef<L.TileLayer | null>(null);
   const ringRef = useRef<L.Circle | null>(null);
   const venueMarkerRef = useRef<L.Marker | null>(null);
   const pinRef = useRef<L.Marker | null>(null);
+  // 11z: the route line (venue→customer) + its KM pill.
+  const routeRef = useRef<L.Polyline | null>(null);
+  const routeLabelRef = useRef<L.Marker | null>(null);
   const pickRef = useRef<((p: Pt) => void) | undefined>(onPickPoint);
   pickRef.current = onPickPoint; // always-fresh callback (map handlers persist)
   // 11y (owner: "xəritəyə toxunduqda avtomatik uzaqlaşma olmasın"): a MANUAL
@@ -130,6 +140,8 @@ export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPic
       ringRef.current = null;
       venueMarkerRef.current = null;
       pinRef.current = null;
+      routeRef.current = null;
+      routeLabelRef.current = null;
       try { map.remove(); } catch { /* already gone */ }
       mapRef.current = null;
     };
@@ -195,11 +207,50 @@ export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPic
       if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.0005) {
         map.setView(a, Math.max(map.getZoom(), 14), { animate: true, duration: 0.45 });
       } else {
-        map.fitBounds(L.latLngBounds(a, b).pad(0.25), { animate: true, duration: 0.45, maxZoom: 16 });
+        // 11z: maxZoom 14 (was 16) — owner: "dibinə girməsin". The frame is a
+        // ROUTE OVERVIEW: both endpoints + the line in view, not a street-level
+        // dive (the operator zooms by hand when they need to place a pin).
+        map.fitBounds(L.latLngBounds(a, b).pad(0.3), { animate: true, duration: 0.45, maxZoom: 14 });
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer?.lat, customer?.lng]);
+
+  // 11z: ROUTE LINE — the actual road venue→customer (OSRM geometry) or a
+  // dashed straight fallback (OSRM down / no geometry). Green, Apple-Maps-
+  // style; a KM pill sits at the line's midpoint so the map itself carries
+  // the distance (owner: "Saito-dan oraya məsafəni map göstərməlidir").
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (routeLabelRef.current) { try { map.removeLayer(routeLabelRef.current); } catch { /* HMR */ } routeLabelRef.current = null; }
+    if (routeRef.current) { try { map.removeLayer(routeRef.current); } catch { /* HMR */ } routeRef.current = null; }
+    if (!customer) return;
+    const pts: [number, number][] = (route && route.length >= 2)
+      ? route.map(([lng, lat]) => [lat, lng] as [number, number])
+      : [[venue.lat, venue.lng], [customer.lat, customer.lng]];
+    routeRef.current = L.polyline(pts, {
+      color: '#22c55e',
+      weight: 4,
+      opacity: 0.95,
+      lineCap: 'round',
+      lineJoin: 'round',
+      dashArray: route && route.length >= 2 ? undefined : '6 8',
+      interactive: false,
+    }).addTo(map);
+    if (km != null && Number.isFinite(km)) {
+      const mid = pts[Math.floor(pts.length / 2)];
+      routeLabelRef.current = L.marker(mid, {
+        icon: L.divIcon({
+          className: 'saito-route-km',
+          iconSize: [64, 20],
+          iconAnchor: [32, 10],
+          html: `<div class="saito-route-km-pill">${km} km</div>`,
+        }),
+        interactive: false,
+      }).addTo(map);
+    }
+  }, [route, customer?.lat, customer?.lng, km, venue.lat, venue.lng]);
 
   // 11x: city FOCUS — no point yet, but the typed address names a city →
   // smooth-zoom to it (district level, street labels readable). With a point
@@ -234,6 +285,13 @@ export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPic
         .leaflet-marker-icon.saito-pin { transition: transform 0.4s cubic-bezier(.25,.8,.35,1) !important; }
         .saito-map-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
           pointer-events: none; z-index: 500; }
+        /* 11z: the route's KM pill (Leaflet divIcon marker). */
+        .saito-route-km { background: transparent !important; border: none !important; }
+        .saito-route-km-pill {
+          background: rgba(255,255,255,0.95); color: #111827; border: 1px solid rgba(0,0,0,0.12);
+          border-radius: 999px; padding: 1px 8px; font-size: 10px; font-weight: 800;
+          text-align: center; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+        }
         /* 11y (owner: "Xəritə Apple Maps üslubunda olsun") — Apple-Maps look
            via CSS filter on the OSM tiles: light = desaturated pale map,
            dark = inverted cool-dark. 100% keyless (CARTO now watermarks

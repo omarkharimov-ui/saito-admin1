@@ -6,7 +6,7 @@ import { resolveWriteLocationContext } from '@/lib/location-context';
 import { transliterate, candidates, haversineKm, nominatimOnce, detectPlace, venueCityOf, normalizeOrdinal, microCandidates, cityPoint } from '../route';
 // 11y: local gazetteer helpers moved to ../lib/gazetteer (shared with
 // /api/geocode's offline fallback — one index, one behavior, no cycles).
-import { localPrefix, localFuzzy } from '../../lib/gazetteer';
+import { localPrefix, localFuzzy, localCityPoint } from '../../lib/gazetteer';
 
 export interface SuggestArea { name: string; lat: number; lng: number }
 
@@ -258,10 +258,18 @@ export async function GET(req: NextRequest) {
     let area: SuggestArea | null = null;
     const cityName = detectPlace(raw)?.city ?? null;
     if (cityName) {
-      try {
-        const cp = await cityPoint(cityName);
-        if (cp) area = { name: cityName, lat: cp.lat, lng: cp.lng };
-      } catch { area = null; }
+      // 11z: the LOCAL centroid first — zero Nominatim calls and the correct
+      // OSM town point (cityPoint's free-text answer is flaky between calls);
+      // Nominatim only when the gazetteer has no entry for this city.
+      const local = localCityPoint(cityName);
+      if (local) {
+        area = { name: cityName, lat: local.lat, lng: local.lng };
+      } else {
+        try {
+          const cp = await cityPoint(cityName);
+          if (cp) area = { name: cityName, lat: cp.lat, lng: cp.lng };
+        } catch { area = null; }
+      }
     }
 
     sugCache.set(key, { t: Date.now(), results, area });

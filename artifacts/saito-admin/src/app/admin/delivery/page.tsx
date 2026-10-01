@@ -30,6 +30,10 @@ import { useCrossTableRefresh } from '@/hooks/useCrossTableRefresh';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 26 } as const;
 const POLL_MS = 5000;
+// 2026-10-02 (12e, owner BDS review B1): the board showed 47-day-old
+// GÖZLƏYİR zombies (86 non-terminal orders >7 days old in the dev DB).
+// A dispatcher needs the current operation: >24h orders drop off (DB untouched).
+const BDS_STALE_MS = 24 * 60 * 60 * 1000;
 
 interface Station { id: string; name: string; station_type?: string; }
 interface BdsStation { id: string; name: string; station_type: 'delivery' | 'pickup'; }
@@ -211,13 +215,19 @@ export default function BDSPage() {
   const activeTab = tabList.find(x => x.id === selectedTabId) || ALL_TAB;
   const isAllTab = activeTab.id === '__all';
   const isDeliveryTab = activeTab.station_type === 'delivery';
-  const board = isAllTab
+  const board = (isAllTab
     ? orders.filter(o => isActiveByType.delivery(o) || isActiveByType.pickup(o) || isActiveByType.dine_in(o))
     : orders.filter(o =>
         (isActiveByType[activeTab.station_type] || (() => false))(o)
         // '__' fallback tabs predate station ids: match by family only.
-        && (activeTab.id.startsWith('__') || o.bds_station_id == null || o.bds_station_id === activeTab.id));
-  board.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        && (activeTab.id.startsWith('__') || o.bds_station_id == null || o.bds_station_id === activeTab.id)))
+    // 12e (B1): 24h service window (see BDS_STALE_MS)
+    .filter(o => Date.now() - new Date(o.created_at).getTime() < BDS_STALE_MS);
+  // 12e (B2): NEWEST-FIRST. The old ascending sort buried a 2-minute-old order
+  // under 25 day-old cards — the dispatcher scrolled to the very bottom to
+  // find fresh work (E2E: #D085 at the bottom of the board). KDS intentionally
+  // keeps oldest-first (most-delayed on top) — correct for the kitchen.
+  board.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const elapsed = (iso: string) => {
     const m = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));

@@ -18,6 +18,12 @@ import { usePrintClaimLoop, type PrintJob } from '@/hooks/usePrintClaimLoop';
 import { printKitchenTicket, printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
 import { useCrossTableRefresh } from '@/hooks/useCrossTableRefresh';
 
+/** 2026-10-02 (12e, owner KDS review K1): the board had NO time window — a
+ *  never-closed order sat as a ticket for WEEKS (E2E: "3d 16h" cards on the
+ *  same grid as a 1-minute one). A kitchen works the current service:
+ *  tickets >24h old drop off the board (DB row untouched — nothing deleted). */
+const KDS_STALE_MS = 24 * 60 * 60 * 1000;
+
 interface KDSItem {
   id: string;
   name: string;
@@ -309,8 +315,10 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
           // the kitchen. Terminal/fulfilled statuses (closed, refunded, ...)
           // must NOT show — a closed order on the KDS makes the ✓ no-op
           // (mark-ready rejects it) and the ticket is "stuck" forever.
-           .filter((o: any) => !['paid','cancelled','closed','refunded','partially_refunded','voided'].includes(o.status)
-             && o.kitchen_status !== null && o.kitchen_status !== 'completed' && o.kitchen_status !== 'cancelled'
+            .filter((o: any) => !['paid','cancelled','closed','refunded','partially_refunded','voided'].includes(o.status)
+              && o.kitchen_status !== null && o.kitchen_status !== 'completed' && o.kitchen_status !== 'cancelled'
+              // 12e (K1): 24h service window — stale tickets hide (grid + count both clean)
+              && (Date.now() - new Date(o.created_at).getTime()) < KDS_STALE_MS
              // 2026-09-22 (zombie root-cause): an order is a KDS ticket ONLY
              // while it has ≥1 active (non-terminal, qty>0) kitchen item.
              // Item-less probe orders used to leak in as empty "Masa ?" tickets.
@@ -626,11 +634,17 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                                    </span>
                                  );
                                })()}
-                               {modText ? (
-                                <span className={`text-xs shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
-                                  {modText}
-                                </span>
-                              ) : null}
+                                {modText ? (
+                                 // 12e (K2): was shrink-0 → long modifier lists
+                                 // overflowed the card and were CLIPPED with no way
+                                 // to read the rest. Now truncates + hover tooltip.
+                                 <span
+                                   title={modText}
+                                   className={`text-xs min-w-0 truncate ${lightMode ? 'text-gray-400' : 'text-white/30'}`}
+                                 >
+                                   {modText}
+                                 </span>
+                               ) : null}
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <span className={`text-xs font-bold ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>×{item.quantity}</span>

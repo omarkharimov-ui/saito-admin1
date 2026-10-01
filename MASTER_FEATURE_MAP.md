@@ -809,6 +809,36 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12e: KDS/BDS — 24H SERVICE WINDOW + BDS NEWEST-FIRST + MODIFIER TOOLTIP)
+
+Owner: "…sonraya saxlayaq bunu (route). Delivery page customer info sonra tamamlamaq. **Gel kecek mence mətbəx KDS BDS**" → clarifying sual SKIPPED → default = **review + improvement list** (12c jurnalının "növbəti priority" qeydi ilə eyni).
+
+**Review (browser E2E + kod + real DB):** ilk browser review sessiyası interrupt edilmişdi (state unknown) — 4 shot-dan 3-i diskdə idi (kds-review-1, bds-review-1/2; kds-review-2 = kırık "No Photo"). Kod + DB ilə tamamlandı. Tapıntılar:
+- **K1 (P0):** KDS-də **vaxt filtri YOXDU** — terminal statusa düşməyən order tahtada müəbbət qalır (screenshot: "3d 16h", "2d 11h" kartları 1m ticket-in yanında; DB: 11 KDS ticket, 5-i gün-köhnə; ən qocası non-terminal order = 17 gün).
+- **B1 (P0):** BDS daha pis — **47 gün köhnə GÖZLƏYİR zombie-lər** (DB: 112 non-terminal order, **103-ü >24h**, 86-sı >7 gün: dine 43 + gel-al 31 + delivery 12).
+- **B2 (P1):** BDS sort = **ən köhnə üstə** → yeni sifariş ekranın dibinə düşür (E2E: #D085 2m — 47d kartlarının altında, ən dib).
+- **K2 (P1):** KDS modifier text `shrink-0` + kart `overflow-hidden` → uzun siyahı **sessiz kəsilir** (tooltip YOX) — mətbəx tam əlavə siyahısını oxuya bilmir.
+- **K3 (P2):** "13 aktiv sifariş" count gün-köhnə ticket-ləri sayır (K1-dən törəyir). **K4:** station board vizual verify edilməmişdi (shot kırık).
+
+**Owner qərarı (ask_user):** "P0+P1 kod fix (tövsiyə)" — **DB-yə toxunulmur** (103 köhnə order DB-də qalır — silinmə ayrıca, geri dönüşsüz addımdır, owner GO-su gözləyir).
+
+**Fix-es:**
+- `KDSView.tsx`: `KDS_STALE_MS = 24h` — fetch filterinə `Date.now() − created_at < KDS_STALE_MS` (grid + count + sound count hamı clean; DB toxunulmayıb). modText: `shrink-0` → `min-w-0 truncate` + `title={modText}` hover-tooltip.
+- `delivery/page.tsx`: `BDS_STALE_MS = 24h` — board-a eyni filter; sort **TERS** (newest-first). KDS öz qaydasında qalır (oldest-first = ən gecikmiş üstə — mətbəx üçün düzgün).
+
+**E2E (browser, READ-ONLY, r12e):**
+- KDS: **"8 aktiv sifariş"** (13 idi); gün-chip YOX (6h51m/6h41m/3h30m/1h42m/31m/30m/10m/10m); Masa 1 / Masa 8 / omar bey / Wolt Test Müştəri / Masa 9 getdi; gözlənilən 8 ticket hamısı var ✓; tablar HAMISI·8 / MAIN KITCHEN 4 / BAR 5 / GRILL 2 / PREP / SERVICE ✓
+- **MAIN KITCHEN station board (K4 re-verify):** 5 aktiv, badge 4; ticket-lərdə YALNIZ Main Kitchen item-ləri (KDS Review kartında Dragon Roll görünür — Green Tea ×2 Bar-da, station filtr işləyir) ✓ — kırık kds-review-2-nin yerinə r12e-kds-station.png
+- BDS: **top-left = "Çatdırılma 085 / KDS Review" (11m)** ✓ (əvvəl: Gel-AI 072, 47d); **6 kart, hamısı <24h** (085 11m · MASA 5 11m HAZIRDIR · 082 31m · 079 3h31m · 073 6h41m · 072 6h52m); "Çatdırılma aktiv" chip + Bütün/Çatdırılma/Gel-Al tablar toxunulmayıb ✓
+- Console: **0 error** (3 ekran)
+- Screenshot-lar: r12e-kds-1.png (525KB) · r12e-kds-station.png (347KB) · r12e-bds-1.png (379KB) — hamısı real PNG (WebP→PNG sips)
+
+**tsc:** clean (app kodu). Edit typo catch: `text-gray-40` → `text-gray-400` (E2E-dən ƏVVƏL düzəldildi).
+
+**Qalan (owner GO gözləyir):** (1) 103 köhnə non-terminal order-in DB temizliyi (geri dönüşsüz — əvvəl exact siyahı göstəriləcək); (2) 12d — POS minimap düz xətt (Task #11); (3) delivery page customer-info "yarımçıq" hissəsi (12d paketi).
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12c: WOLT EFFECT — REALTIME + SMOOTH MARKER + CUSTOMER-LIVE-TRACK)
 
 Owner: (Wolt stack analizi) "1. Map renderer 2. Geocoding 3. Routing 4. ETA 5. Live location… ən böyük səhv: marker.setPosition(newLocation) → marker TULLANIR. Wolt isə GPS→backend→realtime→interpolation→smooth marker→camera follow edir. Saito üçün mən belə qurardım: OSM + MapLibre + OSRM + Nominatim + Supabase Realtime + Browser GPS + smooth interpolation + bearing rotation + camera follow + ETA + route progress… biz dede bele islemir ??" → ask_user: **"Hamısı — tam Wolt effekt"**.
@@ -834,6 +864,8 @@ Owner: (Wolt stack analizi) "1. Map renderer 2. Geocoding 3. Routing 4. ETA 5. L
 - Screenshot-lar: r12c-1..4 (e2e-shots)
 
 **Qeyd:** (1) ETA = OSRM static (canlı traffic keyless-da YOXDU — Wolt da bazen eyni); (2) Realtime = free plan 50 concurrent connection — SAİTO-nun scale-i üçün artıq kifayət; (3) MapLibre GL JS-a keçid GEREKSİZ — Leaflet+OSM tiles eyni visual result verir (effekt renderer-dən deyil, HƏRƏKƏT layer-indən gəlir — owner analizinə uyğun); (4) ping simulation arxa plan process-idi (kill edildi), order #D083 delivered bağlandı (test data).
+
+**12d QALAN (owner: "yolu falan duzgun qurmur… sonraya saxlayaq, ya Wolt kimi eyni edəcəyik ya başqa üsulla"):** POS Çatdırılma mini-xəritəsi bəzi ünvanlarda yol xəttini **DÜZ** çəkir (blokdan kənara) — `PosMiniMap.tsx:229`: `route` 2 nöqtə gəlibsə (start+end) bərk düz xətt olur. /track-da eyni sahə 13-vertex road-line idi → OSRM düz deyir, amma POS minimap-ın route source-u başqadır (suggest-pick `delivery-eta` `route_geometry` vs `/api/geocode`). Növbəti Wolt round-da: (a) minimap-a tam OSRM geometry axının, (b) delivery page customer-info tamamlanması, (c) "arxa yarımçıq" Wolt hissələri. **Task #11** — owner GO-suz başlama. Növbəti priority = **Kitchen KDS / BDS**.
 
 ---
 

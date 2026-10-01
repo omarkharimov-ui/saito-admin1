@@ -809,6 +809,34 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12c: WOLT EFFECT — REALTIME + SMOOTH MARKER + CUSTOMER-LIVE-TRACK)
+
+Owner: (Wolt stack analizi) "1. Map renderer 2. Geocoding 3. Routing 4. ETA 5. Live location… ən böyük səhv: marker.setPosition(newLocation) → marker TULLANIR. Wolt isə GPS→backend→realtime→interpolation→smooth marker→camera follow edir. Saito üçün mən belə qurardım: OSM + MapLibre + OSRM + Nominatim + Supabase Realtime + Browser GPS + smooth interpolation + bearing rotation + camera follow + ETA + route progress… biz dede bele islemir ??" → ask_user: **"Hamısı — tam Wolt effekt"**.
+
+**Audit (owner sualının cavabı):** 8 qatın 5-i artıq var (map=Leaflet+OSM, geocode=Nominatim+gazetteer — ondan güclüdür, routing=OSRM road-following — düz xətt DEYİL, ETA=OSRM ~N dəq, live GPS=15s ping). Çatanda 3: **smooth marker (interpolation)**, **realtime push** (30s poll idi, marker tullanırdı), **customer-facing live map** ("Sifarişi izlə" → staff login səhifəsi açılırdı!).
+
+**A — Supabase Realtime ($0, free plan):** migration `20261002040000_12c_courier_realtime.sql`: `courier_location` → `supabase_realtime` publication + RLS enable + **anon SELECT policy** (cədvəldə YALNIZ koordinat var — PII yoxdur, customer page auth-sız oxuyur). Client: `@supabase/supabase-js` anon `createClient` + `postgres_changes` subscription (admin modal + /track).
+
+**B — Smooth marker engine** (`src/lib/smooth-marker.ts`, YENİ): `SmoothTracker` — server-time-stamped ping ring-buffer (12); `positionAt(now)`: iki ping ARASINDA = linear interpolation (constant-velocity glide A→·→·→B), son pingdən SONRA = ≤8s coast (son sürətlə), sonra son NÖQTƏDƏ DUR (real fix-dən yuxarı yol icad olunmur); `bearingDeg` (bearing needle rotation); `rafLoop` (RAF ~30fps, battery-friendly); **t = HƏMİŞƏ server clock** (`courier_location.t`) — browser clock drift-i interpolation-a toxunmur.
+
+**⚠️ CRITICAL bug (12c-diagnoz):** ping upsert-inin `DO UPDATE SET`-ində `t` YOX idi → column `DEFAULT now()` yalnız ilk INSERT-də işləyirdi, conflict-də `t` QOHNA QALIRDI → SmoothTracker yeni ping-ləri "out-of-order" kimi REJECT edirdi (marker heç vaxt hərəkət etməzdi). Fix: ping body-sinə `t: new Date().toISOString()` (route-da comment).
+
+**C — Admin dispatch map WOLT-laşdırıldı** (`CourierLiveMapModal` rewrite): realtime push + 30s poll FALBACK (WS drop-də); kurye marker = create-once + RAF glide (poll-də recreate YOX — flicker); **bearing needle** (ağ üçbucaq, hərəkət istiqamətinə dönür); **"📍 Kamera: Kurye" toggle** — ən təzə-moving kuryənin arxasında `panTo(animate:false)`; manual pan/zoom = 4s suspension; header chip **"REALTIME"** (yaşıl) vs "poll 30s" (amber) — connection status görünür; tooltip freshness realtime ilə ("1 sn əvvəl").
+
+**D — Customer-facing `/track/[orderNumber]`** (YENİ, PUBLIK, login-sız, mobile-first, light = /menu ilə eyni dil): `GET /api/track/<n>` (middleware PUBLİC; order_number `#`-prefix ilə DB-dədir — `in.(D083,#D083)` double-lookup + uuid fallback; **PII-free payload**: status/items/total/points/route/courier name — customer name/phone/ADDRESS TEXT çıxmır). Səhifə: **OSRM road-route polyline** (in-memory cached per venue→customer pair, 6h) + SAİTO/Siz marker-ləri + **smooth kurye marker** (realtime + 5s poll re-feed) + ETA strip ("Yol: 2.2 km · ≈ N dəq" — canlı geri say) + 5-addım timeline (Qəbul→Hazırlanır→Hazırdır→Yolda→Təhvil) + "kuryə sifarişinizlə yola düşdü" + məhsul kartı + delivered/ cancelled final kartları. `/api/orders/online` trackingUrl: `/kitchen/track/<uuid>` (staff login wall!) → **`/track/<order_number>`**.
+
+**E — 2 bug fix:** (1) track route `const q` reassign → `let q` (compile error); (2) **`/track`-də Leaflet pane CSS YOX idi** → `.leaflet-map-pane` position:static → bütün map ~4000px aşağıya (viewport-dan kənara) paint olunurdu (E2E catch: DOM-da route+dot-lar var, PİKSELDƏ YOXDU) → `import 'leaflet/dist/leaflet.css'` (POS-də PosMiniMap importu CSS-i daşıyırdı, /track-da heç kim yoxdu).
+
+**F — E2E (browser, ping simulyasiyası 3s-interval 10 nöqtəli route):**
+- Admin modal: **chip=REALTIME** ✓, "📍 Kamera: Kurye" ON ✓, marker **GLIDE** (translate3d frame-frame dəyişir) ✓, **camera follow** (map-pane kuryeni mərkəzdə saxlayır) ✓, tooltip "tofiq agayev · **1 sn əvvəl**" (realtime freshness) ✓, panel 1/1 onlayn + #D083 yolda ✓, console 0
+- /track/D083: header+badge ✓, ETA geri say 26→25→24 ✓, timeline ✓, Dragon Roll ×1 ₼20 ✓, route **13 vertex road-line** (düz xətt deyil) ✓, **kurye dot 5s-də −61px hərəkət etdi** (glide) ✓, console 0; CSS fix-dən sonra: 7 pane `position:absolute` + tiles + bütün marker-lər box-daxili ✓ (r12c-4)
+- Track API: PII check **False** (customer_name/phone yoxdur) ✓
+- Screenshot-lar: r12c-1..4 (e2e-shots)
+
+**Qeyd:** (1) ETA = OSRM static (canlı traffic keyless-da YOXDU — Wolt da bazen eyni); (2) Realtime = free plan 50 concurrent connection — SAİTO-nun scale-i üçün artıq kifayət; (3) MapLibre GL JS-a keçid GEREKSİZ — Leaflet+OSM tiles eyni visual result verir (effekt renderer-dən deyil, HƏRƏKƏT layer-indən gəlir — owner analizinə uyğun); (4) ping simulation arxa plan process-idi (kill edildi), order #D083 delivered bağlandı (test data).
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12b: NAME-NUMBER GUARD — "34 SAYLI MƏKTƏB" YANLIŞ MƏKTƏB GÖSTƏRMƏMƏSİ)
 
 Owner: "bu xəritədə tam olaraq istədiyimiz konumu girdikdə — 'sumqayit 34 saylı məktəb' yazıram, işləmir, düzgün məktəbi göstərmir… sən düşünürsən ki yaxşıdır, amma deyil"

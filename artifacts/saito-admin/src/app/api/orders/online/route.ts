@@ -262,14 +262,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 12c: the customer's "Sifarişi izlə" button opens the PUBLIC tracking
+    // page (Wolt-style live map) — the old /kitchen/track URL required a
+    // staff login, so a customer who clicked it saw the login wall.
+    let orderNumber: string | null = null;
+    try {
+      const onRes = await fetch(`${s.url}/rest/v1/orders?id=eq.${orderId}&select=order_number`, { headers: s.headers });
+      if (onRes.ok) {
+        const onRows: any[] = await onRes.json();
+        orderNumber = onRows[0]?.order_number || null;
+      }
+    } catch { /* uuid fallback below */ }
+
     return NextResponse.json({
       success: true,
       orderId,
+      order_number: orderNumber,
       total: finalTotal,
       order_type: orderType,
       delivery_fee: deliveryFee,
       customer: customerId ? { id: customerId, linked: true } : null,
-      trackingUrl: `/kitchen/track/${orderId}`,
+      trackingUrl: `/track/${encodeURIComponent(orderNumber || orderId)}`,
     }, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

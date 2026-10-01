@@ -36,6 +36,10 @@ const PUBLIC_PATHS = [
   // courier_token cookie (PIN-derived, verified against staff.pin_hash in
   // lib/courier-auth.ts). Login is the cookie-minting entry point.
   '/api/courier/',
+  // 12c: customer-facing tracking — the customer holds only the order number
+  // (checkout screen / SMS), no auth. The route returns a PII-free payload
+  // (status/items/points/courier name) — by design.
+  '/api/track/',
   // 2026-09-26 (Q8 offline phase 1): client net-monitor liveness probe.
   // Public by design — leaks nothing (ok + timestamp).
   '/api/health',

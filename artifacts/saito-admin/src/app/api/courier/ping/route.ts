@@ -31,11 +31,15 @@ export async function POST(req: NextRequest) {
     const orderId = typeof body.order_id === 'string' && body.order_id ? body.order_id : null;
 
     const s = svc();
-    // upsert: one row per courier
+    // upsert: one row per courier. 12c: `t` MUST be in the body — PostgREST
+    // upsert's ON CONFLICT DO UPDATE only sets the supplied columns, so the
+    // column DEFAULT now() applied on first INSERT but NEVER on conflict →
+    // t stayed stale and the smooth-marker engine (which interleaves pings
+    // by server time) rejected every new ping as "out of order".
     const res = await fetch(`${s.url}/rest/v1/courier_location?on_conflict=courier_id`, {
       method: 'POST',
       headers: { ...s.headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({ courier_id: me.id, lat, lng, order_id: orderId }),
+      body: JSON.stringify({ courier_id: me.id, lat, lng, order_id: orderId, t: new Date().toISOString() }),
     });
     if (!res.ok) {
       const err = await res.text();

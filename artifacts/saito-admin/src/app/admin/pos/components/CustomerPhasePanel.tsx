@@ -131,6 +131,11 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   // Toast/Square; we add the zone ring).
   const [customerPoint, setCustomerPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [venuePoint, setVenuePoint] = useState<{ lat: number; lng: number } | null>(null);
+  // 11x (owner: "o mapda istediyin her sey var"): MAP-AS-SEARCH — the typed
+  // city ("bravo sumqayit 9cu mikrorayon" → Sumqayıt) the map zooms to when
+  // no exact point was resolved; the operator finds the spot by eye on the
+  // OSM tiles (which carry every street) and taps it.
+  const [areaPoint, setAreaPoint] = useState<{ name: string; lat: number; lng: number } | null>(null);
 
   // 11w-A (owner: "daha da yaxşı"): PHONE → LAST ADDRESS (Toast modeli —
   // regular customer's previous delivery address from the orders table,
@@ -163,9 +168,13 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const phone = (cart?.customer_phone || '').trim();
   const name = (cart?.customer_name || '').trim();
   const address = (cart?.delivery_address || '').trim();
+  // 11x: the address we are ABOUT TO write from a manual map pick — the
+  // clear-effect below must not abort that pick's own OSRM fetch.
+  const manualPickAddrRef = useRef<string | null>(null);
   // 11v: a new address (or mode) invalidates the driving-time hint.
   // (Declared HERE, not with the state above — `address` would be in its TDZ.)
   useEffect(() => {
+    if (address === manualPickAddrRef.current) { manualPickAddrRef.current = null; return; }
     setDriveEta(null);
     etaAbort.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,6 +237,11 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   useEffect(() => {
     if (mode !== 'delivery' || kmManualRef.current) { setGeoStatus('idle'); return; }
     const addr = address.trim();
+    // 11x: TERMINAL state — a pick (suggest row OR manual map pin) already
+    // resolved this exact string; re-geocoding it would burn Nominatim calls
+    // on the throttled IP. A later manual edit changes `address` (and clears
+    // suggestPickedRef on keystroke), so this effect resumes normally.
+    if (addr === suggestPickedRef.current) return;
     if (addr.length < 8) {
       setGeoStatus('idle'); setGeoKm(null); setGeoDisplay('');
       // 11w-B: address emptied → the map pin goes with it (no stale point).
@@ -246,7 +260,8 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
         // 11s (owner: "same-city tapilmadi" bug): km=0 is a VALID result —
         // street not in OSM → venue's own city centroid (customer ≈ venue
         // city). The old `km > 0` check rejected it as "not found".
-        if (d && d.km != null && Number(d.km) >= 0) {
+        // 11x: km > 500 = corrupt hit (null-island/stray) — treat as fail.
+        if (d && d.km != null && Number(d.km) >= 0 && Number(d.km) <= 500) {
           setGeoStatus('ok');
           // 11w-C: d.km = OSRM road km when routed (server falls back to
           // haversine when OSRM is down) — the FEE distance is real road km.
@@ -284,9 +299,9 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   // 3+ char = Nominatim live → debounce 350ms. The single best-match geocode
   // effect above stays as the fallback for full addresses with no tap.
   useEffect(() => {
-    if (mode !== 'delivery') { setSuggestOpen(false); setSuggestResults([]); return; }
+    if (mode !== 'delivery') { setSuggestOpen(false); setSuggestResults([]); setAreaPoint(null); return; }
     const addr = address.trim();
-    if (addr.length < 1) { setSuggestOpen(false); setSuggestResults([]); return; }
+    if (addr.length < 1) { setSuggestOpen(false); setSuggestResults([]); setAreaPoint(null); return; }
     // Picked exact match → no re-suggest loop (see suggestPickedRef).
     if (addr === suggestPickedRef.current) { setSuggestOpen(false); setSuggestResults([]); return; }
     const delay = addr.length < 3 ? 100 : 350;
@@ -308,6 +323,12 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
         // for the mini-map (the map needs BOTH venue + customer to draw).
         if (d?.venue && Number.isFinite(d.venue.lat) && Number.isFinite(d.venue.lng)) {
           setVenuePoint({ lat: d.venue.lat, lng: d.venue.lng });
+        }
+        // 11x: city focus for the map (no point yet → zoom to the typed city).
+        if (d?.area && Number.isFinite(d.area.lat) && Number.isFinite(d.area.lng)) {
+          setAreaPoint({ name: d.area.name, lat: d.area.lat, lng: d.area.lng });
+        } else {
+          setAreaPoint(null);
         }
       } catch { /* aborted / network — keep the previous list */ }
     }, delay);
@@ -350,6 +371,50 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
         if (Number(cart?.delivery_km ?? -1) !== d.km) onUpdate('delivery_km', d.km);
       })
       .catch(() => { /* OSRM down → hint shows km only (graceful) */ });
+  };
+
+  // 11x (owner: "mini xerite uzerinden ayarlaya bilsinde — surusdurub ora
+  // qoysun"): the operator TAPPED the map or DRAGGED the red pin → the point
+  // is the truth, even for addresses OSM doesn't know (micro-district blocks).
+  // Reverse geocode → address text + real road km; the page's KM branch (11v)
+  // auto-resolves the zone from the new KM. Manual KM (kmManualRef) is reset —
+  // the placed point overrides it.
+  const handleMapPick = (p: { lat: number; lng: number }) => {
+    kmManualRef.current = false;
+    suggestPickedRef.current = null;
+    setCustomerPoint(p);
+    setGeoStatus('loading');
+    // 1) point → address text + km (OSRM road km when available).
+    fetch(`/api/geocode?lat=${p.lat.toFixed(5)}&lng=${p.lng.toFixed(5)}`, { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!d || d.km == null) { setGeoStatus('fail'); return; }
+        setGeoStatus('ok');
+        setGeoKm(Number(d.km));
+        setGeoApprox(false);
+        setGeoDisplay(typeof d.display === 'string' ? d.display : '');
+        if (!d.reverse_failed && d.display) {
+          manualPickAddrRef.current = d.display; // protect step 2's fetch
+          suggestPickedRef.current = d.display;  // no re-suggest loop
+          onUpdate('delivery_address', d.display);
+        }
+        if (Number(cart?.delivery_km ?? -1) !== Number(d.km)) onUpdate('delivery_km', Number(d.km));
+      })
+      .catch(() => { setGeoStatus('fail'); });
+    // 2) live driving minutes (OSRM, non-blocking) — refines the km.
+    etaAbort.current?.abort();
+    const ac = new AbortController();
+    etaAbort.current = ac;
+    fetch(`/api/delivery-eta?lat=${p.lat}&lng=${p.lng}`, { cache: 'no-store', signal: ac.signal })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (ac.signal.aborted || !d || !d.minutes) return;
+        setGeoStatus('ok');
+        setDriveEta({ km: d.km, minutes: d.minutes });
+        setGeoKm(d.km);
+        if (Number(cart?.delivery_km ?? -1) !== d.km) onUpdate('delivery_km', d.km);
+      })
+      .catch(() => { /* OSRM down → step-1 km stays */ });
   };
 
   // 11w-A: PHONE → LAST ADDRESS — repeat customer's previous delivery
@@ -611,10 +676,12 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                       Ünvan xəritədə tapılmadı — məsafəni KM sahəsinə əl ilə daxil edin
                     </p>
                   )}
-                  {/* 11w-B: mini-xəritə (Leaflet + OSM, key-siz) — venue (mavi)
-                      + picked point (qırmızı) + active zone radius ring. A wrong
-                      district pick becomes visually obvious before the order sends. */}
-                  {mode === 'delivery' && customerPoint && venuePoint && (
+                  {/* 11w-B + 11x: mini-xəritə (Leaflet + OSM, key-siz) — venue
+                      (mavi) + picked point (qırmızı) + zone radius ring. 11x:
+                      the map is also an INPUT — no resolved point yet (address
+                      not in OSM, e.g. a micro-district) → tap/drag to place the
+                      point by hand (→ reverse geocode + OSRM km + auto zone). */}
+                  {mode === 'delivery' && venuePoint && (customerPoint || address.length >= 4) && (
                     <PosMiniMap
                       venue={venuePoint}
                       customer={customerPoint}
@@ -624,6 +691,8 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                         return mx != null && mx > 0 ? mx : null;
                       })()}
                       lightMode={lightMode}
+                      onPickPoint={handleMapPick}
+                      focus={customerPoint ? null : areaPoint}
                     />
                   )}
                 </div>

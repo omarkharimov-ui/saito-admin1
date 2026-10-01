@@ -51,6 +51,43 @@ export function transliterate(q: string): string {
     .trim();
 }
 
+// ── 11x (owner: "bravo sumqayit 9cu mikrorayon anlaşılmır") ────────────────
+// Digit-ordinal normalization: operators type micro-district numbers WITHOUT
+// the hyphen/diacritic ("9cu", "2ci") but OSM AZ tags read "9-cü mikrorayon",
+// "2-ci mikrorayon". "9cu" → "9-cü", "9ci" → "9-ci" (before any candidate
+// chain, both in /api/geocode and /api/geocode/suggest).
+export function normalizeOrdinal(q: string): string {
+  return q.replace(/\b(\d+)\s*(cu|ci|cü)\b/gi, (m, num: string, suf: string) =>
+    `${num}-${suf.toLowerCase() === 'cu' ? 'cü' : 'ci'}`,
+  );
+}
+
+// Micro-district candidates ("bravo sumqayit 9cu mikrorayon" → OSM tags the
+// district as "9-cü mikrorayon" and/or the neighborhood as "Bravo"). The
+// generic chain sends the whole phrase, which Nominatim free-text misses;
+// these TARGETED pairs (word+city, ordinal+city) are what OSM actually has.
+export function microCandidates(cleaned: string, city: string | null | undefined): string[] {
+  if (!/mikrorayon|massiv/i.test(cleaned)) return [];
+  const tokens = cleaned.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  const isCityTok = (t: string) =>
+    !!city && (
+      t === city
+      || transliterate(t).toLowerCase() === transliterate(city).toLowerCase()
+      || PLACE_LOOKUP.get(transliterate(t).toLowerCase()) === city
+    );
+  const ordTok = tokens.find(t => /^\d+(-[a-züıi]{0,2})?$/i.test(t));
+  if (ordTok && city) out.push(`${ordTok} mikrorayon, ${city}`);
+  const wordTok = tokens.find(t =>
+    t.length >= 2
+    && !/^\d/.test(t)
+    && !/mikrorayon|massiv|k[üu]c|prospekt|bulvar|sokak/i.test(t)
+    && !isCityTok(t),
+  );
+  if (wordTok && city) out.push(`${wordTok}, ${city}`);
+  return out;
+}
+
 // ── 2026-10-01 (11s, owner): AZ place-name variant dictionary ───────────────
 // Owner types addresses WITHOUT AZ characters (and in Russian-style
 // spellings): "sumqayit niyazi 27A", "sumgait …", "baku nizami 12". The old
@@ -181,6 +218,9 @@ export function candidates(q: string, anchorCity?: string | null): { text: strin
   if (!detected && anchorCity) push(`${fullAZ}, ${anchorCity}`, 'address');
   if (detected) push(detected.city, 'area');
   else if (anchorCity) push(anchorCity, 'area');
+  // 11x: targeted micro-district candidates (before the singles — they are
+  // far more likely to hit OSM than the whole phrase or a bare single).
+  for (const m of microCandidates(cleaned, detected?.city ?? anchorCity ?? null)) push(m, 'area');
   for (let i = 1; i < asciiParts.length; i++) push(asciiParts.slice(i).join(', '), 'area');
   const singles = [...asciiParts].sort((a, b) => b.length - a.length);
   for (const s of singles) push(s, 'area');
@@ -197,10 +237,29 @@ export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: numb
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+// 11x (owner: "o mapda istediyin her sey var" — the map IS the search):
+// city centroid for the mini-map FOCUS. When the exact point is unresolved,
+// the map zooms to the typed city (district level — street labels readable
+// on the OSM tiles) and the operator places the pin by eye. 24h cache: a
+// city never moves, ONE Nominatim call per city per day maximum.
+const cityPointCache = new Map<string, { t: number; lat: number; lng: number }>();
+export async function cityPoint(name: string): Promise<{ lat: number; lng: number } | null> {
+  const key = transliterate(name).toLowerCase();
+  const hit = cityPointCache.get(key);
+  if (hit && Date.now() - hit.t < 86_400_000) return { lat: hit.lat, lng: hit.lng };
+  const r = await nominatimOnce(name);
+  if (r) {
+    cityPointCache.set(key, { t: Date.now(), lat: r.lat, lng: r.lng });
+    return { lat: r.lat, lng: r.lng };
+  }
+  return null;
+}
+
 export async function nominatimOnce(q: string): Promise<{ lat: number; lng: number; display: string } | null> {
   const key = q.trim().toLowerCase();
-  // token bucket: min 550ms between Nominatim calls
-  const wait = 550 - (Date.now() - lastCall);
+  // token bucket: min 1100ms between Nominatim calls (11x: the old 550ms
+  // averaged ~1.8 req/s — above Nominatim's 1 req/s policy → IP 429 bursts)
+  const wait = 1100 - (Date.now() - lastCall);
   if (wait > 0) await new Promise(r => setTimeout(r, wait));
   lastCall = Date.now();
   try {
@@ -213,9 +272,17 @@ export async function nominatimOnce(q: string): Promise<{ lat: number; lng: numb
     const rows = await res.json();
     const r = Array.isArray(rows) ? rows[0] : null;
     if (!r) return null;
-    const lat = Number(r.lat);
-    const lng = Number(r.lon);
+    // 11x (E2E catch): Nominatim can return EMPTY lat/lon strings for some
+    // candidates (badly-tagged relations) — Number("") === 0 → a (0,0)
+    // "point" → 6734.9 km. Reject empty strings AND null-island.
+    const latRaw = typeof r.lat === 'string' ? r.lat.trim() : r.lat;
+    const lngRaw = typeof r.lon === 'string' ? r.lon.trim() : r.lon;
+    if (latRaw == null || lngRaw == null || latRaw === '' || lngRaw === '') return null;
+    const lat = Number(latRaw);
+    const lng = Number(lngRaw);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (lat === 0 && lng === 0) return null;
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
     return { lat, lng, display: r.display_name || q };
   } catch {
     return null;
@@ -264,13 +331,47 @@ async function nominatim(
 
 const PLACEHOLDER_ADDRESSES = new Set(['', 'default location', 'n/a', '-']);
 
+// ── 11x: REVERSE MODE (manual map pin) ─────────────────────────────────────
+// GET /api/geocode?lat=..&lng=.. — the operator tapped/dragged the mini-map
+// pin; the point is the truth. Nominatim reverse gives the address text
+// (30s cache; on 429/failure → coordinate string + reverse_failed flag, and
+// the panel keeps the operator's typed text instead of overwriting it).
+const revCache = new Map<string, { t: number; display: string }>();
+async function reverseDisplay(lat: number, lng: number): Promise<string> {
+  const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+  const hit = revCache.get(key);
+  if (hit && Date.now() - hit.t < 30_000) return hit.display;
+  let display = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=17&accept-language=az`,
+      { headers: { 'User-Agent': UA, Accept: 'application/json' } },
+    );
+    if (res.ok) {
+      const d: any = await res.json();
+      const raw = d?.display_name || '';
+      if (raw) display = raw.replace(/,\s*(Azərbaycan|Azerbaijan)$/i, '');
+    }
+  } catch { /* keep the coordinate string */ }
+  revCache.set(key, { t: Date.now(), display });
+  if (revCache.size > 100) revCache.delete(revCache.keys().next().value as string);
+  return display;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
-    const q = (request.nextUrl.searchParams.get('address') || '').trim();
-    if (q.length < 6) {
+    const rawAddr = (request.nextUrl.searchParams.get('address') || '').trim();
+    // 11x: "9cu" → "9-cü" (OSM AZ ordinal tags) — before ANY candidate chain.
+    const q = normalizeOrdinal(rawAddr);
+    // 11x: reverse mode — manual mini-map pin (point is the truth).
+    const rLat = Number(request.nextUrl.searchParams.get('lat'));
+    const rLng = Number(request.nextUrl.searchParams.get('lng'));
+    const reverse = Number.isFinite(rLat) && Number.isFinite(rLng)
+      && Math.abs(rLat) <= 90 && Math.abs(rLng) <= 180;
+    if (!reverse && q.length < 6) {
       return NextResponse.json({ error: 'Ünvan çox qısadır (min 6 simvol)' }, { status: 400 });
     }
 
@@ -328,19 +429,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── 2) customer point (progressive chain: street → area → city) ────────
-    const noPlaceToken = !detectPlace(q);
-    const farGuard = noPlaceToken
-      ? (lat: number, lng: number) => haversineKm(vLat, vLng!, lat, lng) > FAR_HIT_KM
-      : undefined;
-    let c = await nominatim(q, null, farGuard);
-    if (!c && noPlaceToken) {
-      // 11s: input names no AZ place token ("Nizami Cəfərov 12") → retry
-      // anchored on the venue's own city ("Nizami Cəfərov 12, Bakı").
-      const anchor = await venueCityOf(vLat, vLng!);
-      if (anchor) c = await nominatim(q, anchor, farGuard);
+    // ── 2) customer point ───────────────────────────────────────────────────
+    let c: { lat: number; lng: number; display: string; precision: 'address' | 'area' } | null;
+    // 11x: reverse mode (manual map pin) — the point IS the answer; only the
+    // display text is reverse-geocoded (never a failure point).
+    let reverseFailed = false;
+    if (reverse) {
+      const display = await reverseDisplay(rLat, rLng);
+      reverseFailed = display.split(',').every(s => /^-?\d/.test(s.trim()));
+      c = { lat: rLat, lng: rLng, display, precision: 'address' };
+    } else {
+      const noPlaceToken = !detectPlace(q);
+      // 11x (E2E catch): HARD far guard ALWAYS on — even a city-qualified
+      // candidate can return a stray hit (empty coords → (0,0) → 6734 km).
+      // A restaurant never delivers >500 km; treat such hits as misses.
+      const farGuard = (lat: number, lng: number) =>
+        haversineKm(vLat, vLng!, lat, lng) > (noPlaceToken ? FAR_HIT_KM : 500);
+      c = await nominatim(q, null, farGuard);
+      if (!c && noPlaceToken) {
+        // 11s: input names no AZ place token ("Nizami Cəfərov 12") → retry
+        // anchored on the venue's own city ("Nizami Cəfərov 12, Bakı").
+        const anchor = await venueCityOf(vLat, vLng!);
+        if (anchor) c = await nominatim(q, anchor, farGuard);
+      }
+      if (!c) return NextResponse.json({ error: 'Ünvan tapılmadı — manual KM istifadə edin' }, { status: 404 });
     }
-    if (!c) return NextResponse.json({ error: 'Ünvan tapılmadı — manual KM istifadə edin' }, { status: 404 });
 
     // ── 3) distance ────────────────────────────────────────────────────────
     // 11w-C (owner: "fee OSRM yol-KM ilə"): the FEE distance is REAL road km
@@ -362,6 +475,9 @@ export async function GET(request: NextRequest) {
       customer_lng: c.lng,
       display: c.display,
       precision: c.precision,
+      // 11x: true = Nominatim reverse failed (429/offline) → display is a
+      // coordinate string; the panel keeps the operator's typed text.
+      reverse_failed: reverseFailed || undefined,
     });
   } catch (e: any) {
     return NextResponse.json({ error: 'Geocode xətası' }, { status: 500 });

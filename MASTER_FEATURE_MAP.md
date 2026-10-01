@@ -809,6 +809,48 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11x: MAP-AS-SEARCH — manual pin + şəhər focus + mikrorayon + Nominatim stabilizasiya)
+
+Owner: "map-i istifadə edək — mapda göstər, o özündə axtarırsın, çünki o mapda
+istediyin hər şey var" + "bravo sumqayit 9cu mikrorayon anlaşılmır".
+
+1. **MAP = AXTARIŞ ALƏTİ (`PosMiniMap` + panel):** (a) **Manual pin** — ünvan
+   OSM-də tapsa belə, map üzərinə TIKLA və ya qırmızı pini SÜRÜŞDÜR → nöqtə
+   = HƏQQİQƏT: reverse geocode (`/api/geocode?lat&lng` — YENİ mode, 30s cache) →
+   ünvan metni + OSRM road km + auto zone (11v branch). (b) **Şəhər focus** —
+   ünvanın OSM-də YOXDU (blok/ev/yaşayış kompleksi) + şəhər token var
+   ("sumqayit") → suggest response `area` field (cityPoint: 24h cache, 1
+   Nominatim call/şəhər/gün) → map **z13-də şəhərə smooth zoom** + badge
+   "Sumqayıt · xəritəyə tıkla — nöqtəni özün qoy" → operator OSM tiles-lərində
+   küçə adlarını GÖZLƏ tapıb tıklayır. (c) **Smooth transitions** — pin CSS
+   glide (transform transition), animated setView/fitBounds (0.45s),
+   drag-də RE-FIT YOX (yalnız nöqtə view-dan kənar/zoom<9-da) — "transition
+   daha qalın" tələbi.
+2. **MIKRORAYON CHAIN (`geocode/route.ts` + `suggest/route.ts`):**
+   `normalizeOrdinal` — "9cu"→"9-cü", "9ci"→"9-ci" (OSM AZ ordinal tag-ləri);
+   `microCandidates` — "bravo sumqayit 9cu mikrorayon" → ["9-cü mikrorayon,
+   Sumqayıt", "Bravo, Sumqayıt"] (hər ikisi HƏR İKİ script-də — Nominatim
+   exact layer AZ/ASCII city-də finkti); suggest chain mikro-first (3 call).
+   E2E: "bravo sumqayit 9cu mikrorayon" → **"9-cu Mikrorayon, Sumqayıt"
+   25.3 km (suburb)** üst sətir + pick → KM 29.5 routed + radius warning ✓.
+3. **NOMİNATİM STABİLİZASİYA (E2E catch-lər):** (a) **`Number("")=0` bug** —
+   Nominatim bəzi candidate-lər üçün boş lat/lon string qaytarır → (0,0)
+   "nöqtə" → KM 6734.9 + world zoom. Fix: empty/non-finite/null-island
+   reject (nominatimOnce + suggest row filter) + **HARD 500km far-guard
+   HƏMİŞƏ** (yeri gəlməyən hit = miss) + client km≤500 guard. (b) **Token
+   bucket 550ms→1100ms** — 1.8 rps Nominatim 1 rps policy-sindən yuxarı idi →
+   IP 429 burst-lərinin kökü. (c) Suggest chain `rows = r.json()` ASSIGNMENT →
+   CONCAT (2-ci candidate 1-ini clobber edirdi: mikrorayon row "Bravo
+   supermarket"-a itirdi).
+- **E2E (r11x-1..9, 2 pass, hamısı 5/5, console 0):** tap→pin+KM+zone ✓;
+  drag no-yank ✓; smooth fit (Sumqayıt→Bakı animated) ✓; "sumqayit bravo
+  blok 14" (OSM-də yox) → 0 row + **Sumqayıt z13 focus + badge** → tap → pin
+  + KM 37.5 + warning, input text saxlanıb (reverse 429 → graceful) ✓;
+  mikrorayon pick ✓. tsc clean.
+- **Qeyd (owner sualı):** "Azərbaycanın hər yeri millimetrinə" — millimetr
+  FİZİKİ OLMAZ (GPS/OSM ~1-5 m); "hər küçə" = Geofabrik/Overpass nationwide
+  build (mirror down idi — növbəti round: shapefile download + 1 skript).
+
 ### Jurnal sətiri — 2026-10-01 (ROUND 11w: 5 İMPROVEMENT — TELEFON→ÜNVAN · MINI-XƏRİTƏ · OSRM YOL-KM FEE · FUZZY+EV NÖMRƏSİ · KURYE TURLARI)
 
 Owner: "daha da yaxşı necə ede bilərsən?" → 5/5 seçdi (hamısı free/keyless — Google

@@ -185,7 +185,12 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   useEffect(() => {
     if (mode !== 'delivery' || kmManualRef.current) { setGeoStatus('idle'); return; }
     const addr = address.trim();
-    if (addr.length < 8) { setGeoStatus('idle'); setGeoKm(null); setGeoDisplay(''); return; }
+    if (addr.length < 8) {
+      setGeoStatus('idle'); setGeoKm(null); setGeoDisplay('');
+      // 11s: address emptied → stale auto-KM goes with it (manual KM stays).
+      if (!kmManualRef.current && cart && cart.delivery_km != null) onUpdate('delivery_km', null);
+      return;
+    }
     let cancelled = false;
     setGeoStatus('loading');
     const timer = setTimeout(async () => {
@@ -193,7 +198,10 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
         const r = await fetch(`/api/geocode?address=${encodeURIComponent(addr)}`, { cache: 'no-store' });
         const d = r.ok ? await r.json() : null;
         if (cancelled) return;
-        if (d?.km && Number(d.km) > 0) {
+        // 11s (owner: "same-city tapilmadi" bug): km=0 is a VALID result —
+        // street not in OSM → venue's own city centroid (customer ≈ venue
+        // city). The old `km > 0` check rejected it as "not found".
+        if (d && d.km != null && Number(d.km) >= 0) {
           setGeoStatus('ok');
           setGeoKm(Number(d.km));
           setGeoDisplay(d.display || addr);
@@ -203,6 +211,10 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
           setGeoStatus('fail');
           setGeoKm(null);
           setGeoApprox(false);
+          // 11s: a failed geocode must not silently KEEP the previous
+          // address's auto-filled KM (pre-fix repro: Test A 24.4 → Test B
+          // fail → KM still 24.4). Manual KM (kmManualRef) is never touched.
+          if (!kmManualRef.current && cart && cart.delivery_km != null) onUpdate('delivery_km', null);
         }
       } catch {
         if (!cancelled) { setGeoStatus('fail'); setGeoKm(null); }

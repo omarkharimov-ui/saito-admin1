@@ -809,6 +809,51 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11s: AUTOFILL GEOCODE — AZ TRANSKRİPSİYA-VARIANT MUQAVİMƏTİ + SAME-CITY FİX + KEYLESS WEATHER API)
+
+Owner: "sumqayit niyazi 27A yazsaq sistem basa duse bilsin — AZ şriftləri ilə yazmaq
+məcburiyyətində qalmayaq" + "weather api brauzerden elde et, tənzimləmələr üçün".
+
+**Geocode (11s) — `/api/geocode/route.ts` + `CustomerPhasePanel.tsx`:**
+1. **Diagnoz (pre-fix browser E2E):** "sumqayit niyazi 27A" ✅ (24.4 km) və "niyazi 27
+   sumqayit" ✅ — AMMA "Bakı, Nizami Cəfərov 12" ❌: street OSM-də yox → city-centroid →
+   **km=0 → client `km > 0` check → "Ünvan tapılmadı"** + KM sahəsində **KEÇMİŞ ünvanın
+   24.4-u qalırdı (səssiz yanlış fee)**. Səthi problem: same-city (Bakı) ünvanları HƏMİŞƏ fail.
+2. **AZ yer-adı variant lüğəti (26 şəhər):** hər biri üçün AZ Latin + ASCII + rus/ingilis
+   variant ("sumqayit/sumgayt/sumgait", "genca/gence/ganja", "zaqatala/zakatala",
+   "xirdalar/xirdalan", "shamaki/shamahi", …). Token-detection input-un HƏR POZİSİYASINDA
+   (şəhər əvvəldə/sonda, vergüllü/vergülsüz) — canonical OSM AZ adı qaytarır.
+3. **İki-script candidate chain:** original AZ script (OSM AZ taqları: "Nizami Cəfərov
+   küçəsi") + ASCII variant (EN taqları) — əvvəl yalnız ASCII qalırdı. Order: fullAZ →
+   restAZ+city → fullASCII → restASCII+city → city → suffixes → singles (cap 6).
+4. **`countrycodes=az`** bütün Nominatim çağrılarında — xaric match-ləri kəsir ("Niyazi",
+   "Quba" başqa ölkələrdə də var).
+5. **Far-hit guard (120 km) + venue-city anchor:** yer-token-siz input üçün venue-dən >120
+   km fuzzy hit = MISS. repro: "Nizami Cəfərov 12" (şəhərsiz) → GƏNCƏ "İsaq Cəfərov, Nizami
+   rayonu" (293.7 km!) — indi reject olunur → anchor retry (Nominatim reverse, cached):
+   "… , Bakı" → "Bakı" → km 0 təxmini.
+6. **Client fix:** `km >= 0` qəbul (same-city km=0 = VALID "təxmini" nəticə); geo-fail və
+   qısa-ünvan zamanı STALE auto-KM təmizlənir (manual KM — `kmManualRef` — HƏMİŞƏ toxunulmur).
+- **Post-fix browser E2E (r11s-post\*):** A "sumqayit niyazi 27A" ≈23.7 km ✅ · B "Bakı,
+  Nizami Cəfərov 12" "≈ 0 km (təxmini) · Bakı" + KM=0 + zone "Bakı Mərkəz 0–15 · ₼2" avto ✅
+  · C "niyazi 27 sumqayit" ≈24.7 km (binə səviyyəsi!) ✅ · D "Nizami Cəfərov 12" (şəhərsiz)
+  "≈ 0 km (təxmini) · Bakı" ✅ (Gəncə YOX). 0 uncaught exception. tsc clean.
+- **Pre-existing (toxunulmadı, ayrıca round):** 229× React "duplicate key `pos-POS`"
+  console warning (non-fatal).
+
+**Weather (11s) — `/api/weather-check/route.ts`:**
+- Owner brauzerdən istədi → Chrome-da **OpenWeatherMap sessiyası YOXDU** (→ /users/sign_in;
+  qeydiyyat e-mail tələb edir, əvəz qeydiyyat edilmədi). **Çözüm: keyless fallback —
+  Open-Meteo** (eyni servis `calculate_delivery_fee` smart-surge-də artıq işlədir, key YOX).
+  OWM key-i vardırsa (`.env.local`: `OPENWEATHER_API_KEY`) hələ də üstünlük alır.
+- **Condition-normalizasiya** foundation.css-in gözlədiyi dəstə: sunny / partly-cloudy /
+  cloudy / mist / rain / snow / thunderstorm — OWM "Clear" qıyməti CSS-in `sunny`
+  selectoruna toxunmurdu (pre-existing uyğunsuzluq da düzəldi).
+- **E2E:** /admin-da `data-weather="cloudy"` canlı təyin olunur; API 200 `{city:"Bakı",
+  temp:24, feels_like:23, condition:"cloudy", description:"Buludlu", source:"open-meteo"}` ✅.
+  12 AZ city variant lüğəti; naməlum city → `{disabled:true, reason:"unknown_city"}` (500
+  YOX — QF9 qaydası).
+
 ### Jurnal sətiri — 2026-10-01 (ROUND 11r: CASH GATE VARIANT A — NAĞD ÖDƏNIŞ KASSA SESSİYASINA BAĞLANDI + FINAL E2E)
 
 Owner: kassa açılmadan NAĞD ödəniş alınmasın (Variant A — sərt nəzarət). Kart/QR/transfer heç vaxt

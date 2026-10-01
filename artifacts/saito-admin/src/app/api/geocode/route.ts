@@ -50,28 +50,122 @@ function transliterate(q: string): string {
     .trim();
 }
 
+// ── 2026-10-01 (11s, owner): AZ place-name variant dictionary ───────────────
+// Owner types addresses WITHOUT AZ characters (and in Russian-style
+// spellings): "sumqayit niyazi 27A", "sumgait …", "baku nizami 12". The old
+// chain only transliterated the whole string, so a comma-less street+city
+// string had no city-level fallback and same-city (Bakı) street misses fell
+// to km=0 → the client rejected it as "not found". Each entry maps every
+// common spelling (ASCII-folded, lowercase) to the canonical OSM name (AZ
+// script — what Nominatim's AZ tags actually match).
+const AZ_PLACES: { name: string; variants: string[] }[] = [
+  { name: 'Bakı', variants: ['baku', 'baki'] },
+  { name: 'Sumqayıt', variants: ['sumqayit', 'sumgayt', 'sumgait'] },
+  { name: 'Gəncə', variants: ['genca', 'gence', 'genje', 'ganja'] },
+  { name: 'Mingəçevir', variants: ['mingechevir', 'mingecevir'] },
+  { name: 'Xırdalar', variants: ['xirdalar', 'xirdalan'] },
+  { name: 'Sabunçu', variants: ['sabunchu', 'sabunclu'] },
+  { name: 'Salyan', variants: ['salyan', 'shalyan'] },
+  { name: 'Şamaxı', variants: ['shamaki', 'shamaxi', 'shamahi'] },
+  { name: 'Lənkəran', variants: ['lenkeran', 'lankaran'] },
+  { name: 'Şəki', variants: ['sheki', 'shaki'] },
+  { name: 'Quba', variants: ['quba', 'kuba'] },
+  { name: 'Oğuz', variants: ['oguz'] },
+  { name: 'İmişli', variants: ['imishli'] },
+  { name: 'Yevlax', variants: ['yevlax', 'evlakh'] },
+  { name: 'Astara', variants: ['astara'] },
+  { name: 'Zaqatala', variants: ['zaqatala', 'zakatala'] },
+  { name: 'Qusar', variants: ['qusar', 'kusar', 'qusal'] },
+  { name: 'Qəbələ', variants: ['qabala', 'gabala', 'qebala'] },
+  { name: 'Xaçmaz', variants: ['xacmaz', 'khachmaz'] },
+  { name: 'Cəlilabad', variants: ['celilabad', 'jelilabad'] },
+  { name: 'Ağdam', variants: ['agdam', 'aghdam'] },
+  { name: 'Göygöl', variants: ['goygol'] },
+  { name: 'Şabran', variants: ['shabran'] },
+  { name: 'İsmayıllı', variants: ['ismayilli'] },
+  { name: 'Masallı', variants: ['masalli'] },
+  { name: 'Naxçıvan', variants: ['naxcivan', 'nakhchivan'] },
+];
+const PLACE_LOOKUP = new Map<string, string>();
+for (const p of AZ_PLACES) for (const v of p.variants) PLACE_LOOKUP.set(v, p.name);
+
 /**
- * Progressive candidate chain for a comma-separated address.
- * ["Nizami Cefrov 12", "Baku"] →
- *   "Nizami Cefrov 12, Baku" → "Baku" → "Nizami Cefrov 12"
- * (full → left-to-right suffixes → single parts, longest first, deduped).
+ * Find the place token (any position in the string) via the variant
+ * dictionary. Returns the rest of the address in BOTH scripts (AZ original
+ * and ASCII) so the candidate chain can try each against OSM's AZ / EN tags.
  */
-function candidates(q: string): { text: string; precision: 'address' | 'area' }[] {
-  const parts = q.split(',').map(p => transliterate(p)).map(p => p.trim()).filter(Boolean);
+function detectPlace(azText: string): { city: string; restAZ: string; restASCII: string } | null {
+  const azTokens = azText.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
+  const asciiTokens = azTokens.map(t => transliterate(t).toLowerCase());
+  for (let i = 0; i < asciiTokens.length; i++) {
+    const city = PLACE_LOOKUP.get(asciiTokens[i]);
+    if (city) {
+      const restTokens = [...azTokens.slice(0, i), ...azTokens.slice(i + 1)];
+      const restAZ = restTokens.join(' ').trim();
+      return { city, restAZ, restASCII: transliterate(restAZ) };
+    }
+  }
+  return null;
+}
+
+// Venue's own city (Nominatim reverse, in-process cached) — the anchor used
+// when the customer's address names no place token at all.
+let venueCityCache: { key: string; city: string | null } = { key: '', city: null };
+async function venueCityOf(vLat: number, vLng: number): Promise<string | null> {
+  const key = `${vLat.toFixed(3)},${vLng.toFixed(3)}`;
+  if (venueCityCache.key === key) return venueCityCache.city;
+  let city: string | null = null;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${vLat}&lon=${vLng}&zoom=10&accept-language=az`,
+      { headers: { 'User-Agent': UA, Accept: 'application/json' } },
+    );
+    if (res.ok) {
+      const d: any = await res.json();
+      const a = d?.address || {};
+      city = a.city || a.town || a.municipality || a.county || a.state || null;
+    }
+  } catch { city = null; }
+  venueCityCache = { key, city };
+  return city;
+}
+
+/**
+ * Progressive candidate chain (11s — owner: AZ xarakterlərsiz yazış da
+ * tanınsın: "sumqayit niyazi 27A", "sumgait …", "baku nizami 12").
+ * Order: original (AZ script) → rest+place (AZ) → full ASCII → rest+place
+ * (ASCII) → place alone → comma suffixes → singles (longest first). BOTH
+ * scripts are tried because OSM street names in AZ are tagged in AZ Latin
+ * ("Nizami Cəfərov küçəsi") while some use EN/ASCII tags. `anchorCity`
+ * (the venue's own city) is appended when the input names no place token.
+ */
+function candidates(q: string, anchorCity?: string | null): { text: string; precision: 'address' | 'area' }[] {
+  const cleaned = q.replace(/\s+/g, ' ').trim();
+  const azParts = cleaned.split(',').map(p => p.trim()).filter(Boolean);
+  const fullAZ = azParts.join(', ');
+  const asciiParts = azParts.map(p => transliterate(p)).filter(Boolean);
+  const fullASCII = asciiParts.join(', ');
   const seen = new Set<string>();
   const out: { text: string; precision: 'address' | 'area' }[] = [];
   const push = (text: string, precision: 'address' | 'area') => {
-    const key = text.toLowerCase();
+    const key = transliterate(text).toLowerCase();
     if (!text || seen.has(key) || text.length < 3) return;
     seen.add(key);
     out.push({ text, precision });
   };
-  const full = parts.join(', ');
-  push(full, 'address');
-  for (let i = 1; i < parts.length; i++) push(parts.slice(i).join(', '), 'area');
-  const singles = [...parts].sort((a, b) => b.length - a.length);
+  const detected = detectPlace(cleaned);
+  const cityOnly = !!detected && !detected.restAZ; // input is just the place name
+  push(fullAZ, cityOnly ? 'area' : 'address');
+  if (detected?.restAZ) push(`${detected.restAZ}, ${detected.city}`, 'address');
+  push(fullASCII, cityOnly ? 'area' : 'address');
+  if (detected?.restASCII) push(`${detected.restASCII}, ${transliterate(detected.city)}`, 'address');
+  if (!detected && anchorCity) push(`${fullAZ}, ${anchorCity}`, 'address');
+  if (detected) push(detected.city, 'area');
+  else if (anchorCity) push(anchorCity, 'area');
+  for (let i = 1; i < asciiParts.length; i++) push(asciiParts.slice(i).join(', '), 'area');
+  const singles = [...asciiParts].sort((a, b) => b.length - a.length);
   for (const s of singles) push(s, 'area');
-  return out.slice(0, 5); // hard cap: max 5 Nominatim calls per address
+  return out.slice(0, 6); // hard cap: max 6 Nominatim calls per address
 }
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -91,7 +185,10 @@ async function nominatimOnce(q: string): Promise<{ lat: number; lng: number; dis
   if (wait > 0) await new Promise(r => setTimeout(r, wait));
   lastCall = Date.now();
   try {
-    const url = `${NOMINATIM}?format=jsonv2&limit=1&q=${encodeURIComponent(q)}`;
+    // countrycodes=az (11s): keep matches inside Azerbaijan — "Niyazi",
+    // "Quba" etc. exist in other countries too; without the bias Nominatim
+    // can return a foreign hit for a local address.
+    const url = `${NOMINATIM}?format=jsonv2&limit=1&countrycodes=az&q=${encodeURIComponent(q)}`;
     const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
     if (!res.ok) return null;
     const rows = await res.json();
@@ -106,16 +203,42 @@ async function nominatimOnce(q: string): Promise<{ lat: number; lng: number; dis
   }
 }
 
-async function nominatim(q: string): Promise<{ lat: number; lng: number; display: string; precision: 'address' | 'area' } | null> {
-  for (const c of candidates(q)) {
-    const hit = geoCache.get(c.text.trim().toLowerCase());
+// Miss cache (11s): the anchor retry pass must not re-call candidates that
+// already failed 2 seconds ago — Nominatim rate discipline.
+const geoMiss = new Map<string, number>();
+
+// 11s (owner): far-hit guard. A restaurant does not deliver 300 km. When the
+// customer's address names NO place token, a bare fuzzy hit far from the
+// venue is a mis-anchor (repro: "Nizami Cəfərov 12" → "İsaq Cəfərov, Nizami
+// rayonu, GƏNCƏ", 293 km from the Bakı venue). Such hits are treated as
+// misses so the venue-city-anchored candidates get their turn.
+const FAR_HIT_KM = 120;
+
+async function nominatim(
+  q: string,
+  anchorCity?: string | null,
+  farGuard?: (lat: number, lng: number) => boolean,
+): Promise<{ lat: number; lng: number; display: string; precision: 'address' | 'area' } | null> {
+  for (const c of candidates(q, anchorCity)) {
+    const key = transliterate(c.text).toLowerCase();
+    const hit = geoCache.get(key);
     if (hit && Date.now() - hit.t < 15_000) return { lat: hit.lat, lng: hit.lng, display: hit.display, precision: hit.precision };
+    const missed = geoMiss.get(key);
+    if (missed && Date.now() - missed < 15_000) continue;
     const r = await nominatimOnce(c.text);
     if (r) {
-      geoCache.set(c.text.trim().toLowerCase(), { t: Date.now(), lat: r.lat, lng: r.lng, display: r.display, precision: c.precision });
+      if (farGuard && farGuard(r.lat, r.lng)) {
+        geoMiss.set(key, Date.now()); // suspicious — keep trying
+        if (geoMiss.size > 200) geoMiss.delete(geoMiss.keys().next().value as string);
+        continue;
+      }
+      geoCache.set(key, { t: Date.now(), lat: r.lat, lng: r.lng, display: r.display, precision: c.precision });
       if (geoCache.size > 200) geoCache.delete(geoCache.keys().next().value as string);
+      geoMiss.delete(key);
       return { ...r, precision: c.precision };
     }
+    geoMiss.set(key, Date.now());
+    if (geoMiss.size > 200) geoMiss.delete(geoMiss.keys().next().value as string);
   }
   return null;
 }
@@ -187,7 +310,17 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 2) customer point (progressive chain: street → area → city) ────────
-    const c = await nominatim(q);
+    const noPlaceToken = !detectPlace(q);
+    const farGuard = noPlaceToken
+      ? (lat: number, lng: number) => haversineKm(vLat, vLng!, lat, lng) > FAR_HIT_KM
+      : undefined;
+    let c = await nominatim(q, null, farGuard);
+    if (!c && noPlaceToken) {
+      // 11s: input names no AZ place token ("Nizami Cəfərov 12") → retry
+      // anchored on the venue's own city ("Nizami Cəfərov 12, Bakı").
+      const anchor = await venueCityOf(vLat, vLng!);
+      if (anchor) c = await nominatim(q, anchor, farGuard);
+    }
     if (!c) return NextResponse.json({ error: 'Ünvan tapılmadı — manual KM istifadə edin' }, { status: 404 });
 
     // ── 3) distance ────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence } from 'framer-motion';
-import { Plus, User, MapPin, Moped, Clock, ShoppingBag, MoreVertical, Navigation, Route, Wallet, CheckCircle2 } from '@/components/ui/saito-icons';
+import { Plus, User, MapPin, Moped, Clock, ShoppingBag, MoreVertical, Navigation, Route, Wallet, CheckCircle2, ChefHat } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveFulfillmentStage, isOrderPaid, type FulfillmentStage } from '@/lib/order-stage';
@@ -16,18 +16,21 @@ interface DeliveryOrdersProps {
   onOpenActionSheet: (order: any) => void;
 }
 
-export const DELIVERY_STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; labelKey: string; subtitleKey: string; bgDark: string; textDark: string; dotDark: string }> = {
+// 11p (owner): pills carry a STATUS ICON — ChefHat while the kitchen works,
+// User when ready for the courier, Moped once picked up, Navigation while the
+// courier heads to the destination ("sanki ora gələcək kimi").
+export const DELIVERY_STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; labelKey: string; subtitleKey: string; bgDark: string; textDark: string; dotDark: string; icon?: any }> = {
   new:              { bg: 'bg-violet-50 border-violet-200',     text: 'text-violet-600',  dot: 'bg-violet-500',  bgDark: 'bg-violet-500/10 border-violet-500/20', textDark: 'text-violet-400',  dotDark: 'bg-violet-400',  labelKey: 'delivery_status_new',          subtitleKey: 'delivery_status_new_sub' },
   // 2026-09-28 (owner: light mode — yalnız mavi/qara): light = qara (dark unchanged)
   pending:          { bg: 'bg-zinc-900/10 border-zinc-900/25', text: 'text-zinc-900',    dot: 'bg-zinc-900',    bgDark: 'bg-amber-500/10 border-amber-500/20',  textDark: 'text-amber-400',  dotDark: 'bg-amber-400',  labelKey: 'delivery_status_pending',      subtitleKey: 'delivery_status_pending_sub' },
   confirmed:        { bg: 'bg-zinc-900/10 border-zinc-900/25', text: 'text-zinc-900',    dot: 'bg-zinc-900',    bgDark: 'bg-amber-500/10 border-amber-500/20',  textDark: 'text-amber-400',  dotDark: 'bg-amber-400',  labelKey: 'delivery_status_confirmed',    subtitleKey: 'delivery_status_confirmed_sub' },
-  preparing:        { bg: 'bg-blue-50 border-blue-200',        text: 'text-blue-600',    dot: 'bg-blue-500',    bgDark: 'bg-blue-500/10 border-blue-500/20',    textDark: 'text-blue-400',   dotDark: 'bg-blue-400',   labelKey: 'delivery_status_preparing',      subtitleKey: 'delivery_status_preparing_sub' },
-  in_kitchen:       { bg: 'bg-blue-50 border-blue-200',        text: 'text-blue-600',    dot: 'bg-blue-500',    bgDark: 'bg-blue-500/10 border-blue-500/20',    textDark: 'text-blue-400',   dotDark: 'bg-blue-400',   labelKey: 'delivery_status_in_kitchen',     subtitleKey: 'delivery_status_in_kitchen_sub' },
-  ready:            { bg: 'bg-purple-50 border-purple-200',    text: 'text-purple-600',  dot: 'bg-purple-500',  bgDark: 'bg-purple-500/10 border-purple-500/20', textDark: 'text-purple-400', dotDark: 'bg-purple-400', labelKey: 'delivery_status_ready',          subtitleKey: 'delivery_status_ready_sub' },
-  picked_up:        { bg: 'bg-cyan-50 border-cyan-200',        text: 'text-cyan-600',    dot: 'bg-cyan-500',    bgDark: 'bg-cyan-500/10 border-cyan-500/20',    textDark: 'text-cyan-400',   dotDark: 'bg-cyan-400',   labelKey: 'delivery_status_picked_up',      subtitleKey: 'delivery_status_picked_up_sub' },
+   preparing:        { bg: 'bg-blue-50 border-blue-200',        text: 'text-blue-600',    dot: 'bg-blue-500',    bgDark: 'bg-blue-500/10 border-blue-500/20',    textDark: 'text-blue-400',   dotDark: 'bg-blue-400',   labelKey: 'delivery_status_preparing',      subtitleKey: 'delivery_status_preparing_sub', icon: ChefHat },
+   in_kitchen:       { bg: 'bg-blue-50 border-blue-200',        text: 'text-blue-600',    dot: 'bg-blue-500',    bgDark: 'bg-blue-500/10 border-blue-500/20',    textDark: 'text-blue-400',   dotDark: 'bg-blue-400',   labelKey: 'delivery_status_in_kitchen',     subtitleKey: 'delivery_status_in_kitchen_sub', icon: ChefHat },
+   ready:            { bg: 'bg-purple-50 border-purple-200',    text: 'text-purple-600',  dot: 'bg-purple-500',  bgDark: 'bg-purple-500/10 border-purple-500/20', textDark: 'text-purple-400', dotDark: 'bg-purple-400', labelKey: 'delivery_status_ready',          subtitleKey: 'delivery_status_ready_sub', icon: User },
+   picked_up:        { bg: 'bg-cyan-50 border-cyan-200',        text: 'text-cyan-600',    dot: 'bg-cyan-500',    bgDark: 'bg-cyan-500/10 border-cyan-500/20',    textDark: 'text-cyan-400',   dotDark: 'bg-cyan-400',   labelKey: 'delivery_status_picked_up',      subtitleKey: 'delivery_status_picked_up_sub', icon: Moped },
    // 11n: courier step picked_up→in_transit was missing from the map — such
    // orders fell to the 'pending' config (wrong label).
-   in_transit:       { bg: 'bg-blue-50 border-blue-200',        text: 'text-blue-600',    dot: 'bg-blue-500',    bgDark: 'bg-blue-500/15 border-blue-500/25',   textDark: 'text-blue-300',   dotDark: 'bg-blue-300',   labelKey: 'delivery_status_in_transit',     subtitleKey: 'delivery_status_in_transit_sub' },
+    in_transit:       { bg: 'bg-blue-50 border-blue-200',        text: 'text-blue-600',    dot: 'bg-blue-500',    bgDark: 'bg-blue-500/15 border-blue-500/25',   textDark: 'text-blue-300',   dotDark: 'bg-blue-300',   labelKey: 'delivery_status_in_transit',     subtitleKey: 'delivery_status_in_transit_sub', icon: Navigation },
    delivered:        { bg: 'bg-emerald-50 border-emerald-200',  text: 'text-emerald-600', dot: 'bg-emerald-500', bgDark: 'bg-emerald-500/10 border-emerald-500/20', textDark: 'text-emerald-400', dotDark: 'bg-emerald-400', labelKey: 'delivery_status_delivered',        subtitleKey: 'delivery_status_delivered_sub' },
   payment_pending:  { bg: 'bg-zinc-900/10 border-zinc-900/25', text: 'text-zinc-900',    dot: 'bg-zinc-900',    bgDark: 'bg-orange-500/10 border-orange-500/20', textDark: 'text-orange-400', dotDark: 'bg-orange-400',  labelKey: 'delivery_status_payment_pending', subtitleKey: 'delivery_status_payment_pending_sub' },
   paid:             { bg: 'bg-green-50 border-green-200',      text: 'text-green-600',   dot: 'bg-green-500',   bgDark: 'bg-green-500/10 border-green-200/20',  textDark: 'text-green-400',  dotDark: 'bg-green-400',  labelKey: 'delivery_status_paid',             subtitleKey: 'delivery_status_paid_sub' },

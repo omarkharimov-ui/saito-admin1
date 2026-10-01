@@ -46,7 +46,7 @@ export interface BoardOrderCardProps {
   // kitchen/courier fulfillment). `paid` drives the icon by the total:
   // ✓ = money in, hourglass = payment pending.
   paid: boolean;
-  status: { bg: string; text: string; dot: string; bgDark: string; textDark: string; dotDark: string; labelKey: string };
+  status: { bg: string; text: string; dot: string; bgDark: string; textDark: string; dotDark: string; labelKey: string; icon?: any };
   lightMode: boolean;
   t: (k: any) => string;
   onSelect: (order: any) => void;
@@ -118,9 +118,10 @@ export default function BoardOrderCard({ order, kind, paid, status, lightMode, t
             ALL cards (partner + in-house) read "#orderNo" — the mode is
             already obvious from the active tab; the label+number chip is gone
             from every tab. */}
-        <span className={`text-[24px] leading-none font-black tracking-tighter whitespace-nowrap flex-shrink-0 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
-          {`#${orderNo}`}
-        </span>
+         {/* 11p (owner: "sifariş nömrəsinin yanında # olmasın!") — bare number */}
+         <span className={`text-[24px] leading-none font-black tracking-tighter whitespace-nowrap flex-shrink-0 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
+           {orderNo}
+         </span>
         {/* 2026-09-25 (owner round 6): top-right = LOGO + ⋮ ONLY. The time
             chip used to sit here and on narrow live cards it pushed the ⋮
             past the card edge (unclickable, "çıxır çölə"). The time chip now
@@ -224,8 +225,12 @@ export default function BoardOrderCard({ order, kind, paid, status, lightMode, t
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               exit={{ opacity: 0, y: -3, filter: 'blur(2px)' }}
               transition={{ duration: T.standard, ease: EASE.morph }}
-              className={`inline-flex whitespace-nowrap ${lightMode ? status.text : status.textDark}`}
+              className={`inline-flex items-center whitespace-nowrap ${lightMode ? status.text : status.textDark}`}
             >
+              {/* 11p (owner: "person və navigator ikonu, sanki ora gələcək kimi"):
+                  the pill carries a STATUS ICON — person for pickup-ready,
+                  navigation arrow for in-transit, chef hat in the kitchen. */}
+              {status.icon && <status.icon size={10} strokeWidth={2.75} className="mr-1" />}
               {t(status.labelKey as any)}
             </motion.span>
           </AnimatePresence>

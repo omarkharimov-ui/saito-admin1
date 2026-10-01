@@ -1,4 +1,4 @@
-# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-01, rounds 7 → 11o)
+# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-01, rounds 7 → 11p)
 
 > Əsas: SAITO = bu repo-nun kodu üzrə verified feature set. Rəqiblər = hər birinin
 > müstəqil Restaurant POS məhsulunun müəssisəleşmiş core feature set-i.
@@ -7,7 +7,8 @@
 > (payroll 11a · purchasing 11b · analytics 11c · online ordering 11d · offline 11e),
 > qalanlar 11f-də, backend consistency audit + Apple polish 11g-də, POS status axını
 > (fulfillment/payment ayrılığı) + served-lock + default serving 11n-də, chip mənatiqi +
-> custom ikonlar (person+bag / moped) + action-sheet back 11o-da. Hər addımın
+> custom ikonlar (person+bag / moped) + action-sheet back 11o-da, qısa status label +
+> pill ikonları + düz ödəniş text + "#" təmizliyi 11p-də. Hər addımın
 > before/after müqayisəsi aşağıda (§0). Qalan: §2.6 real PSP (owner qərarı),
 > §2.7 e-commerce (low priority), §2.8 franchise, light-mode phase-2 (POS sheet-ləri).
 
@@ -31,6 +32,7 @@
 | **Delivery status toast** | Server fail olsa belə "success" toast (transitionDelivery {success:false} ignored) | Result check → real success/error |
 | **UI (Apple polish)** | — | Payroll panel auto-load + meaningful empty state; peak-hours redundant footer aradan qaldırıldı; binding docs-a uyğun consistency (hər screen: content-first, one primary action) |
 | **Backend integrity** | Fire-and-forget idempotency writes; non-atomic goods-receipt (rollback dead code); read-modify-write races (supplier counter, double receive) | Reserve-before-create + blocking confirm; atomic RPC receive (FOR UPDATE); atomic counter RPC-ləri; in-route auth (middleware fail-open əməliyyatına qarşı) |
+| **Board status UX (11p)** | Uzun label-lar ("Hazırdır — Təhvil", "Kuryer Alıb", "Təsdiq Gözləyir"), ikon yox, "#" nömrə önündə, ActionSheet-də ödəniş = pill/chip | Qısa word (Yeni/Təsdiq/Mətbəxdə/Hazırdır/Alındı/Transitdə/Çatdırıldı/Ləğv) + status ikonu (ChefHat/User/Moped/Navigation), sırf rəqəm, ödəniş = düz text (emerald/amber) |
 | **Board status axını (11n)** | Chip = derived stage, "ÖDƏNİLDİ" stage idi → 33/34 takeaway kartı progress yox, pullu vəziyyət; `sent/accepted/reserved` rollup dəyərləri tanınmırdu ("Mətbəxdə" → "Təsdiqləndi"); in_transit config yoxdu (pending-ə düşürdü) | Chip = yalnız FULFILLMENT (kuryer maşini > kitchen rollup > order status); ödəniş = total yanında ikon (✓ / hourglass); sent/accepted/reserved/served düzgün axınır |
 | **Takeaway/delivery ikonları (11n→11o)** | Mode switcher: Handbag (börüş); board: UserCheck; delivery: Bike | Deep browser search (7 icon seti, Iconify API) → custom: Takeaway = **TakeawayPickup** (person + takeout bag — universal "customer picks up" piktogramı, lucide grid-də), Delivery = **Moped** (Tabler, MIT — Baku kuryer skuteri). Candidate v1 (Hugeicons hand-bag) E2E-də handbag olduğu üçün reject → v2 |
 | **Served məhsula yeni porsiyon (11n)** | SERVED xəttsədən eyni məhsulun YENİ porsiyonu əlavə olunmurdu (single-mode-da düymə yoxdu, multi-da kilidlə gizlənirdi — dead end) | "Yeni porsiyon əlavə et" (single + həmişə görünən multi "＋") → fresh draft, kilid yalnız göndərilmiş porsiyona |

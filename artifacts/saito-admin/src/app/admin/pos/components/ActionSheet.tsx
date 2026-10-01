@@ -400,13 +400,16 @@ export function ActionSheet({
                               </span>
                             );
                           }
-                          const paid = isOrderPaid(o);
-                          return (
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full border text-[9px] font-black uppercase tracking-widest ${paid ? 'bg-green-500/15 border-green-500/25 text-green-400' : (lightMode ? 'bg-zinc-900/10 border-zinc-900/25 text-zinc-900' : 'bg-amber-500/15 border-amber-500/25 text-amber-400')}`}>
-                              <div className={`w-1.5 h-1.5 rounded-full ${paid ? 'bg-green-400' : (lightMode ? 'bg-zinc-900' : 'bg-amber-400')}`} />
-                              {paid ? t('paid') : t('unpaid')}
-                            </span>
-                          );
+                           const paid = isOrderPaid(o);
+                           // 11p (owner: "şəkildəki odenilmeyib chip olmasin,
+                           // birbaşa text olsun"): payment state = PLAIN TEXT
+                           // under the title (no pill, no dot) — color carries
+                           // the meaning (emerald = in, amber = pending).
+                           return (
+                             <span className={`block mt-1.5 text-[10px] font-bold uppercase tracking-widest ${paid ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-amber-600' : 'text-amber-400')}`}>
+                               {paid ? t('paid') : t('unpaid')}
+                             </span>
+                           );
                         })()}
                      {isMerged && (
                        <div className="flex flex-wrap justify-center gap-1.5 mt-3 mb-4">

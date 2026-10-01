@@ -916,6 +916,33 @@ back button.
 - **tsc 0, production build PASS, browser E2E v1 (takeaway icon REJECT → v2) + v2 4/4
   PASS, console 0/0.**
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11p: QISA STATUS + PİLL İKONLARI + DÜZ ÖDƏNİŞ TEXT + "#")
+
+Owner: (1) delivery/pickup status yazıları çox uzundur — qısa ("hazirdir, transitdə,
+catdirildi direk"), (2) pill-də status ikonu (person / navigator — "sanki ora gələcək
+kimi"), (3) ActionSheet-də "ÖDƏNİLMƏYİB" chip OLMASIN — birbaşa text, (4) sifariş
+nömrəsinin yanında "#" olmasın, (5) kassa sualı (izah).
+
+1. **QISA label-lar (i18n az/en/ru):** Hazırdır — Təhvil → **Hazırdır**; Hazırdır —
+   Çatdırma → **Hazırdır**; Kuryer Alıb → **Alındı**; Yoldadır → **Transitdə**;
+   Təsdiq Gözləyir → **Yeni**; Təsdiqləndi → **Təsdiq**; Ləğv Edildi → **Ləğv**;
+   Yeni Sifariş → **Yeni**. (preparing/hazırlanır, mətbəxdə, çatdırıldı, bağlandı
+   hal-hazırda qısa idi.) Subtitle-lər dəyişməz (sheet/detail detallı qalır).
+2. **PILL İKONLARI** (status config `icon` field, BoardOrderCard render edir):
+   in_kitchen/preparing → **ChefHat** (mətbəx işləyir), ready → **User** (person —
+   götürməyə hazırdır), picked_up → **Moped** (kuryer aldı), in_transit → **Navigation**
+   (sanki ora gedir). Dot + icon + qısa text.
+3. **ActionSheet payment = DÜZ TEXT** (pill/border/dot yoxdur): emerald "ÖDƏNİB" /
+   amber "ÖDƏNİLMƏYİB" title altında. (Cancelled pill qalır — o payment deyil.)
+4. **"#" silindi** — BoardOrderCard title = sırf rəqəm (2929, 064).
+- **Kassa izahı (owner sualı):** sifariş qəbuli/ödəniş shift-dən BAĞIMSIZdır —
+  `api/orders` + `api/orders/pay`-də heç bir shift/drawer gate YOXDUR. Kassa (shift)
+  = nağd hesabat vasitəsidir (aç/bağla, in/out, no-sale, Z-report), order axınının
+  qapısı deyil. Shift açılmadıqda: satış/ödəniş heç itmir (orders+order_payments-ə
+  yazılır); YALNIZ həmin dövrün nağd axını kassa Z-report-da görünmür (hesabat
+  həyatiyyəti). Qəsdən belədir — unudulsa satış dayanasın deyə risk yaratmaz.
+- **tsc 0, production build PASS, browser E2E 4/4 PASS, console 0.**
+
 ### Jurnal sətiri — 2026-09-30 (ROUND 11f: QALANLAR TƏMAMI — offline phase-2 quick batch + VOID anomaly + 2 broken payment yol)
 
 Owner: "qalanlarida tezz tamamla". 4 istiqamet, hamisi E2E-verified:

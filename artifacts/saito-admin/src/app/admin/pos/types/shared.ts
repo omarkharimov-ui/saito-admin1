@@ -71,6 +71,11 @@ export interface PosCart {
   /** 2026-09-26 (owner, Task 50): Wolt-style distance (km) — when ≥ 0.1 the fee
    *  is priced by km-range (distance overload) instead of the explicit zone. */
   delivery_km?: number | null;
+  /** 12a: geocoded customer point — persisted on the order at create; the
+   *  courier app's Google Maps "Navigasiya" link + the admin live dispatch
+   *  map read it back. Null = address without a resolvable point. */
+  customer_lat?: number | null;
+  customer_lng?: number | null;
   delivery_fee?: number;
   estimated_delivery_time?: string | null;
   scheduled_date?: string | null;

@@ -466,7 +466,7 @@ export async function POST(request: Request) {
         return { success: true, data: Array.isArray(uiPatched) ? uiPatched[0] : uiPatched };
        }
 
-       const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id, order_number, order_source, customer_phone, delivery_address, delivery_district, delivery_street, delivery_building, delivery_floor, delivery_apartment, delivery_intercom, delivery_zone, delivery_fee, delivery_km, estimated_delivery_time, scheduled_date, payment_method, is_rush, assigned_to, terminal_id, idempotency_key } = body;
+       const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id, order_number, order_source, customer_phone, delivery_address, delivery_district, delivery_street, delivery_building, delivery_floor, delivery_apartment, delivery_intercom, delivery_zone, delivery_fee, delivery_km, customer_lat, customer_lng, estimated_delivery_time, scheduled_date, payment_method, is_rush, assigned_to, terminal_id, idempotency_key } = body;
 
         // 11e → 11g (freeze audit): order-level idempotency, TWO-PHASE.
         //   RESERVE — a unique insert (resolution=ignore-duplicates) BEFORE any
@@ -1060,6 +1060,16 @@ export async function POST(request: Request) {
               // a plausible delivery range, null otherwise.
               delivery_km: isDeliveryOrder && Number.isFinite(Number(delivery_km)) && Number(delivery_km) >= 0 && Number(delivery_km) <= 500
                 ? Math.round(Number(delivery_km) * 10) / 10
+                : null,
+              // 12a: the point the operator picked (suggest / geocode / manual
+              // pin) — the courier app's "Navigasiya" deep link + the admin
+              // live dispatch map read it back from the order row. Same
+              // client-trusted-but-clamped model as delivery_km above.
+              customer_lat: isDeliveryOrder && Number.isFinite(Number(customer_lat)) && Math.abs(Number(customer_lat)) <= 90
+                ? Number(customer_lat)
+                : null,
+              customer_lng: isDeliveryOrder && Number.isFinite(Number(customer_lng)) && Math.abs(Number(customer_lng)) <= 180
+                ? Number(customer_lng)
                 : null,
              // Delivery Phase 2: server-resolved promised ETA (now + zone ETA
              // range high) when the client didn't compute one.

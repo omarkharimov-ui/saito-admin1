@@ -1,4 +1,4 @@
-# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-01, rounds 7 → 11q)
+# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-02, rounds 7 → 12a)
 
 > Əsas: SAITO = bu repo-nun kodu üzrə verified feature set. Rəqiblər = hər birinin
 > müstəqil Restaurant POS məhsulunun müəssisəleşmiş core feature set-i.
@@ -49,6 +49,8 @@
 | **Served məhsula yeni porsiyon (11n)** | SERVED xəttsədən eyni məhsulun YENİ porsiyonu əlavə olunmurdu (single-mode-da düymə yoxdu, multi-da kilidlə gizlənirdi — dead end) | "Yeni porsiyon əlavə et" (single + həmişə görünən multi "＋") → fresh draft, kilid yalnız göndərilmiş porsiyona |
 | **Serving üsulu (course) (11n→11o)** | Hər məhsula 'main' (Ana yemak) SƏSSİZ təyin olunurdu + cart-da HƏMİŞƏ chip (chaos) | Ayarlar → Mətbəx: `default_course` (4 seçimi); plain tap = null (səsiz default, chip-siz); Mərhələ section yalnız modifier-lı məhsulda (panel-də, default gold); chip YALNIZ real + fərqli seçimdə (Utensils ikon + course-tint, "1 əlavə" mod chip-dən aydın fərqli) |
 
+| **Courier tracking + courier app (12a)** | Kurye = order-da yalnız `courier_name` text — restoran kuryeyi GÖRMƏZDİ ("sifariş haradadır?"); kurye statusu yalnız restorandan irəli gedirdi (kurye zəng etməli idi); **HƏR operator transition təyin edilmiş kuryeyi SİLİRDİ** (RPC `courier_id=p_courier_id` şərtsiz + BDS board `null` göndərir) → assignment sessiz itirilirdi; customer geo-point order-a yazılmırdı → navigasiya nöqtəsi yoxdu. Rəqib: Toast = native driver app + customer tracking (US-only, add-on, hardware lock-in); Lightspeed/Square = **native driver app YOX** — yalnız aggregator (Uber Eats/DoorDash) + üçüncü tərəf (Relay) | **Kurye web-app** (`/courier`, 0 install, PIN login = staff-ın öz PIN-i, stateless token + brute-force guard): aktiv order kartı (customer/ünvan/KM/fee) + **🧭 Google Maps Navigasiya** (keyless) + bir-press axın "Paketet götürdüm"→"Yola düşdüm"→"Təslim etdim" + **live GPS** (~15 s ping → `courier_location`) + bugünkü təhvil siyahısı; **DB `courier_transition` RPC** = operator ilə EYNİ state machine (assignment check + delivered_at + operation_logs, performed_by=kurye); **admin "Kurye xəritəsi" live dispatch map** (30 s poll: mavi venue / qırmızı order / yaşıl kurye + "N dəq əvvəl" freshness + onlayn-off panel + aktiv order-lar); **4 bug fix:** middleware whitelist, PostgREST `or=(id.eq.X)` sintaksisi, **courier-wipe COALESCE** (null = dəyişmə), **customer_lat/lng persist** (yeni sütunlar + POS wiring + `order_items.quantity` fix). **₼0 / 0 aylıq / 0 hardware** (Toast Delivery Services-in eyni qabiliyyəti US-only + add-on qiymətə) — E2E #D081 tam chain + live map + console 0 |
+
 **Qeyd:** "BEFORE" sütunu = round 7 audit-inin (bu faylın ilk versiyasının) verified durumu.
 Hər AFTER claim = round jurnalında (MASTER_FEATURE_MAP.md §10, 11a–11g) commit + E2E
 kanıtı ilə dəstəklənir.
@@ -66,6 +68,7 @@ kanıtı ilə dəstəklənir.
 | Shift/role/PIN permissions + audit log + approval requests | ✅ | ✅ | ✅ | ✅ |
 | Reservations + waitlist + pre-order | ✅ | ✅ | ✅ | ✅ |
 | Delivery (courier, zones, fee, status) + Takeaway | ✅ | ✅ | ✅ | ✅ (Square Delivery) |
+| Delivery courier tracking + courier-side app | ✅ **daha dərin**: live GPS dispatch map + kurye PIN web-app (0 install) + Google Maps nav — **100% keyless/₼0** | ✅ Toast Delivery Services (driver app + route optimization + customer tracking link) — **US-only**, add-on, hardware lock-in ($799+, 24–36 ay) | ⚠️ **native driver app YOX** — aggregator (Uber Eats/DoorDash/Grubhub) + üçüncü tərəf (Relay) / manual | ⚠️ **native self-delivery driver app YOX** — Square Online + aggregator-ə köklənir; öz kurye-lərdə tracking yox |
 | Kitchen (KDS) + per-item status (cooking/ready/served) | ✅ | ✅ | ✅ | ✅ |
 | Campaigns/coupons (server-validated, min-order, dining window) | ✅ | ✅ | ✅ | ✅ |
 | Loyalty (points spine, redeem at payment, reverse on refund) | ✅ | ✅ | ✅ | ✅ |

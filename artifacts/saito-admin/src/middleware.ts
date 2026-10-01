@@ -31,6 +31,11 @@ const PUBLIC_PATHS = [
   // pr v1: headless LAN print agent — called without a staff cookie; the route
   // itself enforces the device agent_key (48-hex secret, per-device).
   '/api/print/agent',
+  // 12a: courier app — couriers have NO saito_token (staff session); every
+  // route under /api/courier/ self-authenticates via the stateless
+  // courier_token cookie (PIN-derived, verified against staff.pin_hash in
+  // lib/courier-auth.ts). Login is the cookie-minting entry point.
+  '/api/courier/',
   // 2026-09-26 (Q8 offline phase 1): client net-monitor liveness probe.
   // Public by design — leaks nothing (ok + timestamp).
   '/api/health',

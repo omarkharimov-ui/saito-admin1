@@ -276,10 +276,15 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
       // 11w-B: address emptied → the map pin goes with it (no stale point).
       setCustomerPoint(null);
       setRouteGeom(null); // 11z: no point → no route line
-      // 11s: address emptied → stale auto-KM goes with it (manual KM stays).
-      if (!kmManualRef.current && cart && cart.delivery_km != null) onUpdate('delivery_km', null);
-      return;
-    }
+       // 11s: address emptied → stale auto-KM goes with it (manual KM stays).
+       if (!kmManualRef.current && cart && cart.delivery_km != null) onUpdate('delivery_km', null);
+       // 12a: no address → no point (a stale point would ride into a new order).
+       if (cart && (cart.customer_lat != null || cart.customer_lng != null)) {
+         onUpdate('customer_lat', null);
+         onUpdate('customer_lng', null);
+       }
+       return;
+     }
     let cancelled = false;
     setGeoStatus('loading');
     const timer = setTimeout(async () => {
@@ -298,10 +303,15 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
           setGeoKm(Number(d.km));
           setGeoDisplay(d.display || addr);
           setGeoApprox(d.precision === 'area');
-          // 11w-B: mini-xəritə points from the geocode result (no-tap path).
-          if (Number.isFinite(d.customer_lat) && Number.isFinite(d.customer_lng)) {
-            setCustomerPoint({ lat: d.customer_lat, lng: d.customer_lng });
-          }
+           // 11w-B: mini-xəritə points from the geocode result (no-tap path).
+           if (Number.isFinite(d.customer_lat) && Number.isFinite(d.customer_lng)) {
+             setCustomerPoint({ lat: d.customer_lat, lng: d.customer_lng });
+             // 12a: persist the resolved point in the cart → the order create
+             // path writes it to orders.customer_lat/lng (courier "Navigasiya"
+             // deep link + the admin live dispatch map read it back).
+             onUpdate('customer_lat', d.customer_lat);
+             onUpdate('customer_lng', d.customer_lng);
+           }
           if (Number.isFinite(d.venue_lat) && Number.isFinite(d.venue_lng)) {
             setVenuePoint({ lat: d.venue_lat, lng: d.venue_lng });
           }
@@ -314,10 +324,17 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
           setGeoKm(null);
           setGeoApprox(false);
           setRouteGeom(null);
-          // 11s: a failed geocode must not silently KEEP the previous
-          // address's auto-filled KM (pre-fix repro: Test A 24.4 → Test B
-          // fail → KM still 24.4). Manual KM (kmManualRef) is never touched.
-          if (!kmManualRef.current && cart && cart.delivery_km != null) onUpdate('delivery_km', null);
+           // 11s: a failed geocode must not silently KEEP the previous
+           // address's auto-filled KM (pre-fix repro: Test A 24.4 → Test B
+           // fail → KM still 24.4). Manual KM (kmManualRef) is never touched.
+           if (!kmManualRef.current && cart && cart.delivery_km != null) onUpdate('delivery_km', null);
+           // 12a: the failed address's point must not be the PREVIOUS
+           // address's point — drop it (the address text stays, the operator
+           // can re-type / pin the map manually).
+           if (cart && (cart.customer_lat != null || cart.customer_lng != null)) {
+             onUpdate('customer_lat', null);
+             onUpdate('customer_lng', null);
+           }
         }
       } catch {
         if (!cancelled) { setGeoStatus('fail'); setGeoKm(null); }
@@ -387,6 +404,9 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
     if (Number(cart?.delivery_km ?? -1) !== it.km) onUpdate('delivery_km', it.km);
     // 11w-B: mini-xəritə pin = the exact picked point.
     setCustomerPoint({ lat: it.lat, lng: it.lng });
+    // 12a: the picked point → cart (order-row persistence, see geocode effect).
+    onUpdate('customer_lat', it.lat);
+    onUpdate('customer_lng', it.lng);
     setRouteGeom(null); // 11z: the route line arrives with the ETA fetch below
     // 11v: live driving time (OSRM, free) for this exact point — non-blocking;
     // competitors only show a static zone ETA ("20–30 dəq").
@@ -422,6 +442,10 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
     kmManualRef.current = false;
     suggestPickedRef.current = null;
     setCustomerPoint(p);
+    // 12a: the manual pin IS the point — persist immediately (the reverse
+    // geocode may fail to produce address text, but the pin is still truth).
+    onUpdate('customer_lat', p.lat);
+    onUpdate('customer_lng', p.lng);
     setGeoStatus('loading');
     // 1) point → address text + km (OSRM road km when available).
     fetch(`/api/geocode?lat=${p.lat.toFixed(5)}&lng=${p.lng.toFixed(5)}`, { cache: 'no-store' })

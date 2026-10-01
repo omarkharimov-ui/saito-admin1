@@ -809,6 +809,44 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12a: KURYE TRACKING + KURYE ÜÇÜN APP (PIN LOGIN, STATUS AXINI, LIVE GPS, DISPATCH XƏRİTƏSİ))
+
+Owner: "kuryer tracking hətta kurye üçün də bir app yaz sən özünün, bir də Toast/Lightspeed/Square ilə də müqayisə et"
+
+**Nə problem idi:** kurye = order satırında yalnız `courier_name` (text) idi. Restoran kuryenin HARADA olduğunu görə bilmirdi ("sifariş indi haradadır?" — cavabsız); kurye statusu öz telefonundan irəli apara bilmirdi (restorana zəng etməli idi); **HƏR operator transition təyin olunmuş kuryeyi SİLİRDİ** (RPC `courier_id = p_courier_id` şərtsiz; BDS board HƏMİŞƏ `null` göndərir) → assignment sessiz itirilirdi; customer geo-point (lat/lng) order-a YAZILMIRDI → navigasiya nöqtəsi yox.
+
+**A — Kurye web-app** (`/courier`, mobile-first, **0 install** — brauzerdən, PWA-üslub):
+- **PIN login** = staff-ın öz PIN-i (role `courier`), stateless `courier_token` cookie = `staffId.sha256(pinHash+':saito-courier-v1')[:32]` (DB-də verify — session cədvəli YOX); **brute-force guard** (10 səhv / 10 dəq lock)
+- **Aktiv order kartı:** customer + ünvan + KM + fee + məhsul sayı + **🧭 Navigasiya (Google Maps)** deep-link (keyless `dir=` URL, order-da `customer_lat/lng` varsa) + **bir-press status düyməsi**: "Paketet götürdüm" (ready→picked_up) → "Yola düşdüm" (picked_up→in_transit) → "Təslim etdim" (in_transit→delivered)
+- **Live GPS:** `watchPosition` (~15 s) → `POST /api/courier/ping` → `courier_location` (upsert per courier); GPS icazəsi yoxdursa amber "⚠ GPS işləmir" (app blokLANMIR)
+- **Bugün təhvil verilmə** siyahısı (staggered slide-in)
+
+**B — DB `courier_transition` RPC** (migration `20261002010000`): kurye tərəfindən transition = **assignment check** (`orders.courier_id = p_courier_id`) + **validated transition** (`validate_transition('delivery',…)`) + `delivered_at` stamp + `operation_logs` (performed_by = kurye staff id). Operator-ın `transition_delivery_status` ilə EYNİ state machine — iki entry-point, bir SSOT. `courier_location` cədvəli (courier_id PK, lat, lng, order_id, t).
+
+**C — Admin "Kurye xəritəsi" live dispatch map** (`CourierLiveMapModal`, ÇATDIRILMA tab-da): Leaflet (OSM tiles + CSS-filter, 11y qaydaları) + **30 s poll** (`/api/courier/live` — requireAuth): **mavi venue** / **qırmızı order** (customer point) / **yaşıl kurye** nöqtəsi + permanent tooltip "tofiq agayev · N dəq/sn əvvəl" (freshness); sağ panel: "Kuryələr 1/1 onlayn" (GPS <5 dəq = onlayn) + "Aktiv çatdırılmalar" siyahısı (order → kurye → status).
+
+**D — 4 BUG fix (E2E-diagnoz):**
+1. **Middleware:** `/api/courier/` `PUBLIC_PATHS`-də YOX idi → kurye (saito_token-sız) login 401. Whitelist (route-lar öz `courier_token`-ı ilə self-auth).
+2. **PostgREST `or/and` logic-tree sintaksisi:** bu build-də `or=(id=eq.X)` + bare `or=(id=X)` **parse OLUNMUR** (`PGRST100 failed to parse logic tree`) — yeganə valid form `or=(id.eq.X)`. Login route düzəldildi (repo-da yeganə digər `or=` artıq düzgün formdaydı).
+3. **FATAL — courier wipe:** `transition_delivery_status()` `courier_id = p_courier_id` şərtsiz yazırdı; BDS board (`admin/delivery/page.tsx`) HƏR tap-da `p_courier_id: null` göndərir → mətbəx "Hazırdır" dedikdə kurye SİLİNİRDİ → kurye app HƏMİŞƏ "Order is not assigned to this courier". Fix (migration `20261002020000`): `COALESCE(p_courier_id, v_order.courier_id)` — null = "dəyişmə"; explicit pair = reassign (POS action-sheet artıq mövcud courier-i keçirirdi, BDS indi qorumalıdır). Audit log **effective** dəyərləri yazır. Test: təyin→BDS-null transition→**kurye saxlanıldı** ✓.
+4. **FATAL — customer point persist:** POS geo-point yalnız `CustomerPhasePanel` local state-də idi → order-da YOXDU → kurye nav + live map nöqtəsiz. Fix: migration `20261002030000` (`orders.customer_lat/lng numeric(9,6)`) + `PosCart` + `usePos` orderBody + `/api/orders` create (clamp ±90/±180) + `CustomerPhasePanel`-da 4 resolve yolunda cart push (suggest-pick / forward geocode / manual pin) + 2 clear yolu (address təmizlənəndə / geocode fail olduqda). Bonus fix: courier orders route `order_items.qty` → **`quantity`** (PGRST204 sessiz fail → "0 məhsul").
+
+**E — E2E (browser, user Chrome):**
+- Part 1 (r12a-1): `/courier` PIN 7788 → "tofiq agayev · 0 aktiv" + GPS pill + "✓ D071" təhvil satırı — console 0
+- API+DB: #D071 tam chain (preparing→ready [BDS-null, kurye SAXLANDI] → picked_up→in_transit→delivered) — `delivered_at` stamp + 3× `courier_transition` log (performed_by=tofiq); ping → `courier_location` row; live endpoint venue+kurye+orders
+- Part 2-5 (r12a-3..6): #D081 (Dragon Roll ₼18 + fee ₼2, "Nizami 12, Bakı" → km 1.2, point persist ✓) ready+tofiq → kurye kartı **"🧭 Navigasiya" ENABLED** (point var!) → "Paketet götürdüm"→"Yola düşdüm" (toast "Status yeniləndi ✓") → **admin live map: mavi venue + qırmızı Nizami order + yaşıl kurye "tofiq agayev · 128 dəq əvvəl"** + sağ panel "1/1 onlayn" + "#D081 · yolda" → "Təslim etdim" → "✓ #D081" təhvil section — console 0
+- Qeyd: browser geolocation icazəsi verilmədiyi üçün GPS pill "⚠ GPS işləmir" (kurye nöqtəsi son-ping timestamp-i ilə render olunur — gözlənilən, graceful)
+
+**F — Toast / Lightspeed / Square müqayisəsi (owner sualı, §0 + §1 yenilənib):**
+- **Toast** (US-only, $69/mo Essentials + 2.49%+$0.15): **Toast Delivery Services** — native self-delivery, **driver app** (route optimization, batched stops), **customer tracking link**, zone/fee management. Amma: US-only, hardware lock-in ($799+, 24–36 ay financing), KDS $25/mo per screen, add-on module-ler.
+- **Lightspeed** (8 ölkə, $69/$189 + 2.6%+$0.10, **annual contract**): **native driver app YOX** — delivery = **aggregator integrasiyası** (Uber Eats/DoorDash/Grubhub) + third-party (Relay) və ya manual; "Order Anywhere" = yalnız online ordering.
+- **Square** (8 ölkə, free/$60 Plus + 2.6%+$0.10, month-to-month): **native self-delivery driver app YOX** — Square Online + **aggregator-ə bağlı** (DoorDash/Uber Eats); customer tracking = **aggregator-un app-i** (kurye restoranın öz kuryesidirsə heç nə).
+- **SAITO 12a = öz kurye-lərin üçün native tracking** (GPS dispatch map + kurye PIN app + Google Maps nav, **100% keyless/₼0**) — bu, Lightspeed/Square-də **olduqda belə yoxdu** (onlarda yalnıx aggregator-ə köklənir), Toast-da var amma **US-only + add-on + hardware lock-in** ilə. Bizim üçün kritik fərq: **0 aylıq, 0 transaction fee, 0 hardware** (owner: "pulsuz istirem, aya heç nə çıxmasın").
+
+**G — Qalan (növbəti round-namizəd):** kurye push-notification (Web Push — keyless), kurye başa-təhvil ETX (photo/sign), multi-kurye route optimization (11w courier-tur-dan genişlənmə), customer-facing live tracking link (11d `/track`-a kurye GPS overlay).
+
+---
+
 ### Jurnal sətiri — 2026-10-01 (ROUND 11z: NATIONWIDE OSM GAZETTEER — BÜTÜN AZƏRBAYCAN ÜZRƏ KÜÇƏ/POI/ŞƏHƏR TANIYI + XƏRİTƏDƏ ROUTE XƏTTİ (SAİTO→MÜŞTƏRİ))
 
 Owner: "sıradakına keç — ən yaxşı səviyyəyə gətir, mənə təhvil ver"

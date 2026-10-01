@@ -9,6 +9,7 @@ import { deriveFulfillmentStage, isOrderPaid, type FulfillmentStage } from '@/li
 import { GridCell } from '@/lib/motion/GridCell';
 import BoardOrderCard from './BoardOrderCard';
 import CourierTourModal from './CourierTourModal';
+import CourierLiveMapModal from './CourierLiveMapModal';
 
 interface DeliveryOrdersProps {
   orders: any[];
@@ -44,6 +45,9 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
   const { t } = useLanguage();
   // 11w-E (owner: "daha da yaxşı — kurye turları"): multi-stop route planner.
   const [tourOpen, setTourOpen] = useState(false);
+  // 12a (owner: "kurye tracking — hətta kurye üçün də bir app yaz"): LIVE
+  // dispatch map — couriers' GPS pings + active order points, 30 s poll.
+  const [liveOpen, setLiveOpen] = useState(false);
 
   return (
     <div className="h-full flex flex-col p-6">
@@ -59,6 +63,15 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setLiveOpen(true)}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl border text-xs font-black uppercase tracking-wider transition-all hover:bg-emerald-500/10 ${
+              lightMode ? 'border-emerald-300 text-emerald-600' : 'border-emerald-400/30 text-emerald-300'
+            }`}
+          >
+            <Navigation size={16} />
+            <span>Kurye xəritəsi</span>
+          </button>
           <button
             onClick={() => setTourOpen(true)}
             disabled={orders.length === 0}
@@ -80,6 +93,9 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
       </div>
       {tourOpen && (
         <CourierTourModal orders={orders} lightMode={lightMode} onClose={() => setTourOpen(false)} />
+      )}
+      {liveOpen && (
+        <CourierLiveMapModal lightMode={lightMode} onClose={() => setLiveOpen(false)} />
       )}
 
       {orders.length === 0 ? (

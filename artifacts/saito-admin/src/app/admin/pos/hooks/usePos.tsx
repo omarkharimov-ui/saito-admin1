@@ -1640,6 +1640,8 @@ export function usePos() {
     delivery_zone?: string;
     delivery_fee?: number;
     delivery_km?: number;
+    customer_lat?: number;
+    customer_lng?: number;
     estimated_delivery_time?: string;
     payment_method?: string;
   }, assignedTo?: string) => {
@@ -1769,6 +1771,9 @@ export function usePos() {
                   delivery_fee: checkoutOverrides?.delivery_fee ?? cart.delivery_fee ?? 0,
                   // 11z: audit pair with the fee — the km it was charged for.
                   delivery_km: checkoutOverrides?.delivery_km ?? cart.delivery_km ?? null,
+                  // 12a: the picked customer point (courier nav + live map).
+                  customer_lat: checkoutOverrides?.customer_lat ?? cart.customer_lat ?? null,
+                  customer_lng: checkoutOverrides?.customer_lng ?? cart.customer_lng ?? null,
                   estimated_delivery_time: checkoutOverrides?.estimated_delivery_time || cart.estimated_delivery_time || null,
                  scheduled_date: cart.scheduled_date || null,
                  reservation_id: cart.reservation_id || null,

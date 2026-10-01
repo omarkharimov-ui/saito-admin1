@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Plus, User, MapPin, Moped, Clock, ShoppingBag, MoreVertical, Navigation, Route, Wallet, CheckCircle2, ChefHat } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -7,6 +8,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deriveFulfillmentStage, isOrderPaid, type FulfillmentStage } from '@/lib/order-stage';
 import { GridCell } from '@/lib/motion/GridCell';
 import BoardOrderCard from './BoardOrderCard';
+import CourierTourModal from './CourierTourModal';
 
 interface DeliveryOrdersProps {
   orders: any[];
@@ -40,6 +42,8 @@ export const DELIVERY_STATUS_CONFIG: Record<string, { bg: string; text: string; 
 export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrder, onSelectOrder, onOpenActionSheet }: DeliveryOrdersProps) {
   const { lightMode } = useTheme();
   const { t } = useLanguage();
+  // 11w-E (owner: "daha da yaxşı — kurye turları"): multi-stop route planner.
+  const [tourOpen, setTourOpen] = useState(false);
 
   return (
     <div className="h-full flex flex-col p-6">
@@ -54,14 +58,29 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
             {orders.length} {t('active_orders')}
           </p>
         </div>
-        <button
-          onClick={onNewOrder}
-          className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-blue-500 text-white text-xs font-black uppercase tracking-wider hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20"
-        >
-          <Plus size={18} />
-          <span>{t('new_delivery')}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTourOpen(true)}
+            disabled={orders.length === 0}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl border text-xs font-black uppercase tracking-wider transition-all hover:bg-blue-500/10 disabled:opacity-40 ${
+              lightMode ? 'border-blue-300 text-blue-600' : 'border-blue-400/30 text-blue-300'
+            }`}
+          >
+            <Route size={16} />
+            <span>Kurye turu</span>
+          </button>
+          <button
+            onClick={onNewOrder}
+            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-blue-500 text-white text-xs font-black uppercase tracking-wider hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20"
+          >
+            <Plus size={18} />
+            <span>{t('new_delivery')}</span>
+          </button>
+        </div>
       </div>
+      {tourOpen && (
+        <CourierTourModal orders={orders} lightMode={lightMode} onClose={() => setTourOpen(false)} />
+      )}
 
       {orders.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center">

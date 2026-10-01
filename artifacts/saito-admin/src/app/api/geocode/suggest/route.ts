@@ -3,7 +3,7 @@ import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { resolveWriteLocationContext } from '@/lib/location-context';
 // Shared with /api/geocode (same process, same IP — one Nominatim policy):
 // the venue bootstrap must produce the SAME point as the geocode route.
-import { transliterate, candidates, haversineKm, nominatimOnce } from '../route';
+import { transliterate, candidates, haversineKm, nominatimOnce, detectPlace, venueCityOf } from '../route';
 
 // ============================================================================
 // 2026-10-01 (11t, owner): GOOGLE-MAPS-STYLE ADDRESS SUGGEST.
@@ -88,6 +88,60 @@ function localPrefix(q: string, vLat: number, vLng: number, cap: number): Sugges
   return out;
 }
 
+// ── 11w-D (owner: "fuzzy + ev nömrəsi"): LEVENSHTEIN on the local index ─────
+// "nizamii", "20 yanvrr" → the right street WITHOUT any Nominatim call (the
+// local scan is ~1–3 ms over 1124 entries — still instant). Prefix matches
+// are skipped here (localPrefix already has them); threshold: ≤1 edit for
+// <7-char queries, ≤2 for longer (prevents junk on short typos).
+function lev(a: string, b: string, max: number): number {
+  const m = a.length, n = b.length;
+  if (Math.abs(m - n) > max) return max + 1;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    let rowMin = i;
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (cur[j] < rowMin) rowMin = cur[j];
+    }
+    if (rowMin > max) break;
+    prev = cur;
+  }
+  return prev[n];
+}
+
+function localFuzzy(q: string, vLat: number, vLng: number, cap: number, skip: Set<string>): SuggestItem[] {
+  const fq = transliterate(q).toLowerCase().trim();
+  if (fq.length < 4) return [];
+  const maxDist = fq.length < 7 ? 1 : 2;
+  const scored: { d: number; it: SuggestItem }[] = [];
+  for (const s of GAZETTEER) {
+    if (skip.has(s.n)) continue;
+    if (s.f.startsWith(fq) || fq.startsWith(s.f)) continue; // prefix = localPrefix's job
+    // Typo against the FULL name ("nizami" → "nizamii" is shorter than
+    // "nizami cefarov") AND against a same-length PREFIX ("nizamii" ≈ the
+    // first 7 chars of "nizami cefarov") — both are what an operator types.
+    let d = lev(fq, s.f, maxDist);
+    if (d > maxDist && s.f.length > fq.length) {
+      d = lev(fq, s.f.slice(0, fq.length), maxDist);
+    }
+    if (d === 0 || d > maxDist) continue;
+    scored.push({
+      d,
+      it: {
+        name: `${s.n}, ${s.c}`,
+        lat: s.la,
+        lng: s.lo,
+        km: Math.round(haversineKm(vLat, vLng, s.la, s.lo) * 10) / 10,
+        type: 'street',
+      },
+    });
+    if (scored.length >= 24) break; // enough candidates — sort + cap below
+  }
+  scored.sort((a, b) => a.d - b.d || a.it.km - b.it.km);
+  return scored.slice(0, cap).map(s => s.it);
+}
+
 export async function GET(req: NextRequest) {
   const auth = await requireAuth();
   if (!auth.authenticated) return auth;
@@ -167,14 +221,28 @@ export async function GET(req: NextRequest) {
 
     const raw = address.replace(/\s+/g, ' ');
     let rows: any[] = [];
-    // 11v (owner E2E: "20 yanvar berde" → 0 rows): CANDIDATE-DRIVEN, like
-    // /api/geocode — raw string first, then the smart decomposition
-    // ("20 yanvar berde" → "20 yanvar, Bərdə"; Nominatim free-text fails on
-    // comma-less "street city"), plus the other script as a last resort.
-    // Max 2 Nominatim calls per suggest query.
-    const chain = candidates(raw).map(c => c.text);
-    const ascii = transliterate(raw);
-    if (ascii !== raw && !chain.includes(ascii)) chain.push(ascii);
+    // 11w-D: HOUSE NUMBER — "nizami 27", "sumqayit niyazi 27A". Nominatim
+    // resolves building numbers best in a CITY-QUALIFIED query ("Nizami 27,
+    // Bakı"), so call 1 = street+number+city (the typed city if present, else
+    // the venue's own city — reverse-geocoded, in-process cached), call 2 =
+    // the raw string. No trailing number → the 11v candidate-driven chain.
+    const houseM = raw.match(/^(.{3,}?)\s+(\d{1,4}[a-zа-яa-z]?)$/i);
+    let chain: string[];
+    if (houseM) {
+      const dp = detectPlace(raw);
+      const city = dp?.city ?? (await venueCityOf(vLat, vLng));
+      if (dp?.restAZ && city) chain = [`${dp.restAZ}, ${city}`, raw];
+      else if (city) chain = [`${raw}, ${city}`];
+      else chain = [raw];
+    } else {
+      // 11v (owner E2E: "20 yanvar berde" → 0 rows): CANDIDATE-DRIVEN, like
+      // /api/geocode — raw string first, then the smart decomposition
+      // ("20 yanvar berde" → "20 yanvar, Bərdə"; Nominatim free-text fails on
+      // comma-less "street city"), plus the other script as a last resort.
+      chain = candidates(raw).map(c => c.text);
+      const ascii = transliterate(raw);
+      if (ascii !== raw && !chain.includes(ascii)) chain.push(ascii);
+    }
     for (const cq of chain.slice(0, 2)) {
       if (rows.length >= 2) break;
       const r = await throttledFetch(q(cq));
@@ -206,7 +274,15 @@ export async function GET(req: NextRequest) {
 
     // 11u: merge local gazetteer prefix hits (streets Nominatim's free-text
     // ranks low / misses) — same dedup keying, cap 8 rows total.
-    for (const it of localPrefix(address, vLat, vLng, 8)) {
+    // 11w-D: + LEVENSHTEIN hits for typos ("nizamii") — still 0 Nominatim
+    // calls, filled after the exact prefixes into the remaining slots.
+    const localHits = localPrefix(address, vLat, vLng, 8);
+    const skipN = new Set(localHits.map(it => it.name.split(', ')[0]));
+    const localAll = [
+      ...localHits,
+      ...localFuzzy(address, vLat, vLng, Math.max(0, 8 - localHits.length), skipN),
+    ];
+    for (const it of localAll) {
       if (results.length >= 8) break;
       const dkey = `${it.name.replace(/,\s*\d{3,4}$/, '').toLowerCase()}|${Math.round(it.lat * 100)}|${Math.round(it.lng * 100)}`;
       if (seenDedup.has(dkey)) continue;

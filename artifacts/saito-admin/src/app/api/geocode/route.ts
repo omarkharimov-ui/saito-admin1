@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { resolveWriteLocationContext } from '@/lib/location-context';
+import { osrmRoute } from '../lib/osrm';
 
 // ============================================================================
 // 2026-09-26 (owner, Task 55): address → km for the delivery fee engine.
@@ -110,7 +111,7 @@ for (const p of AZ_PLACES) for (const v of p.variants) PLACE_LOOKUP.set(v, p.nam
  * dictionary. Returns the rest of the address in BOTH scripts (AZ original
  * and ASCII) so the candidate chain can try each against OSM's AZ / EN tags.
  */
-function detectPlace(azText: string): { city: string; restAZ: string; restASCII: string } | null {
+export function detectPlace(azText: string): { city: string; restAZ: string; restASCII: string } | null {
   const azTokens = azText.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
   const asciiTokens = azTokens.map(t => transliterate(t).toLowerCase());
   for (let i = 0; i < asciiTokens.length; i++) {
@@ -127,7 +128,9 @@ function detectPlace(azText: string): { city: string; restAZ: string; restASCII:
 // Venue's own city (Nominatim reverse, in-process cached) — the anchor used
 // when the customer's address names no place token at all.
 let venueCityCache: { key: string; city: string | null } = { key: '', city: null };
-async function venueCityOf(vLat: number, vLng: number): Promise<string | null> {
+// 11w: exported — /api/geocode/suggest uses it for house-number anchoring
+// ("nizami 27" → "nizami, <venue city>").
+export async function venueCityOf(vLat: number, vLng: number): Promise<string | null> {
   const key = `${vLat.toFixed(3)},${vLng.toFixed(3)}`;
   if (venueCityCache.key === key) return venueCityCache.city;
   let city: string | null = null;
@@ -340,9 +343,19 @@ export async function GET(request: NextRequest) {
     if (!c) return NextResponse.json({ error: 'Ünvan tapılmadı — manual KM istifadə edin' }, { status: 404 });
 
     // ── 3) distance ────────────────────────────────────────────────────────
-    const km = Math.round(haversineKm(vLat, vLng!, c.lat, c.lng) * 10) / 10;
+    // 11w-C (owner: "fee OSRM yol-KM ilə"): the FEE distance is REAL road km
+    // (OSRM, free/keyless), not the straight line — haversine undercounts
+    // 10–30% (a 4.7 km straight line is often ~6 km of streets). OSRM down →
+    // graceful fallback to the straight line (routed:false), never a failure.
+    const kmStraight = Math.round(haversineKm(vLat, vLng!, c.lat, c.lng) * 10) / 10;
+    let km = kmStraight;
+    let routed = false;
+    const road = await osrmRoute(vLng!, vLat, c.lng, c.lat);
+    if (road) { km = road.km; routed = true; }
     return NextResponse.json({
       km,
+      km_straight: kmStraight,
+      routed,
       venue_lat: vLat,
       venue_lng: vLng,
       customer_lat: c.lat,

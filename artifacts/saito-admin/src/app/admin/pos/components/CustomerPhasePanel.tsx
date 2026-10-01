@@ -27,6 +27,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, User, Route, Wallet, MessageCircle, PauseCircle, CloudRain, Clock, MapPin, AlertTriangle } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import PosMiniMap from './PosMiniMap';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 26 } as const;
 
@@ -124,6 +125,18 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const [driveEta, setDriveEta] = useState<{ km: number; minutes: number } | null>(null);
   const etaAbort = useRef<AbortController | null>(null);
 
+  // 11w-B (owner: "daha da yaxşı"): mini-xəritə nöqtələri — venue (blue) +
+  // picked/geocoded customer point (red) + active zone radius ring.
+  // Leaflet + OSM tiles = FREE, no API key (competitors show the same in
+  // Toast/Square; we add the zone ring).
+  const [customerPoint, setCustomerPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [venuePoint, setVenuePoint] = useState<{ lat: number; lng: number } | null>(null);
+
+  // 11w-A (owner: "daha da yaxşı"): PHONE → LAST ADDRESS (Toast modeli —
+  // regular customer's previous delivery address from the orders table,
+  // 0 external API calls). Ünvan boşdursa → avto-dol; doluysa → tap chip.
+  const [phoneAddr, setPhoneAddr] = useState<{ address: string; name: string | null; count: number } | null>(null);
+
   // 11q (owner, idea D: "mutfaktaki anlık yoğunluğa göre dinamik ETA"): the
   // promised ETA tracks the LIVE kitchen queue — zone base range + queued
   // items (all order types), capped. Re-fetched every 30s while a zone is
@@ -217,6 +230,8 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
     const addr = address.trim();
     if (addr.length < 8) {
       setGeoStatus('idle'); setGeoKm(null); setGeoDisplay('');
+      // 11w-B: address emptied → the map pin goes with it (no stale point).
+      setCustomerPoint(null);
       // 11s: address emptied → stale auto-KM goes with it (manual KM stays).
       if (!kmManualRef.current && cart && cart.delivery_km != null) onUpdate('delivery_km', null);
       return;
@@ -233,9 +248,18 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
         // city). The old `km > 0` check rejected it as "not found".
         if (d && d.km != null && Number(d.km) >= 0) {
           setGeoStatus('ok');
+          // 11w-C: d.km = OSRM road km when routed (server falls back to
+          // haversine when OSRM is down) — the FEE distance is real road km.
           setGeoKm(Number(d.km));
           setGeoDisplay(d.display || addr);
           setGeoApprox(d.precision === 'area');
+          // 11w-B: mini-xəritə points from the geocode result (no-tap path).
+          if (Number.isFinite(d.customer_lat) && Number.isFinite(d.customer_lng)) {
+            setCustomerPoint({ lat: d.customer_lat, lng: d.customer_lng });
+          }
+          if (Number.isFinite(d.venue_lat) && Number.isFinite(d.venue_lng)) {
+            setVenuePoint({ lat: d.venue_lat, lng: d.venue_lng });
+          }
           if (Number(cart?.delivery_km || 0) !== Number(d.km)) onUpdate('delivery_km', Number(d.km));
         } else {
           setGeoStatus('fail');
@@ -280,6 +304,11 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
         setSuggestResults(list);
         setSuggestOpen(list.length > 0);
         setSuggestIndex(0);
+        // 11w-B: every suggest response carries the venue point — cache it
+        // for the mini-map (the map needs BOTH venue + customer to draw).
+        if (d?.venue && Number.isFinite(d.venue.lat) && Number.isFinite(d.venue.lng)) {
+          setVenuePoint({ lat: d.venue.lat, lng: d.venue.lng });
+        }
       } catch { /* aborted / network — keep the previous list */ }
     }, delay);
     return () => { cancelled = true; clearTimeout(timer); };
@@ -301,6 +330,8 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
     // 11v: the KM update drives AUTO zone selection in page.tsx (Toast model
     // — the address decides the zone; chips stay a manual override).
     if (Number(cart?.delivery_km ?? -1) !== it.km) onUpdate('delivery_km', it.km);
+    // 11w-B: mini-xəritə pin = the exact picked point.
+    setCustomerPoint({ lat: it.lat, lng: it.lng });
     // 11v: live driving time (OSRM, free) for this exact point — non-blocking;
     // competitors only show a static zone ETA ("20–30 dəq").
     etaAbort.current?.abort();
@@ -308,9 +339,45 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
     etaAbort.current = ac;
     fetch(`/api/delivery-eta?lat=${it.lat}&lng=${it.lng}`, { cache: 'no-store', signal: ac.signal })
       .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (!ac.signal.aborted && d && d.minutes) setDriveEta({ km: d.km, minutes: d.minutes }); })
+      .then(d => {
+        if (ac.signal.aborted || !d || !d.minutes) return;
+        setDriveEta({ km: d.km, minutes: d.minutes });
+        // 11w-C: FEE distance = REAL road km (OSRM), not the haversine set
+        // above — the KM field + fee follow it (chip · KM · fee = ONE
+        // triple, owner law "zonalarda qairisqliq olmasin"). The page's KM
+        // branch (11v) re-prices + re-resolves the auto zone from the new KM.
+        setGeoKm(d.km);
+        if (Number(cart?.delivery_km ?? -1) !== d.km) onUpdate('delivery_km', d.km);
+      })
       .catch(() => { /* OSRM down → hint shows km only (graceful) */ });
   };
+
+  // 11w-A: PHONE → LAST ADDRESS — repeat customer's previous delivery
+  // address (orders table, 100% local, 0 external calls). Auto-fills when
+  // the address field is EMPTY (Toast parity); otherwise a tap chip —
+  // never clobbers an address the operator is typing.
+  useEffect(() => {
+    if (mode !== 'delivery') { setPhoneAddr(null); return; }
+    if (phone.replace(/\D/g, '').length < 10) { setPhoneAddr(null); return; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/customer-last-address?phone=${encodeURIComponent(phone)}`, { cache: 'no-store' });
+        const d = r.ok ? await r.json() : null;
+        if (cancelled) return;
+        if (d?.address) {
+          setPhoneAddr({ address: d.address, name: d.name || null, count: d.count || 1 });
+          if (!(cart?.delivery_address || '').trim()) onUpdate('delivery_address', d.address);
+        } else {
+          setPhoneAddr(null);
+        }
+      } catch {
+        if (!cancelled) setPhoneAddr(null);
+      }
+    }, 700);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, mode]);
 
   return (
     <div className="h-full flex flex-col min-h-0">
@@ -394,7 +461,28 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                         </a>
                       )}
                     </div>
-               {mode === 'delivery' ? (
+                {/* 11w-A: repeat-customer address chip — shown when the
+                    address field ALREADY has text (the empty case auto-fills
+                    silently). Tap = load their last delivery address. */}
+                {mode === 'delivery' && phoneAddr && address.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      kmManualRef.current = false;
+                      suggestPickedRef.current = null;
+                      onUpdate('delivery_address', phoneAddr.address);
+                    }}
+                    className={`mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-bold transition-all active:scale-[0.97] ${
+                      lightMode ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' : 'bg-blue-500/10 border-blue-400/25 text-blue-300 hover:bg-blue-500/20'
+                    }`}
+                  >
+                    <MapPin size={11} className="flex-shrink-0" />
+                    <span className="truncate">
+                      Müşterinin son ünvanı ({phoneAddr.count}) · {phoneAddr.address}
+                    </span>
+                  </button>
+                )}
+                {mode === 'delivery' ? (
                  <>
                {zones.length > 0 && (
                 <div>
@@ -523,7 +611,22 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                       Ünvan xəritədə tapılmadı — məsafəni KM sahəsinə əl ilə daxil edin
                     </p>
                   )}
-               </div>
+                  {/* 11w-B: mini-xəritə (Leaflet + OSM, key-siz) — venue (mavi)
+                      + picked point (qırmızı) + active zone radius ring. A wrong
+                      district pick becomes visually obvious before the order sends. */}
+                  {mode === 'delivery' && customerPoint && venuePoint && (
+                    <PosMiniMap
+                      venue={venuePoint}
+                      customer={customerPoint}
+                      radiusKm={(() => {
+                        const z = zones.find(x => x.name === zoneName);
+                        const mx = z?.max_km != null ? Number(z.max_km) : null;
+                        return mx != null && mx > 0 ? mx : null;
+                      })()}
+                      lightMode={lightMode}
+                    />
+                  )}
+                </div>
 
               {/* 2026-09-26 (owner, Task 50): Wolt-style distance field —
                   typing a km re-resolves the zone by its km-range and re-prices

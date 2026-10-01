@@ -18,7 +18,7 @@ import { nominatimOnce } from '../geocode/route';
 // never a blocker).
 // ============================================================================
 
-const OSRM = 'https://router.project-osrm.org/route/v1/driving';
+import { osrmRoute } from '../lib/osrm';
 
 const etaCache = new Map<string, { t: number; km: number; minutes: number }>();
 
@@ -75,27 +75,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ km: cached.km, minutes: cached.minutes });
     }
 
-    const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), 6000);
-    let route: { km: number; minutes: number } | null = null;
-    try {
-      const res = await fetch(
-        `${OSRM}/${vLng},${vLat};${lng},${lat}?overview=false&alternatives=false`,
-        { signal: ctrl.signal, headers: { Accept: 'application/json' } },
-      );
-      if (res.ok) {
-        const d: any = await res.json();
-        const r0 = d?.routes?.[0];
-        if (r0 && r0.distance > 0 && r0.duration > 0) {
-          route = {
-            km: Math.round((r0.distance / 1000) * 10) / 10,
-            minutes: Math.max(1, Math.ceil(r0.duration / 60)),
-          };
-        }
-      }
-    } catch { /* OSRM unreachable — graceful 502 below */ } finally {
-      clearTimeout(to);
-    }
+    // 11w: shared OSRM helper (same route math as /api/geocode + /api/courier-tour).
+    const route = await osrmRoute(vLng, vLat, lng, lat);
     if (!route) return NextResponse.json({ error: 'eta_unavailable' }, { status: 502 });
 
     etaCache.set(key, { t: Date.now(), ...route });

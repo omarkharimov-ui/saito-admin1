@@ -809,6 +809,43 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11w: 5 İMPROVEMENT — TELEFON→ÜNVAN · MINI-XƏRİTƏ · OSRM YOL-KM FEE · FUZZY+EV NÖMRƏSİ · KURYE TURLARI)
+
+Owner: "daha da yaxşı necə ede bilərsən?" → 5/5 seçdi (hamısı free/keyless — Google
+Maps key billing istədiyinə görə RƏDD edildi: "pulsuz istirem, aya heç nə çıxmasın").
+
+1. **A — TELEFON → SON ÜNVAN (`/api/customer-last-address` + panel):** telefon
+   10+ rəqəm yazılır → orders DB-dən həmin son-10-lik telefonun **son delivery ünvanı**
+   (0 external API call). Ünvan boşdursa → **avto-dol** (Toast modeli); doluysa → tap
+   chip "Müşterinin son ünvanı (N)". 700ms debounce. Avto-dolduqdan sonra mövcud
+   geocode→KM→auto-zone pipeline işləyir.
+2. **B — MINI-XƏRİTƏ (`PosMiniMap.tsx`, Leaflet 1.9 + OSM tiles, key-siz):**
+   seçilmiş/geocode olunmuş ünvan = qırmızı pin, məkan = mavi nöqtə, aktiv zone radiusu =
+   mavi dairə. ResizeObserver + fitBounds. OSM attribution qeydi. Yanlış rayon seçimi
+   indi GÖZLƏ görünür (Toast/Square parity + zone ring bonusu).
+3. **C — FEE = OSRM YOL-KM (`geocode/route.ts` + `lib/osrm.ts`):** `/api/geocode` indi
+   `km` = **gerçək sürüşmə məsafəsi** (OSRM road km), `km_straight` = haversine
+   (fallback: OSRM down → routed:false, həmişə cavab verir). Suggest pick-də driveEta
+   gələndə panel KM sahəsini + fee-ni routed km-ə keçirir (chip · KM · fee = 1 triple,
+   "zonalarda qairisqliq olmasin" qanunu). E2E: 20 Yanvar → straight 4.7, **routed 6.0**.
+4. **D — FUZZY + EV NÖMRƏSİ (`suggest/route.ts`):** (a) Levenshtein lokal index-də
+   (1124 küçə, ~ms): "nizamii" → "Nizami küçəsi, Bakı" 0.6 km (threshold ≤1/<7, ≤2/≥7,
+   prefix də əhatə olunur: full-name + same-length prefix). 0 Nominatim call. (b) Ev
+   nömrəsi: `nizami 12` → chain = "nizami 12, <detected|venue city>" (venueCityOf
+   export edildi) + raw → Nominatim **building** row: "12, Nizami küçəsi, Nəsimi
+   rayonu, Bakı, 1020" 1.2 km.
+5. **E — KURYE TURLARI (`/api/courier-tour` + `CourierTourModal.tsx`):** delivery
+   list-də "Kurye turu" → ünvanlı sifarişləri tik → hər ünvan /api/geocode (15s cache)
+   → **1 OSRM /table call** (all-pairs matrix, `annotations=distance,duration` — bare
+   /table only durations qaytarır! E2E catch) → **nearest-neighbor** stop order (venue
+   başlanğıc) → per-leg km/dəq + cəm. ≤12 stop, 2 min cache. Rəqiblərdə bu ayrıca
+   dispatch məhsuludur.
+- **E2E (r11w-1..4, 5/5 PASS, console 0):** A: 0501112233 → ünvan avto "Test küçəsi 1,
+  Bakı" ✓; D1: "nizamii" → Nizami 0.6 km ✓; D2: "nizami 12" → building tap ✓; C: KM=2.2
+  (routed) + zone auto + ₼2 ✓; B: xəritə (mavi+qırmızı) ✓; E: 3 sifariş → cəm **37.5 km
+  · ~41 dəq**, order Ç072→Ç073→Ç071 ✓. Test sifarişləri (#D072/#D073) E2E-dən sonra
+  DB-dən silindi. tsc clean. leaflet 1.9.4 + @types/leaflet 1.9.22 (pnpm).
+
 ### Jurnal sətiri — 2026-10-01 (ROUND 11v: AUTO ZONE (TOAST MODELİ) + OSRM LIVE SÜRÜŞMƏ VAXTI (FREE API) + 40-ŞƏHƏR LÜĞƏTİ)
 
 Owner: "toast/lightspeed/square-da çatdırılma sistemi necedir — manual yoxsa?" → rəqib

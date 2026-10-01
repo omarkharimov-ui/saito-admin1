@@ -809,6 +809,38 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11u: INSTANT 1-CHAR SUGGEST — LOCAL STREET GAZETTEER)
+
+Owner: "nie limitli sekilde dropdown-da cixir — men 2 yazsam birden-bire netice
+olmaliydi, direk daxil edenden sonra hesablayib demelidi".
+
+1. **LOKAL GAZETTEER (`src/data/streets-az.json`, commit olundu):** 1124 unikal
+   küçə (Bakı 1081 + Sumqayıt 264; "küçəsi/küç./prospekti/bulvarı" suffixləri
+   build-də fold → "20 Yanvar" == "20 Yanvar küçəsi" bir entry) + OSM center
+   koordinatları. One-time Overpass fetch (maps.mail.ru mirror — overpass-api.de
+   406 verdi; Xırdalan bbox = EMPTY — OSM-də heç street data yoxdur; Gəncə/Mingəçevir
+   delivery-radius-dan kənardır, 3+ char Nominatim + 11s city-dictionary ilə örtülür).
+2. **ROUTE FLOW (`/api/geocode/suggest`):** 1-2 char = **LOKAL ONLY** (startsWith
+   scan ~1 ms, **Nominatim CALL YOX**) → dropdown birinci keystroke-dan işləyir
+   (Google Maps belədir: əvvəl lokal index, sonra network). 3+ char = Nominatim
+   (7) + local prefix merge (cap 8, eyni dedup) → **KM SORT** (Nominatim fuzzy
+   free-text uzaq match-leri üstə qoyurdu — "niz" → "Aşağı Gövhər ağa məscidi,
+   Şuşa" 270 km, "Nizami küçəsi, Bakı" 0.6 km ÜSTƏDƏ idi; proximity order =
+   operator-un ehtiyacı; city hər sətirdə görünür).
+3. **CLIENT:** min 1 xarakter (əvvəl 3), debounce 100 ms (<3 char) / 350 ms (≥3)
+   (əvvəl 600 ms), AbortController in-flight kill.
+4. **VENUE DB-Ə PERSIST:** `locations` rows-un latitude/longitude NULL idi — hər
+   route (geocode/suggest) hər cold-cache-də venue bootstrap chain-i Nominatim-də
+   qaçırırdı. "Saito Nizami" row (70000000-…-1, "Bakı, Nizami küç. 98") ona MƏXSUS
+   geocode nöqtəsi ilə UPDATE olundu (40.3755885/49.8328009 — bütün rounds-da
+   istifadə olunmuş eyni nöqtə) → venue indi INSTANT DB read (bootstrap yalnız
+   fallback qalır).
+- **Browser E2E (r11u-1..2):** "2" → dropdown **0.7 s** (8 row: 28 May 1.1 · 2-ci
+  Massiv 3.7 · 22-ci Dağlıq 4.4 · 20 Yanvar 4.6 · …) → "20" → 2 row (20 Yanvar
+  4.6 · 20-ci Qaraçuxur 13.4) → "20 yanvar" → 6 row (local + "20 Yanvar, 4-cü
+  mikrorayon, …, Nəsimi rayonu, Bakı" 4.7) → tap → address tam ad, **KM 4.7**,
+  zone chips unselected, fee "ZONE SEÇİN". Console 0 new error. tsc clean.
+
 ### Jurnal sətiri — 2026-10-01 (ROUND 11t: GOOGLE-MAPS-STİLİ ADDRESS SUGGEST + ZONE MANUAL SEÇİM)
 
 Owner: "20 yanvar yazdım — sistem özbaşına bir rayonu seçdi (haranı dedim?); google maps kimi

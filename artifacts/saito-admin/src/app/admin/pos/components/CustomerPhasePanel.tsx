@@ -239,15 +239,18 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, mode]);
 
-  // 11t: Google-Maps-style live suggest (600ms debounce, min 3 chars,
-  // in-flight requests aborted). The single best-match geocode effect above
-  // stays as the fallback for full addresses with no tapped suggestion.
+  // 11t: Google-Maps-style live suggest (in-flight requests aborted).
+  // 11u (owner: "2 yazsam birdən-birə olmalıdır"): min 1 xarakter; 1-2 char
+  // = server-local prefix index (0 Nominatim call, ~1ms) → debounce 100ms;
+  // 3+ char = Nominatim live → debounce 350ms. The single best-match geocode
+  // effect above stays as the fallback for full addresses with no tap.
   useEffect(() => {
     if (mode !== 'delivery') { setSuggestOpen(false); setSuggestResults([]); return; }
     const addr = address.trim();
-    if (addr.length < 3) { setSuggestOpen(false); setSuggestResults([]); return; }
+    if (addr.length < 1) { setSuggestOpen(false); setSuggestResults([]); return; }
     // Picked exact match → no re-suggest loop (see suggestPickedRef).
     if (addr === suggestPickedRef.current) { setSuggestOpen(false); setSuggestResults([]); return; }
+    const delay = addr.length < 3 ? 100 : 350;
     let cancelled = false;
     const timer = setTimeout(async () => {
       suggestAbort.current?.abort();
@@ -263,7 +266,7 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
         setSuggestOpen(list.length > 0);
         setSuggestIndex(0);
       } catch { /* aborted / network — keep the previous list */ }
-    }, 600);
+    }, delay);
     return () => { cancelled = true; clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, mode]);

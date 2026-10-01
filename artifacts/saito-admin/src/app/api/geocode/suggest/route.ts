@@ -53,12 +53,47 @@ export interface SuggestItem {
   type: string;   // addresstype/type (street|building|house|…)
 }
 
+// ── 2026-10-01 (11u, owner: "2 yazsam birdən-birə nəticə olmalıdır") ────────
+// LOCAL STREET GAZETTEER — 1124 unique streets (Bakı + Sumqayıt) with OSM
+// center points, fetched ONE-TIME from Overpass and committed to the repo
+// (src/data/streets-az.json, ~84 KB). 1-2 char input = pure local prefix
+// match: ZERO Nominatim calls, ~1 ms → the dropdown reacts from the FIRST
+// keystroke, exactly like Google Maps (which also filters its local index
+// before any network round-trip). 3+ char input = Nominatim live results +
+// local prefix merged in (catches streets free-text search ranks low).
+// "küçəsi/küç./prospekti/bulvarı" suffixes are folded away during the
+// one-time build, so "20 Yanvar" and "20 Yanvar küçəsi" are ONE entry.
+import streetsRaw from '@/data/streets-az.json';
+
+interface GazetteerStreet { n: string; c: string; la: number; lo: number; k: number }
+const GAZETTEER: (GazetteerStreet & { f: string })[] = (streetsRaw as GazetteerStreet[]).map(s => ({
+  ...s,
+  f: transliterate(s.n).toLowerCase(),
+}));
+
+function localPrefix(q: string, vLat: number, vLng: number, cap: number): SuggestItem[] {
+  const fq = transliterate(q).toLowerCase();
+  const out: SuggestItem[] = [];
+  for (const s of GAZETTEER) { // pre-sorted by segment count desc (major streets first)
+    if (!s.f.startsWith(fq)) continue;
+    out.push({
+      name: `${s.n}, ${s.c}`,
+      lat: s.la,
+      lng: s.lo,
+      km: Math.round(haversineKm(vLat, vLng, s.la, s.lo) * 10) / 10,
+      type: 'street',
+    });
+    if (out.length >= cap) break;
+  }
+  return out;
+}
+
 export async function GET(req: NextRequest) {
   const auth = await requireAuth();
   if (!auth.authenticated) return auth;
   try {
     const address = (req.nextUrl.searchParams.get('address') || '').trim();
-    if (address.length < 3) return NextResponse.json({ results: [] });
+    if (address.length < 1) return NextResponse.json({ results: [] });
 
     // Venue point for per-result KM — mirrors /api/geocode EXACTLY (same
     // helpers, same candidate chain) so suggest KM == geocode KM:
@@ -113,6 +148,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 11u: 1-2 chars → LOCAL ONLY (no Nominatim at all) → instant dropdown
+    // from the very first keystroke. localPrefix is an O(1124) in-memory
+    // startsWith scan — no cache needed. Closest-first (Google-Maps-style).
+    if (address.length < 3) {
+      const local = localPrefix(address, vLat, vLng, 8).sort((a, b) => a.km - b.km);
+      return NextResponse.json({ results: local, venue: { lat: vLat, lng: vLng } });
+    }
+
     const key = transliterate(address).toLowerCase();
     const cached = sugCache.get(key);
     if (cached && Date.now() - cached.t < 10_000) {
@@ -154,12 +197,27 @@ export async function GET(req: NextRequest) {
     const seenDedup = new Set<string>();
     const results: SuggestItem[] = [];
     for (const it of rawItems) {
-      const key = `${it.name.replace(/,\s*\d{3,4}$/, '').toLowerCase()}|${Math.round(it.lat * 100)}|${Math.round(it.lng * 100)}`;
-      if (seenDedup.has(key)) continue;
-      seenDedup.add(key);
+      const dkey = `${it.name.replace(/,\s*\d{3,4}$/, '').toLowerCase()}|${Math.round(it.lat * 100)}|${Math.round(it.lng * 100)}`;
+      if (seenDedup.has(dkey)) continue;
+      seenDedup.add(dkey);
       results.push(it);
       if (results.length >= 7) break;
     }
+
+    // 11u: merge local gazetteer prefix hits (streets Nominatim's free-text
+    // ranks low / misses) — same dedup keying, cap 8 rows total.
+    for (const it of localPrefix(address, vLat, vLng, 8)) {
+      if (results.length >= 8) break;
+      const dkey = `${it.name.replace(/,\s*\d{3,4}$/, '').toLowerCase()}|${Math.round(it.lat * 100)}|${Math.round(it.lng * 100)}`;
+      if (seenDedup.has(dkey)) continue;
+      seenDedup.add(dkey);
+      results.push(it);
+    }
+    // 11u: closest-first — Nominatim free-text sometimes ranks far fuzzy
+    // matches ("niz" → "Aşağı Gövhər ağa məscidi, Şuşa") above the real local
+    // street 0.6 km away. Proximity order is what the operator needs (city is
+    // still visible in every row name).
+    results.sort((a, b) => a.km - b.km);
 
     sugCache.set(key, { t: Date.now(), results });
     if (sugCache.size > 100) sugCache.delete(sugCache.keys().next().value as string);

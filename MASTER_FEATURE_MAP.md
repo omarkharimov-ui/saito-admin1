@@ -839,6 +839,34 @@ Owner: "…sonraya saxlayaq bunu (route). Delivery page customer info sonra tama
 
 ---
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12f: KDS/BDS UI — APPLE CARD REDESIGN + IN-PLACE EXPAND + PREMIUM CHIME)
+
+Owner: "backend hazirdir, kds/bds station ayirmalar faaln???" → **BACKEND AUDIT (real DB + kod): hamısı GREEN.** Station ayırma: 7 stations (5 kitchen + 2 BDS); 15/15 menyu məhsulu station-da (Grill 9, Bar 4, MK 2; Prep/Service 0); `set_order_item_station_snapshot` trigger INSERT-də snapshot (Dragon Roll→MK, Green Tea→Bar, Lahmacun→Grill — real order-larda); KDS badge sayıları DB item sayısıyla üst-üstə düşür (MK 4 = E2E Kurye 1 + E2E Wolt 2 + KDS Review 1); product-sız sətir → NULL → MK default (trigger `product_id IS NOT NULL` guard). Modifiers: DB-də struktur (Standart ₼0 / Kremli ₼1.5 / Yüngül ₼0) + `trg_enforce_item_modifiers` + `trg_item_money_lock` aktiv. Notes: item `special_notes` + order `customer_note` DB-də saxlanılır. State machine: `sync_order_kitchen_status` rollup (tam CASE: served/partially_ready/preparing/ready/pending...) + `UPDATE ... WHERE status NOT IN ('paid','cancelled','closed')` guard = **qəsdən** (paid order-da kitchen lifecycle bitmiş) + `trg_item_state_machine_guard`; DB sübut: ORD-2949 item-ready→order-`ready`; delivery = 12a validate_transition + COALESCE courier. **3 P3 qeyd (əməl yox):** operation_logs.employee_name boş yazılır (action+vaxt var, "kim" adı yox); köhnə paid order-larda order=completed+item=pending (rollup guard artifact — tahtada görünmür); Prep+Service station-ları konfiqurada var, 0 məhsul bağlanmayıb (menyu-mapping sahibinin işidir).
+
+Owner: "kecek uiya" + (ask_user→Other): **"apple felsefəsi: sifariş basanda IN-PLACE EXPAND, kartı yenidən design daha səliqəli (çip/text/notes/modifications), state machine transition, gecikende FULL KART QIRMIZI ÇIRKİNDİR, sifarişi tamamla = bir düymə VƏYA tek-tek+axır, yeni notification səsi ÇOX PREMIUM İNCE (Outlook-da var, brauzerdən tap)"**.
+
+**Outlook səs araması (browser): NOT_FOUND** — OWA app bundle yalnız signed-in session-da yüklenir (outlook.com → marketing redirect; audio resource scan + 10 JS bundle regex + OWA endpoint probe hamısı boş). **Fallback = Web Audio-də İNCE ZIL sintezi:** E6 (1318.5 Hz) fundamental + 2× shimmer (2637 Hz, gain 0.02) + E5 body (659.3 Hz); 5 ms attack, ~1.2 s exponential decay, peak gain 0.10 — "audible across the room, never startling" (köhnə 880/1100 Hz beep "computer chirp" idi). + **AudioContext gesture-unlock**: browser səs-sız saxlayır; ilk `pointerdown`-da unlock (səs idle page-də udulmur).
+
+**KDSView.tsx (Apple philosophy — SAITO_MOTION_PHILOSOPHY 12 rule):**
+- **IN-PLACE EXPAND** (owner: "kart in place expand olmalıdır ki detalli baxa bilsin chef"): tap = eyni kart YERİNDƏ böyüyür (modal YOX — rule 5 morph, rule 6 layout reflow); `expandedId` (1 vaxtda 1 ticket); chevron rotate 180. Detail blok: divider + **MÜŞTƏRİ** (ad + `tel:` blue link) + **STANSIYALAR** (bütün station progress: Main Kitchen 0/1 · Bar 0/2) + **ETA** (overdue = qırmızı) + modifier **PILL-lər** (expand-də tam, collapsed-da 1 truncated line).
+- **GAP close:** item `special_notes` ("şəkərsiz", "çox istiləməsin") əvvəl KDS kartında **TAMAMEN YOXDU idi** (yalnız print ticket-da) → indi collapsed-da da amber line (truncate), expand-də tam.
+- **Full-red flood aradan qaldırıldı** (owner: "cirkin olur"): GEÇİKME = neutral bg + **violet border yalnız**; KRİTİK = red border yalnız; urgency = timer pill + border; ready = emerald.
+- **✓ target 24px → 40px** (w-10 h-10 — kitchen tablet, hərəkət edən əl).
+- Card = `motion.div layout` + entry/exit springs (`CARD_SPRING` 420/34, `EXPAND_SPRING` 320/32) + `useReducedMotion` gate (rule 12); interactive children (✓/print/complete/tel:) = `stopPropagation` (tap = expand, action = action).
+- Tamamlama = **tek-tek ✓ + axırda "Sifarişi Tamamla"** invarianti QORUNUR (owner variantlarından ikincisi; bütün station-lar ready olanda görünür).
+
+**delivery/page.tsx (BDS — eyni dil):** eyni in-place expand = **MƏHSULLAR** (read-only: ad ×qty + station + ready ✓; kitchen status KDS-in) + `customer_note` (BdOrder-a yeni field; **catch:** item ad = `product_name` — order_items-də `name` column YOXDU, BdItem.name heç vaxt doldurulmayıb); chevron + `stopPropagation` bütün interactive children (**"Kuryer seç" picker açanda kart COLLAPSE olmur** — E2E təsdiq).
+
+**i18n:** 3 key × 3 locale (`kds_customer`/`kds_stations`/`kds_items` — az/en/ru).
+
+**E2E (browser r12f):** KDS: 8 ticket; hər kartda chevron; **GEÇİKME kart = white bg + violet border (flood YOX)**; ready kart emerald; ✓ = 40px; "KDS Review" tap → **h 289→435 IN-PLACE** (top-y sabit, modal yox, console 0): MÜŞTƏRİ (KDS Review + tel:+994 50 222 33 44), STANSIYALAR (MK 0/1 · Bar 0/2), **ETA 02:34**, "şəkərsiz" amber; chevron 180°; re-tap = collapse · BDS: 6 kart; tap → **h 296→346 IN-PLACE**: MƏHSULLAR (Dragon Roll ×1 — Main Kitchen / Green Tea ×2 — Bar); **"Kuryer seç" açanda kart expand qalır** (chip: tofiq agayev) + close; single-expand (MASA 5 açdı → 085 yalandı); console 0. Shots: r12f-kds-1 (578KB) / r12f-kds-expanded (600KB) / r12f-bds-1 (431KB) / r12f-bds-expanded (441KB) — real PNG, 1568×1307.
+
+**tsc:** clean. **Qeyd:** səs = WebAudio sintez (deterministic) — E2E "işitmə" imkanı YOXDU; final judge = sahibin qulağı (dev-də yeni order yaradın).
+
+**Qalan (owner GO):** 12d route (Task #11 — POS minimap düz xətt + delivery customer-info yarımçıq) + 103 köhnə non-terminal order DB temizliyi (geri dönüşsüz).
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12c: WOLT EFFECT — REALTIME + SMOOTH MARKER + CUSTOMER-LIVE-TRACK)
 
 Owner: (Wolt stack analizi) "1. Map renderer 2. Geocoding 3. Routing 4. ETA 5. Live location… ən böyük səhv: marker.setPosition(newLocation) → marker TULLANIR. Wolt isə GPS→backend→realtime→interpolation→smooth marker→camera follow edir. Saito üçün mən belə qurardım: OSM + MapLibre + OSRM + Nominatim + Supabase Realtime + Browser GPS + smooth interpolation + bearing rotation + camera follow + ETA + route progress… biz dede bele islemir ??" → ask_user: **"Hamısı — tam Wolt effekt"**.

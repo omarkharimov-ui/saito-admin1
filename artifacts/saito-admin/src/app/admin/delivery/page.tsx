@@ -20,8 +20,8 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Bike, ShoppingBag, Phone, MapPin, Wallet, CheckCircle2, Clock, User, ChefHat, PackageCheck, Navigation, Flag, LayoutGrid, Utensils, PauseCircle } from '@/components/ui/saito-icons';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { Bike, ShoppingBag, Phone, MapPin, Wallet, CheckCircle2, Clock, User, ChefHat, PackageCheck, Navigation, Flag, LayoutGrid, Utensils, PauseCircle, ChevronDown } from '@/components/ui/saito-icons';
 import toast from 'react-hot-toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -37,7 +37,7 @@ const BDS_STALE_MS = 24 * 60 * 60 * 1000;
 
 interface Station { id: string; name: string; station_type?: string; }
 interface BdsStation { id: string; name: string; station_type: 'delivery' | 'pickup'; }
-interface BdItem { id: string; name: string; quantity: number; kitchen_status: string; station_id: string | null; }
+interface BdItem { id: string; name?: string | null; product_name?: string | null; quantity: number; kitchen_status: string; station_id: string | null; }
 interface BdOrder {
   id: string;
   order_source: string;
@@ -49,6 +49,7 @@ interface BdOrder {
   delivery_status: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
+  customer_note?: string | null;
   delivery_address?: string | null;
   delivery_zone?: string | null;
   delivery_fee?: number | string;
@@ -95,6 +96,10 @@ export default function BDSPage() {
   // courier_id (staff FK) + courier_name, never free text.
   const [couriers, setCouriers] = useState<{ id: string; name: string }[]>([]);
   const [courierPickerFor, setCourierPickerFor] = useState<string | null>(null);
+  // 2026-10-02 (12f, owner): in-place ticket detail (same pattern as KDS) —
+  // ONE order expanded at a time; the card grows, no modal.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
 
   // Delivery Phase 2 (2026-09-24): live accepting-pause — state comes from
   // the /api/orders poll (delivery.accepting), so it tracks Settings changes
@@ -414,8 +419,10 @@ export default function BDSPage() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.97 }}
-                    transition={SPRING}
-                    className={`rounded-3xl border p-4 flex flex-col gap-3 ${
+                    transition={reduceMotion ? { duration: 0 } : SPRING}
+                    // 12f: tap = in-place expand (detail without leaving board)
+                    onClick={() => setExpandedId(prev => (prev === o.id ? null : o.id))}
+                    className={`rounded-3xl border p-4 flex flex-col gap-3 cursor-pointer ${
                       taken
                         ? (lightMode ? 'bg-white border-zinc-200 opacity-70' : 'bg-white/[0.015] border-white/[0.06] opacity-70')
                         : (kReady && !isDeliveryTab
@@ -438,18 +445,28 @@ export default function BDSPage() {
                             <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{orderNo}</span>
                           )}
                         </div>
-                      <span className={`text-[11px] font-bold tabular-nums flex items-center gap-1 shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                        <Clock size={11} />
-                        {elapsed(o.created_at)}
-                      </span>
-                    </div>
+                       <span className="flex items-center gap-1 shrink-0">
+                         <span className={`text-[11px] font-bold tabular-nums flex items-center gap-1 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                           <Clock size={11} />
+                           {elapsed(o.created_at)}
+                         </span>
+                         <motion.span
+                           aria-hidden
+                           animate={{ rotate: expandedId === o.id ? 180 : 0 }}
+                           transition={reduceMotion ? { duration: 0 } : SPRING}
+                           className={`w-7 h-7 rounded-full flex items-center justify-center ${lightMode ? 'text-zinc-300' : 'text-white/30'}`}
+                         >
+                           <ChevronDown size={14} />
+                         </motion.span>
+                       </span>
+                     </div>
 
                     {/* Customer */}
                     <div className="flex items-center gap-2 min-w-0">
                       <User size={12} className={lightMode ? 'text-zinc-300' : 'text-white/25'} />
                       <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>{o.customer_name || '—'}</span>
-                      {o.customer_phone && (
-                        <a href={`tel:${o.customer_phone}`} className={`ml-auto flex items-center gap-1 text-[11px] font-bold tabular-nums shrink-0 ${lightMode ? 'text-blue-500' : 'text-blue-300'}`}>
+                       {o.customer_phone && (
+                         <a href={`tel:${o.customer_phone}`} onClick={e => e.stopPropagation()} className={`ml-auto flex items-center gap-1 text-[11px] font-bold tabular-nums shrink-0 ${lightMode ? 'text-blue-500' : 'text-blue-300'}`}>
                           <Phone size={11} />
                           {o.customer_phone}
                         </a>
@@ -513,8 +530,8 @@ export default function BDSPage() {
                     {/* Courier assignment (delivery only) — real staff record */}
                     {kind === 'delivery' && (
                       <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                          onClick={() => setCourierPickerFor(courierPickerFor === o.id ? null : o.id)}
+                         <button
+                           onClick={(e) => { e.stopPropagation(); setCourierPickerFor(courierPickerFor === o.id ? null : o.id); }}
                           className={`flex items-center gap-1.5 h-8 px-3 rounded-full text-[11px] font-black border transition-all active:scale-[0.97] ${
                             o.courier_name
                               ? (lightMode ? 'bg-sky-50 border-sky-300 text-sky-600' : 'bg-sky-500/10 border-sky-400/30 text-sky-300')
@@ -524,8 +541,8 @@ export default function BDSPage() {
                           <Bike size={12} />
                           {o.courier_name || (t('bds_pick_courier') || 'Kuryer seç')}
                         </button>
-                        {courierPickerFor === o.id && (
-                          <div className="flex flex-wrap gap-1.5">
+                         {courierPickerFor === o.id && (
+                           <div className="flex flex-wrap gap-1.5" onClick={e => e.stopPropagation()}>
                             {couriers.length === 0 && (
                               <span className={`text-[10px] font-bold px-2 py-1 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                                 {t('bds_courier_empty') || 'Staff-də aktiv kuryer yoxdur'}
@@ -568,10 +585,10 @@ export default function BDSPage() {
                           const Icon = meta.icon;
                           const disabled = (s === 'picked_up' && !kReady) || busyId === o.id;
                           return (
-                            <button
-                              key={s}
-                              disabled={disabled}
-                              onClick={() => doDeliveryTransition(o, s)}
+                             <button
+                               key={s}
+                               disabled={disabled}
+                               onClick={(e) => { e.stopPropagation(); doDeliveryTransition(o, s); }}
                               title={s === 'picked_up' && !kReady ? t('bds_kitchen_not_ready') : undefined}
                               className={`${s === 'delivered' ? btnPrimary : btnNeutral} ${disabled ? btnDisabled : ''}`}
                             >
@@ -586,9 +603,9 @@ export default function BDSPage() {
                             <CheckCircle2 size={12} /> {t('bds_handed_over')}
                           </span>
                         ) : (
-                          <button
-                            disabled={!kReady || busyId === o.id}
-                            onClick={() => doTakeawayHandover(o)}
+                           <button
+                             disabled={!kReady || busyId === o.id}
+                             onClick={(e) => { e.stopPropagation(); doTakeawayHandover(o); }}
                             title={!kReady ? t('bds_kitchen_not_ready') : undefined}
                             className={kReady ? btnPrimary : btnDisabled}
                           >
@@ -596,12 +613,60 @@ export default function BDSPage() {
                             {t('bds_handover')}
                           </button>
                         )
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+                       )}
+                     </div>
+
+                     {/* 12f (owner): in-place detail — full item list (read-
+                         only; kitchen status is owned by the KDS) + customer
+                         note. The dispatcher taps a card to see WHAT is on
+                         the order without leaving the board. */}
+                     <AnimatePresence initial={false}>
+                       {expandedId === o.id && (
+                         <motion.div
+                           key="detail"
+                           initial={{ height: 0, opacity: 0 }}
+                           animate={{ height: 'auto', opacity: 1 }}
+                           exit={{ height: 0, opacity: 0 }}
+                           transition={reduceMotion ? { duration: 0 } : SPRING}
+                           className="overflow-hidden"
+                         >
+                           <div className="space-y-2.5 pt-0.5">
+                             <div className={`h-px w-full ${lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'}`} />
+                             {(() => {
+                               const activeItems = (o.order_items || []).filter(it => (it.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(it.kitchen_status));
+                               if (activeItems.length === 0) return null;
+                               return (
+                                 <div>
+                                   <p className={`text-[9px] font-black uppercase tracking-[0.18em] mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_items')}</p>
+                                   <div className="space-y-1">
+                                     {activeItems.map(it => {
+                                       const itReady = ['ready', 'completed'].includes(it.kitchen_status);
+                                       return (
+                                         <div key={it.id} className="flex items-center justify-between gap-2">
+                                           <span className={`text-xs font-semibold truncate ${itReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-zinc-700' : 'text-white/75')}`}>
+                                             {it.product_name || it.name || '—'} ×{it.quantity}
+                                           </span>
+                                           <span className={`text-[10px] font-black shrink-0 ${itReady ? 'text-emerald-500' : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>
+                                             {stationName(it.station_id)}{itReady ? ' ✓' : ''}
+                                           </span>
+                                         </div>
+                                       );
+                                     })}
+                                   </div>
+                                 </div>
+                               );
+                             })()}
+                             {o.customer_note && (
+                               <p className={`text-xs font-medium px-2.5 py-1.5 rounded-xl ${lightMode ? 'bg-amber-50 text-amber-700' : 'bg-amber-500/[0.07] text-amber-300'}`}>{o.customer_note}</p>
+                             )}
+                           </div>
+                         </motion.div>
+                       )}
+                     </AnimatePresence>
+                   </motion.div>
+                 );
+               })}
+             </AnimatePresence>
           </div>
         )}
       </div>

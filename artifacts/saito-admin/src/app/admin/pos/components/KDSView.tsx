@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Clock, ChefHat, CheckCircle2, AlertTriangle, Volume2, VolumeX,
-  Package, Truck, Utensils, Flame, Timer, Bell, Printer, Coffee
+  Package, Truck, Utensils, Flame, Timer, Bell, Printer, Coffee, ChevronDown, Phone
 } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -23,6 +23,12 @@ import { useCrossTableRefresh } from '@/hooks/useCrossTableRefresh';
  *  same grid as a 1-minute one). A kitchen works the current service:
  *  tickets >24h old drop off the board (DB row untouched — nothing deleted). */
 const KDS_STALE_MS = 24 * 60 * 60 * 1000;
+
+// 2026-10-02 (12f, Apple philosophy — SAITO_MOTION_PHILOSOPHY rules 3/11):
+// card entry/exit + ✓ feedback = small structural motion (fast spring, no
+// bounce); in-place expand = one visible settling step (softer spring).
+const CARD_SPRING = { type: 'spring', stiffness: 420, damping: 34 } as const;
+const EXPAND_SPRING = { type: 'spring', stiffness: 320, damping: 32 } as const;
 
 interface KDSItem {
   id: string;
@@ -59,6 +65,9 @@ interface KDSOrder {
   customer_name?: string;
   customer_phone?: string;
   customer_note?: string;
+  /** 12f: promised ETA (server-resolved at send) — shown in the in-place
+   *  detail block; red once overdue. */
+  estimated_delivery_time?: string | null;
   items: KDSItem[];
   created_at: string;
   kitchen_status: string;
@@ -146,6 +155,11 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // stations RLS policy is location-scoped so the browser client can't be
   // relied on). stationFilter = null → "BƏNÝƏ" board (all stations).
   const [stations, setStations] = useState<KDSStation[]>([]);
+  // 2026-10-02 (12f, owner): "kart in place expand olmalıdır ki detalli baxa
+  // bilsin chef" — ONE ticket expanded at a time, grows in place (no modal).
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Motion philosophy rule 12: respect prefers-reduced-motion.
+  const reduceMotion = useReducedMotion();
   const [stationFilter, setStationFilter] = useState<string | null>(null);
   useEffect(() => {
     // kind=kitchen: kitchen-family stations only — delivery/pickup (BDS)
@@ -274,35 +288,55 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   const playSound = useCallback(() => {
     if (!soundEnabled) return;
     try {
+      // 2026-10-02 (12f, owner: "yeni notification üçün səs amma ÇOX premium,
+      // İNCE — Outlook-da var, çox qəşəydir"): the old 880/1100 Hz beep was a
+      // harsh "computer chirp" in a busy kitchen. Outlook's real asset lives
+      // behind the OWA login wall (browser hunt = NOT_FOUND, keyless stack),
+      // so this is a synthesized SOFT BELL in the same spirit: E6 fundamental
+      // + 2× shimmer partial + low E5 body, 5 ms attack, ~1.2 s exponential
+      // decay, low peak gain — audible across the room, never startling.
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
       const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
       const now = ctx.currentTime;
-
-      const osc1 = ctx.createOscillator();
-      osc1.type = 'sine';
-      osc1.frequency.value = 880;
-      const gain1 = ctx.createGain();
-      gain1.gain.setValueAtTime(0.15, now);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.start(now);
-      osc1.stop(now + 0.3);
-
-      const osc2 = ctx.createOscillator();
-      osc2.type = 'sine';
-      osc2.frequency.value = 1100;
-      const gain2 = ctx.createGain();
-      gain2.gain.setValueAtTime(0.15, now + 0.1);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.start(now + 0.1);
-      osc2.stop(now + 0.4);
+      const ring = (freq: number, peak: number, decay: number, at = 0) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, now + at);
+        g.gain.exponentialRampToValueAtTime(peak, now + at + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + at + decay);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(now + at);
+        osc.stop(now + at + decay + 0.05);
+      };
+      ring(1318.5, 0.10, 1.2);   // E6 — the "ding" body
+      ring(2637.0, 0.02, 0.45);   // 2× shimmer (bell inharmonic, very quiet)
+      ring(659.3, 0.045, 0.65);   // E5 low warmth
     } catch {}
   }, [soundEnabled]);
+
+  // 2026-10-02 (12f): browsers keep AudioContext SUSPENDED until a user
+  // gesture — a new ticket arriving while the page is idle would be a
+  // silent no-op. The chef has always touched the terminal before the next
+  // ticket, but unlock on the first interaction so the premium chime can
+  // never be swallowed.
+  useEffect(() => {
+    const unlock = () => {
+      try {
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume().catch(() => {});
+      } catch {}
+    };
+    window.addEventListener('pointerdown', unlock, { once: true });
+    return () => window.removeEventListener('pointerdown', unlock);
+  }, []);
 
   useEffect(() => {
     const fetchKDS = async () => {
@@ -331,8 +365,9 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
              order_type: o.order_type,
              partner_source: o.partner_source,
              customer_name: o.customer_name,
-            customer_phone: o.customer_phone,
-            customer_note: o.customer_note,
+             customer_phone: o.customer_phone,
+             customer_note: o.customer_note,
+             estimated_delivery_time: o.estimated_delivery_time ?? null,
             items: (o.order_items || []).map((i: any) => ({
               id: i.id,
               name: i.product_name || i.product_id,
@@ -529,70 +564,113 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 );
                 const visibleReady = visibleItems.filter(isItemReady).length;
                 const visibleAllReady = visibleItems.length > 0 && visibleReady === visibleItems.length;
-                const otherPending = stationFilter
-                  ? order.items.filter(i => itemInBoard(i) && itemStation(i) !== stationFilter && !isItemReady(i)).length
-                  : 0;
-                return (
-                   <div
-                     key={order.id}
-                     className={`relative overflow-hidden rounded-3xl border p-4 transition-all duration-200 ${
-                       allItemsReady
-                         ? (lightMode ? 'border-emerald-300 bg-emerald-50' : 'border-emerald-500/30 bg-emerald-500/5')
-                         : timer.color === 'red' || timer.color === 'purple'
-                           ? (lightMode ? 'border-red-300 bg-red-50 shadow-sm' : 'border-red-500/30 bg-red-500/5 shadow-sm')
-                           : (lightMode ? 'border-gray-200 bg-white shadow-sm' : 'border-white/[0.08] bg-white/[0.02]')
-                     }`}
-                   >
+                 const otherPending = stationFilter
+                   ? order.items.filter(i => itemInBoard(i) && itemStation(i) !== stationFilter && !isItemReady(i)).length
+                   : 0;
+                 // 12f: per-station progress for the in-place detail block —
+                 // ALL stations of the order (the chef sees the whole picture
+                 // when the ticket is expanded, not just the visible board).
+                 const stationProgress: { name: string; qty: number; ready: number }[] = (() => {
+                   const m = new Map<string, { name: string; qty: number; ready: number }>();
+                   for (const it of order.items) {
+                     if ((it.quantity ?? 0) <= 0) continue;
+                     const st = itemStation(it);
+                     const nm = st ? (stations.find(s => s.id === st)?.name || 'Main Kitchen') : (stationType ? null : 'Main Kitchen');
+                     if (!nm) continue;
+                     const e = m.get(nm) || { name: nm, qty: 0, ready: 0 };
+                     e.qty += it.quantity;
+                     if (isItemReady(it)) e.ready += it.quantity;
+                     m.set(nm, e);
+                   }
+                   return Array.from(m.values());
+                 })();
+                 const isExpanded = expandedId === order.id;
+                 return (
+                    // 12f (owner): TAP = in-place expand (rule 5: morph, not
+                    // modal) + entry/exit springs (rule 3/11).
+                    // 12f (owner): "gecikende full kart qirmizi olmasinda
+                    // cirkin olur" — the card STAYS neutral; urgency lives in
+                    // the timer pill + a border-only tint (no red flood).
+                    <motion.div
+                      key={order.id}
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
+                      onClick={() => setExpandedId(prev => (prev === order.id ? null : order.id))}
+                      className={`relative overflow-hidden rounded-3xl border p-4 transition-colors duration-300 cursor-pointer ${
+                        allItemsReady
+                          ? (lightMode ? 'border-emerald-300 bg-emerald-50/80' : 'border-emerald-500/30 bg-emerald-500/[0.06]')
+                          : timer.color === 'red'
+                            ? (lightMode ? 'border-red-300 bg-white shadow-sm' : 'border-red-500/40 bg-white/[0.02] shadow-sm')
+                            : timer.color === 'purple'
+                            ? (lightMode ? 'border-violet-300 bg-white shadow-sm' : 'border-violet-500/35 bg-white/[0.02] shadow-sm')
+                            : (lightMode ? 'border-gray-200 bg-white shadow-sm' : 'border-white/[0.08] bg-white/[0.02]')
+                      }`}
+                    >
                      {/* 2026-09-25 (owner redesign): partner branding on the ticket —
                          brand-color left stripe + NATIVE logo (no white sticker)
                          next to the title, so kitchens see a Bolt/Uber/Glovo/Wolt
                          job at a glance. */}
                      <PartnerStripe source={order.partner_source} />
-                     {/* Order Header */}
-                     <div className="flex items-center justify-between mb-3">
-                       <div className="flex items-center gap-2">
-                         <span className={`text-xl font-black tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>
-                           {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
-                         </span>
-                         {getOrderBadge(order, lightMode)}
-                         <PartnerLogo source={order.partner_source} height={18} lightMode={lightMode} />
+                      {/* Order Header — 12f: chevron = in-place expand affordance */}
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`text-xl font-black tracking-tight truncate ${lightMode ? 'text-gray-900' : 'text-white'}`}>
+                            {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
+                          </span>
+                          {getOrderBadge(order, lightMode)}
+                          <PartnerLogo source={order.partner_source} height={18} lightMode={lightMode} />
                         {stationFilter && visibleItems.length > 1 && (
                           <span className={`text-[11px] font-black px-2 py-1 rounded-full border ${visibleAllReady ? (lightMode ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20') : (lightMode ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-white/[0.05] text-white/55 border-white/[0.08]')}`}>
                             {visibleReady}/{visibleItems.length}
                           </span>
                         )}
-                        {(timer.color === 'red' || timer.color === 'purple') && (
-                          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold tracking-wider border ${getTimerStyles(timer.color, lightMode)}`}>
-                            <AlertTriangle size={10} />
-                            {timer.text}
-                          </span>
-                        )}
+                         {(timer.color === 'red' || timer.color === 'purple') && (
+                           <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold tracking-wider border shrink-0 ${getTimerStyles(timer.color, lightMode)}`}>
+                             <AlertTriangle size={10} />
+                             {timer.text}
+                           </span>
+                         )}
+                        </div>
+                        <motion.span
+                          aria-hidden
+                          animate={{ rotate: isExpanded ? 180 : 0 }}
+                          transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
+                          className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${lightMode ? 'text-gray-300' : 'text-white/30'}`}
+                        >
+                          <ChevronDown size={15} />
+                        </motion.span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 mb-3">
                         <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold tracking-[0.18em] border ${getTimerStyles(timer.color, lightMode)}`}>
                           <Timer size={10} />
                           {formatElapsedMin(timer.elapsed)}
                         </span>
-                        {(timer.color === 'red' || timer.color === 'purple') && <AlertTriangle size={14} className="animate-pulse text-red-500" />}
+                        {(timer.color === 'red' || timer.color === 'purple') && <AlertTriangle size={13} className="animate-pulse text-red-500" />}
+                        <span className="flex-1" />
                         <button
                           type="button"
-                          onClick={() => reprintTicket(order)}
+                          onClick={(e) => { e.stopPropagation(); reprintTicket(order); }}
                           title="Bileti yenidən çap et"
                           className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' : 'bg-white/[0.04] border-white/[0.08] text-white/40 hover:bg-white/[0.08] hover:text-white/70'}`}
                         >
                           <Printer size={13} />
                         </button>
-                      </div>
-                    </div>
+                       </div>
 
-                    {/* Customer info for takeaway/delivery */}
+                     {/* Customer info for takeaway/delivery */}
                     {order.order_source !== 'dine_in' && order.customer_phone && (
                       <p className={`text-xs mb-2 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>
                         {order.customer_phone}
                       </p>
                     )}
 
-                    {/* Items (BDS #28: filtered to the active station board) */}
+                    {/* Items (BDS #28: filtered to the active station board).
+                        12f (owner): modifiers + per-item notes are now part of
+                        the row — one truncated line when collapsed, FULL when
+                        the chef expands the card in place (no tooltip needed). */}
                     <div className="space-y-1.5 mb-3">
                       {visibleItems.map(item => {
                         const itemReady = item.kitchen_status === 'ready' || item.kitchen_status === 'completed';
@@ -601,65 +679,80 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                         const modText = (item.modifiers ?? [])
                           .map(m => (m.quantity && m.quantity > 1 ? `${m.name} ×${m.quantity}` : m.name))
                           .join(', ');
+                        const alLabels = parseAllergens(item.allergens).map((a: any) =>
+                          resolveAllergenEntry(a)?.label ||
+                          (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
+                        ).filter(Boolean);
                         return (
-                          <div key={item.id} className={`flex items-center justify-between gap-2 rounded-2xl px-2 py-1.5 transition-all ${item.is_hold ? (lightMode ? 'bg-zinc-900/5 ring-1 ring-zinc-300' : 'bg-amber-500/10 ring-1 ring-amber-500/30') : itemReady ? (lightMode ? 'bg-emerald-50' : 'bg-emerald-500/5') : ''}`}>
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              {item.is_hold && (
-                                <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-zinc-900 text-white' : 'bg-amber-500/20 text-amber-400'}`}>
-                                  HOLD
+                          <motion.div
+                            key={item.id}
+                            layout
+                            animate={{ opacity: itemReady ? 0.55 : 1 }}
+                            transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
+                            className={`rounded-2xl px-2 py-2 transition-colors duration-300 ${item.is_hold ? (lightMode ? 'bg-zinc-900/5 ring-1 ring-zinc-300' : 'bg-amber-500/10 ring-1 ring-amber-500/30') : itemReady ? (lightMode ? 'bg-emerald-50' : 'bg-emerald-500/5') : ''}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                {item.is_hold && (
+                                  <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-zinc-900 text-white' : 'bg-amber-500/20 text-amber-400'}`}>
+                                    HOLD
+                                  </span>
+                                )}
+                                <span className={`text-sm font-semibold truncate ${item.is_hold ? (lightMode ? 'text-zinc-900' : 'text-amber-200/80') : itemReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-gray-800' : 'text-white/85')}`}>
+                                  {item.name}
                                 </span>
-                              )}
-                              <span className={`text-sm font-medium truncate ${item.is_hold ? (lightMode ? 'text-zinc-900' : 'text-amber-200/80') : itemReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-gray-800' : 'text-white/85')}`}>
-                                {item.name}
-                              </span>
-                               {item.course && (
-                                 <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-sky-100 text-sky-700' : 'bg-sky-500/15 text-sky-400'}`}>
-                                   {item.course}
-                                 </span>
-                               )}
-                               {/* 2026-09-28: per-instance ALLERGEN flags on the
-                                   ticket (customer allergy → kitchen warning).
-                                   Localized through the allergen SSOT ("fish" →
-                                   "Balıq"); only renders when the instance has
-                                   flags. */}
-                               {(() => {
-                                 const alLabels = parseAllergens(item.allergens).map((a: any) =>
-                                   resolveAllergenEntry(a)?.label ||
-                                   (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
-                                 ).filter(Boolean);
-                                 if (alLabels.length === 0) return null;
-                                 return (
-                                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-red-100 text-red-700' : 'bg-red-500/15 text-red-400'}`}>
-                                     <AlertTriangle size={9} />{alLabels.join(' · ')}
-                                   </span>
-                                 );
-                               })()}
-                                {modText ? (
-                                 // 12e (K2): was shrink-0 → long modifier lists
-                                 // overflowed the card and were CLIPPED with no way
-                                 // to read the rest. Now truncates + hover tooltip.
-                                 <span
-                                   title={modText}
-                                   className={`text-xs min-w-0 truncate ${lightMode ? 'text-gray-400' : 'text-white/30'}`}
-                                 >
-                                   {modText}
-                                 </span>
-                               ) : null}
+                                {item.course && (
+                                  <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-sky-100 text-sky-700' : 'bg-sky-500/15 text-sky-400'}`}>
+                                    {item.course}
+                                  </span>
+                                )}
+                                {/* 2026-09-28: per-instance ALLERGEN flags on the
+                                    ticket (customer allergy → kitchen warning). */}
+                                {alLabels.length > 0 && (
+                                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${lightMode ? 'bg-red-100 text-red-700' : 'bg-red-500/15 text-red-400'}`}>
+                                    <AlertTriangle size={9} />{alLabels.join(' · ')}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className={`text-xs font-bold tabular-nums ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>×{item.quantity}</span>
+                                {!itemReady ? (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleItemStatus(order.id, item.id, 'ready'); }}
+                                    // 12f: 40px touch target (kitchen tablets,
+                                    // moving hands) — was 24px.
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold border transition-all active:scale-90 ${lightMode ? 'bg-white border-gray-200 text-gray-400 hover:border-emerald-400 hover:text-emerald-500' : 'bg-white/[0.04] border-white/15 text-white/40 hover:border-emerald-500/50 hover:text-emerald-400 active:border-emerald-500 active:text-emerald-400'}`}
+                                  >
+                                    ✓
+                                  </button>
+                                ) : (
+                                  <CheckCircle2 size={18} className="text-emerald-500" />
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <span className={`text-xs font-bold ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>×{item.quantity}</span>
-                              {!itemReady ? (
-                                <button
-                                  onClick={() => handleItemStatus(order.id, item.id, 'ready')}
-                                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border transition-all active:scale-95 ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:border-emerald-300 hover:text-emerald-500' : 'bg-white/5 border-white/10 text-white/40 hover:border-emerald-500/30 hover:text-emerald-400'}`}
-                                >
-                                  ✓
-                                </button>
+                            {/* modifiers: collapsed = one truncated line;
+                                expanded = full pills (price shown when paid) */}
+                            {modText && (
+                              isExpanded ? (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {(item.modifiers ?? []).map((m, mi) => (
+                                    <span key={m.id || mi} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${lightMode ? 'bg-gray-100 text-gray-500' : 'bg-white/[0.05] text-white/45'}`}>
+                                      {m.name}{(m.quantity && m.quantity > 1) ? ` ×${m.quantity}` : ''}{(m.price ?? 0) > 0 ? ` · ₼${Number(m.price).toFixed(2).replace(/\.?0+$/, '')}` : ''}
+                                    </span>
+                                  ))}
+                                </div>
                               ) : (
-                                <CheckCircle2 size={14} className="text-emerald-500" />
-                              )}
-                            </div>
-                          </div>
+                                <p className={`text-[11px] truncate mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{modText}</p>
+                              )
+                            )}
+                            {/* per-item note ("şəkərsiz", "çox istiləməsin") —
+                                was INVISIBLE on the KDS before 12f */}
+                            {item.special_notes && (
+                              <p className={`text-[11px] font-medium mt-0.5 ${isExpanded ? '' : 'truncate'} ${lightMode ? 'text-amber-600' : 'text-amber-400/80'}`}>
+                                {item.special_notes}
+                              </p>
+                            )}
+                          </motion.div>
                         );
                       })}
                     </div>
@@ -672,23 +765,92 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                       </div>
                     )}
 
+                    {/* 12f (owner): IN-PLACE detail — "kart in place expand
+                        olmalıdır ki detalli baxa bilsin chef". Same card,
+                        grows (rule 5: morph, rule 6: neighbours reflow via
+                        layout). No modal, no new screen. */}
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          key="detail"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={reduceMotion ? { duration: 0 } : EXPAND_SPRING}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-2.5 pb-1">
+                            <div className={`h-px w-full ${lightMode ? 'bg-gray-100' : 'bg-white/[0.06]'}`} />
+                            {order.order_source !== 'dine_in' && (
+                              <div>
+                                <p className={`text-[9px] font-black uppercase tracking-[0.18em] mb-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('kds_customer')}</p>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className={`text-sm font-bold truncate ${lightMode ? 'text-gray-800' : 'text-white/80'}`}>{order.customer_name || '—'}</span>
+                                  {order.customer_phone && (
+                                    <a
+                                      href={`tel:${order.customer_phone}`}
+                                      onClick={e => e.stopPropagation()}
+                                      className={`ml-auto flex items-center gap-1 text-xs font-bold tabular-nums shrink-0 ${lightMode ? 'text-blue-500' : 'text-blue-300'}`}
+                                    >
+                                      <Phone size={11} />{order.customer_phone}
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {stationProgress.length > 0 && (
+                              <div>
+                                <p className={`text-[9px] font-black uppercase tracking-[0.18em] mb-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('kds_stations')}</p>
+                                <div className="space-y-1">
+                                  {stationProgress.map(g => {
+                                    const done = g.ready >= g.qty;
+                                    return (
+                                      <div key={g.name} className="flex items-center justify-between gap-2">
+                                        <span className={`text-[11px] font-semibold ${lightMode ? 'text-gray-600' : 'text-white/60'}`}>{g.name}</span>
+                                        <span className={`text-[11px] font-black tabular-nums ${done ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-amber-600' : 'text-amber-400')}`}>
+                                          {g.ready}/{g.qty}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            {order.estimated_delivery_time && (() => {
+                              const eta = new Date(order.estimated_delivery_time);
+                              if (Number.isNaN(eta.getTime())) return null;
+                              const overdue = eta.getTime() < Date.now();
+                              return (
+                                <p className={`flex items-center gap-1 text-[11px] font-bold ${overdue ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-gray-500' : 'text-white/45')}`}>
+                                  <Clock size={10} /> ETA {eta.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              );
+                            })()}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                     {/* Action — whole-order invariant: the complete button
                         appears only when EVERY station's items are ready.
                         On a station board with this station done but others
                         still cooking, show the pending count instead. */}
                     {allItemsReady ? (
-                      <button
-                        onClick={() => handleMarkReady(order.id)}
-                        className={`w-full py-2.5 rounded-2xl text-xs font-bold transition-all ${lightMode ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-emerald-500 text-white hover:bg-emerald-400'}`}
+                      <motion.button
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
+                        onClick={(e) => { e.stopPropagation(); handleMarkReady(order.id); }}
+                        className={`w-full py-3 rounded-2xl text-sm font-bold transition-colors active:scale-[0.99] ${lightMode ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-emerald-500 text-white hover:bg-emerald-400'}`}
                       >
                         {t('complete_order')}
-                      </button>
+                      </motion.button>
                     ) : stationFilter && visibleAllReady && otherPending > 0 ? (
                       <div className={`w-full py-2.5 rounded-2xl text-xs font-bold text-center border cursor-not-allowed ${lightMode ? 'bg-zinc-100 text-zinc-500 border-zinc-200' : 'bg-amber-500/5 text-amber-300 border-amber-500/15'}`}>
                         {t('kds_other_stations_pending')} · {otherPending}
                       </div>
                     ) : null}
-                  </div>
+                  </motion.div>
                 );
               })}
             </AnimatePresence>

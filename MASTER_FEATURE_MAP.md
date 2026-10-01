@@ -809,6 +809,53 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11q: ZONA MƏNTİQİ FİX + DİNAMİK ETA + KASSA BANNER + MICROCOPY)
+
+Owner: (1) zona vs Ümumi min-sifariş ziddiyyəti (15 vs 3) + KM aralığı məntiqi (0–5 km zonadan
+xaric qalır — mərkəz zonası MIN KM=0 olmalıdır), (2) POS müştəri mərhələsində KM/HAQQ sıfır görünür —
+zona seçildikdən sonra avtomatik dolmalıdır, min-sifariş warning ifadəsi aydın deyil, (3) zona ETA
+boşdur amma POS "30 dəq" yazır — konkret 20–30 aralığı verilməlidir, (4) Surx/Sürx + valyuta
+simvolu mövqeyi eyni olsun, (5) məsləhətlər A/B/C/D — **D onaylandı** ("butun məhsul icinde duzgun
+dinamik hesablamaq mence daha qeseng olar"), kassa suali: kassa açılmadan sifariş qəbul/bağlamaq
+ne dərəcədə düzgündür (gün sonu hesabda səhv düşə).
+
+1. **ZONA DATA FİX (DB = SSOT):** "Bakı Mərkəz": `min_km 5→0` (mərkəz zona 0 km-dən başlayır),
+   `min_order 3→NULL` (zona minimumu silindi → indi global ₼15 işləyir, ziddiyyət aradan qalxdı),
+   `est_minutes_min/max → 20/30`. "30 dəq" sirri = `zoneEtaLabel`-in LEGACY `estimated_minutes`
+   fallback-ı; indi chip real aralıqı oxuyur: "20–30 dəq".
+2. **MƏNTİQ QAYDALARI BOX (Settings → Çatdırılma):** 3 qayda operatorun başından ekrana köçdü
+   (amber info box): Min sifariş (zona boş = ÜMUMİ minimum), Min km (mərkəz zona 0 olmalıdır),
+   ETA (aralığı doldur — POS oxuyur; KDS yüklüyə görə dinamik artır).
+3. **DİNAMİK ETA (owner idea D):** yeni DB funksiyası `estimate_delivery_eta(p_zone_id)
+   RETURNS json` = zona base (est_minutes_min/max) + LIVE mutfak növbəsi — BÜTÜN order
+   tiplərində kitchen_status ∈ (sent,accepted,reserved,preparing,partially_ready) olan
+   order_items sətirləri sayılır → hər sətir +2 dəq, cap +30. API: `/api/rpc/estimate_delivery_eta`.
+   POS müştəri mərhələsi: zona seçiliyken fetch + 30 sn-də bir re-fetch → haqq boxunun altında
+   "Təxmini çatdırılma: 50–60 dəq · mətbəx: 18 aktiv sətir (+30 dəq)" (canlı E2E: base 20–30 +
+   load 18 → cap +30). Math server-authoritative, UI yalnız aynadır.
+4. **POS AUTO-FILL (mexanizm mövcud idi — data broken idi):** chip tap = eksplisit məsafə qərarı —
+   `zoneRepKm` (km aralığının midpoint-i: 0–15 → 7.5) KM-yi zone ilə EYNİ cart yazısında doldurur +
+   `recalcDeliveryFee({pinZone:true})` → fee RPC həmin zonanı həmin km-də qiymətləndirir.
+   E2E: KM=7.5, haqq=₼2, chip "Bakı Mərkəz · 0–15 km · ₼2 · 20–30 dəq".
+5. **WARNING TEXT:** "Min sifariş ₼15 — ₼15 daha əlavə edin" → "Minimum sifariş məbləği ₼15-dir —
+   səbətə daha ₼15-lik məhsul əlavə edin" (qayda + dəqiq gap, bir cümlə).
+6. **KASSA RİSKİ (owner sualının həlli):** sifariş create/pay-da shift gate YOXDUR (by design —
+   satış heç vaxt dayanmır), amma kassa açılmadıqda NAĞD hesabatı körlənir → gün sonu report
+   səhv verir. Həll = NON-BLOCKING guard: shift açıq deyilsə POS-da amber banner "Kassa (shift)
+   açıq deyil — sifarişləri qəbul etmək olar, amma nağd hesabat tam qalmır" + one-tap "KASSANI AÇ".
+   `/api/cash-drawer` 60 sn poll. Sifariş qəbulu/bağlanması heç vaxt blokLANMIR.
+7. **VALYUTA KONSİSTENTLİĞİ:** Settings (general + zona kartları) "Haqq (₼)" / "Pulsuz limiti (₼)" /
+   "Min sifariş (₼)" label-ları → "Haqq" / "Pulsuz limiti" / "Min sifariş" + input-UN İÇİNDƏ ₼
+   prefix (pl-7, AnalyticsTab pattern) — POS-un "₼2" formatı ilə eyniləşdi.
+8. **SURX/SÜR:** verify olundu — source-da "Surx" spellinqi YOXDUR; yalnız "Sürx" var
+   ("Smart Sürx (Wolt)" heading + "Sürx × (1–3)" label; ss-dakı "SÜRX" = CSS uppercase). Dəyişiklik lazımsız deyil.
+- **TDZ crash (self-introduced, E2E catch):** 11q-nin dynamic-ETA bloku `zoneName`-ı onun `const`
+  declaration-ından ƏVVƏL referens etdi → müştəri mərhələsi açılanda crash
+  ("Cannot access 'zoneName' before initialization"). Fix: zoneId lookup + effect zoneName/feeNum-
+  dan SONRAYA köçürüldü. Re-run: 0 console error.
+- **tsc clean (source; `src/__tests__` jest-ti pək mövcud xətalardır), production build PASS,
+  browser E2E A(6/6)+B(3/3)+C PASS, console 0.** Shots: `e2e-shots/r11q-*.png` + `r11q-fix-*.png`.
+
 ### Jurnal sətiri — 2026-10-01 (ROUND 11n: POS STATUS AXLINI AYRILDI + ÖDƏNİŞ İKONU + SERVED-LOCK + DEFAULT SERVING)
 
 Owner: (1) delivery-də qiymət yanında ödəniş ikonu (✓ / aydın "gözləyir" ikonu), (2) soldakı

@@ -101,6 +101,16 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const [geoApprox, setGeoApprox] = useState(false);
   const kmManualRef = useRef(false);
 
+  // 11q (owner, idea D: "mutfaktaki anlık yoğunluğa göre dinamik ETA"): the
+  // promised ETA tracks the LIVE kitchen queue — zone base range + queued
+  // items (all order types), capped. Re-fetched every 30s while a zone is
+  // selected; the math is server-authoritative (estimate_delivery_eta RPC).
+  const [eta, setEta] = useState<{ base_lo: number; base_hi: number; load: number; adjust: number; lo: number; hi: number } | null>(null);
+  // NOTE: the zoneId lookup + refetch effect are declared BELOW, right after
+  // `zoneName`. `const zoneName` is not value-hoisted — referencing it here
+  // would throw "Cannot access 'zoneName' before initialization" (TDZ) and
+  // crash the entire customer phase on open.
+
   // Send-validation focus + flash.
   useEffect(() => {
     if (!focusField) return;
@@ -127,6 +137,27 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const addressRaw = cart?.delivery_address || '';
   const zoneName = cart?.delivery_zone || '';
   const feeNum = Number(cart?.delivery_fee) || 0;
+
+  // 11q: zone id for the dynamic-ETA effect. MUST live below zoneName (TDZ).
+  const zoneId = zones.find(z => z.name === zoneName)?.id;
+  useEffect(() => {
+    if (mode !== 'delivery' || !zoneId) { setEta(null); return; }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const r = await fetch('/api/rpc/estimate_delivery_eta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_zone_id: zoneId }),
+        });
+        const d = r.ok ? await r.json() : null;
+        if (!cancelled && d && d.lo != null) setEta(d);
+      } catch { /* silent — the zone base ETA still shows on the chip */ }
+    };
+    load();
+    const iv = window.setInterval(load, 30_000);
+    return () => { cancelled = true; window.clearInterval(iv); };
+  }, [zoneId, mode]);
 
   // 2026-09-23 (owner): PROF vs CONTACT separation — this panel is ORDER
   // CONTACT INFO only (name/phone/address). CRM profile linking (per-letter
@@ -428,16 +459,34 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                                )}
                              </div>
                            )}
-                           {!isFree && toFree > 0 && (
-                            <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
-                              ₼{toFree.toFixed(0)} daha əlavə et — çatdırılma pulsuz olar
-                            </p>
-                          )}
-                          {toMin > 0 && (
-                            <p className={`mt-1 text-[10px] font-black ${lightMode ? 'text-red-500' : 'text-red-400'}`}>
-                              Min sifariş ₼{minOrder.toFixed(0)} — ₼{toMin.toFixed(0)} daha əlavə edin
-                            </p>
-                          )}
+                            {!isFree && toFree > 0 && (
+                             <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                               ₼{toFree.toFixed(0)} daha əlavə et — çatdırılma pulsuz olar
+                             </p>
+                           )}
+                           {/* 11q: DYNAMIC ETA — zone base (Settings→Çatdırılma)
+                               + live kitchen queue (KDS). "28–40 dəq" instead of
+                               a static "30" that ignores the 20 orders cooking. */}
+                           {eta && (
+                             <p className={`mt-1 flex items-center gap-1.5 text-[10px] font-black ${lightMode ? 'text-zinc-500' : 'text-white/45'}`}>
+                               <Clock size={11} className={lightMode ? 'text-zinc-400' : 'text-white/30'} />
+                               Təxmini çatdırılma: {eta.lo}–{eta.hi} dəq
+                               {eta.adjust > 0 && (
+                                 <span className={`font-bold ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>
+                                   · mətbəx: {eta.load} aktiv sətir (+{eta.adjust} dəq)
+                                 </span>
+                               )}
+                             </p>
+                           )}
+                           {/* 11q (owner: "ifadə daha aydın olmalıdır") — the old
+                               "Min sifariş ₼15 — ₼15 daha əlavə edin" was cryptic
+                               with an empty cart; now it states the rule and the
+                               exact gap in one readable sentence. */}
+                           {toMin > 0 && (
+                             <p className={`mt-1 text-[10px] font-black ${lightMode ? 'text-red-500' : 'text-red-400'}`}>
+                               Minimum sifariş məbləği ₼{minOrder.toFixed(0)}-dir — səbətə daha ₼{toMin.toFixed(0)}-lik məhsul əlavə edin
+                             </p>
+                           )}
                         </>
                      );
                    })()}

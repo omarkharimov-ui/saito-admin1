@@ -280,32 +280,45 @@ export default function DeliveryTab() {
             </select>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {/* 11q (owner: "valyuta simvollarının mövqeyi bütün sistemdə
+                eyni olsun"): POS shows "₼2" (prefix) — the settings editor now
+                matches it: ₼ INSIDE the input (same pattern as AnalyticsTab),
+                label without the (₼) suffix. */}
             <div>
-              <label className={label}>Haqq (₼)</label>
-              <input
-                className={input}
-                type="number" step="0.5" min="0"
-                value={toInput(general.delivery_fee)}
-                onChange={e => { setGeneral(g => ({ ...g, delivery_fee: fromInput(e.target.value) ?? 0 })); setDirty(true); }}
-              />
+              <label className={label}>Haqq</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold pointer-events-none opacity-50">₼</span>
+                <input
+                  className={`${input} pl-7`}
+                  type="number" step="0.5" min="0"
+                  value={toInput(general.delivery_fee)}
+                  onChange={e => { setGeneral(g => ({ ...g, delivery_fee: fromInput(e.target.value) ?? 0 })); setDirty(true); }}
+                />
+              </div>
             </div>
             <div>
-              <label className={label}>Pulsuz limiti (₼)</label>
-              <input
-                className={input}
-                type="number" step="5" min="0"
-                value={toInput(general.free_delivery_threshold)}
-                onChange={e => { setGeneral(g => ({ ...g, free_delivery_threshold: fromInput(e.target.value) ?? 0 })); setDirty(true); }}
-              />
+              <label className={label}>Pulsuz limiti</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold pointer-events-none opacity-50">₼</span>
+                <input
+                  className={`${input} pl-7`}
+                  type="number" step="5" min="0"
+                  value={toInput(general.free_delivery_threshold)}
+                  onChange={e => { setGeneral(g => ({ ...g, free_delivery_threshold: fromInput(e.target.value) ?? 0 })); setDirty(true); }}
+                />
+              </div>
             </div>
             <div>
-              <label className={label}>Min sifariş (₼)</label>
-              <input
-                className={input}
-                type="number" step="1" min="0"
-                value={toInput(general.min_order_amount)}
-                onChange={e => { setGeneral(g => ({ ...g, min_order_amount: fromInput(e.target.value) ?? 0 })); setDirty(true); }}
-              />
+              <label className={label}>Min sifariş</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold pointer-events-none opacity-50">₼</span>
+                <input
+                  className={`${input} pl-7`}
+                  type="number" step="1" min="0"
+                  value={toInput(general.min_order_amount)}
+                  onChange={e => { setGeneral(g => ({ ...g, min_order_amount: fromInput(e.target.value) ?? 0 })); setDirty(true); }}
+                />
+              </div>
             </div>
             {/* 2026-09-26 (owner, Task 50): Wolt-style surge/dynamic factor.
                 1.0 = normal; 1.5 = yağış/talebat → haqq ×1.5. Feels dynamic
@@ -506,6 +519,14 @@ export default function DeliveryTab() {
           POS-da müştəri zonu seçəndə haqq avtomatik hesablanır; "Pulsuz limiti" keçəndə haqq avtomatik 0 olur.
           Km aralığı məsafəyə görə avtomatik zona seçimi üçün işləyir — prioritet kiçik olan zona qalib gəlir.
         </p>
+        {/* 11q (owner: "zonalardakı məntiq ziddiyyəti"): the three rules that
+            used to live in operators' heads, now on screen. */}
+        <div className={`rounded-2xl border px-4 py-3 text-[11px] leading-relaxed ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-500/[0.06] border-amber-500/25 text-amber-200/90'}`}>
+          <p className="font-black uppercase tracking-wider text-[10px] mb-1.5">Məntiq qaydaları</p>
+          <p>• <b>Min sifariş:</b> zona boşdursa ÜMUMİ minimum (indi ₼{Number(general.min_order_amount || 0).toFixed(0)}) işləyir — iki yerə fərqli dəyər yazmaq ziddiyyət yaradır.</p>
+          <p>• <b>Min km:</b> məsafə 0-dan başlayır — mərkəz zonasının Min km <b>0</b> olmalıdır (0-dan kiçik olmayan müştərilər zonadan "çıxarılmasın").</p>
+          <p>• <b>ETA:</b> aralığı doldurun (məs. 20–30) — POS və menyu çip bu dəyərləri oxuyur; boşdursa ETA göstərilmir. KDS yüklüyə görə POS dinamik artırır.</p>
+        </div>
 
         <div className="space-y-3">
           {zones.length === 0 && (
@@ -520,17 +541,27 @@ export default function DeliveryTab() {
                   <label className={label}>Zona adı</label>
                   <input className={input} value={z.name} onChange={e => patchZone(i, { name: e.target.value })} placeholder="Bakı Mərkəz" />
                 </div>
+                {/* 11q: ₼ prefix inside the input — consistent with POS (₼2) */}
                 <div>
-                  <label className={label}>Haqq (₼)</label>
-                  <input className={input} type="number" step="0.5" min="0" value={toInput(z.fee)} onChange={e => patchZone(i, { fee: fromInput(e.target.value) ?? 0 })} />
+                  <label className={label}>Haqq</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold pointer-events-none opacity-50">₼</span>
+                    <input className={`${input} pl-7`} type="number" step="0.5" min="0" value={toInput(z.fee)} onChange={e => patchZone(i, { fee: fromInput(e.target.value) ?? 0 })} />
+                  </div>
                 </div>
                 <div>
-                  <label className={label}>Pulsuz limiti (₼)</label>
-                  <input className={input} type="number" step="5" min="0" value={toInput(z.free_delivery_threshold)} onChange={e => patchZone(i, { free_delivery_threshold: fromInput(e.target.value) ?? 0 })} />
+                  <label className={label}>Pulsuz limiti</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold pointer-events-none opacity-50">₼</span>
+                    <input className={`${input} pl-7`} type="number" step="5" min="0" value={toInput(z.free_delivery_threshold)} onChange={e => patchZone(i, { free_delivery_threshold: fromInput(e.target.value) ?? 0 })} />
+                  </div>
                 </div>
                 <div>
-                  <label className={label}>Min sifariş (₼)</label>
-                  <input className={input} type="number" step="1" min="0" placeholder="boş = qlobal" value={toInput(z.min_order)} onChange={e => patchZone(i, { min_order: fromInput(e.target.value) })} />
+                  <label className={label}>Min sifariş</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold pointer-events-none opacity-50">₼</span>
+                    <input className={`${input} pl-7`} type="number" step="1" min="0" placeholder="boş = qlobal" value={toInput(z.min_order)} onChange={e => patchZone(i, { min_order: fromInput(e.target.value) })} />
+                  </div>
                 </div>
 
                 <div>

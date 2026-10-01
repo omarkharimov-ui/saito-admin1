@@ -143,6 +143,12 @@ export default function POSPage() {
   const [actionSheetTable, setActionSheetTable] = useState<any>(null);
   const [flashInfo, setFlashInfo] = useState<{ tableNumber: number; nonce: number } | null>(null);
   const [cashDrawerOpen, setCashDrawerOpen] = useState(false);
+  // 11q (owner: "kassa açılmadan sifariş qəbul etmək nə dərəcədə düzgündür"):
+  // orders/payments intentionally have NO shift gate (a forgotten drawer must
+  // never stop sales), but the ACCOUNTING hole is made visible — while no
+  // shift is open the POS wears this slim banner, and the day-close report
+  // will show the unshifted window. Poll /api/cash-drawer every 60s.
+  const [shiftMissing, setShiftMissing] = useState(false);
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   // 2026-09-25 (owner: "waitlist duzelt"): dine-in queue (Növbə) panel.
   const [waitlistOpen, setWaitlistOpen] = useState(false);
@@ -320,8 +326,26 @@ export default function POSPage() {
         setDeliveryZones(enabled ? ((zonesRes.data || []) as any) : []);
       } catch { /* non-blocking: manual fee stays available */ }
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 11q: kassa (shift) presence — soft gate. null = unknown (no banner),
+  // true = an open/paused session exists, false = the drawer is unaccounted.
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const r = await apiFetch('/api/cash-drawer');
+        if (!r.ok || cancelled) return;
+        const d = await r.json();
+        const s = d?.session;
+        setShiftMissing(!s || !['open', 'paused'].includes(s.status));
+      } catch { /* keep previous state */ }
+    };
+    check();
+    const iv = window.setInterval(check, 60_000);
+    return () => { cancelled = true; window.clearInterval(iv); };
   }, []);
   // Re-check the gates when the cashier opens the customer phase — the pause
   // may have been flipped in BDS/Settings while the cart was being built.
@@ -2346,8 +2370,25 @@ export default function POSPage() {
           </div>
         )}
 
-       {/* MODE SWITCHER — always visible */}
-           <div className="flex items-center gap-4 px-6 pt-2 pb-2">
+        {/* 11q (owner): no open shift → slim amber banner. SOFT gate on purpose:
+            sales never stop, but the cash-accounting hole is impossible to
+            miss — one tap opens the drawer to start the shift. */}
+        {shiftMissing && (
+          <div className="mx-6 mt-2 flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5">
+            <AlertTriangle size={15} className="text-amber-400 flex-shrink-0" />
+            <p className="text-[11px] font-bold text-amber-200 flex-1">
+              Kassa (shift) açıq deyil — sifarişləri qəbul etmək olar, amma nağd hesabat tam qalmır (gün sonu report bu pəncərəni qeyd edir).
+            </p>
+            <button
+              onClick={() => setCashDrawerOpen(true)}
+              className="flex-shrink-0 rounded-xl bg-amber-400 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-zinc-950 active:scale-95 transition-transform"
+            >
+              Kassanı aç
+            </button>
+          </div>
+        )}
+        {/* MODE SWITCHER — always visible */}
+            <div className="flex items-center gap-4 px-6 pt-2 pb-2">
             <h1 className="text-2xl font-black tracking-tighter">POS</h1>
              <div className="flex-shrink-0">
              <DragTabSwitcher

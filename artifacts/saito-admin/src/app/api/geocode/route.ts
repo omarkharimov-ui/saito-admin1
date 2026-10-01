@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { resolveWriteLocationContext } from '@/lib/location-context';
 import { osrmRoute } from '../lib/osrm';
+import { geoCacheGet, geoCacheSet } from '../lib/geo-cache';
+import { localStreetPoint } from '../lib/gazetteer';
 
 // ============================================================================
 // 2026-09-26 (owner, Task 55): address → km for the delivery fee engine.
@@ -367,10 +369,18 @@ export async function GET(request: NextRequest) {
     // 11x: "9cu" → "9-cü" (OSM AZ ordinal tags) — before ANY candidate chain.
     const q = normalizeOrdinal(rawAddr);
     // 11x: reverse mode — manual mini-map pin (point is the truth).
-    const rLat = Number(request.nextUrl.searchParams.get('lat'));
-    const rLng = Number(request.nextUrl.searchParams.get('lng'));
-    const reverse = Number.isFinite(rLat) && Number.isFinite(rLng)
-      && Math.abs(rLat) <= 90 && Math.abs(rLng) <= 180;
+    // 11y (CRITICAL fix — owner "qəfil işləməmə"): `searchParams.get()`
+    // returns `null` when absent and `Number(null) === 0` — the old code
+    // treated EVERY forward geocode as a reverse pin at (0,0) (km 6734.9).
+    // Reverse ONLY when both params are explicitly present AND not (0,0).
+    const latParam = request.nextUrl.searchParams.get('lat');
+    const lngParam = request.nextUrl.searchParams.get('lng');
+    const rLat = latParam != null ? Number(latParam) : NaN;
+    const rLng = lngParam != null ? Number(lngParam) : NaN;
+    const reverse = latParam != null && lngParam != null
+      && Number.isFinite(rLat) && Number.isFinite(rLng)
+      && Math.abs(rLat) <= 90 && Math.abs(rLng) <= 180
+      && !(rLat === 0 && rLng === 0);
     if (!reverse && q.length < 6) {
       return NextResponse.json({ error: 'Ünvan çox qısadır (min 6 simvol)' }, { status: 400 });
     }
@@ -439,20 +449,54 @@ export async function GET(request: NextRequest) {
       reverseFailed = display.split(',').every(s => /^-?\d/.test(s.trim()));
       c = { lat: rLat, lng: rLng, display, precision: 'address' };
     } else {
-      const noPlaceToken = !detectPlace(q);
-      // 11x (E2E catch): HARD far guard ALWAYS on — even a city-qualified
-      // candidate can return a stray hit (empty coords → (0,0) → 6734 km).
-      // A restaurant never delivers >500 km; treat such hits as misses.
-      const farGuard = (lat: number, lng: number) =>
-        haversineKm(vLat, vLng!, lat, lng) > (noPlaceToken ? FAR_HIT_KM : 500);
-      c = await nominatim(q, null, farGuard);
-      if (!c && noPlaceToken) {
-        // 11s: input names no AZ place token ("Nizami Cəfərov 12") → retry
-        // anchored on the venue's own city ("Nizami Cəfərov 12, Bakı").
-        const anchor = await venueCityOf(vLat, vLng!);
-        if (anchor) c = await nominatim(q, anchor, farGuard);
+      // 11y: PERSISTENT CACHE — repeat addresses (regulars!) resolve in ~0ms
+      // with ZERO Nominatim calls: no latency, no 429, no "qəfil işləməmə".
+      // Key is venue-scoped (points are venue-relative).
+      const ckey = `g:${q.toLowerCase()}:${vLat!.toFixed(4)},${vLng!.toFixed(4)}`;
+      const cached = await geoCacheGet(ckey);
+      if (cached) {
+        c = { lat: cached.lat, lng: cached.lng, display: cached.display, precision: cached.precision };
+      } else {
+        const noPlaceToken = !detectPlace(q);
+        // 11x (E2E catch): HARD far guard ALWAYS on — even a city-qualified
+        // candidate can return a stray hit (empty coords → (0,0) → 6734 km).
+        // A restaurant never delivers >500 km; treat such hits as misses.
+        const farGuard = (lat: number, lng: number) =>
+          haversineKm(vLat, vLng!, lat, lng) > (noPlaceToken ? FAR_HIT_KM : 500);
+        c = await nominatim(q, null, farGuard);
+        if (!c && noPlaceToken) {
+          // 11s: input names no AZ place token ("Nizami Cəfərov 12") → retry
+          // anchored on the venue's own city ("Nizami Cəfərov 12, Bakı").
+          const anchor = await venueCityOf(vLat, vLng!);
+          if (anchor) c = await nominatim(q, anchor, farGuard);
+        }
+        // 11y (owner: "hər dəfə düzgün və sürətli işləsin, qəfil
+        // işləməmə olmasın"): LOCAL GAZETTEER, zero network, instant —
+        //   (a) Nominatim chain FAILED (429 / CDN throttle / street missing
+        //       from free-text) → the street still resolves;
+        //   (b) Nominatim fell back to a CITY CENTROID (precision 'area' —
+        //       e.g. typo "Nizamii" → "Bakı, Azərbaycan", km 0) → the
+        //       street centroid (km ~3) is the far better fee estimate.
+        // Both cases: Bakı+Sumqayıt only; a named city absent from the
+        // gazetteer is never guessed into another city (localStreetPoint).
+        const dpL = detectPlace(q);
+        // pure-city input ("Bakı") has no street part — never street-match it
+        // (a "Bakıxanov" prefix hit would be a wrong-city-of-a-street guess).
+        const restL = (dpL ? dpL.restAZ : q).replace(/\s+\d{1,4}[a-zа-яa-z]?$/i, '').trim();
+        if (restL.length >= 3 && (!c || c.precision === 'area')) {
+          const lp = localStreetPoint(restL, dpL?.city ?? null, vLat!, vLng!);
+          if (lp) c = { lat: lp.lat, lng: lp.lng, display: lp.display, precision: 'area' };
+        }
+        if (!c) return NextResponse.json({ error: 'Ünvan tapılmadı — manual KM istifadə edin' }, { status: 404 });
+        // 11y: persist STREET-LEVEL results only. A city/area centroid for a
+        // street query (typo, OSM gap) is a FALLBACK, not an answer — caching
+        // it for 30 days would freeze a wrong km for a regular customer.
+        // Area queries (bare city / mikrorayon) re-run cheaply (1 Nominatim
+        // call via the in-process cache + the local fallback above).
+        if (c.precision === 'address') {
+          geoCacheSet(ckey, { lat: c.lat, lng: c.lng, display: c.display, precision: c.precision });
+        }
       }
-      if (!c) return NextResponse.json({ error: 'Ünvan tapılmadı — manual KM istifadə edin' }, { status: 404 });
     }
 
     // ── 3) distance ────────────────────────────────────────────────────────

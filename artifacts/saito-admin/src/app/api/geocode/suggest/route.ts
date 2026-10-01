@@ -4,6 +4,9 @@ import { resolveWriteLocationContext } from '@/lib/location-context';
 // Shared with /api/geocode (same process, same IP — one Nominatim policy):
 // the venue bootstrap must produce the SAME point as the geocode route.
 import { transliterate, candidates, haversineKm, nominatimOnce, detectPlace, venueCityOf, normalizeOrdinal, microCandidates, cityPoint } from '../route';
+// 11y: local gazetteer helpers moved to ../lib/gazetteer (shared with
+// /api/geocode's offline fallback — one index, one behavior, no cycles).
+import { localPrefix, localFuzzy } from '../../lib/gazetteer';
 
 export interface SuggestArea { name: string; lat: number; lng: number }
 
@@ -57,94 +60,9 @@ export interface SuggestItem {
   type: string;   // addresstype/type (street|building|house|…)
 }
 
-// ── 2026-10-01 (11u, owner: "2 yazsam birdən-birə nəticə olmalıdır") ────────
-// LOCAL STREET GAZETTEER — 1124 unique streets (Bakı + Sumqayıt) with OSM
-// center points, fetched ONE-TIME from Overpass and committed to the repo
-// (src/data/streets-az.json, ~84 KB). 1-2 char input = pure local prefix
-// match: ZERO Nominatim calls, ~1 ms → the dropdown reacts from the FIRST
-// keystroke, exactly like Google Maps (which also filters its local index
-// before any network round-trip). 3+ char input = Nominatim live results +
-// local prefix merged in (catches streets free-text search ranks low).
-// "küçəsi/küç./prospekti/bulvarı" suffixes are folded away during the
-// one-time build, so "20 Yanvar" and "20 Yanvar küçəsi" are ONE entry.
-import streetsRaw from '@/data/streets-az.json';
-
-interface GazetteerStreet { n: string; c: string; la: number; lo: number; k: number }
-const GAZETTEER: (GazetteerStreet & { f: string })[] = (streetsRaw as GazetteerStreet[]).map(s => ({
-  ...s,
-  f: transliterate(s.n).toLowerCase(),
-}));
-
-function localPrefix(q: string, vLat: number, vLng: number, cap: number): SuggestItem[] {
-  const fq = transliterate(q).toLowerCase();
-  const out: SuggestItem[] = [];
-  for (const s of GAZETTEER) { // pre-sorted by segment count desc (major streets first)
-    if (!s.f.startsWith(fq)) continue;
-    out.push({
-      name: `${s.n}, ${s.c}`,
-      lat: s.la,
-      lng: s.lo,
-      km: Math.round(haversineKm(vLat, vLng, s.la, s.lo) * 10) / 10,
-      type: 'street',
-    });
-    if (out.length >= cap) break;
-  }
-  return out;
-}
-
-// ── 11w-D (owner: "fuzzy + ev nömrəsi"): LEVENSHTEIN on the local index ─────
-// "nizamii", "20 yanvrr" → the right street WITHOUT any Nominatim call (the
-// local scan is ~1–3 ms over 1124 entries — still instant). Prefix matches
-// are skipped here (localPrefix already has them); threshold: ≤1 edit for
-// <7-char queries, ≤2 for longer (prevents junk on short typos).
-function lev(a: string, b: string, max: number): number {
-  const m = a.length, n = b.length;
-  if (Math.abs(m - n) > max) return max + 1;
-  let prev = Array.from({ length: n + 1 }, (_, i) => i);
-  for (let i = 1; i <= m; i++) {
-    const cur = [i];
-    let rowMin = i;
-    for (let j = 1; j <= n; j++) {
-      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-      if (cur[j] < rowMin) rowMin = cur[j];
-    }
-    if (rowMin > max) break;
-    prev = cur;
-  }
-  return prev[n];
-}
-
-function localFuzzy(q: string, vLat: number, vLng: number, cap: number, skip: Set<string>): SuggestItem[] {
-  const fq = transliterate(q).toLowerCase().trim();
-  if (fq.length < 4) return [];
-  const maxDist = fq.length < 7 ? 1 : 2;
-  const scored: { d: number; it: SuggestItem }[] = [];
-  for (const s of GAZETTEER) {
-    if (skip.has(s.n)) continue;
-    if (s.f.startsWith(fq) || fq.startsWith(s.f)) continue; // prefix = localPrefix's job
-    // Typo against the FULL name ("nizami" → "nizamii" is shorter than
-    // "nizami cefarov") AND against a same-length PREFIX ("nizamii" ≈ the
-    // first 7 chars of "nizami cefarov") — both are what an operator types.
-    let d = lev(fq, s.f, maxDist);
-    if (d > maxDist && s.f.length > fq.length) {
-      d = lev(fq, s.f.slice(0, fq.length), maxDist);
-    }
-    if (d === 0 || d > maxDist) continue;
-    scored.push({
-      d,
-      it: {
-        name: `${s.n}, ${s.c}`,
-        lat: s.la,
-        lng: s.lo,
-        km: Math.round(haversineKm(vLat, vLng, s.la, s.lo) * 10) / 10,
-        type: 'street',
-      },
-    });
-    if (scored.length >= 24) break; // enough candidates — sort + cap below
-  }
-  scored.sort((a, b) => a.d - b.d || a.it.km - b.it.km);
-  return scored.slice(0, cap).map(s => s.it);
-}
+// ── 11u/11w-D/11y: LOCAL STREET GAZETTEER — see ../lib/gazetteer.ts ────────
+// (1124 streets, Bakı+Sumqayıt; localPrefix + Levenshtein localFuzzy — zero
+// Nominatim calls; shared with /api/geocode's offline fallback.)
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth();

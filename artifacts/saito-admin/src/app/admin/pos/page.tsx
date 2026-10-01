@@ -2039,12 +2039,25 @@ export default function POSPage() {
     return null; // 0–∞ range: no distance implied, keep the existing KM
   };
 
+  // 11y (E2E round-4 catch): overlapping fee RPCs (pick → haversine km →
+  // road-km refine fire back-to-back) used to race: a STALE response could
+  // commit after the fresh one (or an RPC error silently zeroed the fee —
+  // ₼0 reads as "free"). A monotonically increasing sequence: only the
+  // LATEST recalc may write the cart.
+  const feeSeq = useRef(0);
   const recalcDeliveryFee = useCallback(async (cart: any, zoneName: string | null | undefined, opts?: { pinZone?: boolean }) => {
-    if (!cart || !zoneName) return;
-    const zone = deliveryZones.find(z => z.name === zoneName);
-    if (!zone) return;
+    if (!cart) return;
+    // 11y (owner: "ünvan seçdikdə qiymət görünməlidir + zonaya ehtiyac
+    // qalmayacaq"): zoneName may be NULL — a DISTANCE-ONLY call. The server
+    // (calculate_delivery_fee, 11y) resolves the zone itself: in-range band,
+    // or OUT-OF-RANGE = furthest zone + (km − max_km) × ₼/km. The fee always
+    // resolves from a distance → the price always shows; the operator never
+    // has to pick a zone.
+    const seq = ++feeSeq.current; // only the latest recalc may commit (below)
+    const zone = zoneName ? deliveryZones.find(z => z.name === zoneName) : undefined;
+    if (zoneName && !zone) return;
     const itemsTotal = (cart.items || []).reduce((s: number, i: any) => s + (i.unit_price || 0) * (i.quantity || 0), 0);
-    let fee = Number(zone.fee) || 0;
+    let fee = zone ? Number(zone.fee) || 0 : 0;
     // 2026-09-26 (owner, Task 50): Wolt-style — an entered KM distance re-resolves
     // the zone by km-range and re-prices (distance overload). No KM → explicit
     // zone name overload. The surge multiplier is applied server-side.
@@ -2061,10 +2074,13 @@ export default function POSPage() {
       // km, so chip · KM field · fee box can never disagree. Distance-only
       // calls (KM typing / address geocode) keep the km-range re-resolution.
       const body = km >= 0.1
-        ? (opts?.pinZone
+        ? (opts?.pinZone && zone
             ? { p_zone_name: zone.name, p_order_amount: itemsTotal, p_distance_km: km }
             : { p_order_amount: itemsTotal, p_distance_km: km })
-        : { p_zone_name: zone.name, p_order_amount: itemsTotal, p_customer_address: cart.delivery_address || null };
+        : zone
+          ? { p_zone_name: zone.name, p_order_amount: itemsTotal, p_customer_address: cart.delivery_address || null }
+          : null; // no zone, no distance → nothing to resolve (server is distance-based)
+      if (!body) { setDeliveryFeeCalculating(false); return; }
       const res = await apiFetch('/api/rpc/calculate_delivery_fee', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2075,12 +2091,23 @@ export default function POSPage() {
         const data: any = rpcData;
         const rpcFee = Number(typeof data === 'number' ? data : data?.fee ?? fee) || 0;
         fee = data?.is_free ? 0 : rpcFee;
-        // KM-resolution may pick a different zone (km-range) — remember it; the
-        // single persist below commits it (no double-setCart race).
-        if (km >= 0.1 && data?.zone) resolvedZone = data.zone;
+        // 11y (E2E catch — the ₼9.25→₼2.00 fee flip): persist the resolved
+        // zone ONLY for EXPLICIT chip taps (pinZone). A distance-only call
+        // returns the server-resolved zone name too (OOB fallback = furthest
+        // zone) — persisting that as cart.delivery_zone silently turned every
+        // later KM change into a "manual pin" (flat fee, KM/fee divergence).
+        // 11y model: the zone is the operator's explicit decision only; the
+        // fee resolves from the distance.
+        if (km >= 0.1 && opts?.pinZone && data?.zone) resolvedZone = data.zone;
       }
-    } catch { /* keep the zone's base fee */ } finally {
-      setDeliveryFeeCalculating(false);
+    } catch {
+      // 11y (E2E round-4 catch): a TRANSIENT RPC failure (network / 500 /
+      // brief auth slip) used to fall through with `fee` still 0 (the
+      // distance-only init) and COMMIT ₼0 — the cart fee line vanished,
+      // reading as "free". On failure keep the last committed fee instead.
+      fee = Number(cart.delivery_fee) || fee;
+    } finally {
+      if (seq === feeSeq.current) setDeliveryFeeCalculating(false);
     }
     // 2026-09-23 (owner, Wolt-like): a matching active FREE_DELIVERY campaign
     // zeroes the fee — display mirrors the server (which is authoritative at
@@ -2112,6 +2139,11 @@ export default function POSPage() {
     // guard skipped setCart when a campaign made the fee 0 == current 0, so
     // delivery_zone was never stored and the zone chip stayed unselected.
     // 2026-09-26 (Task 50): also persist the KM-distance-resolved zone.
+    // 11y (E2E round-4 catch): SEQUENTIALITY GUARD — the pick path fires a
+    // haversine-km recalc then a road-km recalc back-to-back; a stale (earlier)
+    // async response must not overwrite the fresher committed fee/km. Only the
+    // latest recalc commits.
+    if (seq !== feeSeq.current) return;
     pos.setCart({ ...cart, delivery_zone: resolvedZone || cart.delivery_zone, delivery_fee: fee });
     // 2026-09-26 (Task 55): carry the server smart-surge badge (weather/peak)
     // to the panel hint; null when no surge is active.
@@ -2194,13 +2226,15 @@ export default function POSPage() {
         toast.error(t('enter_address'));
         return;
       }
-      // 11t: zone is now an explicit operator decision — a delivery order
-      // must never be created with the default ₼0 fee (the server bills
-      // exactly what the cart carries; a missing zone would bill free).
-      if (posMode === 'delivery' && !pos.cart?.delivery_zone) {
+      // 11y: the zone is now SERVER-ASSIGNED from the distance (11t's
+      // "operator must pick a zone" is superseded — the owner: "zonaya
+      // ehtiyac qalmayacaq"). A missing zone NAME is fine when a distance
+      // exists: the server bills the distance fee. Block only when NEITHER
+      // a zone nor a distance is known (that would bill ₼0 = free).
+      if (posMode === 'delivery' && !pos.cart?.delivery_zone && !(Number(pos.cart?.delivery_km) >= 0.1)) {
         setPosPhase('customer');
-        setCustomerFocus({ field: 'delivery_zone', n: Date.now() });
-        toast.error('Çatdırılma zonası seçin');
+        setCustomerFocus({ field: 'delivery_address', n: Date.now() });
+        toast.error('Çatdırılma ünvanı və ya məsafəsi tələb olunur');
         return;
       }
       // Delivery Phase 2 (2026-09-24): live gates — accepting pause + min
@@ -3197,33 +3231,29 @@ export default function POSPage() {
                                    //    shows "radius kənarında").
                                    //  • NO zone → AUTO-SELECT by KM band + price
                                    //    (Toast: the address decides the zone).
-                                   if (field === 'delivery_km' && Number(value) >= 0.1) {
-                                     const km = Number(value);
-                                     if (next.delivery_zone) {
-                                       const zObj = deliveryZones.find((z: any) => z.name === next.delivery_zone);
-                                       const inBand = !!zObj && km >= (zObj.min_km ?? 0) && (zObj.max_km == null || km <= zObj.max_km);
-                                       if (zoneAutoRef.current && !inBand) {
-                                         const nz = autoZoneForKm(km);
-                                         if (nz) {
-                                           zoneAutoRef.current = true;
-                                           const withZone = { ...next, delivery_zone: nz.name };
-                                           pos.setCart(withZone);
-                                           recalcDeliveryFee(withZone, nz.name, { pinZone: true });
-                                         } else {
-                                           zoneAutoRef.current = false;
-                                           pos.setCart({ ...next, delivery_zone: null });
-                                         }
-                                       } else {
-                                         recalcDeliveryFee(next, next.delivery_zone, { pinZone: true });
-                                       }
-                                     } else {
-                                       const z = autoZoneForKm(km);
-                                       if (z) {
-                                         zoneAutoRef.current = true;
-                                          const withZone = { ...next, delivery_zone: z.name };
-                                          pos.setCart(withZone);
-                                          recalcDeliveryFee(withZone, z.name, { pinZone: true });
+                                    // 11y (owner: "ünvan seçdikdə qiymət görünməlidir,
+                                    // zonaya ehtiyac qalmayacaq"):
+                                    //  • zone MANUAL (chip tap) → pinZone re-price at the
+                                    //    precise KM — the operator's choice never flips.
+                                    //  • otherwise → DISTANCE-ONLY RPC: the server resolves
+                                    //    the zone (in-range band, or OUT-OF-RANGE = furthest
+                                    //    zone + (km−max_km) × ₼/km surcharge). The price
+                                    //    ALWAYS shows; the zone is server-assigned (auto) —
+                                    //    the operator picks nothing.
+                                    if (field === 'delivery_km') {
+                                      const km = Number(value);
+                                      const zoneIsManual = !!next.delivery_zone && !zoneAutoRef.current;
+                                      if (Number.isFinite(km) && km >= 0.1) {
+                                        if (zoneIsManual) {
+                                          recalcDeliveryFee(next, next.delivery_zone, { pinZone: true });
+                                        } else {
+                                          zoneAutoRef.current = true;
+                                          recalcDeliveryFee(next, null);
                                         }
+                                      } else {
+                                        zoneAutoRef.current = false;
+                                        pos.setCart({ ...next, delivery_zone: null, delivery_fee: 0 });
+                                        setDeliverySurge(null);
                                       }
                                     }
                                  }}

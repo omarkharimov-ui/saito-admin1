@@ -809,6 +809,91 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11y: APPLE-ÜSLUB XƏRİTƏ + RADIUS-KƏNARI MƏSƏFƏ HAQQI (ZONE-EHTİYACSIZ) + MARŞRUT + PERSISTENT AXTARIŞ CACHE)
+
+Owner: "axtarış sistemi hər dəfə düzgün və sürətli işləsin, gecikmə və ya qəfil
+işləməmə olmasın. Xəritə Apple Maps üslubunda olsun... typo-ları ağıllı şəkildə
+düzəldərək binaları/küçələri/obyektləri dəqiq tanısın... 'Marşrut' düyməsi...
+Xəritəyə toxunduqda avtomatik uzaqlaşma olmasın. Açılış zamanı xəritə dropdown-u
+örtməsin. Ünvana/məkana seçim etdikdə qiymət görünmür — düzəldin. Ve əgər
+belədirsə, mənə zonaya da ehtiyac qalmayacaq."
+
+1. **RADIUS-KƏNARI MƏSƏFƏ HAQQI — ZONE-EHTİYACSIZ MODEL (server + client):**
+   REAL DB-yə applied (migration `supabase/migrations/20261001000000_11y_oob_distance_fee.sql`):
+   `settings.delivery_per_km_rate` (default ₼0.50) + `v_settings_delivery` view rebuild
+   + `calculate_delivery_fee` §4.3 **OOB fallback**: zone-ların hamısından uzaq
+   ünvan → ən uzaq aktiv zone + `(km − max_km) × ₼/km` surcharge; zone YOXDURSA →
+   `km × ₼/km`; OOB-da `is_free` forced false; explicit zone name (pinZone) HƏMİŞƏ
+   win edir (flat fee). Client: `recalcDeliveryFee` distance-only (zoneName null)
+   dəstəyi; KM branch → zone yoxdursa `recalcDeliveryFee(next, null)`; **send-gate
+   `!zone && km<0.1`** (zone-sız order İNDİ İŞLƏYİR). E2E: 29.5 km → **₼9.25
+   görünür** (2 + 14.5×0.5), zone chip UNSELECTED, order #072/#073 zone-sız göndərildi ✓.
+2. **CRITICAL BUG FIX — `Number(null)===0` (owner-in "qəfil işləməmə" kökü):**
+   `/api/geocode` reverse-mode detection `Number(searchParams.get('lat'))` = 0
+   (param yoxdursa) → **BÜTÜN forward geocode (0,0)-a reverse olundu** (KM 6734.9,
+   fail). 11x E2E suggest-pick yolu ilə test olunduysa da, plain-typing yolu
+   susqan qalıb. Fix: reverse YALNIZ iki param da explicit + (0,0) deyilsə.
+3. **AXTARIŞ = HƏR DƏFƏ DÜZGÜN + SÜRƏTLİ (3 qat):** (a) **PERSISTENT CACHE**
+   (`lib/geo-cache.ts`, `.cache/geocode-cache.json`, 30 gün TTL, 3000 entry,
+   debounce save, venue-scoped key) — müntəzəm müştəri ünvanı = 0 Nominatim call;
+   YALNIZ `precision:'address'` persist olunur (city-centroid fallback = answer
+   deyil, cache-lənməz). (b) **LOCAL GAZETTEER FALLBACK** (`lib/gazetteer.ts` —
+   11u index shared modula köçdü; suggest + geocode eyni index): Nominatim chain
+   fail (429/throttle) İLLA da city-centroid fallback (typo → "Bakı, Azərbaycan"
+   km 0) olarsa → **küçə centroid-i** (0 network, instant; "Nizamii küçəsi 55,
+   Bakı" → "Nizami küçəsi, Bakı" km 1 ✓). Named city gazetteer-də yoxdursa
+   (Bərdə) başqa şəhərə GUESS edilmir (null). (c) typo/ev nömrəsi = 11w-D
+   Levenshtein + house-number chain (qorundu, shared modula köçdü).
+4. **APPLE-ÜSLUB XƏRİTƏ (100% keyless):** CARTO light/dark İLK seçimdi — AMMA
+   CARTO indi keyless client-lərə **"API KEY REQUIRED" WATERMARK tile** verir
+   (E2E catch) + owner qaydası "pulsuz, heç nə çıxmasın" → **OSM standard tiles +
+   CSS filter**: light = `saturate(.55) contrast(.98) brightness(1.02)` (pale
+   Apple-lıq), dark = `invert(1) hue-rotate(180deg) saturate(.35) brightness(.85)`.
+   E2E r5: dark/light/dark 3× class swap, tiles HƏMİŞƏ görünür ✓.
+   **MAP-DIV CLASSNAME = CONSTANT** (E2E r3/r4 catch): React theme re-render-i
+   className rewrite edib Leaflet-in `leaflet-container` class-ını SİLİRDİ →
+   Tailwind `img{max-width:100%}` → tile width 0 → BOŞ MAP. Fix: theme class +
+   border OUTER wrapper-də, Leaflet div-i constant (React mount-dan sonra toxunmur)
+   + defensive `.saito-leaflet .leaflet-tile{max-width:none!important}` + 500ms
+   late `invalidateSize` (sheet animation içində mount) + tile layer ONCE
+   (runtime removeLayer/add = pane 0×0 — round-3 catch).
+5. **MARŞRUT DÜYMƏSİ:** customerPoint varkən map altında pill:
+   `google.com/maps/dir/?api=1&destination=lat,lng&travelmode=driving`
+   (target _blank; API key YOX) — E2E: yeni tab açıldı ✓.
+6. **TOUCH UX:** (a) **Tap-də auto-zoom YOX** (11x manualPickRef — re-verified
+   r2: zoom 14→14, pin glide) ✓. (b) **Dropdown UPWARD açılır** (`bottom-full`)
+   — on-screen POS keyboard alt sətirləri örtürdü (E2E catch); indi field-in
+   YUXARISINDA = keyboard + map ikisindən də sərbəst (native address-field
+   davranışı). Map-dan dropdown örtülməsi = 11y stacking fix (`relative z-0`).
+7. **FEE BOX + QIYƏT DİQQƏTİ (E2E catch-lər):** (a) fee box `zone chip`-dən
+   GATED idi (chip yox → "Zone seçin" + qiymət görünmürdü — owner-in şikayəti) →
+   `feeResolved` (RPC round-trip complete) + distance = eyni valide; "Zone seçin
+   / ünvan daxil et" yalnız ikisi də yoxdursa. (b) **OOB-resolved zone
+   persist SİLİNDİ** — distance-only RPC-nin `zone` field-i (furthest zone)
+   cart.delivery_zone-a yazılırdı → hər sonrakı KM dəyişikliyi "manual pin"
+   sayılırdı → **₼9.25→₼2.00 flip** (E2E r1 defect). İndi zone = YALNIZ chip tap
+   (pinZone) persisted. (c) **fee RPC race**: pick → haversine km → road-km
+   back-to-back 2 recalc → stale response yenini overwrite edirdi + RPC fail
+   = fee 0 commit (₼0 = "pulsuz" görünürdü!) → **monotonic feeSeq guard**
+   (yalnız ən yeni commit edir) + catch-da son fee saxlanılır. (d) OOB warning
+   kart KM-sini göstərir (geoKm stale idi: KM 29.5, warning "37.5").
+8. **Pick-in öz OSRM eta fetch-i abort SİLİNDİ** — address-change effect pick-in
+   yenidən yazdığı address-də pick-in öz delivery-eta request-ini kill edirdi
+   (KM 25.3-də donurdu, hint 29.5 deyərdi) → `address === suggestPickedRef` guard.
+- **E2E (r11y-1..6 + r11y-r2-1..6 + r11y-r3-1..2 + r11y-r4-1..3 + r11y-r5-1..3,
+  5 pass; FINAL r5 = 6/6, console 0):** far-address pick → KM 29.5 + **fee ₼9.25
+  görünür** + "29.5 km — radius kənarı: məsafə haqqı tətbiq olunur" + chip
+  UNSELECTED ✓; re-pick eyni row → KM/warning/fee üçü də eyni (9.25) ✓;
+  Apple-üslub tiles dark/light/dark ✓; tap no-zoom ✓; dropdown upward, heç bir
+  overlay-siz ✓; Marşrut → Google Maps dir tab ✓; **zone-sız order send ✓
+  (#072 ₼19, #073 ₼30.25)**; typo "Nizamii küçəsi 55, Bakı" → "Nizami küçəsi,
+  Bakı" km 1 (local fallback) ✓; persistent cache 2nd call 0 Nominatim ✓;
+  curl: OOB 29.5→9.25 / 37.5→13.25 / 25.3→7.15 / pinned→2.00 / Bərdə regress
+  (302.4 address) ✓. tsc clean.
+- **Sıradakı (owner "hər yeri millimetrinə" qeydi):** bina/POI-level dəqiqlik =
+  OSM əhatəsinə bağlı; tam versiya = nationwide gazetteer (Geofabrik shapefile
+  yolu — Overpass mirrors 2026-10-01-də hamısı down; owner "indi etmirik").
+
 ### Jurnal sətiri — 2026-10-01 (ROUND 11x: MAP-AS-SEARCH — manual pin + şəhər focus + mikrorayon + Nominatim stabilizasiya)
 
 Owner: "map-i istifadə edək — mapda göstər, o özündə axtarırsın, çünki o mapda

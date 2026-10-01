@@ -125,6 +125,19 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const [driveEta, setDriveEta] = useState<{ km: number; minutes: number } | null>(null);
   const etaAbort = useRef<AbortController | null>(null);
 
+  // 11y (owner: "ünvan seçdikdə qiymət görünmür" + "zonaya ehtiyac qalmayacaq"):
+  // the fee box used to be GATED on a selected zone chip — without one it
+  // showed "Zone seçin" even though the server had already resolved the fee
+  // from the distance. `feeResolved` = the last fee RPC round-trip finished
+  // (a feeCalculating true→false transition; feeNum holds the answer, ₼0
+  // included = genuinely free). Reset when both distance and zone are gone.
+  const [feeResolved, setFeeResolved] = useState(false);
+  const feeCalcPrev = useRef(false);
+  useEffect(() => {
+    if (feeCalcPrev.current && !feeCalculating) setFeeResolved(true);
+    feeCalcPrev.current = !!feeCalculating;
+  }, [feeCalculating]);
+
   // 11w-B (owner: "daha da yaxşı"): mini-xəritə nöqtələri — venue (blue) +
   // picked/geocoded customer point (red) + active zone radius ring.
   // Leaflet + OSM tiles = FREE, no API key (competitors show the same in
@@ -173,8 +186,13 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const manualPickAddrRef = useRef<string | null>(null);
   // 11v: a new address (or mode) invalidates the driving-time hint.
   // (Declared HERE, not with the state above — `address` would be in its TDZ.)
+  // 11y (E2E catch — KM stuck at 25.3 while the hint said 29.5): a SUGGEST
+  // PICK writes the address AND fires its own OSRM driving-time fetch —
+  // this effect used to abort that very fetch on the address change, so the
+  // road-km refinement never landed. The pick's own request survives.
   useEffect(() => {
     if (address === manualPickAddrRef.current) { manualPickAddrRef.current = null; return; }
+    if (address === suggestPickedRef.current) return;
     setDriveEta(null);
     etaAbort.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,6 +207,11 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   const addressRaw = cart?.delivery_address || '';
   const zoneName = cart?.delivery_zone || '';
   const feeNum = Number(cart?.delivery_fee) || 0;
+  // 11y: a resolved distance — the fee box is valid on distance alone.
+  const distFee = Number(cart?.delivery_km) >= 0.1;
+  useEffect(() => {
+    if (!distFee && !zoneName) setFeeResolved(false);
+  }, [distFee, zoneName]);
 
   // 11q: zone id for the dynamic-ETA effect. MUST live below zoneName (TDZ).
   const zoneId = zones.find(z => z.name === zoneName)?.id;
@@ -552,20 +575,31 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                {zones.length > 0 && (
                 <div>
                   <p className={labelCls}>{t('delivery_zone')}</p>
-                  {/* 11v: out-of-radius warning — no zone auto-selected when
-                      the distance is beyond every configured band (Toast:
-                      "outside delivery area"); operator picks deliberately. */}
-                  {(() => {
-                    const maxBand = zones.length ? Math.max(...zones.map((zz: any) => zz.max_km ?? 0)) : 0;
-                    const oob = geoKm != null && Number(geoKm) >= 0.1 && !zoneName && maxBand > 0 && Number(geoKm) > maxBand;
-                    if (!oob) return null;
-                    return (
-                      <div className={`mt-2 flex items-center gap-1.5 text-[10px] font-bold ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>
-                        <AlertTriangle size={12} />
-                        {geoKm} km — radius kənarında: zone-nu sən seç
-                      </div>
-                    );
-                  })()}
+                  {/* 11y: out-of-radius NOTE (supersedes 11v's "zone-nu sən
+                      seç"): the server now assigns the furthest zone + a ₼/km
+                      distance surcharge — the price ALWAYS shows. This line
+                      is informational: the extra distance fee is applied. */}
+                   {/* 11y: out-of-radius is NORMAL now — the server assigns
+                       furthest-zone + ₼/km surcharge, the fee always shows.
+                       The line is informational (why the fee is what it is). */}
+                   {(() => {
+                     // 11y r4 (E2E catch): the km figure must be the CART's km
+                     // (what the fee is actually priced from), not the geo
+                     // hint's km — a manual KM edit left the warning stale
+                     // ("37.5 km" while the KM field read 29.5).
+                     const oobKm = Number(cart?.delivery_km);
+                     const maxBand = zones.length ? Math.max(...zones.map((zz: any) => Number(zz.max_km ?? 0) || 0)) : 0;
+                     const oob = Number.isFinite(oobKm) && oobKm >= 0.1 && maxBand > 0 && oobKm > maxBand;
+                     if (!oob) return null;
+                     return (
+                       <div className={`mt-2 flex items-center gap-1.5 text-[10px] font-bold ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>
+                         <AlertTriangle size={12} />
+                         {zoneName
+                           ? `${oobKm} km — radius kənarı: seçdiyin zone haqqı tətbiq olunur`
+                           : `${oobKm} km — radius kənarı: məsafə haqqı tətbiq olunur`}
+                       </div>
+                     );
+                   })()}
                   <div className="flex flex-wrap gap-2">
                     {zones.map(z => {
                       const on = zoneName === z.name;
@@ -619,8 +653,13 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                       point (district visible in the name) + venue→point KM.
                       Tap = exact selection; the list is how "20 Yanvar"
                       ambiguity gets resolved by the operator, not by luck. */}
-                  {suggestOpen && suggestResults.length > 0 && (
-                    <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-2xl border shadow-2xl overflow-hidden max-h-[280px] overflow-y-auto ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}>
+                   {/* 11y (E2E catch): the dropdown opened DOWNWARD (top-full)
+                       and the on-screen POS keyboard (fixed bottom) covered
+                       its lower rows. It now opens UPWARD (bottom-full) —
+                       above the field, clear of both the keyboard and the
+                       map below; native address-field behavior. */}
+                   {suggestOpen && suggestResults.length > 0 && (
+                     <div className={`absolute left-0 right-0 bottom-full mb-1 z-50 rounded-2xl border shadow-2xl overflow-hidden max-h-[280px] overflow-y-auto ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}>
                       {suggestResults.map((it, i) => (
                         <button
                           key={`${it.lat.toFixed(5)},${it.lng.toFixed(5)}`}
@@ -668,14 +707,14 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                             {' · '}{geoDisplay}
                           </span>
                         )}
-                  {/* Geocode failed (address not in OSM) — point the operator
-                      to the manual KM field so the fee can still be exact. */}
-                  {/* 2026-09-28 (owner: light mode — yalnız mavi/qara) */}
-                  {geoStatus === 'fail' && (
-                    <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-zinc-900' : 'text-amber-400/80'}`}>
-                      Ünvan xəritədə tapılmadı — məsafəni KM sahəsinə əl ilə daxil edin
-                    </p>
-                  )}
+                   {/* 11x: geocode failed (address not in OSM) — the MAP is
+                       the fallback: place the point by eye (map-as-search),
+                       or type the KM manually. */}
+                   {geoStatus === 'fail' && (
+                     <p className={`mt-1 text-[10px] font-bold ${lightMode ? 'text-zinc-900' : 'text-amber-400/80'}`}>
+                       Ünvan xəritədə tapılmadı — aşağıdakı xəritəyə tıklayıb nöqtəni özün qoy (və ya KM əl ilə)
+                     </p>
+                   )}
                   {/* 11w-B + 11x: mini-xəritə (Leaflet + OSM, key-siz) — venue
                       (mavi) + picked point (qırmızı) + zone radius ring. 11x:
                       the map is also an INPUT — no resolved point yet (address
@@ -694,6 +733,23 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                       onPickPoint={handleMapPick}
                       focus={customerPoint ? null : areaPoint}
                     />
+                  )}
+                  {/* 11y (owner: "'Marşrut' düyməsi ilə istifadəçini həmin
+                      ünvana qədər yönləndirsin"): turn-by-turn navigation to
+                      the resolved point — Google Maps directions URL (no API
+                      key needed); opens on the operator/courier's phone. */}
+                  {mode === 'delivery' && customerPoint && (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${customerPoint.lat},${customerPoint.lng}&travelmode=driving`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.97] ${
+                        lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-700' : 'bg-white text-zinc-950 hover:bg-zinc-200'
+                      }`}
+                    >
+                      <Route size={11} />
+                      Marşrut — navigasiya
+                    </a>
                   )}
                 </div>
 
@@ -720,18 +776,32 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                        zone's threshold (₼50+) and campaign free delivery
                        zero the fee, and the panel says so explicitly. */}
                    {(() => {
-                      const z = zones.find(x => x.name === zoneName);
-                      const itemsTotal = (cart?.items || []).reduce((s: number, i: any) => s + (Number(i.unit_price) || 0) * (Number(i.quantity) || 0), 0);
-                      const threshold = Number(z?.free_delivery_threshold) || 0;
-                      const toFree = threshold > 0 ? Math.max(0, threshold - itemsTotal) : 0;
+                       const z = zones.find(x => x.name === zoneName);
+                       const itemsTotal = (cart?.items || []).reduce((s: number, i: any) => s + (Number(i.unit_price) || 0) * (Number(i.quantity) || 0), 0);
+                       // 11y: the free-threshold hint works without a zone chip
+                       // too (single-zone venues carry the threshold on the zone
+                       // even when the fee resolved by distance).
+                       const threshold = Number(z?.free_delivery_threshold)
+                         || (zones.length === 1 ? Number(zones[0].free_delivery_threshold) || 0 : 0);
+                       const maxBand = zones.length ? Math.max(...zones.map((zz: any) => Number(zz.max_km ?? 0) || 0)) : 0;
+                       // OOB distance is NEVER free (server forces it) — the
+                       // "₼X daha əlavə et" hint must not advertise free delivery
+                       // for a 30 km order.
+                       const kmInBand = !maxBand || Number(cart?.delivery_km ?? 0) <= maxBand;
+                       const toFree = threshold > 0 && kmInBand ? Math.max(0, threshold - itemsTotal) : 0;
                       // Delivery Phase 2: min order (zone value first, global
                       // settings fallback) — mirrors the server gate in
                       // /api/orders (DELIVERY_MIN_ORDER).
                       const zMinRaw = z?.min_order != null ? Number(z.min_order) : 0;
                       const minOrder = zMinRaw > 0 ? zMinRaw : (deliveryMinOrder != null ? Number(deliveryMinOrder) : 0);
-                      const toMin = minOrder > 0 ? Math.max(0, minOrder - itemsTotal) : 0;
-                      const isFree = feeNum === 0 && !!z;
-                      return (
+                       const toMin = minOrder > 0 ? Math.max(0, minOrder - itemsTotal) : 0;
+                       // 11y: fee visibility no longer requires a zone chip —
+                       // a resolved DISTANCE is equally valid (the server prices
+                       // it). "Zone seçin" only when NEITHER zone nor distance
+                       // exists yet.
+                       const showFee = !!z || feeResolved;
+                       const isFree = feeNum === 0 && showFee;
+                       return (
                         <>
                           {/* 2026-09-26 (owner): iPhone-call-style shimmer sweep
                               while the fee RPC resolves ("hesablayır…"). */}
@@ -742,14 +812,14 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
 `}</style>
                           <div className={`h-12 rounded-2xl border flex items-center justify-between px-4 ${isFree ? (lightMode ? 'bg-emerald-50 border-emerald-300' : 'bg-emerald-500/10 border-emerald-500/30') : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.02] border-white/[0.08]'}`}>
                             <Wallet size={14} className={isFree ? 'text-emerald-500' : lightMode ? 'text-zinc-400' : 'text-white/35'} />
-                            {/* 11t (owner: "zonanı ozu secir, men secmirem"):
-                                until the operator taps a zone chip there is
-                                NO fee — never show ₼0 (reads as "free"). */}
-                            {!z ? (
-                              <span className={`text-[11px] font-black uppercase tracking-wider ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>
-                                Zone seçin
-                              </span>
-                            ) : feeCalculating ? (
+                             {/* 11y: the fee resolves from the DISTANCE as
+                                 well as from a zone chip — show it once either
+                                 is resolved. Never show ₼0 (reads as "free"). */}
+                             {!showFee ? (
+                               <span className={`text-[11px] font-black uppercase tracking-wider ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>
+                                 Zone seçin / ünvan daxil et
+                               </span>
+                             ) : feeCalculating ? (
                               <span className={`flex items-center gap-2 text-[11px] font-black uppercase tracking-wider ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
                                 {t('calculating_fee' as any) || 'Hesablayır…'}
                                 <span className="vk-fee-shimmer" />

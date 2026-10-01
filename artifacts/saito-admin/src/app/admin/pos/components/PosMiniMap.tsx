@@ -64,14 +64,31 @@ const VENUE_ICON = L.divIcon({
          </div>`,
 });
 
+// 11y (owner: "Xəritə Apple Maps üslubunda olsun") — Apple-style basemap,
+// 100% keyless. CARTO light/dark was the first choice but CARTO now serves
+// "API KEY REQUIRED" WATERMARK tiles to keyless clients (E2E catch) — a
+// key would break the "pulsuz, heç nə çıxmasın" rule. Instead: standard
+// OSM tiles + a CSS filter that mutes them to the Apple-Maps look:
+// light = desaturated pale map, dark = inverted cool-dark. Tile usage is
+// standard OSM (attribution kept in the footer line).
+// NO `{r}` retina variant: tile.openstreetmap.org has no @2x tiles — with
+// detectRetina Leaflet would request …/12/2048/1334@2x.png → 404 → blank
+// map (E2E round-2 catch). 256px source, CSS filter does the styling.
+const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
 export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPickPoint, focus }: PosMiniMapProps) {
   const divRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const tileRef = useRef<L.TileLayer | null>(null);
   const ringRef = useRef<L.Circle | null>(null);
   const venueMarkerRef = useRef<L.Marker | null>(null);
   const pinRef = useRef<L.Marker | null>(null);
   const pickRef = useRef<((p: Pt) => void) | undefined>(onPickPoint);
   pickRef.current = onPickPoint; // always-fresh callback (map handlers persist)
+  // 11y (owner: "xəritəyə toxunduqda avtomatik uzaqlaşma olmasın"): a MANUAL
+  // tap/drag must NOT move the frame — the pin glides to the finger, the view
+  // stays exactly where the operator put it.
+  const manualPickRef = useRef(false);
 
   // Create the map ONCE per mount (Leaflet refuses to re-init a container).
   useEffect(() => {
@@ -83,19 +100,33 @@ export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPic
       dragging: true,
     });
     map.setView([venue.lat, venue.lng], 11);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+    // 11y r3: the tile layer is created ONCE here (no theme swap!) — the
+    // round-2 runtime removeLayer/addTileLayer collapsed the map pane to
+    // 0×0 in light mode. Theming = a CSS class on the container div below
+    // (filter on .leaflet-tile), zero Leaflet operations on theme change.
+    tileRef.current = L.tileLayer(OSM_TILES, { maxZoom: 19 }).addTo(map);
     venueMarkerRef.current = L.marker([venue.lat, venue.lng], { icon: VENUE_ICON, interactive: false }).addTo(map);
     // Tap = place the customer point (works on touch + mouse; dragend on the
     // map itself must NOT place — that's panning, not pointing).
-    map.on('click', (e: L.LeafletMouseEvent) => pickRef.current?.({ lat: e.latlng.lat, lng: e.latlng.lng }));
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      manualPickRef.current = true;
+      pickRef.current?.({ lat: e.latlng.lat, lng: e.latlng.lng });
+    });
     mapRef.current = map;
     const ro = new ResizeObserver(() => map.invalidateSize());
     ro.observe(divRef.current);
+    // The panel can (re)mount mid framer-motion sheet animation — the
+    // container may be 0-sized at L.map() time; the RO heals size CHANGES,
+    // but if the map inits at 0 and the container settles without a RO
+    // event it stays blank. One late invalidateSize as insurance.
+    const heal = window.setTimeout(() => { try { map.invalidateSize(); } catch { /* gone */ } }, 500);
     return () => {
+      window.clearTimeout(heal);
       ro.disconnect();
       // Drop layer refs FIRST: HMR can tear this map down mid-frame — an
       // effect running against a removed map's SVG renderer throws
       // "reading 'baseVal'" (11x E2E one-off crash).
+      tileRef.current = null;
       ringRef.current = null;
       venueMarkerRef.current = null;
       pinRef.current = null;
@@ -126,17 +157,20 @@ export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPic
   }, [venue.lat, venue.lng, radiusKm]);
 
   // Customer pin: create once, then GLIDE it (CSS transition on transform).
-  // Re-fit the frame ONLY when the point first appears or lands outside the
-  // current view — a manual drag that stays in view must NOT yank the frame
-  // (that was the "transition" complaint: re-centering on every dragend).
+  // Re-fit the frame ONLY for EXTERNAL changes (a suggest pick, a new
+  // address) — a MANUAL tap/drag never moves the view (11y: "xəritəyə
+  // toxunduqda avtomatik uzaqlaşma olmasın").
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     if (!customer) { pinRef.current?.remove(); pinRef.current = null; return; }
+    const manual = manualPickRef.current;
+    manualPickRef.current = false;
     const isNew = !pinRef.current;
     if (!pinRef.current) {
       const m = L.marker([customer.lat, customer.lng], { icon: PIN_ICON, draggable: true, autoPan: true }).addTo(map);
       m.on('dragend', () => {
+        manualPickRef.current = true;
         const ll = m.getLatLng();
         pickRef.current?.({ lat: ll.lat, lng: ll.lng });
       });
@@ -145,12 +179,13 @@ export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPic
       // CSS transition animates this setLatLng (see saito-pin CSS below).
       pinRef.current.setLatLng([customer.lat, customer.lng]);
     }
+    if (manual) return; // operator's hand on the map — the view stays put
     const b: [number, number] = [customer.lat, customer.lng];
     const a: [number, number] = [venue.lat, venue.lng];
     const within = map.getBounds().pad(-0.1).contains(b);
-    // 11x E2E fix: a degenerate frame (world/country zoom, zoom<9 — happens
-    // after a glitch or heavy manual zoom-out) must always snap back to
-    // delivery scale; also re-fit when the point pair is far vs the frame.
+    // 11x E2E fix: a degenerate frame (world/country zoom, zoom<9) must
+    // always snap back to delivery scale; also re-fit when the point pair is
+    // far vs the frame.
     const bds = map.getBounds();
     const span = Math.max(bds.getNorth() - bds.getSouth(), 0.0001);
     const pairDist = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
@@ -177,7 +212,19 @@ export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPic
   }, [focus?.lat, focus?.lng]);
 
   return (
-    <div className="mt-2">
+    // 11y (owner: "açılış zamanı xəritə dropdown-u örtməsin"): the map lives
+    // in its OWN stacking context (relative z-0) — Leaflet's internal panes
+    // carry z-index 200–700, which used to paint OVER the suggest dropdown
+    // (z-50) in the shared context. Now the dropdown always floats above.
+    // 11y r3: the theme (Apple-style tile filter) + border live on THIS
+    // wrapper — NOT on the Leaflet div below. The Leaflet div's className
+    // must be a CONSTANT across renders: React only rewrites a className
+    // when its computed value changes, and a rewrite would WIPE the
+    // `leaflet-container` class Leaflet adds at mount (round-3 bug: theme
+    // re-render dropped it → Tailwind img{max-width:100%} shrank every tile
+    // to width 0 → blank map). Constant template = React leaves the
+    // attribute alone after first paint, Leaflet's classes survive.
+    <div className={`relative z-0 mt-2 rounded-2xl border ${lightMode ? 'saito-map-light border-zinc-200' : 'saito-map-dark border-white/10'}`}>
       {/* Pin glide: Leaflet moves .leaflet-marker-icon via transform — give
           it a transition and the pin slides to the new point instead of
           teleporting (11x "transition daha qalın"). */}
@@ -187,11 +234,23 @@ export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPic
         .leaflet-marker-icon.saito-pin { transition: transform 0.4s cubic-bezier(.25,.8,.35,1) !important; }
         .saito-map-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
           pointer-events: none; z-index: 500; }
-      `}</style>
+        /* 11y (owner: "Xəritə Apple Maps üslubunda olsun") — Apple-Maps look
+           via CSS filter on the OSM tiles: light = desaturated pale map,
+           dark = inverted cool-dark. 100% keyless (CARTO now watermarks
+           keyless clients). The class lives on the CONTAINER div (React
+           state) — theme change = pure class swap, no Leaflet ops. */
+        .saito-map-light .leaflet-tile { filter: saturate(0.55) contrast(0.98) brightness(1.02); }
+        .saito-map-dark  .leaflet-tile { filter: invert(1) hue-rotate(180deg) saturate(0.35) contrast(0.9) brightness(0.85); }
+        /* belt-and-braces: even if leaflet-container ever drops off again,
+           tiles must never collapse to 0 width (Tailwind preflight
+           img max-width:100% + a 0-width tile container = blank map). */
+        .saito-leaflet .leaflet-tile { max-width: none !important; }
+       `}</style>
       <div className="relative">
+        {/* CONSTANT className (no lightMode!) — see the comment above. */}
         <div
           ref={divRef}
-          className={`h-[170px] w-full rounded-2xl overflow-hidden border ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}
+          className="saito-leaflet leaflet-container h-[170px] w-full rounded-2xl overflow-hidden"
         />
         {!customer && (
           <div className="saito-map-hint">
@@ -201,9 +260,9 @@ export default function PosMiniMap({ venue, customer, radiusKm, lightMode, onPic
           </div>
         )}
       </div>
-      {/* OSM tile usage policy requires visible attribution */}
+      {/* tile usage policy requires visible attribution (OSM) */}
       <p className={`mt-1 text-[9px] ${lightMode ? 'text-zinc-400' : 'text-white/25'}`}>
-        © OpenStreetMap · mavi = məkan · qırmızı = müştəri (tıkla / sürüşdür)
+        © OpenStreetMap contributors · mavi = məkan · qırmızı = müştəri (tıkla / sürüşdür)
       </p>
     </div>
   );

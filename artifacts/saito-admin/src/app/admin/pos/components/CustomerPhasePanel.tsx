@@ -24,7 +24,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, User, Route, Wallet, MessageCircle, PauseCircle, CloudRain, Clock } from '@/components/ui/saito-icons';
+import { ArrowLeft, User, Route, Wallet, MessageCircle, PauseCircle, CloudRain, Clock, MapPin } from '@/components/ui/saito-icons';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -100,6 +100,21 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
   // estimate — the UI marks it "təxmini" so the operator can correct via KM.
   const [geoApprox, setGeoApprox] = useState(false);
   const kmManualRef = useRef(false);
+
+  // ── 11t (owner: "google maps kimi davrananda olmaz??") — live suggest ──
+  // Type → 600ms debounce → ALL matching OSM points (district in the name) →
+  // tap one → EXACT point + KM. "20 yanvar" is ambiguous (several 20 Yanvar
+  // streets in Bakı) — the list lets the operator pick, the old single
+  // best-match geocode picked a district arbitrarily. Zone is NEVER
+  // auto-selected by this.
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestResults, setSuggestResults] = useState<{ name: string; lat: number; lng: number; km: number; type: string }[]>([]);
+  const [suggestIndex, setSuggestIndex] = useState(0);
+  const suggestAbort = useRef<AbortController | null>(null);
+  // 11t: the picked suggestion's full name — the suggest effect must NOT
+  // re-query it (the full name is itself a Nominatim hit → the dropdown
+  // re-opened with 1 row after a pick). Cleared on any manual keystroke.
+  const suggestPickedRef = useRef<string | null>(null);
 
   // 11q (owner, idea D: "mutfaktaki anlık yoğunluğa göre dinamik ETA"): the
   // promised ETA tracks the LIVE kitchen queue — zone base range + queued
@@ -224,6 +239,50 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, mode]);
 
+  // 11t: Google-Maps-style live suggest (600ms debounce, min 3 chars,
+  // in-flight requests aborted). The single best-match geocode effect above
+  // stays as the fallback for full addresses with no tapped suggestion.
+  useEffect(() => {
+    if (mode !== 'delivery') { setSuggestOpen(false); setSuggestResults([]); return; }
+    const addr = address.trim();
+    if (addr.length < 3) { setSuggestOpen(false); setSuggestResults([]); return; }
+    // Picked exact match → no re-suggest loop (see suggestPickedRef).
+    if (addr === suggestPickedRef.current) { setSuggestOpen(false); setSuggestResults([]); return; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      suggestAbort.current?.abort();
+      const ac = new AbortController();
+      suggestAbort.current = ac;
+      try {
+        const r = await fetch(`/api/geocode/suggest?address=${encodeURIComponent(addr)}`, { cache: 'no-store', signal: ac.signal });
+        if (!r.ok || cancelled) return;
+        const d = await r.json();
+        if (cancelled) return;
+        const list = Array.isArray(d?.results) ? d.results : [];
+        setSuggestResults(list);
+        setSuggestOpen(list.length > 0);
+        setSuggestIndex(0);
+      } catch { /* aborted / network — keep the previous list */ }
+    }, 600);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, mode]);
+
+  // 11t: operator tapped a suggestion → exact point + KM. NO zone side
+  // effects: the zone chip stays the operator's explicit decision.
+  const pickSuggest = (it: { name: string; lat: number; lng: number; km: number; type: string }) => {
+    kmManualRef.current = false;
+    suggestPickedRef.current = it.name;
+    onUpdate('delivery_address', it.name);
+    setGeoStatus('ok');
+    setGeoKm(it.km);
+    setGeoDisplay(it.name);
+    setGeoApprox(false);
+    setSuggestOpen(false);
+    setSuggestResults([]);
+    if (Number(cart?.delivery_km ?? -1) !== it.km) onUpdate('delivery_km', it.km);
+  };
+
   return (
     <div className="h-full flex flex-col min-h-0">
       {/* Phase header */}
@@ -341,16 +400,57 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
                 </div>
               )}
 
-               {/* Address */}
-               <div>
-                 <p className={labelCls}>{t('delivery_address')} *</p>
-                 <input
-                    ref={el => { fieldRefs.current['delivery_address'] = el; }}
-                    value={addressRaw}
-                    onChange={e => { kmManualRef.current = false; setField('delivery_address')(e); }}
-                   placeholder={t('address_placeholder')}
-                   className={inputCls('delivery_address', 'h-12 text-base font-semibold')}
-                 />
+                {/* Address */}
+                <div>
+                  <p className={labelCls}>{t('delivery_address')} *</p>
+                  <div className="relative">
+                  <input
+                     ref={el => { fieldRefs.current['delivery_address'] = el; }}
+                     value={addressRaw}
+                     onChange={e => { kmManualRef.current = false; suggestPickedRef.current = null; setField('delivery_address')(e); }}
+                     onKeyDown={e => {
+                       if (!suggestOpen || suggestResults.length === 0) return;
+                       if (e.key === 'ArrowDown') { e.preventDefault(); setSuggestIndex(i => (i + 1) % suggestResults.length); }
+                       else if (e.key === 'ArrowUp') { e.preventDefault(); setSuggestIndex(i => (i - 1 + suggestResults.length) % suggestResults.length); }
+                       else if (e.key === 'Enter') { e.preventDefault(); pickSuggest(suggestResults[suggestIndex]); }
+                       else if (e.key === 'Escape') { e.preventDefault(); setSuggestOpen(false); }
+                     }}
+                     onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
+                    placeholder={t('address_placeholder')}
+                    className={inputCls('delivery_address', 'h-12 text-base font-semibold')}
+                  />
+                  {/* 11t: Google-Maps-style suggest dropdown — every matching
+                      point (district visible in the name) + venue→point KM.
+                      Tap = exact selection; the list is how "20 Yanvar"
+                      ambiguity gets resolved by the operator, not by luck. */}
+                  {suggestOpen && suggestResults.length > 0 && (
+                    <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-2xl border shadow-2xl overflow-hidden max-h-[280px] overflow-y-auto ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}>
+                      {suggestResults.map((it, i) => (
+                        <button
+                          key={`${it.lat.toFixed(5)},${it.lng.toFixed(5)}`}
+                          type="button"
+                          onMouseDown={e => { e.preventDefault(); pickSuggest(it); }}
+                          onMouseEnter={() => setSuggestIndex(i)}
+                          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-xs font-semibold transition-colors ${
+                            i === suggestIndex
+                              ? (lightMode ? 'bg-emerald-50 text-emerald-800' : 'bg-white/[0.06] text-white/90')
+                              : (lightMode ? 'text-zinc-700' : 'text-white/70')
+                          }`}
+                        >
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            i === suggestIndex
+                              ? (lightMode ? 'bg-emerald-500 text-white' : 'bg-emerald-400 text-zinc-900')
+                              : (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.06] text-white/40')
+                          }`}>
+                            <MapPin size={11} />
+                          </span>
+                          <span className="flex-1 min-w-0 leading-snug line-clamp-2">{it.name}</span>
+                          <span className={`text-[10px] font-black tabular-nums flex-shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{it.km} km</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  </div>
                  {/* 2026-09-26 (Task 55): live distance hint — Nominatim +
                      haversine from the venue. loading = shimmer, ok = km,
                      fail = silent (manual KM stays available). */}
@@ -424,7 +524,14 @@ export default function CustomerPhasePanel({ mode, cart, zones, onUpdate, onZone
 `}</style>
                           <div className={`h-12 rounded-2xl border flex items-center justify-between px-4 ${isFree ? (lightMode ? 'bg-emerald-50 border-emerald-300' : 'bg-emerald-500/10 border-emerald-500/30') : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.02] border-white/[0.08]'}`}>
                             <Wallet size={14} className={isFree ? 'text-emerald-500' : lightMode ? 'text-zinc-400' : 'text-white/35'} />
-                            {feeCalculating ? (
+                            {/* 11t (owner: "zonanı ozu secir, men secmirem"):
+                                until the operator taps a zone chip there is
+                                NO fee — never show ₼0 (reads as "free"). */}
+                            {!z ? (
+                              <span className={`text-[11px] font-black uppercase tracking-wider ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>
+                                Zone seçin
+                              </span>
+                            ) : feeCalculating ? (
                               <span className={`flex items-center gap-2 text-[11px] font-black uppercase tracking-wider ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
                                 {t('calculating_fee' as any) || 'Hesablayır…'}
                                 <span className="vk-fee-shimmer" />

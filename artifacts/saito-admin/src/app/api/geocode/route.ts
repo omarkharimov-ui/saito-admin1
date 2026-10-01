@@ -43,7 +43,7 @@ const AZ_TO_ASCII: Record<string, string> = {
   'ç': 'c', 'Ç': 'C', 'ö': 'o', 'Ö': 'O', 'ü': 'u', 'Ü': 'U',
   'ş': 's', 'Ş': 'S', 'ğ': 'g', 'Ğ': 'G', 'Ə': 'E',
 };
-function transliterate(q: string): string {
+export function transliterate(q: string): string {
   return q
     .replace(/[əäıİçöüşğƏÄÇÖÜŞĞ]/g, ch => AZ_TO_ASCII[ch] || ch)
     .replace(/\s+/g, ' ')
@@ -139,7 +139,7 @@ async function venueCityOf(vLat: number, vLng: number): Promise<string | null> {
  * ("Nizami Cəfərov küçəsi") while some use EN/ASCII tags. `anchorCity`
  * (the venue's own city) is appended when the input names no place token.
  */
-function candidates(q: string, anchorCity?: string | null): { text: string; precision: 'address' | 'area' }[] {
+export function candidates(q: string, anchorCity?: string | null): { text: string; precision: 'address' | 'area' }[] {
   const cleaned = q.replace(/\s+/g, ' ').trim();
   const azParts = cleaned.split(',').map(p => p.trim()).filter(Boolean);
   const fullAZ = azParts.join(', ');
@@ -168,7 +168,7 @@ function candidates(q: string, anchorCity?: string | null): { text: string; prec
   return out.slice(0, 6); // hard cap: max 6 Nominatim calls per address
 }
 
-function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -178,7 +178,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-async function nominatimOnce(q: string): Promise<{ lat: number; lng: number; display: string } | null> {
+export async function nominatimOnce(q: string): Promise<{ lat: number; lng: number; display: string } | null> {
   const key = q.trim().toLowerCase();
   // token bucket: min 550ms between Nominatim calls
   const wait = 550 - (Date.now() - lastCall);

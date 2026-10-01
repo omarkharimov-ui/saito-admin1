@@ -2122,7 +2122,11 @@ export default function POSPage() {
     // Before: a stale delivery_km (e.g. 3.4 km from geocode) made the RPC
     // re-resolve to the old zone and the operator's chip selection silently
     // reverted (the contradiction seen in the screenshot).
-    const repKm = zoneRepKm(zone);
+    // 11t: a precise/geocoded KM (suggestion pick or geocode) is the distance
+    // source of truth — the chip tap must NOT overwrite it with the zone
+    // midpoint. Representative KM stays a fallback for when no distance exists.
+    const hasKm = Number(nextCart.delivery_km) >= 0.1;
+    const repKm = hasKm ? null : zoneRepKm(zone);
     const pinnedCart = repKm != null ? { ...nextCart, delivery_km: repKm } : nextCart;
     if (repKm != null) pos.setCart(pinnedCart);
     await recalcDeliveryFee(pinnedCart, zoneName, { pinZone: true });
@@ -2138,7 +2142,10 @@ export default function POSPage() {
   const deliveryZoneName = posMode === 'delivery' ? pos.cart?.delivery_zone : null;
   useEffect(() => {
     if (!pos.cart || !deliveryZoneName || (pos.cart.items || []).length === 0) return;
-    const t = setTimeout(() => { recalcDeliveryFee(pos.cart, deliveryZoneName); }, 350);
+    // 11t: pinZone — this zone was the operator's explicit chip choice; a
+    // cart-total change (free-threshold crossing) re-prices the SAME zone at
+    // the same KM, it never re-resolves by km-range (which could flip it).
+    const t = setTimeout(() => { recalcDeliveryFee(pos.cart, deliveryZoneName, { pinZone: true }); }, 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryItemsTotal, deliveryZoneName, !!pos.cart]);
@@ -2162,6 +2169,15 @@ export default function POSPage() {
         setPosPhase('customer');
         setCustomerFocus({ field: 'delivery_address', n: Date.now() });
         toast.error(t('enter_address'));
+        return;
+      }
+      // 11t: zone is now an explicit operator decision — a delivery order
+      // must never be created with the default ₼0 fee (the server bills
+      // exactly what the cart carries; a missing zone would bill free).
+      if (posMode === 'delivery' && !pos.cart?.delivery_zone) {
+        setPosPhase('customer');
+        setCustomerFocus({ field: 'delivery_zone', n: Date.now() });
+        toast.error('Çatdırılma zonası seçin');
         return;
       }
       // Delivery Phase 2 (2026-09-24): live gates — accepting pause + min
@@ -3143,24 +3159,17 @@ export default function POSPage() {
                                   const next = { ...pos.cart, [field]: value };
                                   pos.setCart(next);
                                   if (posMode !== 'delivery') return;
-                                  // 2026-09-26 (owner, Task 50, Wolt-style): the
-                                  // MOMENT the address is typed and no zone is
-                                  // selected → auto-commit the top-priority
-                                  // active zone and price the fee immediately
-                                  // (previously the fee only appeared after a
-                                  // manual zone-chip click; the recalc effect
-                                  // also skips EMPTY carts, so call it here).
-                                  if (field === 'delivery_address' && String(value || '').trim() && !next.delivery_zone && !(Number(next.delivery_km) >= 0.1)) {
-                                    const z = [...deliveryZones].sort((a: any, b: any) => (a.priority ?? 999) - (b.priority ?? 999))[0];
-                                    if (z) {
-                                      const withZone = { ...next, delivery_zone: z.name };
-                                      pos.setCart(withZone);
-                                      recalcDeliveryFee(withZone, z.name);
-                                    }
-                                  } else if (field === 'delivery_km' && Number(value) >= 0.1 && next.delivery_zone) {
-                                    // KM typed → distance overload re-prices.
-                                    recalcDeliveryFee(next, next.delivery_zone);
-                                  }
+                                   // 11t (owner: "zonanı özün seçir, men
+                                   // seçmirem" — 2026-10-01): the address-typing
+                                   // auto-commit of the top-priority zone is
+                                   // REMOVED. Zone = an explicit operator
+                                   // decision (chip tap). A KM change only
+                                   // re-prices the ALREADY-SELECTED zone
+                                   // (pinZone: explicit zone always wins) — it
+                                   // never flips the zone by km-range.
+                                   if (field === 'delivery_km' && Number(value) >= 0.1 && next.delivery_zone) {
+                                     recalcDeliveryFee(next, next.delivery_zone, { pinZone: true });
+                                   }
                                 }}
                                 onZoneSelect={handleZoneSelect}
                                 onBack={() => { setPosPhase('products'); setCustomerFocus(null); }}

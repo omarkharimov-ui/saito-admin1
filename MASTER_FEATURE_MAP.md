@@ -809,6 +809,49 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11t: GOOGLE-MAPS-STİLİ ADDRESS SUGGEST + ZONE MANUAL SEÇİM)
+
+Owner: "20 yanvar yazdım — sistem özbaşına bir rayonu seçdi (haranı dedim?); google maps kimi
+suggest olsun, zone-nu MEN seçirem, hardcode seçməsin". + "yazırsan silirsən loop-u"
+(köhnə HMR state — clean dev restart ilə həll).
+
+1. **SUGGEST ENGINE (`/api/geocode/suggest` — yeni route):** Nominatim `limit=7`,
+   `countrycodes=az`, `accept-language=az` → BÜTÜN uyğun nöqtələr (rayon adı display_name-da
+   görünür) + venue→nöqtə KM. Variant fallback (raw + ASCII, max 2 call), 10s in-process
+   cache, token bucket (1 req/s). Venue bootstrap **/api/geocode-un EYNİ helper-ləri ilə**
+   (export: `transliterate`/`candidates`/`haversineKm`/`nominatimOnce`) → suggest KM ==
+   geocode KM; 60s venue cache (keystroke-debounce təkrar Nominatim chain-etmir). Dedup:
+   eyni küçənin çox OSM way-i (1102/1134 poçt) bir sətirdə birləşir.
+2. **SUGGEST UI (`CustomerPhasePanel`):** 600ms debounce + AbortController; dropdown =
+   pin icon + tam yer adı (2 sətir, rayon görünür) + KM chip; ArrowUp/Down/Enter/Escape;
+   **tap = dəqiq seç** → address tam ad, KM dəqiq (≈ YOX), zone toxunulmur.
+   **Re-open bug (E2E catch):** pick-dan sonra tam ad ÖZÜ Nominatim hit-i → dropdown 600ms
+   sonra tək sətirlə geri açılırdı → `suggestPickedRef` (picked name; manual keystroke-da
+   clear) — fixed; 8s-wait E2E-da CLOSED təsdiq.
+3. **ZONE 100% MANUAL (owner: "men seçmirem"):**
+   - Adres yazanda top-priority zone **auto-commit SİLİNDİ** (page.tsx onUpdate branch).
+   - Fee box zone-sız = **"Zone seçin"** (₼0 göstərilmir — "pulsuz" oxunurdu).
+   - KM dəyişikliyi = yalnız **SEÇİLİ** zone re-price (`pinZone`) — zone km-range ilə flip
+     olunmur (ölkən: "zonanı özün seçir").
+   - Chip tap: mövcud dəqiq/geocode KM **overwrite olunmur** (zone-midpoint repKm yalnız
+     KM yoxdursa fallback).
+   - Cart-total recalc effect → `pinZone` (operator seçimi flip olunmur).
+   - **sendCurrentOrder gate:** zone-sız delivery order YARADILMIR ("Çatdırılma zonası
+     seçin") — server cart-da olanı bill edir; zone-sız = ₼0 = pulsuz çatdırılma riski idi.
+4. **Input loop ("yazırsan silirsən"):** köhnə dev server-in HMR state (10+ hot-swap,
+   page module re-init → cart reset) — clean restart (`next dev -p 3000`) ilə typing
+   STABLE (0 wipe, browser E2E təsdiq). Code-də loop yox idi.
+- **Browser E2E (r11t-1..4):** "20 yanvar" → 5 row (Bakı Nəsimi 4.7 km birinci; Bərdə
+  229.5; Neftçala 121.3; Samux 291.8; Yevlax 226.9) → tap → zone NEUTRAL + "Zone seçin"
+  ✅ → chip tap → ₼2 + **KM 4.7 preserved** ✅ → pick-dan sonra dropdown CLOSED (8s) ✅.
+  Console 0 new error. tsc clean.
+- **Qeydlər (növbəti round-lar üçün):** (a) bu location-da 1 delivery zone (data) — flow
+  düzgün; (b) Nominatim free-text rank variance: eyni query fərqli run-da 5/2 row
+  qaytara bilər — top match (Bakı) sabit; (c) `locations` rows-un latitude/longitude
+  NULL-dir — hər route venue-ni address bootstrap edir (persist yalnız
+  precision='address'-də; "Nizami küç. 98" area-hit verir) → venue coords DB-ə yazmaq
+  növbəti round candidate.
+
 ### Jurnal sətiri — 2026-10-01 (ROUND 11s: AUTOFILL GEOCODE — AZ TRANSKRİPSİYA-VARIANT MUQAVİMƏTİ + SAME-CITY FİX + KEYLESS WEATHER API)
 
 Owner: "sumqayit niyazi 27A yazsaq sistem basa duse bilsin — AZ şriftləri ilə yazmaq

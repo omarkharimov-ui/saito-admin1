@@ -50,9 +50,13 @@ interface CashDrawerPanelProps {
       removed the permanent clock button (09-21 owner request) — so the
       button lives on-demand inside that dialog. Returns success. */
   onClockIn?: () => Promise<boolean>;
+  /** 11r (owner, Variant A — cash gate): fired the moment a drawer session
+      is OPEN (both the direct open and the clock-in → auto-retry path).
+      The POS uses it to auto-retry the cash payment that was gated. */
+  onDrawerOpened?: () => void;
 }
 
-export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelProps) {
+export function CashDrawerPanel({ open, onClose, onClockIn, onDrawerOpened }: CashDrawerPanelProps) {
   const { lightMode } = useTheme();
   const keyboardHeight = useKeyboardHeight();
   const { t } = useLanguage();
@@ -148,6 +152,9 @@ export function CashDrawerPanel({ open, onClose, onClockIn }: CashDrawerPanelPro
       toast.success(t('cash_drawer_open'));
       setOpeningBalance('');
       await fetchData();
+      // 11r: the cash-gate retry hook — fires on BOTH open paths (direct and
+      // clock-in → auto-retry), so the gated payment always resumes.
+      onDrawerOpened?.();
       return true;
     }
     const err = await res.json().catch(() => ({} as any));

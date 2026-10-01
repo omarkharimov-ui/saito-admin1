@@ -143,12 +143,38 @@ export default function POSPage() {
   const [actionSheetTable, setActionSheetTable] = useState<any>(null);
   const [flashInfo, setFlashInfo] = useState<{ tableNumber: number; nonce: number } | null>(null);
   const [cashDrawerOpen, setCashDrawerOpen] = useState(false);
-  // 11q (owner: "kassa açılmadan sifariş qəbul etmək nə dərəcədə düzgündür"):
-  // orders/payments intentionally have NO shift gate (a forgotten drawer must
-  // never stop sales), but the ACCOUNTING hole is made visible — while no
-  // shift is open the POS wears this slim banner, and the day-close report
-  // will show the unshifted window. Poll /api/cash-drawer every 60s.
+  // 11q → 11r (owner): the drawer-presence poll. 11q made the accounting
+  // hole VISIBLE (banner); 11r (owner, Variant A — "nağd ödəniş üçün şift
+  // məcburi") made it a HARD gate on CASH receipts: while no drawer session
+  // is open, cash payments are blocked (server-side, fail-closed) and the
+  // POS offers a one-tap "KASSANI AÇ" with auto-retry. Order creation and
+  // card/QR payments stay ungated — sales never stop.
   const [shiftMissing, setShiftMissing] = useState(false);
+  // 11r: the pending cash retry. Stores the EXACT payment call that was
+  // gated; when the drawer opens (CashDrawerPanel onDrawerOpened) it re-runs
+  // with the SAME idempotency key (payKeyFor) — the server dedupes, so the
+  // retry is money-safe. Cleared when the ActionSheet closes (stale retries
+  // must never fire against a cancelled/abandoned flow).
+  const [cashGate, setCashGate] = useState<{ retry: () => void } | null>(null);
+  const [cashGateModal, setCashGateModal] = useState(false);
+  const openCashGate = (retry: () => void) => {
+    setCashGate({ retry });
+    setCashGateModal(true);
+  };
+  const handleDrawerOpened = () => {
+    setShiftMissing(false);
+    const retry = cashGate?.retry;
+    if (!retry) return; // plain open flow — the operator keeps the panel
+    setCashGate(null);
+    setCashGateModal(false);
+    setCashDrawerOpen(false);
+    // The retry closure self-guards (runPaymentFlow early-returns without
+    // actionSheetTable) — no extra state checks here.
+    retry();
+  };
+  // (11r cash-gate cleanup effect lives below the `paymentView` declaration —
+  // a const referenced before its declaration is a TDZ error even inside a
+  // closure; see the effect right after paymentView.)
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   // 2026-09-25 (owner: "waitlist duzelt"): dine-in queue (Növbə) panel.
   const [waitlistOpen, setWaitlistOpen] = useState(false);
@@ -195,6 +221,15 @@ export default function POSPage() {
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [cleanMode, setCleanMode] = useState(false);
   const [paymentView, setPaymentView] = useState(false);
+  // 11r (E2E catch, round 1): the cash-gate cleanup was anchored to
+  // `actionSheetOpen` — but the PAYMENT VIEW renders with the action sheet
+  // CLOSED (paymentView is a separate prop), so the effect wiped the pending
+  // retry the moment the gate modal appeared → auto-retry never fired.
+  // Anchor to the flow that actually owns the retry: leaving the payment
+  // view (back/cancel/close) is what makes a pending retry stale.
+  useEffect(() => {
+    if (!paymentView) setCashGate(null);
+  }, [paymentView]);
   const [receiptView, setReceiptView] = useState<PosReceipt | null>(null);
   const [receiptTendered, setReceiptTendered] = useState<number | undefined>(undefined);
   // 2026-09-26 (Q8 offline phase 2): receipt flag when payment was captured
@@ -1145,8 +1180,20 @@ export default function POSPage() {
   const cartTotalNow = () =>
     Number(pos.cart?.items?.reduce((s: number, i: any) => s + (i.total_price || 0), 0) || 0) || 0;
 
-  const runPaymentFlow = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge' | string, tenderedAmount?: number, tipAmount?: number, cardRef?: string) => {
+  // 11r: skipPrecheck — the auto-retry (after the drawer opens) MUST bypass
+  // the local pre-check: the retry closure is a STALE render where
+  // shiftMissing=true still, so re-running the pre-check would just re-open
+  // the gate modal forever (silent dead loop — E2E round 2). The server gate
+  // (403 CASH_DRAWER_REQUIRED) remains the SSOT and re-validates on every call.
+  const runPaymentFlow = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge' | string, tenderedAmount?: number, tipAmount?: number, cardRef?: string, skipPrecheck = false) => {
     if (!actionSheetTable) return;
+    // 11r: cash pre-check — the 60s poll already knows the drawer state; fail
+    // fast with the open-drawer modal instead of waiting for the 403. The
+    // server re-checks (SSOT, fail-closed) — the poll only buys snappy UX.
+    if (!skipPrecheck && method === 'cash' && shiftMissing) {
+      openCashGate(() => runPaymentFlow(method, tenderedAmount, tipAmount, cardRef, true));
+      return;
+    }
     const tableNumbers = actionSheetGroup
       ? [actionSheetTable.table_number, ...actionSheetGroup.children.map((c: any) => c.table_number)]
       : (actionSheetTable ? [actionSheetTable.table_number] : []);
@@ -1185,10 +1232,17 @@ export default function POSPage() {
           }),
         });
 
-        if (!payRes.ok) {
-          const err = await payRes.json();
-          // 2026-09-23: already-paid (overpay guard) -> friendly message, not raw DB text.
-          if (err.error === 'ORDER_ALREADY_PAID' || err.already_paid) {
+          if (!payRes.ok) {
+            const err = await payRes.json();
+            // 11r: CASH GATE — the server found no open drawer session. Open
+            // the one-tap "KASSANI AÇ" modal; the payment auto-retries (same
+            // idempotency key) the moment the drawer is open.
+            if (payRes.status === 403 && (err.cash_drawer_required || err.error === 'CASH_DRAWER_REQUIRED')) {
+              openCashGate(() => runPaymentFlow(method, tenderedAmount, tipAmount, cardRef, true));
+              return;
+            }
+            // 2026-09-23: already-paid (overpay guard) -> friendly message, not raw DB text.
+            if (err.error === 'ORDER_ALREADY_PAID' || err.already_paid) {
             toast.error(t('order_already_paid'), { id: 'action-toast' });
             pos.fetchData();
             return;
@@ -1307,11 +1361,18 @@ export default function POSPage() {
           if (qd.queued) { queuedCount++; continue; }
         }
 
-        if (!res.ok) {
-          const err = await res.json();
-          failedOrders.push(activeOrder.id);
-          console.error(`Payment failed for order ${activeOrder.id}:`, err);
-        }
+          if (!res.ok) {
+            const err = await res.json();
+            // 11r: CASH GATE — abort the loop; after the drawer opens the
+            // whole flow re-runs (already-paid orders are filtered out by the
+            // final-status check, so no double charge).
+            if (res.status === 403 && (err.cash_drawer_required || err.error === 'CASH_DRAWER_REQUIRED')) {
+              openCashGate(() => runPaymentFlow(method, tenderedAmount, tipAmount, cardRef, true));
+              return;
+            }
+            failedOrders.push(activeOrder.id);
+            console.error(`Payment failed for order ${activeOrder.id}:`, err);
+          }
       }
 
       if (failedOrders.length > 0) {
@@ -1410,10 +1471,17 @@ export default function POSPage() {
     await runPaymentFlow(method, tenderedAmount, tipAmount, cardRef);
   };
 
-  const handleSplitConfirm = async (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }, tipAmount?: number) => {
+  const handleSplitConfirm = async (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }, tipAmount?: number, skipPrecheck = false) => {
     if (!actionSheetTable && posMode === 'dine_in') return;
     const cash = parseFloat(split.cash) || 0;
     const card = parseFloat(split.card) || 0;
+    // 11r: a split with a CASH portion touches the drawer → same gate as
+    // plain cash (a card-only split is never gated). Auto-retry passes
+    // skipPrecheck=true (stale-closure guard, same as runPaymentFlow).
+    if (!skipPrecheck && cash > 0 && shiftMissing) {
+      openCashGate(() => handleSplitConfirm(split, tipAmount, true));
+      return;
+    }
     // P1: tip carried from the payment sheet; attached to the first order of the split.
     const manualTip = Math.max(0, Number(tipAmount) || 0);
     const tableNumbers = actionSheetGroup
@@ -1479,20 +1547,26 @@ export default function POSPage() {
             }),
           });
           
-           // 11f (offline): a queued split payment is NOT yet applied —
-           // toast the queue state and skip the failure bookkeeping.
-           if (res.status === 202) {
-             const qd = await res.json().catch(() => ({}));
-             if (qd.queued) {
-               toast.success('Ödəniş offline növbəyə yazıldı — bağlantı qayıdanda avtomatik işlənəcək ✓', { id: 'action-toast' });
-               continue;
-             }
-           }
-           if (!res.ok) {
-             const err = await res.json();
-             failedOrders.push(activeOrder.id);
-             console.error(`Split payment failed for order ${activeOrder.id}:`, err);
-           }
+            // 11f (offline): a queued split payment is NOT yet applied —
+            // toast the queue state and skip the failure bookkeeping.
+            if (res.status === 202) {
+              const qd = await res.json().catch(() => ({}));
+              if (qd.queued) {
+                toast.success('Ödəniş offline növbəyə yazıldı — bağlantı qayıdanda avtomatik işlənəcək ✓', { id: 'action-toast' });
+                continue;
+              }
+            }
+            if (!res.ok) {
+              const err = await res.json();
+              // 11r: CASH GATE (cash portion of the split) — abort, auto-retry
+              // the whole split after the drawer opens.
+              if (res.status === 403 && (err.cash_drawer_required || err.error === 'CASH_DRAWER_REQUIRED')) {
+                openCashGate(() => handleSplitConfirm(split, tipAmount, true));
+                return;
+              }
+              failedOrders.push(activeOrder.id);
+              console.error(`Split payment failed for order ${activeOrder.id}:`, err);
+            }
          }
        } else {
          // Proportional split across orders
@@ -1517,19 +1591,25 @@ export default function POSPage() {
               idempotency_key: payKeyFor(activeOrder.id),
             }),
           });
-           // 11f (offline): queued split payment — see the per-item branch above.
-           if (res.status === 202) {
-             const qd = await res.json().catch(() => ({}));
-             if (qd.queued) {
-               toast.success('Ödəniş offline növbəyə yazıldı — bağlantı qayıdanda avtomatik işlənəcək ✓', { id: 'action-toast' });
-               continue;
-             }
-           }
-           if (!res.ok) {
-             const err = await res.json();
-             failedOrders.push(activeOrder.id);
-             console.error(`Split payment failed for order ${activeOrder.id}:`, err);
-           }
+            // 11f (offline): queued split payment — see the per-item branch above.
+            if (res.status === 202) {
+              const qd = await res.json().catch(() => ({}));
+              if (qd.queued) {
+                toast.success('Ödəniş offline növbəyə yazıldı — bağlantı qayıdanda avtomatik işlənəcək ✓', { id: 'action-toast' });
+                continue;
+              }
+            }
+            if (!res.ok) {
+              const err = await res.json();
+              // 11r: CASH GATE (cash portion of the split) — abort, auto-retry
+              // the whole split after the drawer opens.
+              if (res.status === 403 && (err.cash_drawer_required || err.error === 'CASH_DRAWER_REQUIRED')) {
+                openCashGate(() => handleSplitConfirm(split, tipAmount, true));
+                return;
+              }
+              failedOrders.push(activeOrder.id);
+              console.error(`Split payment failed for order ${activeOrder.id}:`, err);
+            }
          }
        }
 
@@ -2376,9 +2456,9 @@ export default function POSPage() {
         {shiftMissing && (
           <div className="mx-6 mt-2 flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5">
             <AlertTriangle size={15} className="text-amber-400 flex-shrink-0" />
-            <p className="text-[11px] font-bold text-amber-200 flex-1">
-              Kassa (shift) açıq deyil — sifarişləri qəbul etmək olar, amma nağd hesabat tam qalmır (gün sonu report bu pəncərəni qeyd edir).
-            </p>
+             <p className="text-[11px] font-bold text-amber-200 flex-1">
+               Kassa (shift) açıq deyil — NAĞD ödəniş qəbul edilə bilməz (kart/QR açıqdır). Sifariş qəbulu davam edir.
+             </p>
             <button
               onClick={() => setCashDrawerOpen(true)}
               className="flex-shrink-0 rounded-xl bg-amber-400 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-zinc-950 active:scale-95 transition-transform"
@@ -3508,7 +3588,41 @@ export default function POSPage() {
         open={cashDrawerOpen}
         onClose={() => setCashDrawerOpen(false)}
         onClockIn={handleClockIn}
+        onDrawerOpened={handleDrawerOpened}
       />
+
+      {/* 11r (owner, Variant A): the CASH GATE modal. Shown when a cash
+          payment (or a split with a cash portion) is attempted with no open
+          drawer session — either by the local pre-check or the server's
+          403 CASH_DRAWER_REQUIRED. One tap opens the CashDrawerPanel; the
+          gated payment auto-retries (same idempotency key) on drawer open.
+          Card/QR flows never see this modal. */}
+      {cashGateModal && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setCashGateModal(false)} />
+          <div className={`relative pointer-events-auto w-[92%] max-w-sm rounded-3xl border p-6 shadow-elevated ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}>
+            <div className={`mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border ${lightMode ? 'bg-amber-50 border-amber-200' : 'bg-amber-500/15 border-amber-500/30'}`}>
+              <AlertTriangle size={22} className="text-amber-500" />
+            </div>
+            <h3 className={`text-base font-black uppercase tracking-tight mb-2 ${lightMode ? 'text-zinc-900' : 'text-white'}`}>Kassa açıq deyil</h3>
+            <p className={`text-xs leading-relaxed mb-5 ${lightMode ? 'text-zinc-500' : 'text-white/55'}`}>
+              Nağd ödəniş almaq üçün əvvəl kassa növbəsini (shift) açmalısınız. Kart / QR ödənişləri hər zaman keçir. Kassa açılandıqdan sonra ödəniş avtomatik davam edəcək.
+            </p>
+            <button
+              onClick={() => { setCashGateModal(false); setCashDrawerOpen(true); }}
+              className="w-full py-3.5 rounded-2xl bg-amber-400 text-zinc-950 text-xs font-black uppercase tracking-wider active:scale-[0.97] transition-transform"
+            >
+              Kassanı aç
+            </button>
+            <button
+              onClick={() => setCashGateModal(false)}
+              className={`mt-2 w-full py-3 rounded-2xl text-[11px] font-bold transition-colors ${lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/35 hover:text-white/60'}`}
+            >
+              Başqa ödəniş üsulu
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 2026-09-24 (owner: "tam məlumat ver — hansı terminaldı, self-ordermı,
           KDS/BDS-mi"): full second-writer conflict dialog. Shows WHICH channel

@@ -123,19 +123,44 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get open cash drawer session for SSOT logging
+    // Get open cash drawer session for SSOT logging. 11r: scoped to the
+    // operator's location — the old lookup grabbed ANY open session in the
+    // org (multi-location deployments would have bound cash to the wrong drawer).
     let cashDrawerSessionId: string | null = null;
     if ((cashPortion > 0 || cardPortion > 0)) {
       try {
         const s = svc();
-        const { data: openSession } = await fetch(
-          `${s.url}/rest/v1/cash_drawer_sessions?select=id&status=eq.open&order=opened_at.desc&limit=1`,
+        // 11r (E2E catch, round 3 — LATENT BUG since this feature was born):
+        // the original code did `const { data: openSession } = await fetch(...)`
+        // — destructuring `data` out of a PostgREST ROW object ({id}), which is
+        // always undefined. The session binding silently NEVER worked (null was
+        // "non-fatal"), and the new hard gate exposed it. Await the full JSON
+        // (array of rows) and take rows[0]. No destructuring.
+        const rows: any = await fetch(
+          `${s.url}/rest/v1/cash_drawer_sessions?select=id&status=eq.open&location_id=eq.${encodeURIComponent(operatorLocation.locationId)}&order=opened_at.desc&limit=1`,
           { headers: s.headers }
-        ).then(r => r.json()).then((rows: any) => rows?.[0] || null).catch(() => null);
+        ).then(r => r.json()).catch((e) => { console.error('[pay] cash drawer session lookup failed (fail-closed for cash):', e); return null; });
+        const openSession = Array.isArray(rows) ? (rows[0] || null) : null;
         if (openSession?.id) cashDrawerSessionId = openSession.id;
       } catch (e) {
-        console.error('[pay] cash drawer session lookup failed (non-fatal):', e);
+        console.error('[pay] cash drawer session lookup failed (fail-closed for cash):', e);
       }
+    }
+
+    // 11r (owner, Variant A — "nağd ödəniş üçün şift məcburi"): every CASH
+    // receipt must bind to an open drawer session, or the day-close report
+    // cannot attribute the money (the exact hole: "bu pulu kim, hansı
+    // növbədə alıb?"). Cash = the whole payment OR any cash portion of a
+    // split (per-item allocations included). Card/QR/transfer/corporate/
+    // gift-card never touch the drawer → never gated. Order CREATION stays
+    // ungated — sales never stop; only the physical cash receipt is gated.
+    // The client catches CASH_DRAWER_REQUIRED, shows the one-tap "KASSANI AÇ"
+    // modal, and auto-retries with the same idempotency key after the drawer
+    // opens (server re-validates; the key makes the retry idempotent).
+    const hasCashPortion = cashPortion > 0
+      || (Array.isArray(per_item_allocations) && per_item_allocations.some((a: any) => a?.payment_method === 'cash' && (Number(a.amount) || 0) > 0));
+    if (hasCashPortion && !cashDrawerSessionId) {
+      return NextResponse.json({ error: 'CASH_DRAWER_REQUIRED', cash_drawer_required: true }, { status: 403 });
     }
 
     const paymentsPayload = (per_item_allocations && Array.isArray(per_item_allocations) && per_item_allocations.length > 0)

@@ -19,9 +19,10 @@
  * station has how many items and whether that station's items are ready.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Bike, ShoppingBag, Phone, MapPin, Wallet, CheckCircle2, Clock, User, ChefHat, PackageCheck, Navigation, Flag, LayoutGrid, Utensils, PauseCircle, ChevronDown } from '@/components/ui/saito-icons';
+import { Bike, ShoppingBag, Phone, MapPin, Wallet, CheckCircle2, Clock, User, ChefHat, PackageCheck, Navigation, Flag, LayoutGrid, Utensils, PauseCircle, X } from '@/components/ui/saito-icons';
+import { appleBackdrop } from '@/lib/modal-transitions';
 import toast from 'react-hot-toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -29,6 +30,10 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useCrossTableRefresh } from '@/hooks/useCrossTableRefresh';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 26 } as const;
+// 2026-10-02 (12g, owner): "POS-da olan tick transition var — eynisindən
+// istifadə edək" — the POS product-grid shared-element morph (card ⇄
+// centered modal, spring 300/30/0.8).
+const MORPH_SPRING = { type: 'spring', stiffness: 300, damping: 30, mass: 0.8 } as const;
 const POLL_MS = 5000;
 // 2026-10-02 (12e, owner BDS review B1): the board showed 47-day-old
 // GÖZLƏYİR zombies (86 non-terminal orders >7 days old in the dev DB).
@@ -100,6 +105,14 @@ export default function BDSPage() {
   // ONE order expanded at a time; the card grows, no modal.
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
+  // 12g (owner): tap = card MORPHS into a centered order modal (POS tick
+  // transition); the grid slot keeps an invisible placeholder. ESC closes.
+  const expandedOrder = orders.find(o => o.id === expandedId) || null;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setExpandedId(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Delivery Phase 2 (2026-09-24): live accepting-pause — state comes from
   // the /api/orders poll (delivery.accepting), so it tracks Settings changes
@@ -412,24 +425,44 @@ export default function BDSPage() {
                   o.order_source === 'delivery' ? 'delivery' : o.order_source === 'takeaway' ? 'pickup' : 'dine_in';
                 const isDeliveryKind = isAllTab ? kind === 'delivery' : isDeliveryTab;
                 const taken = kind === 'pickup' && o.status === 'served';
-                return (
-                  <motion.div
-                    key={o.id}
-                    layout
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.97 }}
-                    transition={reduceMotion ? { duration: 0 } : SPRING}
-                    // 12f: tap = in-place expand (detail without leaving board)
-                    onClick={() => setExpandedId(prev => (prev === o.id ? null : o.id))}
-                    className={`rounded-3xl border p-4 flex flex-col gap-3 cursor-pointer ${
-                      taken
-                        ? (lightMode ? 'bg-white border-zinc-200 opacity-70' : 'bg-white/[0.015] border-white/[0.06] opacity-70')
-                        : (kReady && !isDeliveryTab
-                          ? (lightMode ? 'bg-emerald-50/60 border-emerald-200' : 'bg-emerald-500/[0.04] border-emerald-500/25')
-                          : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-white/[0.02] border-white/[0.08]'))
-                    }`}
-                  >
+                 // 12g: POS aesthetic — rounded-4xl + shadow-card.
+                 const cardCls = `rounded-4xl border p-4 flex flex-col gap-3 ${
+                   taken
+                     ? (lightMode ? 'bg-white border-zinc-200 opacity-70 shadow-card' : 'bg-white/[0.015] border-white/[0.06] opacity-70 shadow-card')
+                     : (kReady && !isDeliveryTab
+                       ? (lightMode ? 'bg-emerald-50/60 border-emerald-200 shadow-card' : 'bg-emerald-500/[0.04] border-emerald-500/25 shadow-card')
+                       : (lightMode ? 'bg-white border-zinc-200 shadow-card' : 'bg-white/[0.02] border-white/[0.08] shadow-card'))
+                 }`;
+                 return (
+                   <Fragment key={o.id}>
+                    {expandedId === o.id ? (
+                      // Invisible placeholder: reserves the card's height while
+                      // the order lives in the modal (ProductGrid pattern —
+                      // only ONE layoutId element in the tree at a time).
+                      <div aria-hidden className="relative opacity-0 pointer-events-none select-none">
+                        <div className={`rounded-4xl border p-4 ${lightMode ? 'border-zinc-200' : 'border-white/[0.08]'}`}>
+                          <div className="h-[22px] mb-3" />
+                          <div className="h-[18px] mb-3" />
+                          {isDeliveryKind && (o.delivery_address || o.delivery_zone) && <div className="h-[20px] mb-3" />}
+                          {stEntries.length > 0 && <div className="h-[26px] mb-3" />}
+                          <div className="h-[26px] mb-3" />
+                          {kind === 'delivery' && <div className="h-[34px] mb-3" />}
+                          <div className="h-[38px]" />
+                        </div>
+                      </div>
+                    ) : (
+                    <motion.div
+                      layout
+                      layoutId={`bds-card-${o.id}`}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.97 }}
+                      transition={reduceMotion ? { duration: 0 } : SPRING}
+                      whileTap={{ scale: 0.965, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
+                      // 12g: tap = the card MORPHS into the centered order modal
+                      onClick={() => setExpandedId(o.id)}
+                      className={`cursor-pointer ${cardCls}`}
+                    >
                       {/* Title row — per-order kind: "Masa N" / "Çatdırılma XXXX" / "Gel-Al XXXX" */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
@@ -445,20 +478,10 @@ export default function BDSPage() {
                             <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{orderNo}</span>
                           )}
                         </div>
-                       <span className="flex items-center gap-1 shrink-0">
-                         <span className={`text-[11px] font-bold tabular-nums flex items-center gap-1 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                           <Clock size={11} />
-                           {elapsed(o.created_at)}
-                         </span>
-                         <motion.span
-                           aria-hidden
-                           animate={{ rotate: expandedId === o.id ? 180 : 0 }}
-                           transition={reduceMotion ? { duration: 0 } : SPRING}
-                           className={`w-7 h-7 rounded-full flex items-center justify-center ${lightMode ? 'text-zinc-300' : 'text-white/30'}`}
-                         >
-                           <ChevronDown size={14} />
-                         </motion.span>
-                       </span>
+                        <span className={`text-[11px] font-bold tabular-nums flex items-center gap-1 shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                          <Clock size={11} />
+                          {elapsed(o.created_at)}
+                        </span>
                      </div>
 
                     {/* Customer */}
@@ -616,60 +639,244 @@ export default function BDSPage() {
                        )}
                      </div>
 
-                     {/* 12f (owner): in-place detail — full item list (read-
-                         only; kitchen status is owned by the KDS) + customer
-                         note. The dispatcher taps a card to see WHAT is on
-                         the order without leaving the board. */}
-                     <AnimatePresence initial={false}>
-                       {expandedId === o.id && (
-                         <motion.div
-                           key="detail"
-                           initial={{ height: 0, opacity: 0 }}
-                           animate={{ height: 'auto', opacity: 1 }}
-                           exit={{ height: 0, opacity: 0 }}
-                           transition={reduceMotion ? { duration: 0 } : SPRING}
-                           className="overflow-hidden"
-                         >
-                           <div className="space-y-2.5 pt-0.5">
-                             <div className={`h-px w-full ${lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'}`} />
-                             {(() => {
-                               const activeItems = (o.order_items || []).filter(it => (it.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(it.kitchen_status));
-                               if (activeItems.length === 0) return null;
-                               return (
-                                 <div>
-                                   <p className={`text-[9px] font-black uppercase tracking-[0.18em] mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_items')}</p>
-                                   <div className="space-y-1">
-                                     {activeItems.map(it => {
-                                       const itReady = ['ready', 'completed'].includes(it.kitchen_status);
-                                       return (
-                                         <div key={it.id} className="flex items-center justify-between gap-2">
-                                           <span className={`text-xs font-semibold truncate ${itReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-zinc-700' : 'text-white/75')}`}>
-                                             {it.product_name || it.name || '—'} ×{it.quantity}
-                                           </span>
-                                           <span className={`text-[10px] font-black shrink-0 ${itReady ? 'text-emerald-500' : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>
-                                             {stationName(it.station_id)}{itReady ? ' ✓' : ''}
-                                           </span>
-                                         </div>
-                                       );
-                                     })}
-                                   </div>
-                                 </div>
-                               );
-                             })()}
-                             {o.customer_note && (
-                               <p className={`text-xs font-medium px-2.5 py-1.5 rounded-xl ${lightMode ? 'bg-amber-50 text-amber-700' : 'bg-amber-500/[0.07] text-amber-300'}`}>{o.customer_note}</p>
-                             )}
-                           </div>
-                         </motion.div>
-                       )}
-                     </AnimatePresence>
-                   </motion.div>
+                    </motion.div>
+                    )}
+                  </Fragment>
                  );
-               })}
+                })}
              </AnimatePresence>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+           </div>
+         )}
+       </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          12g — ORDER MODALI (owner): the tapped card MORPHS (layoutId,
+          POS product-grid tick transition — the same spring 300/30/0.8)
+          into this centered surface. The sticky footer keeps the action
+          always visible (POS pattern).
+          ══════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {expandedOrder && (() => {
+          const o = expandedOrder;
+          const kind: 'delivery' | 'pickup' | 'dine_in' = o.order_source === 'delivery' ? 'delivery' : o.order_source === 'takeaway' ? 'pickup' : 'dine_in';
+          const orderNo = (String(o.order_number || '').replace(/[^0-9]/g, '')) || String(o.id).slice(-4).toUpperCase();
+          const kLabel = KITCHEN_LABEL[o.kitchen_status || 'pending'] || KITCHEN_LABEL.pending;
+          const kReady = kitchenReady(o);
+          const valid = transitions[o.delivery_status || 'confirmed'] || [];
+          const bdsButtons = valid.filter(s => BDS_OWNED[s]);
+          const taken = kind === 'pickup' && o.status === 'served';
+          const activeItems = (o.order_items || []).filter(it => (it.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(it.kitchen_status));
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={reduceMotion ? { duration: 0 } : appleBackdrop}
+              className="fixed inset-0 z-[130] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4"
+              onClick={() => setExpandedId(null)}
+            >
+              <motion.div
+                layoutId={`bds-card-${o.id}`}
+                transition={reduceMotion ? { duration: 0 } : MORPH_SPRING}
+                exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                onClick={e => e.stopPropagation()}
+                className={`w-full max-w-[640px] max-h-[92vh] flex flex-col rounded-4xl border shadow-elevated overflow-hidden ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+              >
+                {/* Header */}
+                <div className={`flex flex-shrink-0 items-start justify-between gap-4 p-5 pb-4 border-b ${lightMode ? 'border-zinc-100' : 'border-white/[0.08]'}`}>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {kind === 'delivery'
+                        ? <Bike size={18} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
+                        : kind === 'dine_in'
+                          ? <Utensils size={18} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
+                          : <ShoppingBag size={18} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />}
+                      <h2 className={`text-2xl font-black tracking-tight truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                        {kind === 'delivery' ? t('delivery_short') : kind === 'dine_in' ? `${t('table_label')} ${o.table_number ?? '?'}` : t('takeaway_short')}
+                      </h2>
+                      {kind !== 'dine_in' && <span className={`text-xl font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{orderNo}</span>}
+                      <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold tabular-nums border ${lightMode ? 'bg-zinc-100 text-zinc-500 border-zinc-200' : 'bg-white/[0.04] text-white/40 border-white/[0.08]'}`}>
+                        <Clock size={11} />{elapsed(o.created_at)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 min-w-0 mt-2.5">
+                      <User size={13} className={lightMode ? 'text-zinc-300' : 'text-white/30'} />
+                      <span className={`text-sm font-bold truncate ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>{o.customer_name || '—'}</span>
+                      {o.customer_phone && (
+                        <a
+                          href={`tel:${o.customer_phone}`}
+                          className={`ml-auto flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold tabular-nums border transition-all active:scale-[0.97] shrink-0 ${lightMode ? 'bg-white border-zinc-200 text-blue-500 hover:border-blue-300' : 'bg-white/[0.04] border-white/[0.08] text-blue-300 hover:border-blue-400/40'}`}
+                        >
+                          <Phone size={14} />{o.customer_phone}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  <motion.button
+                    onClick={() => setExpandedId(null)}
+                    whileHover={{ rotate: 90, scale: 1.06 }}
+                    whileTap={{ scale: 0.82 }}
+                    transition={SPRING}
+                    aria-label="Bağla"
+                    className={`p-2 rounded-xl border shrink-0 ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-100 hover:text-red-400' : 'border-white/10 text-white/70 hover:bg-white/10 hover:text-red-400'}`}
+                  >
+                    <X size={20} />
+                  </motion.button>
+                </div>
+
+                {/* Body — scrollable */}
+                <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto">
+                  {/* Address + zone + fee + ETA (delivery) */}
+                  {kind === 'delivery' && (o.delivery_address || o.delivery_zone) && (
+                    <div className={`rounded-2xl border p-4 ${lightMode ? 'bg-zinc-50/70 border-zinc-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+                      <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Ünvan</p>
+                      <div className="flex items-start gap-2">
+                        <MapPin size={14} className={`mt-0.5 shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`} />
+                        <p className={`text-sm font-semibold break-words ${lightMode ? 'text-zinc-800' : 'text-white/80'}`}>{o.delivery_address || '—'}</p>
+                      </div>
+                      <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        {o.delivery_zone && <span className={`text-[11px] font-black px-2.5 py-1 rounded-full border ${lightMode ? 'bg-purple-50 text-purple-500 border-purple-200' : 'bg-purple-500/10 text-purple-300 border-purple-400/20'}`}>{o.delivery_zone}</span>}
+                        {Number(o.delivery_fee) > 0 && <span className={`flex items-center gap-1 text-[11px] font-black ${lightMode ? 'text-amber-500' : 'text-amber-300'}`}><Wallet size={11} />₼{Number(o.delivery_fee).toFixed(0)}</span>}
+                        {o.estimated_delivery_time && (() => {
+                          const eta = new Date(o.estimated_delivery_time);
+                          const overdue = !Number.isNaN(eta.getTime()) && eta.getTime() < Date.now();
+                          return (
+                            <span className={`flex items-center gap-1 text-[11px] font-black ${overdue ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-zinc-400' : 'text-white/40')}`}>
+                              <Clock size={11} /> ETA {eta.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Məhsullar — read-only (kitchen status is owned by the KDS) */}
+                  {activeItems.length > 0 && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_items')}</p>
+                      <div className="space-y-1.5">
+                        {activeItems.map(it => {
+                          const itReady = ['ready', 'completed'].includes(it.kitchen_status);
+                          return (
+                            <div key={it.id} className={`flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 border ${lightMode ? 'bg-zinc-50/70 border-zinc-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+                              <span className={`text-sm font-semibold truncate ${itReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-zinc-800' : 'text-white/80')}`}>
+                                {it.product_name || it.name || '—'} ×{it.quantity}
+                              </span>
+                              <span className={`text-[10px] font-black shrink-0 ${itReady ? 'text-emerald-500' : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>
+                                {stationName(it.station_id)}{itReady ? ' ✓' : ''}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Customer note */}
+                  {o.customer_note && (
+                    <p className={`text-sm font-medium rounded-xl px-3.5 py-2.5 ${lightMode ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-amber-500/[0.07] text-amber-300 border border-amber-500/15'}`}>{o.customer_note}</p>
+                  )}
+
+                  {/* Kitchen status — READ-ONLY (owned by KDS) */}
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[11px] font-black px-2.5 py-1 rounded-full border ${kLabel.cls}`}>{t(kLabel.key as any)}</span>
+                    <span className={`text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded-md border ${lightMode ? 'text-zinc-400 border-zinc-200 bg-zinc-50' : 'text-white/30 border-white/[0.08] bg-white/[0.03]'}`}>KDS</span>
+                    {!kReady && kind !== 'dine_in' && <span className={`text-[11px] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('bds_waiting_kitchen')}</span>}
+                  </div>
+
+                  {/* Courier (delivery only) — real staff record */}
+                  {kind === 'delivery' && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => setCourierPickerFor(courierPickerFor === o.id ? null : o.id)}
+                        className={`flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-black border transition-all active:scale-[0.97] ${
+                          o.courier_name
+                            ? (lightMode ? 'bg-sky-50 border-sky-300 text-sky-600' : 'bg-sky-500/10 border-sky-400/30 text-sky-300')
+                            : (lightMode ? 'bg-white border-dashed border-zinc-300 text-zinc-400 hover:border-zinc-400' : 'bg-white/[0.02] border-dashed border-white/15 text-white/40 hover:border-white/30')
+                        }`}
+                      >
+                        <Bike size={13} />
+                        {o.courier_name || (t('bds_pick_courier') || 'Kuryer seç')}
+                      </button>
+                      {courierPickerFor === o.id && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {couriers.length === 0 && (
+                            <span className={`text-[11px] font-bold px-2 py-1 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('bds_courier_empty') || 'Staff-də aktiv kuryer yoxdur'}</span>
+                          )}
+                          {couriers.map(c => (
+                            <button
+                              key={c.id}
+                              onClick={() => assignCourier(o, c)}
+                              className={`h-8 px-3 rounded-full text-[11px] font-black border transition-all active:scale-95 ${
+                                c.name === o.courier_name
+                                  ? 'bg-emerald-500 text-white border-emerald-400'
+                                  : (lightMode ? 'bg-white border-zinc-300 text-zinc-600 hover:border-emerald-400' : 'bg-white/5 border-white/10 text-white/60 hover:border-emerald-400/50')
+                              }`}
+                            >
+                              {c.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Sticky footer — BDS-owned actions */}
+                <div className="p-5 pt-0 flex-shrink-0">
+                  {kind === 'dine_in' ? (
+                    <span className={`flex items-center justify-center gap-1.5 text-[11px] font-bold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                      <ChefHat size={12} />{t('bds_dinein_kds') || 'Mətbəx statusu KDS-də idarə olunur'}
+                    </span>
+                  ) : kind === 'delivery' ? (
+                    bdsButtons.length === 0 ? (
+                      <span className={`block text-center text-[11px] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                        {!kReady ? t('bds_waiting_kitchen') : o.courier_name ? `${t('bds_courier')}: ${o.courier_name}` : t('bds_no_action')}
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-2 flex-wrap justify-center">
+                        {bdsButtons.map(s => {
+                          const meta = BDS_OWNED[s];
+                          const Icon = meta.icon;
+                          const disabled = (s === 'picked_up' && !kReady) || busyId === o.id;
+                          return (
+                            <button
+                              key={s}
+                              disabled={disabled}
+                              onClick={() => doDeliveryTransition(o, s)}
+                              title={s === 'picked_up' && !kReady ? t('bds_kitchen_not_ready') : undefined}
+                              className={`${s === 'delivered' ? btnPrimary : btnNeutral} ${disabled ? btnDisabled : ''}`}
+                            >
+                              <Icon size={13} />
+                              {t(meta.key as any)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )
+                  ) : (
+                    taken ? (
+                      <span className={`flex items-center justify-center gap-1.5 text-xs font-black ${lightMode ? 'text-emerald-500' : 'text-emerald-400'}`}>
+                        <CheckCircle2 size={14} /> {t('bds_handed_over')}
+                      </span>
+                    ) : (
+                      <button
+                        disabled={!kReady || busyId === o.id}
+                        onClick={() => doTakeawayHandover(o)}
+                        title={!kReady ? t('bds_kitchen_not_ready') : undefined}
+                        className={`w-full flex items-center justify-center gap-2 ${kReady ? btnPrimary : btnDisabled}`}
+                      >
+                        <PackageCheck size={14} />
+                        {t('bds_handover')}
+                      </button>
+                    )
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+     </div>
+   );
+ }

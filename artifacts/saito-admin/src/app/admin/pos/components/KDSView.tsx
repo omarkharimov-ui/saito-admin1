@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Clock, ChefHat, CheckCircle2, AlertTriangle, Volume2, VolumeX,
-  Package, Truck, Utensils, Flame, Timer, Bell, Printer, Coffee, ChevronDown, Phone
+  Package, Truck, Utensils, Flame, Timer, Bell, Printer, Coffee, Phone, X
 } from '@/components/ui/saito-icons';
+import { appleBackdrop } from '@/lib/modal-transitions';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -28,7 +29,10 @@ const KDS_STALE_MS = 24 * 60 * 60 * 1000;
 // card entry/exit + ✓ feedback = small structural motion (fast spring, no
 // bounce); in-place expand = one visible settling step (softer spring).
 const CARD_SPRING = { type: 'spring', stiffness: 420, damping: 34 } as const;
-const EXPAND_SPRING = { type: 'spring', stiffness: 320, damping: 32 } as const;
+// 2026-10-02 (12g, owner: "POS-da olan tick transition var — eynisindən
+// istifadə edək"): the EXACT shared-element morph of the POS product grid
+// (ProductGrid.tsx — layoutId card ⇄ centered modal, spring 300/30/0.8).
+const MORPH_SPRING = { type: 'spring', stiffness: 300, damping: 30, mass: 0.8 } as const;
 
 interface KDSItem {
   id: string;
@@ -105,9 +109,11 @@ function getTimerStyles(color: 'green' | 'yellow' | 'red' | 'purple', lightMode:
         ? 'bg-red-100 text-red-700 border-red-200'
         : 'bg-red-500/10 text-red-300 border-red-500/20';
     case 'purple':
+      // 12g (owner: "Gecikmə qırmızı rəngdə göstərilsin"): GEÇİKME is now
+      // SOLID red — deliberately stronger than KRİTİK's red tint (worse).
       return lightMode
-        ? 'bg-purple-100 text-purple-700 border-purple-200'
-        : 'bg-purple-500/10 text-purple-300 border-purple-500/20';
+        ? 'bg-red-600 text-white border-red-600'
+        : 'bg-red-500/90 text-white border-red-500';
   }
 }
 
@@ -475,6 +481,17 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     o.items.some(i => itemInBoard(i) && (!stationFilter || itemStation(i) === stationFilter))
   );
 
+  // 2026-10-02 (12g, owner): "in place yox — elementin MORPH edərək ekranın
+  // ortasında modal kimi açılması" — the tapped ticket lives in a centered
+  // modal (POS product-grid tick transition); the grid slot keeps an
+  // invisible placeholder. ESC closes.
+  const expandedOrder = orders.find(o => o.id === expandedId) || null;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setExpandedId(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -585,29 +602,49 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                    return Array.from(m.values());
                  })();
                  const isExpanded = expandedId === order.id;
+                 // 12g (owner): POS aesthetic (rounded-4xl + shadow-card) and
+                 // delay state = RED (border-only; the background stays calm).
+                 const cardCls = `relative overflow-hidden rounded-4xl border p-4 transition-colors duration-300 ${
+                   allItemsReady
+                     ? (lightMode ? 'border-emerald-300 bg-emerald-50/80 shadow-card' : 'border-emerald-500/30 bg-emerald-500/[0.06] shadow-card')
+                     : timer.color === 'red'
+                       ? (lightMode ? 'border-red-300 bg-white shadow-card' : 'border-red-500/40 bg-white/[0.02] shadow-card')
+                       : timer.color === 'purple'
+                       ? (lightMode ? 'border-red-400 bg-white shadow-card' : 'border-red-500/55 bg-white/[0.02] shadow-card')
+                       : (lightMode ? 'border-gray-200 bg-white shadow-card' : 'border-white/[0.08] bg-white/[0.02] shadow-card')
+                 }`;
                  return (
-                    // 12f (owner): TAP = in-place expand (rule 5: morph, not
-                    // modal) + entry/exit springs (rule 3/11).
-                    // 12f (owner): "gecikende full kart qirmizi olmasinda
-                    // cirkin olur" — the card STAYS neutral; urgency lives in
-                    // the timer pill + a border-only tint (no red flood).
+                   <Fragment key={order.id}>
+                    {isExpanded ? (
+                      // Invisible placeholder: reserves the card's height while
+                      // the ticket lives in the modal (ProductGrid pattern —
+                      // only ONE layoutId element in the tree at a time, so no
+                      // "crossfade restore" glitch can happen).
+                      <div aria-hidden className="relative opacity-0 pointer-events-none select-none">
+                        <div className={`rounded-4xl border p-4 ${lightMode ? 'border-gray-200' : 'border-white/[0.08]'}`}>
+                          <div className="h-[30px] mb-2.5" />
+                          <div className="h-[34px] mb-3" />
+                          {order.order_source !== 'dine_in' && order.customer_phone && <div className="h-[18px] mb-2" />}
+                          <div className="space-y-1.5 mb-3">
+                            {visibleItems.map(it => <div key={it.id} className="h-[46px]" />)}
+                          </div>
+                          {order.customer_note && <div className="h-[34px] mb-2" />}
+                          {allItemsReady && <div className="h-[48px]" />}
+                        </div>
+                      </div>
+                    ) : (
                     <motion.div
-                      key={order.id}
                       layout
+                      layoutId={`kds-ticket-${order.id}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.98 }}
                       transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
-                      onClick={() => setExpandedId(prev => (prev === order.id ? null : order.id))}
-                      className={`relative overflow-hidden rounded-3xl border p-4 transition-colors duration-300 cursor-pointer ${
-                        allItemsReady
-                          ? (lightMode ? 'border-emerald-300 bg-emerald-50/80' : 'border-emerald-500/30 bg-emerald-500/[0.06]')
-                          : timer.color === 'red'
-                            ? (lightMode ? 'border-red-300 bg-white shadow-sm' : 'border-red-500/40 bg-white/[0.02] shadow-sm')
-                            : timer.color === 'purple'
-                            ? (lightMode ? 'border-violet-300 bg-white shadow-sm' : 'border-violet-500/35 bg-white/[0.02] shadow-sm')
-                            : (lightMode ? 'border-gray-200 bg-white shadow-sm' : 'border-white/[0.08] bg-white/[0.02]')
-                      }`}
+                      whileTap={{ scale: 0.965, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
+                      // 12g: tap = the card MORPHS into the centered ticket
+                      // modal (POS product-grid tick transition, same spring).
+                      onClick={() => setExpandedId(order.id)}
+                      className={`cursor-pointer ${cardCls}`}
                     >
                      {/* 2026-09-25 (owner redesign): partner branding on the ticket —
                          brand-color left stripe + NATIVE logo (no white sticker)
@@ -633,15 +670,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                              {timer.text}
                            </span>
                          )}
-                        </div>
-                        <motion.span
-                          aria-hidden
-                          animate={{ rotate: isExpanded ? 180 : 0 }}
-                          transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
-                          className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${lightMode ? 'text-gray-300' : 'text-white/30'}`}
-                        >
-                          <ChevronDown size={15} />
-                        </motion.span>
+                         </div>
                       </div>
                       <div className="flex items-center gap-2 mb-3">
                         <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold tracking-[0.18em] border ${getTimerStyles(timer.color, lightMode)}`}>
@@ -765,72 +794,6 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                       </div>
                     )}
 
-                    {/* 12f (owner): IN-PLACE detail — "kart in place expand
-                        olmalıdır ki detalli baxa bilsin chef". Same card,
-                        grows (rule 5: morph, rule 6: neighbours reflow via
-                        layout). No modal, no new screen. */}
-                    <AnimatePresence initial={false}>
-                      {isExpanded && (
-                        <motion.div
-                          key="detail"
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={reduceMotion ? { duration: 0 } : EXPAND_SPRING}
-                          className="overflow-hidden"
-                        >
-                          <div className="space-y-2.5 pb-1">
-                            <div className={`h-px w-full ${lightMode ? 'bg-gray-100' : 'bg-white/[0.06]'}`} />
-                            {order.order_source !== 'dine_in' && (
-                              <div>
-                                <p className={`text-[9px] font-black uppercase tracking-[0.18em] mb-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('kds_customer')}</p>
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className={`text-sm font-bold truncate ${lightMode ? 'text-gray-800' : 'text-white/80'}`}>{order.customer_name || '—'}</span>
-                                  {order.customer_phone && (
-                                    <a
-                                      href={`tel:${order.customer_phone}`}
-                                      onClick={e => e.stopPropagation()}
-                                      className={`ml-auto flex items-center gap-1 text-xs font-bold tabular-nums shrink-0 ${lightMode ? 'text-blue-500' : 'text-blue-300'}`}
-                                    >
-                                      <Phone size={11} />{order.customer_phone}
-                                    </a>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                            {stationProgress.length > 0 && (
-                              <div>
-                                <p className={`text-[9px] font-black uppercase tracking-[0.18em] mb-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('kds_stations')}</p>
-                                <div className="space-y-1">
-                                  {stationProgress.map(g => {
-                                    const done = g.ready >= g.qty;
-                                    return (
-                                      <div key={g.name} className="flex items-center justify-between gap-2">
-                                        <span className={`text-[11px] font-semibold ${lightMode ? 'text-gray-600' : 'text-white/60'}`}>{g.name}</span>
-                                        <span className={`text-[11px] font-black tabular-nums ${done ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-amber-600' : 'text-amber-400')}`}>
-                                          {g.ready}/{g.qty}
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                            {order.estimated_delivery_time && (() => {
-                              const eta = new Date(order.estimated_delivery_time);
-                              if (Number.isNaN(eta.getTime())) return null;
-                              const overdue = eta.getTime() < Date.now();
-                              return (
-                                <p className={`flex items-center gap-1 text-[11px] font-bold ${overdue ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-gray-500' : 'text-white/45')}`}>
-                                  <Clock size={10} /> ETA {eta.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                                </p>
-                              );
-                            })()}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-
                     {/* Action — whole-order invariant: the complete button
                         appears only when EVERY station's items are ready.
                         On a station board with this station done but others
@@ -850,13 +813,226 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                         {t('kds_other_stations_pending')} · {otherPending}
                       </div>
                     ) : null}
-                  </motion.div>
-                );
-              })}
+                    </motion.div>
+                    )}
+                  </Fragment>
+                 );
+               })}
             </AnimatePresence>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
+         )}
+       </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          12g — TİCKET MODALI (owner): the tapped card MORPHS (layoutId,
+          POS product-grid tick transition — the same spring 300/30/0.8)
+          into this centered surface: full item list with 48px ✓ targets,
+          full modifiers, notes, customer, stations, ETA. Sticky footer.
+          ══════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {expandedOrder && (() => {
+          const o = expandedOrder;
+          const timer = getItemTimerStatus(o.created_at, Math.max(1, Math.round(delayMin / 2)), delayMin);
+          const items = o.items.filter(i => (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status));
+          const allReady = items.length > 0 && items.every(isItemReady);
+          const stationMap = new Map<string, { name: string; qty: number; ready: number }>();
+          for (const it of items) {
+            const st = itemStation(it);
+            const nm = st ? (stations.find(s => s.id === st)?.name || 'Main Kitchen') : 'Main Kitchen';
+            const e = stationMap.get(nm) || { name: nm, qty: 0, ready: 0 };
+            e.qty += it.quantity;
+            if (isItemReady(it)) e.ready += it.quantity;
+            stationMap.set(nm, e);
+          }
+          const title = o.order_source === 'dine_in' ? `Masa ${o.table_number ?? '?'}` : o.customer_name || (o.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'));
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={reduceMotion ? { duration: 0 } : appleBackdrop}
+              className="fixed inset-0 z-[130] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4"
+              onClick={() => setExpandedId(null)}
+            >
+              <motion.div
+                layoutId={`kds-ticket-${o.id}`}
+                transition={reduceMotion ? { duration: 0 } : MORPH_SPRING}
+                exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                onClick={e => e.stopPropagation()}
+                className={`w-full max-w-[680px] max-h-[92vh] flex flex-col rounded-4xl border shadow-elevated overflow-hidden ${lightMode ? 'bg-white border-gray-200' : 'bg-zinc-900 border-white/10'}`}
+              >
+                {/* Header — ad · badge · timer · print · X */}
+                <div className={`flex flex-shrink-0 items-start justify-between gap-4 p-5 pb-4 border-b ${lightMode ? 'border-gray-100' : 'border-white/[0.08]'}`}>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h2 className={`text-2xl font-black tracking-tight truncate ${lightMode ? 'text-gray-900' : 'text-white'}`}>{title}</h2>
+                      {getOrderBadge(o, lightMode)}
+                      <PartnerLogo source={o.partner_source} height={22} lightMode={lightMode} />
+                    </div>
+                    <div className="flex items-center gap-2 mt-2.5">
+                      <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold tabular-nums border ${getTimerStyles(timer.color, lightMode)}`}>
+                        <Timer size={12} />
+                        {formatElapsedMin(timer.elapsed)}
+                      </span>
+                      {(timer.color === 'red' || timer.color === 'purple') && (
+                        <span className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold tracking-wider border ${getTimerStyles(timer.color, lightMode)}`}>
+                          <AlertTriangle size={11} />{timer.text}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => reprintTicket(o)}
+                        title="Bileti yenidən çap et"
+                        className={`ml-auto w-9 h-9 rounded-xl flex items-center justify-center border transition-all ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' : 'bg-white/[0.04] border-white/[0.08] text-white/40 hover:text-white/70'}`}
+                      >
+                        <Printer size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <motion.button
+                    onClick={() => setExpandedId(null)}
+                    whileHover={{ rotate: 90, scale: 1.06 }}
+                    whileTap={{ scale: 0.82 }}
+                    transition={CARD_SPRING}
+                    aria-label="Bağla"
+                    className={`p-2 rounded-xl border shrink-0 ${lightMode ? 'border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-red-400' : 'border-white/10 text-white/70 hover:bg-white/10 hover:text-red-400'}`}
+                  >
+                    <X size={20} />
+                  </motion.button>
+                </div>
+
+                {/* Body — scrollable */}
+                <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto">
+                  {/* Məhsullar — full spec + 48px ✓ targets */}
+                  <div className="space-y-2.5">
+                    {items.map(item => {
+                      const itemReady = isItemReady(item);
+                      const modList = item.modifiers ?? [];
+                      const alLabels = parseAllergens(item.allergens).map((a: any) =>
+                        resolveAllergenEntry(a)?.label ||
+                        (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
+                      ).filter(Boolean);
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex items-start justify-between gap-3 rounded-2xl border p-4 ${item.is_hold ? (lightMode ? 'bg-zinc-900/[0.03] border-zinc-300' : 'bg-amber-500/[0.06] border-amber-500/30') : itemReady ? (lightMode ? 'bg-emerald-50/70 border-emerald-200' : 'bg-emerald-500/[0.05] border-emerald-500/20') : (lightMode ? 'bg-zinc-50/70 border-gray-100' : 'bg-white/[0.03] border-white/[0.06]')}`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                              {item.is_hold && (
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${lightMode ? 'bg-zinc-900 text-white' : 'bg-amber-500/20 text-amber-400'}`}>HOLD</span>
+                              )}
+                              <span className={`text-base font-bold ${itemReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-gray-900' : 'text-white/90')}`}>{item.name}</span>
+                              {item.course && (
+                                <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md ${lightMode ? 'bg-sky-100 text-sky-700' : 'bg-sky-500/15 text-sky-400'}`}>{item.course}</span>
+                              )}
+                              {alLabels.length > 0 && (
+                                <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${lightMode ? 'bg-red-100 text-red-700' : 'bg-red-500/15 text-red-400'}`}>
+                                  <AlertTriangle size={10} />{alLabels.join(' · ')}
+                                </span>
+                              )}
+                            </div>
+                            {modList.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-2.5">
+                                {modList.map((m, mi) => (
+                                  <span key={m.id || mi} className={`px-2 py-1 rounded-lg text-[11px] font-semibold border ${lightMode ? 'bg-white border-gray-200 text-gray-600' : 'bg-white/[0.04] border-white/[0.08] text-white/60'}`}>
+                                    {m.name}{(m.quantity && m.quantity > 1) ? ` ×${m.quantity}` : ''}{(m.price ?? 0) > 0 ? ` · ₼${Number(m.price).toFixed(2).replace(/\.?0+$/, '')}` : ''}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {item.special_notes && (
+                              <p className={`text-xs font-semibold mt-2 ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>{item.special_notes}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className={`text-base font-black tabular-nums ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>×{item.quantity}</span>
+                            {!itemReady ? (
+                              <button
+                                onClick={() => handleItemStatus(o.id, item.id, 'ready')}
+                                className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold border transition-all active:scale-90 ${lightMode ? 'bg-white border-gray-200 text-gray-300 hover:border-emerald-400 hover:text-emerald-500' : 'bg-white/[0.04] border-white/15 text-white/30 hover:border-emerald-500/50 hover:text-emerald-400 active:border-emerald-500 active:text-emerald-400'}`}
+                              >
+                                ✓
+                              </button>
+                            ) : (
+                              <CheckCircle2 size={24} className="text-emerald-500" />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Müştəri (takeaway/delivery) */}
+                  {o.order_source !== 'dine_in' && (
+                    <div className={`rounded-2xl border p-4 ${lightMode ? 'bg-zinc-50/70 border-gray-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+                      <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('kds_customer')}</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className={`text-base font-bold truncate ${lightMode ? 'text-gray-900' : 'text-white/90'}`}>{o.customer_name || '—'}</span>
+                        {o.customer_phone && (
+                          <a
+                            href={`tel:${o.customer_phone}`}
+                            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold tabular-nums border transition-all active:scale-[0.97] ${lightMode ? 'bg-white border-gray-200 text-blue-500 hover:border-blue-300' : 'bg-white/[0.04] border-white/[0.08] text-blue-300 hover:border-blue-400/40'}`}
+                          >
+                            <Phone size={14} />{o.customer_phone}
+                          </a>
+                        )}
+                      </div>
+                      {o.customer_note && (
+                        <p className={`mt-3 text-sm font-medium rounded-xl px-3 py-2 ${lightMode ? 'text-amber-700 bg-amber-50 border border-amber-100' : 'text-amber-300 bg-amber-500/[0.07] border border-amber-500/15'}`}>{o.customer_note}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Stansiyalar — whole-order progress */}
+                  {stationMap.size > 0 && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('kds_stations')}</p>
+                      <div className="space-y-1.5">
+                        {Array.from(stationMap.values()).map(g => {
+                          const done = g.ready >= g.qty;
+                          return (
+                            <div key={g.name} className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 border ${lightMode ? 'bg-zinc-50/70 border-gray-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+                              <span className={`text-sm font-semibold ${lightMode ? 'text-gray-700' : 'text-white/70'}`}>{g.name}</span>
+                              <span className={`text-sm font-black tabular-nums ${done ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-amber-600' : 'text-amber-400')}`}>{g.ready}/{g.qty}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ETA (delivery) */}
+                  {o.estimated_delivery_time && (() => {
+                    const eta = new Date(o.estimated_delivery_time);
+                    if (Number.isNaN(eta.getTime())) return null;
+                    const overdue = eta.getTime() < Date.now();
+                    return (
+                      <p className={`flex items-center gap-1.5 text-sm font-bold ${overdue ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-gray-500' : 'text-white/45')}`}>
+                        <Clock size={13} /> ETA {eta.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    );
+                  })()}
+                </div>
+
+                {/* Sticky footer — the action is always visible (POS pattern) */}
+                <div className="p-5 pt-0 flex-shrink-0">
+                  {allReady ? (
+                    <button
+                      onClick={() => handleMarkReady(o.id)}
+                      className={`w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-black uppercase tracking-widest transition-all active:scale-[0.99] ${lightMode ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-emerald-500 text-white hover:bg-emerald-400'}`}
+                    >
+                      <CheckCircle2 size={16} />{t('complete_order')}
+                    </button>
+                  ) : (
+                    <p className={`text-center text-[11px] font-bold uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('kds_check_items')}</p>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+     </div>
+   );
+ }

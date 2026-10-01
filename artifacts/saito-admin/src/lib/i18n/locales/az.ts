@@ -2038,6 +2038,7 @@ export const az = {
   kds_customer: 'Müştəri',
   kds_stations: 'Stansiyalar',
   kds_items: 'Məhsullar',
+  kds_check_items: 'Məhsulları ✓ ilə qeyd et',
   kds_all_stations: 'HAMISI',
   bds_title: 'BDS — Təhvil Paneli',
   bds_subtitle: 'Çatdırılma & Gel-Al əməliyyatları — BDS statusları buradan idarə olunur (mətbəx = KDS)',

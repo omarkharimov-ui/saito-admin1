@@ -2028,6 +2028,7 @@ export const en: TranslationMap = {
   kds_customer: 'Customer',
   kds_stations: 'Stations',
   kds_items: 'Items',
+  kds_check_items: 'Mark items ready with ✓',
   kds_all_stations: 'ALL',
   bds_title: 'BDS — Fulfillment Board',
   bds_subtitle: 'Delivery & Takeaway operations — BDS statuses are controlled here (kitchen = KDS)',

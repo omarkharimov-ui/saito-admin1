@@ -2029,6 +2029,7 @@ export const ru: TranslationMap = {
   kds_customer: 'Клиент',
   kds_stations: 'Станции',
   kds_items: 'Позиции',
+  kds_check_items: 'Отмечайте позиции ✓',
   kds_all_stations: 'ВСЕ',
   bds_title: 'BDS — Доска выполнения',
   bds_subtitle: 'Доставка и самовывоз — статусы BDS управляются здесь (кухня = KDS)',

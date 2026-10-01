@@ -809,6 +809,46 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-01 (ROUND 11r: CASH GATE VARIANT A — NAĞD ÖDƏNIŞ KASSA SESSİYASINA BAĞLANDI + FINAL E2E)
+
+Owner: kassa açılmadan NAĞD ödəniş alınmasın (Variant A — sərt nəzarət). Kart/QR/transfer heç vaxt
+blok olmasın. Sifariş qəbulu (order create) heç vaxt blok olmasın. One-tap "Kassanı aç" + kassa
+açılanda auto-retry.
+
+1. **SERVER GATE (SSOT):** `/api/orders/pay` — `hasCashPortion` (full cash OR split-də cash qismi OR
+   per-item cash allocation) və operator-un **location-da AÇIQ drawer session YOXDURSA** → **403
+   `CASH_DRAWER_REQUIRED`** (fail-closed). Drawer lookup indi LOCATION-SCOPE-dədir (əvvəl org-wide idi).
+   Kart/QR/transfer/corporate/gift heç vaxt blok olunmur; **order create heç vaxt blok olunmur**.
+2. **LATENT BUG #1 (pre-11r, E2E-də açıldı):** pay route `const { data: openSession } = await
+   fetch(...)` destruct edirdi → `openSession` HƏMİŞƏ undefined → `p_cash_drawer_session_id` HƏMİŞƏ
+   null idi (session binding heç vaxt işləməyib — "non-fatal" olduğu üçün gizli qalıb). Fix: await
+   full JSON array → `rows[0]`, destructuring YOX. **E2E təsdiqi (2026-10-01):** `cash_drawer_log.
+   session_id` = 9462b5a9… (non-null) + `order_id` = ORD-2947 — binding indi REAL işləyir.
+3. **CLIENT GATE MODAL (`pos/page.tsx`):** `shiftMissing` (60s poll, 11q) → pre-check: cash + kassa
+   bağlı = modal DƏRHAL (round-trip yox; server qalır SSOT). 403 `CASH_DRAWER_REQUIRED` handling
+   BÜTÜN 4 POST yerində (runPaymentFlow specific-order + dine-in loop; handleSplitConfirm per-item +
+   ratio). Modal `cashGateModal` (z-130): "KASSA AÇIQ DEYIL" + one-tap **Kassanı aç** + "Başqa ödəniş
+   üsulu". `cashGate` state = pending retry closure; CashDrawerPanel-in yeni `onDrawerOpened` prop-u
+   retry-i fırladır (direct-open + clock-in→auto-retry yolunun HƏR İKİSİ əhatə olunur).
+4. **LATENT BUG #2 (stale-closure sonsuz dövr, E2E catch):** retry closure köhnə `runPaymentFlow`-u
+   işlədir → hələ `shiftMissing=true` → pre-check yenidən fırlanır → modal sonsuza qədər açılır,
+   POST heç getmir. Fix: `skipPrecheck` param — BÜTÜN auto-retry closure-lar `true` ötürür (server
+   SSOT qalır).
+5. **LATENT BUG #3 (cleanup yanlış state-ə bağlı idi, E2E catch):** `if (!actionSheetOpen)
+   setCashGate(null)` retry-i yuyurdu — PAYMENT VIEW action sheet CAPALI vəchə render olunur.
+   Re-anchor: `if (!paymentView)` (effect `paymentView` declaration-ından SONRA — TDZ).
+6. **MICROCOPY (11q banner):** "NAĞD ödəniş qəbul edilə bilməz (kart/QR açıqdır). Sifariş qəbulu
+   davam edir."
+- **tsc clean (source; `src/__tests__` jest-ti pək mövcud), production build PASS.**
+- **FINAL E2E (r11r-v6, 2026-10-01 14:14 Baku — handoff-un qalan tək scenariyi):** ORD-2947 (masa 471,
+  dine_in, ₼10, UNPAID) → ⋯ → HESABI BAĞLA → NAĞD, verilən 10 → ÖDƏNIŞI TAMAMLA → **gate modal
+  "KASSA AÇIQ DEYIL"** → KASSANI AÇ → Kassa panel → KASSA AÇ (shift clock-in implicit: SMENA AÇIQ
+  @14:14) → **panel auto-bağlandı + paymentsiz auto-retry** → receipt "SİFARİŞ ÖDƏNILDI ✓" ₼10
+  (Nağd, verilən 10.00, qalıq 0.00) → **amber banner GONE** → kassa log: "Kassa açıldı +0.00₼" +
+  **"Nağd Ödəniş · Masa 471 +10.00₼"**. DB təsdiqi: order `paid`, `cash_received=10`, `change=0`,
+  `order_payments` cash row + drawer log rows **session-bound (non-null)**. Kart payment gate-siz
+  keçdi (attempts 1–5, masa 472 ₼35). **Console 0 error.** Shots: `e2e-shots/r11r-v6-*.png`.
+
 ### Jurnal sətiri — 2026-10-01 (ROUND 11q: ZONA MƏNTİQİ FİX + DİNAMİK ETA + KASSA BANNER + MICROCOPY)
 
 Owner: (1) zona vs Ümumi min-sifariş ziddiyyəti (15 vs 3) + KM aralığı məntiqi (0–5 km zonadan

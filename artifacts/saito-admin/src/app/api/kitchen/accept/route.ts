@@ -30,6 +30,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: m }, { status: 500 });
     }
     if (!data?.success) return NextResponse.json(data || { error: 'ACCEPT_FAILED' }, { status: 409 });
+    // 12p: the RPC does NOT stamp the accept time — write it here (when
+    // still NULL) so GÜN Ø QƏBUL + the legacy kitchen timer base stay
+    // truthful now that KDS auto-accept is the only accept path.
+    await supabase
+      .from('orders')
+      .update({ kitchen_accepted_at: new Date().toISOString() })
+      .eq('id', order_id)
+      .is('kitchen_accepted_at', null);
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error('[API /kitchen/accept] Error:', error);

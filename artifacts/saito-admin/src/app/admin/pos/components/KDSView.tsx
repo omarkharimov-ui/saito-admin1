@@ -620,27 +620,45 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, ...fn(o) } : o)));
   };
 
-  const handleAccept = async (orderId: string) => {
-    try {
-      const res = await apiFetch('/api/kitchen/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
-        return;
-      }
-      patchOrder(orderId, () => ({
-        kitchen_status: 'accepted',
-        kitchen_accepted_at: new Date().toISOString(),
-      }));
-      toast.success(t('kds_accepted_toast') || 'Qəbul olundu — hazırlanır', { id: 'kds-toast' });
-    } catch {
-      toast.error(t('status_update_error'), { id: 'kds-toast' });
+  // 12p (owner): "bir dəfə qəbul et, ondan sonra görünməsin — əlavə qəbul
+  // et-ə ehtiyac yoxdur" — the "Qəbul et" button is GONE (card pill + modal
+  // footer). The terminal ACCEPTS each pending order ONCE, automatically,
+  // the moment it sees it (initial fetch / 5 s poll / realtime refetch):
+  // the order lands straight into HAZIRLANIR, in the button's place.
+  //   • fired once per order per session (acceptedRef Set);
+  //   • SILENT — no toast (it is not a user action);
+  //   • on failure: re-armed for the next tick; worst case the order stays
+  //     GÖZLƏYİR and the "Hazırdır" CTA still reaches ready from pending —
+  //     no dead end.
+  const acceptedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const o of orders) {
+      if (o.kitchen_status !== 'pending') continue;
+      if (acceptedRef.current.has(o.id)) continue;
+      acceptedRef.current.add(o.id);
+      void (async () => {
+        try {
+          const res = await apiFetch('/api/kitchen/accept', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_id: o.id }),
+          });
+          if (res.ok) {
+            patchOrder(o.id, () => ({
+              kitchen_status: 'accepted',
+              kitchen_accepted_at: new Date().toISOString(),
+            }));
+          } else {
+            acceptedRef.current.delete(o.id);
+            console.warn('[KDS 12p] auto-accept failed:', o.id, res.status);
+          }
+        } catch (e) {
+          acceptedRef.current.delete(o.id);
+          console.warn('[KDS 12p] auto-accept failed:', o.id, e);
+        }
+      })();
     }
-  };
+  }, [orders]);
 
   // "Hazırdır" — NO forced per-item tick (owner: "sifariş tamamlamaq üçün
   // məcburi tika basmaq olmamalıdır"). 12m: STATION-SCOPED — item_ids given
@@ -778,21 +796,14 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             }}
             className={`cursor-pointer ${cardCls}`}
           >
-            {/* Row 1 — title + "Qəbul et" (quiet pill, pending only) + timer */}
-            <div className="flex items-center justify-between gap-2">
-              <span className={`text-[15px] font-semibold tracking-tight truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
-              </span>
-              <span className="flex items-center gap-1.5 shrink-0">
-                {!inReadyTab && wf === 'pending' && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); handleAccept(order.id); }}
-                    className={`h-7 px-3 rounded-full border text-[11px] font-semibold transition-colors active:scale-[0.98] ${lightMode ? 'bg-white border-zinc-300 text-zinc-700 hover:border-zinc-400' : 'bg-white/[0.06] border-white/20 text-white/75 hover:border-white/40'}`}
-                  >
-                    {t('kds_accept_btn')}
-                  </button>
-                )}
+              {/* Row 1 — title + timer (12p: the "Qəbul et" quiet pill is
+                  GONE — the terminal auto-accepts pending orders silently;
+                  the order shows straight as HAZIRLANIR) */}
+              <div className="flex items-center justify-between gap-2">
+                <span className={`text-[15px] font-semibold tracking-tight truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                  {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
+                </span>
+                <span className="flex items-center gap-1.5 shrink-0">
                 {visibleItems.length > 1 && (
                   <span className={`text-[11px] font-semibold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{visibleReady}/{visibleItems.length}</span>
                 )}
@@ -1407,9 +1418,12 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                       let label = t('kds_ready_btn');
                       let active = true;
                       let emerald = false;
-                      let act: (() => void) = () => handleMakeReady(o.id);
-                      if (wf === 'pending') { label = t('kds_accept_btn'); act = () => handleAccept(o.id); }
-                      else if (wf === 'ready' || wf === 'serving') { label = t('kds_serving_hint'); active = false; emerald = true; }
+                        let act: (() => void) = () => handleMakeReady(o.id);
+                        // 12p: the pending branch ("Qəbul et" modal button)
+                        // is GONE — auto-accept is silent; a GÖZLƏYİR order
+                        // offers the same "Hazırdır" declaration (it works
+                        // from pending too).
+                        if (wf === 'ready' || wf === 'serving') { label = t('kds_serving_hint'); active = false; emerald = true; }
                       else if (wf === 'served') { label = `✓ ${t('kds_served')}`; active = false; emerald = true; }
                       return (
                         <button

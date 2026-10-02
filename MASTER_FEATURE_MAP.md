@@ -839,6 +839,24 @@ Owner: "…sonraya saxlayaq bunu (route). Delivery page customer info sonra tama
 
 ---
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12p: "QƏBUL ET" TAM LƏĞV — KDS AVTOMATİK BİR DƏFƏ QƏBUL EDİR, SİFARİŞ BİRBAŞA HAZIRLANIR)
+
+Owner (12o report-dakı təklifə cavab): **"bir dəfə qəbul et, ondan sonra görünməsin. Button bir dəfə qəbul edildikdən sonra sifariş gələndə (POS-dan) buttonun yerində olsun, brat — əlavə qəbul et-ə ehtiyac yoxdur."** → "Qəbul et" buttonu TAM ləğv; sifariş gələndə avtomatik (bir dəfə) qəbul olunur, buttonun yerində birbaşa HAZIRLANIR.
+
+**(A) Button silindi (2 yer):** kart header-dəki quiet pill (L~805, `!inReadyTab && wf==='pending'`) + modal sticky footer-dəki pending branch (`if (wf === 'pending') { label = 'Qəbul et'; act = handleAccept }`) — ikisi də GONE. `handleAccept` funksiyası da silindi (0 referens). `kds_accept_btn`/`kds_accepted_toast` i18n key-ləri faylda qalır (istifadə olunmur — owner qaydası: lazımsız ≠ silmək).
+
+**(B) KDS auto-accept (səssiz, bir dəfə):** `acceptedRef = useRef<Set<string>>` + `useEffect([orders])` — KDS hər fetch/poll/realtime refetch-də `kitchen_status==='pending'` order-ları tapıb **bir dəfə** `POST /api/kitchen/accept` atır (mötərizə: Set; fail-də re-arm → növbəti tick-də retry). **SƏSSİZ** (toast YOX — istifadəçi əməli deyil). Optimistik `patchOrder(kitchen_status:'accepted', kitchen_accepted_at:now)`; RPC fail/`'Order is not pending'` (race: işçi artıq Hazırdır basdıb) = səssiz, rollup consistent qalır. Dead-end YOX: GÖZLƏYİR qalsa belə "Hazırdır" CTA pending-dən ready-yə çatır.
+
+**(C) `kitchen_accepted_at` stamp (yeni):** `accept_kitchen_ticket_atomic` RPC bu sütunu YAZMIRDI (real DB verified) — köhnə axında client optimistik state yazırdı, 5s poll DB-dən NULL geri gətirirdi. İndi `/api/kitchen/accept` route RPC-dən sonra **`UPDATE orders SET kitchen_accepted_at=now() WHERE id=? AND kitchen_accepted_at IS NULL`** (service-role, best-effort) → GÜN **Ø QƏBUL** metriki + legacy `/kitchen` timer base (`timerBase = kitchen_accepted_at || created_at`) dəqiq. Auto-accept-də Ø QƏBUL ≈ 0m (sifariş gəldiyi an götürülür — məntiqi).
+
+**(D) GÖZLƏYİR status:** silinmədi (workflow `kds_st_waiting` qalır) — indi TRANSİENT: KDS terminali açıq olanda order ~1-8s GÖZLƏYİR görünür, avtomatik HAZIRLANIR-ə keçir. KDS bağlıdırsa sifariş GÖZLƏYİR qalır (düz semantika: mətbəx hələ görməyib).
+
+**E2E r12p (browser + REAL DB, 6/6 PASS, 3 PNG):** (1) sub-agent pending "E2E Wolt" fixture yaratdı (mövcud 2 E2E Wolt artıq ready idi) → KDS açılma ilə **~8.4s-də auto-accept** (created 19:57:54.95 → accepted 19:58:03.37), label HAZIRLANIR, DOM-də **"Qəbul et" = 0**; (2) **owner scenario — yeni sifariş POS-dan** (Masa 992, ORD-2953, Tom Yam): KDS açıqkən POS-da yollandı → **accepted_at ≈ created_at (4s)**, KDS ticket birbaşa `HAZIRLANIR`, "Qəbul et" = 0; (3) modal footer = yalnız "Hazırdır"; (4) light mode: pill yox, oxunaqlı; (5) console 0/0/0 (2 tab). **Qeyd:** 2 yeni test order DB-də qaldı (accepted, non-terminal — təmizlik paketi ilə).
+
+**tsc:** clean (handleAccept referensləri = 0). **Commit:** `12p`. **Fayllar:** `KDSView.tsx` (pill + modal branch silindi, auto-accept effect), `src/app/api/kitchen/accept/route.ts` (+kitchen_accepted_at stamp).
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12o: TICK = HAZIRLIQ PROGRESS (auto-accept/auto-ready YOX) + "SERVİS POS-DAN EDİR" BUTTON→QIET TEXT + QƏBUL ET AÇIKLAMASI)
 
 Owner (E2E Wolt ticket screenshot ilə): **"(1) 'servis posdan edilir' adlı button ləğv elə olmasın orada. (2) Birdəki tik oğlanda avtomatik hazır qəbul etməsin sistem. (3) Və oradaki 'Qəbul et' buttonu nə üçündür ki?"**

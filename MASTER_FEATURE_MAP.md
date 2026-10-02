@@ -426,6 +426,9 @@ Tickets, stations (kitchen/grill/fry/dessert/bar/expo), routing, queue, priority
 | KDS (ticket queue, accept/complete, item ready, recall, reopen) | ✅ FROZEN | `kitchen_tickets`, `kitchen_ticket_items`, `accept_kitchen_ticket_atomic`, `mark_item_ready_atomic`, `recall_ticket_atomic` | `/api/kitchen*` (8 route), `admin/kds`, `kitchen`, `kitchen/track/[id]` |
 | Routing (station per item) + rush + bump | ✅ | `stations`, `route_kitchen_order`, `toggle_rush` | — |
 | Courses (fire per course, hold) | ✅ | `fire_course_atomic`, `order_courses` | — |
+| Course firing UI (modal Flame pills — yalnız pending/accepted course-lər) | ✅ **12q** | `fire_course_atomic` (frozen) | `/api/kitchen/fire-course`, KDS modal pill-ləri |
+| RUSH UI (modal toggle + kart red border + ⚡RUSH marker + GÜN) | ✅ **12q** | `orders.is_rush`, `toggle_rush` (frozen) | `/api/kitchen/rush`, KDS modal ghost pill (active = solid red) |
+| 86 / item void UI (modal ✕; smena bağlı olanda da — `origin:'kds'` exemption) | ✅ **12q** | `item_kitchen_terminal('voided')` (frozen) | `/api/kitchen/void-comp-waste` (`origin:'kds'`, `reason:'kds_86'`); kitchen role + `order.void` (live DB) |
 | Prep-time + station analytics | ✅ | `kitchen_analytics`, `log_kitchen_analytics`, `get_kitchen_stats` | `admin/kitchen-analytics` |
 | Kitchen schedule (reservation pre-fire) | ✅ | `kitchen_schedule`, `process_due_kitchen_schedules` (cron) | — |
 | Expo station + course firing UI | 🟡 | stations var | UI-də ayrıca "Expo" görünüşü Addım 2 |
@@ -808,6 +811,25 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-10-03 (ROUND 12q: KDS STATUS REVERT + LATENCY 23ms + KITCHEN GAP SWEEP (RUSH / COURSE FIRING / 86))
+
+Owner: "hazirdir basiram, mehsul hazirdir, sonra evvelkine statusuna geri qayidir… buttonlar gec reaksiya verir (2-3sn)… competitorlar ile detaylı feature müqayise et. master-mapdan bax, metbexe aid neler qalibdir, duzeldek hamisini."
+
+**Task 1+2 — REVERT + LATENCY (3 root cause):**
+- **(a) Optimistic update YOX idi:** `handleMakeReady` və s. UI-Yİ RPC round-trip bitəndə (advisory lock + FOR UPDATE + stock + PostgREST + EU pooler ≈ 2-3s) patch edirdi → **optimistic-first handler-lar** (Tick / Hazırdır / Rush / Fire / 86, `KDSView.tsx`): UI `await`-DAN ƏVVƏL patch, fail-də snapshot rollback. Ölçülən vizual cavab **23ms**.
+- **(b) Blind full-replace lost-update:** click-dən ƏVVƏL başlayan poll click-dən SONRA cavab verib təsdiqlənmiş state-i köhnə snapshot-la üst-üstə yazırdı (kart geri qayıdır, növbəti poll bərpa edirdi) → **fetch seq guard** (`fetchSeqRef`): superseded in-flight responslar drop olunur (`usePos.fetchFloor`-da eyni guard mövcuddur).
+- **(c) DEMOTE BUG (DB):** `trg_sync_order_kitchen_status` order status-u YALNIZ item status-larından rollup edir; `accept_kitchen_ticket_atomic` order-u `accepted` edir, item-lər `pending` qalır → istənilən item update (hətta sadə tick!) order-u geri `pending`-ə düşürdü → `/api/kitchen/accept`: accept RPC-dən sonra item-lər `pending/sent → 'accepted'` aline edilir (edge `state_transitions`-də registered idi; full cycle real DB-də ROLLBACK testlərlə təsdiqləndi).
+- **Əlavə qoruma:** optimistic merge window (15s, `optimisticRef` — köhnə snapshot təsdiqlənmiş lokal əməliyyatı heç vaxt demote etmir) + POS floor **high-water clamp** (`KITCHEN_RANK`, 6s pəncərə — rank≥4-dan aşağı düşmə suppress; terminal statuslar + yeni order-lar HƏMİŞƏ tətbiq olunur) + `kitchen_accepted_at` persist bug (accept RPC stamp YAZMIRDI → route NULL-ikən stamp edir — GÜN Ø QƏBUL + legacy timer dəqiq).
+
+**Task 3 — KITCHEN GAP SWEEP (DB mexanizmi FROZEN idi, UI YOXDU idi → bağlandı):** **RUSH** (`orders.is_rush` + `toggle_rush` → yeni `/api/kitchen/rush`; modal ghost pill, active = solid red; kart = red border + header-də ⚡RUSH; GÜN-də qırmızı Zap) · **Course firing** (`fire_course_atomic` → yeni `/api/kitchen/fire-course`; modal-da CTA-dan yuxarı Flame course pill-ləri — YALNIZ pending/accepted item-i olan course-lər) · **86 / item void** (`item_kitchen_terminal('voided')` → canonical `/api/kitchen/void-comp-waste` `action:'void'`, `reason:'kds_86'`, **`origin:'kds'`**; modal item sətirində ✕ 28px ghost; served sətirlərdə YOX). DB config (1 sətir, repo-xarici): `role_permissions` + kitchen/`order.void` (86 = standart KITCHEN əməliyyatı — Toast/Square-də chef 86 edir; əvvəl 403 idi; reversible DELETE qeydi HANDOFF-da).
+- **E2E r12q2 tapıntısı + fix:** 86 birinci cəhddə shiftGate hard-fail ("Smena bağlıdır") → `origin==='kds' && action==='void'` = **shiftGate exempt** (86 = kitchen-availability, register əməliyyatı deyil; POS comp/void/waste gate + PinGuard qorunur; permission + state machine + operation log qüvvədə). ⚠️ Bu fix browser-da YENİDƏ test olunmayıb (OPEN — növbəti agent).
+
+**i18n (az/en/ru):** `kds_rush`, `kds_rush_toggle_on/off`, `kds_fire_course`, `kds_item_86`, `kds_86_toast` + GÜN `/api/kitchen/daily` select-ə `is_rush`.
+
+**E2E:** r12q **7/8** (recall→re-accept ✓ · tick demote etmir (DB) ✓ · Hazırdır instant 23ms ✓ · 15s+ stabillik ✓ · POS chip ✓ · light mode ✓ · 1 PARTIAL = owner-in öz parallel testidir — stale-poll bug DEYİL) · r12q2 **A–G** (test Masa 993/ORD-2954: modal RUSH+MAIN+✕ ✓, rush DB `t`/`f` ✓, GÜN marker ✓, course fire → items `preparing` ✓, 86 ✓ (workaround ilə), KDS console **0**; **POS console = 115× duplicate-key burst — OPEN**). Test fixture-ləri live DB-də qalır (cleanup = owner GO).
+
+**Fayllar:** `KDSView.tsx` (seq guard + optimistic window + handlers + RUSH/course/86 UI + GÜN rush), `usePos.tsx` (KITCHEN_RANK + high-water clamp), `api/kitchen/accept|rush|fire-course|void-comp-waste|daily` routes, `lib/i18n/locales/{az,en,ru}.ts`, `e2e-shots/r12q-*` + `r12q2-*`, `e2e-r12q-results.md`, `HANDOFF_12Q.md`.
 
 ### Jurnal sətiri — 2026-10-02 (ROUND 12e: KDS/BDS — 24H SERVICE WINDOW + BDS NEWEST-FIRST + MODIFIER TOOLTIP)
 

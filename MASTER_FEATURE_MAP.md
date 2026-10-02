@@ -839,6 +839,34 @@ Owner: "…sonraya saxlayaq bunu (route). Delivery page customer info sonra tama
 
 ---
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12k: AZ İMLA TƏMİZLİYİ (SƏRVİSE→SƏRVİSƏ və s.) + DOLU→AKTİV KEÇİD SÜBUTU (12j stuck-chip fix-inin təsdiqi))
+
+Owner: **"Buradakı hərflərin səhvini tam şəkildə həll edək — həm KDS və BDS həm də statuslar. Vacib istək: dolu sonra aktiv status var idi — indi o keçid işləmir; yeni (masa) birdəfə modala girdikdən sonra 'dolu' sonradan aktiv statusa çevrilmir."**
+
+**(A) İmla audit — 10 fix (yalnız az.ts; en/ru toxunulmayıb):**
+| Köhnə | Düz | Key |
+|---|---|---|
+| `SƏRVİSE` | `SƏRVİSƏ` (dative -ə) | kds_chip_serve |
+| `SƏRVİSE HAZIRDİR` | `SƏRVİSƏ HAZIRDİR` | kds_st_serving |
+| `Sərvil et` | `Servis et` | kds_serve_btn |
+| `Sərvil POS-dan edilir` | `Servis POS-dan edilir` | kds_serving_hint |
+| `Item` (İNGİLİS!) | `Məhsul` | kds_day_m_items |
+| `Hazır` | `İstehsal` | kds_day_m_produced |
+| `Ø Hazırlanma` | `Ø Hazırlıq` | kds_day_m_ready |
+| `İstihsal` | `İstehsal` | kds_day_production |
+| `Bugün hələ sifariş yoxdur` | `Bugün hələ sifariş qeyd olunmayıb` | kds_day_empty |
+| `Kur'er` | `Kuryer` | bds_courier |
+
+KDS/BDS/status bloku (az.ts 2048–2103) tam audit olundu — qalanlar düzgündür. Component-də hard-coded qalıq YOX (yalnız comments). E2E r12k: 3/3 render təsdiqi (DOM regex `SƏRV[İI]S[ƏE]` → yalnız yeni variant), console 0+0.
+
+**(B) "Dolu → aktiv" keçidi = 12j STUCK-CHIP fix-inin öz nəticəsidir (reproduksiya SÜBUT etdi):**
+12k-də E2E axını (Masa 10, VIP): BOŞ → tap → 2 nəfər → `MASANI TUT` → pill **YENİ OTURUŞ** (amber, opacity 1, ₼ yox) → cart → məhsul ×1 → `MƏTBƏXƏ GÖNDƏR` → +15 s → pill **GÖZLƏYİR** (opacity 1) + **₼100.00** + item 1. API ground truth: `{status:'occupied', ks:'pending', cur:<id>, total:100, items:1}`. **Keçid İŞLƏYİR.**
+Owner-in 16:45 müşahidəsi (keçid yoxdu) = 12j-in **stuck-AnimatePresence** dövründə (edit/HMR churn-da) donmuş chip-in tab-da qalması idi — chip `opacity:0`-da donduqda masa sonsuza qədər "Dolu" görünürdü. 12j-in son commit-i (`7084f8fc`, single-persistent-element) bu sinifin özüni aradan qaldırdı → **terminal-da hard reload / yeni build tələb olunur.**
+
+Qeyd: GÜN metrik-lərindəki böyük Ø HAZIRLIQ (401m) = ~103 köhnə non-terminal E2E-test order-ları (00:32–02:04) — data məsələsi, owner GO gözləyir (temizlik round-u).
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12j: POS KITCHEN STATUS GÖRÜNÜRLÜLÜYÜ (BÜTÜN STATE) + KDS GÜN (ALL DAY VIEW + İSTİHSAL + PRODUKTİVİLİK) + ✓ TICK POS-PATTERN ANİMASİYA + CTA BLINK REMOVAL — 3 E2E-ROOT-CAUSE)
 
 Owner: **"POS-da 'Hazırlanır', 'Servis et', 'Servis edildi' statusları görünmür — aydın və ardıcıl göstər. All Day View, production counts və kitchen productivity əlavə et. 'Tik' ikonuna POS-dakı kimi zövqlü transition. 'Sifarişi tamamla' və 'Qəbul et' blink-ini aradan qaldır."** (12i-dən sonra: floor chip ready/served GÖZMÜŞDÜ — 12i-nin öz "hidden set" qaydası + iki gizli bug.)

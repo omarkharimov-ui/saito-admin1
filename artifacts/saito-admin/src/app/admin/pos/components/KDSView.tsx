@@ -218,13 +218,13 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   const [dayView, setDayView] = useState(false);
   const [dayData, setDayData] = useState<any | null>(null);
   const [dayLoading, setDayLoading] = useState(false);
-  // 12m (owner): the station-tab row (HAMISI/MK/Bar) is GONE — the board is
-  // now DUAL fixed panels (Main Kitchen + Bar) side by side, each with its
-  // own HAZIRLANIR | HAZIRDİR sub-tab (per-station, persisted in this map).
-  // "İstifadəçi hər dəfə ayrıca Kitchen bölməsinə keçmədən həm mətbəx həm
-  // bar statuslarını rahat görür; bölmələr bir-birinə qarışmır."
-  const [panelTab, setPanelTab] = useState<Record<string, 'preparing' | 'ready'>>({});
-  const getPanelTab = (stId: string): 'preparing' | 'ready' => panelTab[stId] || 'preparing';
+  // 12n (owner): "mətbəxdə umumi olsun, 2 ayrı tab YOX — yuxarıda navbar
+  // olsun, hər birinə baxmaq üçün" — ONE unified board; the TOP NAVBAR
+  // (Main Kitchen · Bar · GÜN — HAMISI stays removed per 12m) switches the
+  // station. Ready tickets (this station's whole share done) sit at the TOP
+  // of the board with an emerald border — no HAZIRLANIR|HAZIRDİR split
+  // (Toast model, owner-approved 12n).
+  const [activeStationId, setActiveStationId] = useState<string | null>(null);
   // 12m (owner: "soldakı məhsullara klikləyəndə arxadakı məhsulların
   // hərəkət etməsi və ya collapse olması"): the modal placeholder used to be
   // an ESTIMATED height (34px/item) — multi-line spec cards are taller, so
@@ -655,26 +655,26 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // KDS ends at "Hazırdır"; the board then reads SERVİSƏ HAZIRDIR until the
   // floor serves (kitchen rollup → 'served').
 
-  // 12m — BDS #28's station scoping survives, but the TAB ROW is gone: each
-  // station is a FIXED panel (see renderStationPanel); a ticket lists ONLY
-  // its items for that panel's station, and "Hazırdır" is station-scoped
-  // (the whole-order one-tap lives on the ticket modal).
+  // 12n — BDS #28's station scoping survives: a ticket lists ONLY its items
+  // for the ACTIVE station (selected on the top navbar), and "Hazırdır" is
+  // station-scoped (the whole-order one-tap lives on the ticket modal).
 
   // 2026-10-02 (12g, owner): "in place yox — elementin MORPH edərək ekranın
   // ortasında modal kimi açılması" — the tapped ticket lives in a centered
   // modal (POS product-grid tick transition); the grid slot keeps an
   // invisible placeholder. ESC closes.
 
-  // 12m — TICKET (one station panel's view of an order):
+  // 12n — TICKET (one station's view of an order, unified board):
   //  - lists ONLY that station's items (cross-station awareness stays on the
   //    progress line: "Main Kitchen 1/2 · Bar 2/2");
-  //  - HAZIRLANIR tab: "Qəbul et" = a small quiet pill up top (owner 12m: the
+  //  - in-progress: "Qəbul et" = a small quiet pill up top (owner 12m: the
   //    less-used action gets a comfortable spot, NOT the CTA bar); "Hazırdır"
   //    = the main CTA, STATION-SCOPED (item_ids of this station only), 12j
   //    persistent pattern (no blink);
-  //  - HAZIRDİR tab: read-only — the ticket MOVED here when this station's
-  //    items all became ready (one order, one tab — no confusion); SERVE is
-  //    the POS floor action (12i), no kitchen serve button;
+  //  - when this station's items all become ready, the ticket MOVES to the
+  //    top of the board (ready section, emerald border) and goes read-only
+  //    (one ticket, one place — owner 12m); SERVE is the POS floor action
+  //    (12i), no kitchen serve button;
   //  - source (İçəridə/Çatdırılma/Gel-Al) = Apple chip w/ icon; course +
   //    allergens = chips; modifiers = price-less chips; notes = "Qeyd: xxx"
   //    (the word "Qeyd" as a separate bold label); NO prices anywhere
@@ -682,13 +682,14 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   //  - click = measure the card's REAL height → the modal placeholder gets
   //    it exactly → the grid behind NEVER reflows (owner 12m: the
   //    "collapse behind" bug — the old placeholder was an estimate).
-  const renderTicket = (order: KDSOrder, stId: string, tab: 'preparing' | 'ready') => {
+  const renderTicket = (order: KDSOrder, stId: string) => {
     const criticalMin = Math.max(1, Math.round(delayMin / 2));
     const timer = getItemTimerStatus(order.created_at, criticalMin, delayMin);
     const wf = kdsWorkflowState(order, isItemReady, nowMs);
     const visibleItems = stationItems(order, stId);
     const visibleReady = visibleItems.filter(i => stationDone(i)).length;
-    const inReadyTab = tab === 'ready';
+    // 12n: "ready section" membership — this station's whole share done.
+    const inReadyTab = stationAllDone(order, stId);
     const timerLate = timer.color === 'red' || timer.color === 'purple';
     // 12i: per-station progress (ALL stations of the order) — awareness.
     const stationProgress: { name: string; qty: number; ready: number }[] = (() => {
@@ -717,7 +718,10 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     const metaRest = order.order_source !== 'dine_in'
       ? (order.customer_phone || '')
       : (order.order_number || '');
-    const wfMeta = inReadyTab
+    // 12n: label = the ORDER-level workflow (SERVİSƏ HAZIRDİR etc.); but
+    // when THIS station is done while other stations still cook
+    // (wf='preparing'), the card still reports HAZIRDIR for its own share.
+    const wfMeta = inReadyTab && wf === 'preparing'
       ? { key: 'kds_st_ready', cls: lightMode ? 'text-emerald-600' : 'text-emerald-400' }
       : wfMetaFor(wf, lightMode);
     const isExpanded = expandedId === order.id;
@@ -891,9 +895,10 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 <span className="font-bold">{t('kds_note_label')}:</span> {order.customer_note}
               </p>
             )}
-            {/* CTA — 12m: HAZIRLANIR = station-scoped "Hazırdır" (main bar);
-                HAZIRDİR tab = read-only info bar (serve = POS floor, 12i).
-                ONE persistent button (12j no-blink pattern). */}
+            {/* CTA — 12n unified board: in-progress = station-scoped
+                "Hazırdır" (main bar); ready section = read-only info bar
+                (serve = POS floor, 12i). ONE persistent button (12j no-blink
+                pattern). */}
             {(() => {
               let label = t('kds_ready_btn');
               let active = false;
@@ -928,60 +933,23 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     );
   };
 
-  // 12m — STATION PANEL: name + count + HAZIRLANIR | HAZIRDİR sub-tabs +
-  // this station's tickets only. Fixed side-by-side layout (owner: see both
-  // hot + bar without switching; sections never mix).
-  const renderStationPanel = (st: KDSStation) => {
-    const tab = getPanelTab(st.id);
-    const tickets = stationTickets(st.id);
-    const prepList = tickets.filter(o => !stationAllDone(o, st.id));
-    const readyList = tickets.filter(o => stationAllDone(o, st.id));
-    const list = tab === 'ready' ? readyList : prepList;
-    return (
-      // 12m: key REQUIRED — renderStationPanel is a plain function called
-      // inside boardStations.map (React list; a keyless <section> logs the
-      // "unique key prop" console error, E2E r12m catch).
-      <section key={st.id} className={`overflow-hidden rounded-4xl border ${lightMode ? 'border-zinc-200 bg-zinc-50/70' : 'border-white/[0.07] bg-white/[0.015]'}`}>
-        <div className={`flex items-center gap-2 px-4 h-12 flex-shrink-0 border-b ${lightMode ? 'border-zinc-200/80' : 'border-white/[0.06]'}`}>
-          <h3 className={`text-[13px] font-bold tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{st.name}</h3>
-          <span className={`text-[11px] font-semibold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{tickets.length}</span>
-          <div className="ml-auto flex items-center gap-1">
-            {(['preparing', 'ready'] as const).map(tb => {
-              const n = tb === 'ready' ? readyList.length : prepList.length;
-              const active = tab === tb;
-              return (
-                <button
-                  key={tb}
-                  type="button"
-                  onClick={() => setPanelTab(p => ({ ...p, [st.id]: tb }))}
-                  className={`h-7 px-3 rounded-full text-[11px] font-semibold tabular-nums transition-colors ${active
-                    ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950')
-                    : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/75')}`}
-                >
-                  {t(tb === 'ready' ? 'kds_tab_ready' : 'kds_tab_preparing')}
-                  <span className={active ? '' : (lightMode ? 'text-zinc-400' : 'text-white/30')}> {n}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="p-3">
-          {list.length === 0 ? (
-            <div className={`flex flex-col items-center justify-center py-12 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-              {tab === 'ready' ? <CheckCircle2 size={26} className="mb-2 opacity-60" /> : <Clock size={26} className="opacity-50" />}
-              <p className="text-xs font-medium">{t(tab === 'ready' ? 'kds_tab_empty_ready' : 'kds_tab_empty_preparing')}</p>
-            </div>
-          ) : (
-            <div className={`grid gap-3 ${boardStations.length > 1 ? 'grid-cols-1 2xl:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}`}>
-              <AnimatePresence>
-                {list.slice().sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map(order => renderTicket(order, st.id, tab))}
-              </AnimatePresence>
-            </div>
-          )}
-        </div>
-      </section>
-    );
-  };
+  // 12n — UMUMI BOARD: the active station = the navbar selection (default:
+  // Main Kitchen, else the first board station). Ready-first sort: tickets
+  // whose WHOLE share for this station is done sit at the TOP (emerald
+  // border), then in-progress oldest-first (most delayed on top — 12e).
+  const activeStation =
+    boardStations.find(s => s.id === activeStationId) ||
+    boardStations.find(s => s.name === 'Main Kitchen') ||
+    boardStations[0] ||
+    null;
+  const activeTickets = activeStation
+    ? stationTickets(activeStation.id).slice().sort((a, b) => {
+        const ra = stationAllDone(a, activeStation.id) ? 0 : 1;
+        const rb = stationAllDone(b, activeStation.id) ? 0 : 1;
+        if (ra !== rb) return ra - rb;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      })
+    : [];
 
   const expandedOrder = orders.find(o => o.id === expandedId) || null;
   useEffect(() => {
@@ -1000,19 +968,20 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             <p className={`text-xs font-medium mt-0.5 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{boardOrderIds.size} {t('active_orders_short')}</p>
           </div>
          <div className="flex items-center gap-2">
-           {/* 12m (owner: GÜN "cox da istifade olunmayacaq — rahat bir yer"):
-               the All Day view left the (removed) tab row and lives here — a
-               quiet ghost button next to the sound toggle, active state =
-               filled. Same surface for /admin/kds and the bar display. */}
-           <button
-             type="button"
-             onClick={() => setDayView(v => !v)}
-             className={`h-9 px-3.5 rounded-2xl text-xs font-semibold transition-all border ${dayView
-               ? (lightMode ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-950 border-white')
-               : (lightMode ? 'text-gray-500 hover:text-gray-700 bg-white border-gray-200' : 'text-white/35 hover:text-white/65 bg-white/[0.04] border-white/[0.08]')}`}
-           >
-             {t('kds_day_tab')}
-           </button>
+            {/* 12n: GÜN moved to the STATION NAVBAR for multi-station
+                (/admin/kds); this quiet ghost button stays only where there
+                is no navbar — the BDS single-station bar display. */}
+            {boardStations.length <= 1 && (
+              <button
+                type="button"
+                onClick={() => setDayView(v => !v)}
+                className={`h-9 px-3.5 rounded-2xl text-xs font-semibold transition-all border ${dayView
+                  ? (lightMode ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-950 border-white')
+                  : (lightMode ? 'text-gray-500 hover:text-gray-700 bg-white border-gray-200' : 'text-white/35 hover:text-white/65 bg-white/[0.04] border-white/[0.08]')}`}
+              >
+                {t('kds_day_tab')}
+              </button>
+            )}
            <button
              onClick={() => setSoundEnabled(!soundEnabled)}
              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' : 'bg-white/[0.04] border-white/[0.08] text-white/40 hover:bg-white/[0.08]'}`}
@@ -1025,10 +994,41 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
          </div>
        </div>
 
-      {/* 12m — the station TAB ROW (HAMISI · Main Kitchen · Bar · GÜN) is
-          GONE (owner: "HAMISI tab-ı sil" + "hər dəfə ayrıca Kitchen
-          bölməsinə keçmədən"): the stations are FIXED panels below,
-          side by side, each with its own HAZIRLANIR | HAZIRDİR sub-tab. */}
+      {/* 12n (owner: "yuxarıda navbar olsun, fso hər birinə baxmaq üçün") —
+          the STATION NAVBAR (Main Kitchen · Bar · GÜN; HAMISI stays removed
+          per 12m). One unified board below for the selected station.
+          Multi-station only: the BDS bar display (single station) keeps the
+          quiet GÜN button in the header instead. */}
+      {boardStations.length > 1 && (
+        <nav className={`flex items-center gap-1 flex-shrink-0 px-1 pb-2.5 border-b ${lightMode ? 'border-zinc-200' : 'border-white/[0.06]'}`}>
+          {boardStations.map(st => {
+            const navActive = !dayView && activeStation?.id === st.id;
+            const n = stationTickets(st.id).length;
+            return (
+              <button
+                key={st.id}
+                type="button"
+                onClick={() => { setDayView(false); setActiveStationId(st.id); setExpandedId(null); }}
+                className={`h-9 px-4 rounded-full text-[13px] font-semibold tracking-tight transition-colors ${navActive
+                  ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950')
+                  : (lightMode ? 'text-zinc-500 hover:text-zinc-900' : 'text-white/50 hover:text-white/90')}`}
+              >
+                {st.name}
+                <span className={`tabular-nums ${navActive ? (lightMode ? 'text-white/60' : 'text-zinc-400') : (lightMode ? 'text-zinc-400' : 'text-white/25')}`}> {n}</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => { setDayView(v => !v); setExpandedId(null); }}
+            className={`h-9 px-4 rounded-full text-[13px] font-semibold tracking-tight transition-colors ${dayView
+              ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950')
+              : (lightMode ? 'text-zinc-500 hover:text-zinc-900' : 'text-white/50 hover:text-white/90')}`}
+          >
+            {t('kds_day_tab')}
+          </button>
+        </nav>
+      )}
 
       {/* Orders Grid / 12j — GÜN (All Day view + production + productivity) */}
       <div className="flex-1 overflow-y-auto py-3">
@@ -1120,13 +1120,21 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             <CheckCircle2 size={40} className="mb-3 opacity-60" />
             <p className="text-sm">{t('all_orders_ready')}</p>
           </div>
+        ) : activeTickets.length === 0 ? (
+          /* 12n: the ACTIVE station has no live tickets (others may). */
+          <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>
+            <Clock size={26} className="mb-2 opacity-50" />
+            <p className="text-sm">{t('kds_station_empty')}</p>
+          </div>
         ) : (
-          /* 12m — DUAL STATION PANELS (fixed, side by side; the station tab
-             row with HAMISI is gone). One panel per board station:
-             HAZIRLANIR | HAZIRDİR. /admin/kds = hot + bar panels; the bar
-             display (stationType='bar') = the single bar panel. */
-          <div className={boardStations.length > 1 ? 'grid grid-cols-1 xl:grid-cols-2 gap-4 items-start' : ''}>
-            {boardStations.map(st => renderStationPanel(st))}
+          /* 12n — UMUMI BOARD (owner: "mətbəxdə umumi olsun, 2 ayrı tab
+             YOX, yuxarıda navbar olsun"): ONE grid for the active station —
+             ready section (emerald, whole share done) first, then
+             in-progress oldest-first. /admin/bds = the same single board. */
+          <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <AnimatePresence>
+              {activeTickets.map(order => renderTicket(order, activeStation!.id))}
+            </AnimatePresence>
           </div>
         )}
        </div>

@@ -839,6 +839,33 @@ Owner: "…sonraya saxlayaq bunu (route). Delivery page customer info sonra tama
 
 ---
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12n: KDS UMUMİ BOARD + STANSİYA NAVBAR — dual panel + HAZIRLANIR|HAZIRDİR sub-tab-silindi, Toast modeli)
+
+Owner: **"ay qardaş, belə problemi dedimki mətbəxdə umumi olsun, 2 dənə ayrı tab YOXEEE — yuxarıda navbar olsun, fso hər birinə baxmaq üçün."** 12m-in yana-yana dual panel-lərini (hər birində HAZIRLANIR|HAZIRDİR sub-tab) owner rədd etdi; ask_user ilə variant təsdiqi → **"Tab yox — tam umumi"** (Toast modeli): mətbəx = 1 umumi board, yuxarıda stansiya navbar, hər stansiya fasiləsiz baxılır.
+
+**Dəyişiklik (yalnız `KDSView.tsx` — DB/i18n/API toxunulmayıb):**
+- `panelTab`/`getPanelTab`/`renderStationPanel` **SİLİNDİ** → yeni `activeStationId` state + **STANSİYA NAVBAR** (yalnız multi-stansiya = /admin/kds): **Main Kitchen (n) · Bar (n) · GÜN** — aktiv = dolu pill (dark: ağ / light: zinc-900), alt hairline (köhnə pre-12m row pattern-i; HAMISI 12m-də silinib — qalır silik). Navbar click = `setDayView(false) + setActiveStationId + setExpandedId(null)` (modal açıqkən stansiya dəyişməsi = layoutId morph glitch qoruması).
+- **UMUMİ BOARD**: aktiv stansiya üçün TƏK grid (`grid-cols-1 md:2 xl:3 2xl:4`). Sort = **ready-first** (stansiyanın sifarişdən BÜTÜN payı bitmiş = emerald border, yuxarıda), sonra in-progress oldest-first (ən gecikmiş üstə — 12e). `stationAllDone` indi kartın "ready section" üzvluğunu müəyyən edir (əvvəl sub-tab `tab==='ready'` idi): `inReadyTab = stationAllDone(order, stId)`.
+- Status label: order-level `wfMetaFor(wf)` HƏMİŞƏ (SERVİSƏ HAZIRDİR və s.); amma BU stansiya bitib, digər stansiya hələ hazırlayırsa (wf='preparing') → kart öz payı üçün HAZIRDIR göstərir (ready section semantikasi).
+- Qorunanlar (12m/12j/12i): station-scoped "Hazırdır" CTA (`item_ids` = bu stansiyada qalan), "Qəbul et" quiet pill (pending-only, header), read-only "Servis POS-dan edilir" bar (KDS-də "Servis et" YOX), priceless Apple chips + `Qeyd:` label (₼=0), zero-reflow modal (REAL offsetHeight placeholder), per-item ✓ toggle + POS tick animasiya, 24h service window, cross-station progress line.
+- **BDS** (/admin/bds, stationType='bar'): navbar YOXDUR (tək stansiya), eyni umumi Bar board; header-dəki GÜN ghost button **yalnız single-stansiya**-da qalır (multi-da GÜN = navbar item).
+- Boş state: aktiv stansiyada ticket yoxdursa → `kds_station_empty` ("Bu stansiyada aktiv sifariş yoxdur" — mövcud key).
+- i18n: **0 yeni key**; 12m-in `kds_tab_preparing/ready/empty_*` key-ləri faylda qalır (istifadə olunmur — owner qaydası: lazımsız ≠ silmək).
+
+**E2E r12n (browser, 7/7 PASS, 7 PNG shot):**
+1. /admin/kds: yana-yana panel YOX, HAZIRLANIR|HAZIRDİR sub-tab YOX; navbar `Main Kitchen 6 · Bar 1 · GÜN` (aktiv = ağ pill); tək grid; 6/6 MK ticket emerald (ready qrupu, yuxarıda); `₼`=0; `Qeyd:` var; console 0.
+2. "Bar" pill → board YALNIZ Bar ticket-i (1 kart), pill Bar-a keçir, MK count navbar-da qalır.
+3. "GÜN" → All Day (10 SİFARİŞ / 17 MƏHSUL / 5 İSTEHSAL / Ø HAZIRLIQ 423m + İSTEHSAL & SİFARİŞLƏR) → "Main Kitchen" ilə board-a qayıt.
+4. **"Hazırdır" axını** (ilk block: bütün test ticket-ləri artıq ready idi): app-in öz RPC-ləri ilə — modal-da ✓ "Tiki çıxar" (recall: ready→pending) → kart emerald qrupun ALTINA düşdü, CTA aktiv "Hazırdır" (r12n-recalled.png) → "Hazırdır" bas → kart EYNI board-da **yuxarı emerald qrupa qalxdı** (index 0, border-emerald), read-only "Servis POS-dan edilir", "Servis et" YOX, eyni ticket tək görünür (r12n-ready-top.png). **Net DB effekti: SIFIR** (item yenidən ready).
+5. /admin/bds: navbar YOX, tək umumi Bar board, header GÜN ghost.
+6. Light mode: aktiv pill zinc-900+ağ oxunaqlı; `Qeyd:` = amber-700 rgb(187,77,0), kontrast ≈4.9:1.
+7. Console: **0 error, 0 React key warning** (7 ekran).
+
+**tsc:** clean. **Commit:** `12n`.
+**Screenshot-lar:** r12n-kds-mk/bar/gun/recalled/ready-top/bds/light.png + e2e-r12n-results.md.
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12m: DUAL STATION BOARD — HAZIRLANIR|HAZIRDİR TABS, HAMISI SİL, PRICELESS + APPLE CHIPS + QEYD, ZERO-REFLOW MODAL, LIGHT AMBER)
 
 Owner: **"Bu axını həm əsas mətbəx, həm də bar üçün necə daha aydın və praktik qurmaq olar? (Bar mətbəx kimi işləyir, lakin yalnız içki, hot kitchen deyil.) Həm Main Kitchen, həm Bar üçün 'Hazırlanır' və 'Hazırdır' tabları yarat; BDS (BDS bar-dır, unutma) üçün də keçərli olsun. Sifariş qəbul ediləndə 'Hazırlanır' tabına düşsün; tik optional. 'Hazırdır' basanda sifariş 'Hazırdır' tabına keçsin, 'Hazırlanır'-dan silinsin (eyni sifariş iki tabda görünməsin). 'Servis et'-i axından çıxar — servisə keçid 'Hazırdır'-dan idarə olunsun. Qiymətlər KDS/BDS-də və modifier bölməsində əks olunmasın. Course/allergens/delivery-dine-in-takeaway Apple chip-lərlə. Qeydləri 'Qeyd: xxxxx' formatında ('Qeyd' ayrıca). Soldakı məhsula klikləyəndə arxadakıların hərəkət etməsi/collapse-i düzəlt. 'HAMISI' tab-ı sil. İstifadəçi hər dəfə ayrıca Kitchen bölməsinə keçmədən həm mətbəx, həm bar statusunu rahat görür olsun; bölmələr qarışmasın. 'Qəbul et' kimi az istifadə olunan button rahat bir yerdə olsun. Light modda sarı yazılar görünmür."**

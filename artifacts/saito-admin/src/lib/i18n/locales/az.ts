@@ -2090,7 +2090,7 @@ export const az = {
   kds_not_ready_toast: 'Mətbəx hələ hazırlanır — əvvəl "Hazırdır" basılmalıdır',
   mark_served_toast: 'Servisə verildi',
   // 12j: POS floor chip + tick + GÜN (All Day) view.
-  kds_chip_serve: 'SƏRVİSƏ',
+  kds_chip_serve: 'SƏRVİSƏ HAZIRDİR',
   kds_tick_add: 'Hazırdır',
   kds_day_tab: 'GÜN',
   kds_day_m_orders: 'Sifariş',

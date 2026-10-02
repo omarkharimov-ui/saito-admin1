@@ -839,6 +839,16 @@ Owner: "…sonraya saxlayaq bunu (route). Delivery page customer info sonra tama
 
 ---
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12l: "SƏRVİSƏ" BARE → "SƏRVİSƏ HAZIRDİR" TAM LÜĞƏT PHRASE (owner qərarı))
+
+Owner: **"servisə hazırdır olur brat — duzgun istifadə et lüğətdən."** 12k-də floor chip `kds_chip_serve: 'SƏRVİSƏ'` (yalnız dative, əməl-siz) qalmışdı — tam lüğət phrase = **"SERVİSƏ HAZIRDİR"** (BDS-dəki mövcud pattern ilə də eyni: "TƏHVİLƏ HAZIRDİR").
+
+- `kds_chip_serve`: az `SƏRVİSƏ` → **`SƏRVİSƏ HAZIRDİR`** · en `TO SERVE` → `READY TO SERVE` · ru `К ВЫДАЧЕ` → `ГОТОВ К ВЫДАЧЕ`.
+- İstifadə yeri (2): TableCard floor chip (ready state) + KDS GÜN SİFARİŞLƏR ticket pill-i — ikisində də tam phrase.
+- E2E r12l: Masa 4·5 pill = "SƏRVİSƏ HAZIRDİR" (opacity 1, 148×26px, kart 255px — overflow/wrap YOX); GÜN tickets 4× tam phrase; DOM regex bare variant = **0**; console 0+0.
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12k: AZ İMLA TƏMİZLİYİ (SƏRVİSE→SƏRVİSƏ və s.) + DOLU→AKTİV KEÇİD SÜBUTU (12j stuck-chip fix-inin təsdiqi))
 
 Owner: **"Buradakı hərflərin səhvini tam şəkildə həll edək — həm KDS və BDS həm də statuslar. Vacib istək: dolu sonra aktiv status var idi — indi o keçid işləmir; yeni (masa) birdəfə modala girdikdən sonra 'dolu' sonradan aktiv statusa çevrilmir."**

@@ -2091,7 +2091,7 @@ export const en: TranslationMap = {
   kds_not_ready_toast: 'The kitchen is still preparing — mark it ready first',
   mark_served_toast: 'Served',
   // 12j: POS floor chip + tick + DAY (All Day) view.
-  kds_chip_serve: 'TO SERVE',
+  kds_chip_serve: 'READY TO SERVE',
   kds_tick_add: 'Mark ready',
   kds_day_tab: 'DAY',
   kds_day_m_orders: 'Orders',

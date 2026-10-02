@@ -2092,7 +2092,7 @@ export const ru: TranslationMap = {
   kds_not_ready_toast: 'Кухня ещё готовит — сначала отметьте «Готово»',
   mark_served_toast: 'Сервировано',
   // 12j: POS floor chip + tick + ДЕНЬ (All Day) view.
-  kds_chip_serve: 'К ВЫДАЧЕ',
+  kds_chip_serve: 'ГОТОВ К ВЫДАЧЕ',
   kds_tick_add: 'Отметить готовым',
   kds_day_tab: 'ДЕНЬ',
   kds_day_m_orders: 'Заказы',

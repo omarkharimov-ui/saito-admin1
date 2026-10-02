@@ -63,6 +63,7 @@ interface KDSStation { id: string; name: string; station_type?: string; }
 interface KDSOrder {
   id: string;
   table_number: number;
+  order_number?: string | null;
   order_source: string;
   order_type?: string;
   partner_source?: string | null;
@@ -75,6 +76,51 @@ interface KDSOrder {
   items: KDSItem[];
   created_at: string;
   kitchen_status: string;
+  /** 12i: workflow timestamps (rollup-stamped by the frozen RPCs).
+   *  kitchen_ready_at drives the 3 s HAZIRDIR → SƏRVİSE flip (derived). */
+  kitchen_ready_at?: string | null;
+  kitchen_accepted_at?: string | null;
+}
+
+// 12i (owner): "metbex hazırdır basanda status uje hazırdır, 2-3 saniyə sonra
+// çevrilir serve" — the SERVE display state is DERIVED (no cron, no worker):
+// order ready (rollup) + kitchen_ready_at ≥3 s old → "serving" on the UI.
+const SERVE_LAG_MS = 3000;
+
+type KdsWorkflow = 'pending' | 'preparing' | 'ready' | 'serving' | 'served';
+
+/** 12i: canonical kitchen workflow, derived from the FROZEN state machine
+ *  (items: pending→ready→served; order rollup: accepted/preparing/
+ *  partially_ready/ready/served). The UI never invents states — it projects. */
+function kdsWorkflowState(
+  o: KDSOrder,
+  isItemReady: (i: KDSItem) => boolean,
+  now: number,
+): KdsWorkflow {
+  const active = o.items.filter(i => (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status));
+  if (active.length === 0) return 'pending';
+  const allServed = active.every(i => i.kitchen_status === 'served' || i.kitchen_status === 'completed');
+  if (allServed || o.kitchen_status === 'served') return 'served';
+  const allReady = active.every(isItemReady);
+  if (allReady || o.kitchen_status === 'ready') {
+    const readyAt = o.kitchen_ready_at ? new Date(o.kitchen_ready_at).getTime() : null;
+    if (readyAt && now - readyAt >= SERVE_LAG_MS) return 'serving';
+    return 'ready';
+  }
+  if (['accepted', 'sent', 'preparing', 'partially_ready'].includes(o.kitchen_status)) return 'preparing';
+  return 'pending';
+}
+
+// 12i: workflow status label + state color (visual direction: state = text
+// color only — emerald = done family, zinc = in-flight, no chips).
+function wfMetaFor(wf: KdsWorkflow, lightMode: boolean): { key: string; cls: string } {
+  switch (wf) {
+    case 'pending':   return { key: 'kds_st_waiting',  cls: lightMode ? 'text-zinc-400' : 'text-white/35' };
+    case 'preparing': return { key: 'kds_st_preparing', cls: lightMode ? 'text-zinc-500' : 'text-white/45' };
+    case 'ready':     return { key: 'kds_st_ready',    cls: lightMode ? 'text-emerald-600' : 'text-emerald-400' };
+    case 'serving':   return { key: 'kds_st_serving',  cls: lightMode ? 'text-emerald-600' : 'text-emerald-400' };
+    case 'served':    return { key: 'kds_st_served',   cls: lightMode ? 'text-emerald-600' : 'text-emerald-400' };
+  }
 }
 
 function getItemTimerStatus(createdAt: string, criticalMin: number, delayMin: number): { color: 'green' | 'yellow' | 'red' | 'purple'; text: string; elapsed: number } {
@@ -144,6 +190,16 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // Motion philosophy rule 12: respect prefers-reduced-motion.
   const reduceMotion = useReducedMotion();
+  // 12i: 1 s tick — the HAZIRDIR → SƏRVİSE flip (3 s, derived from
+  // kitchen_ready_at) and the elapsed timer must not wait for the 5 s poll.
+  // Board is small (≤ a dozen tickets); a per-second re-render is exactly
+  // what a kitchen terminal is for. tabular-nums keeps the digits from
+  // jittering (no "blink" on the timer).
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
   const [stationFilter, setStationFilter] = useState<string | null>(null);
   useEffect(() => {
     // kind=kitchen: kitchen-family stations only — delivery/pickup (BDS)
@@ -369,6 +425,11 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             })),
             created_at: o.created_at,
             kitchen_status: o.kitchen_status || 'pending',
+            // 12i: workflow timestamps — the HAZIRDIR→SƏRVİSE flip is derived
+            // from kitchen_ready_at (stamped by mark_item_ready_atomic).
+            kitchen_ready_at: o.kitchen_ready_at ?? null,
+            kitchen_accepted_at: o.kitchen_accepted_at ?? null,
+            order_number: o.order_number ?? null,
           }));
 
         // 2026-09-24 (bar display): the new-order sound counts only tickets
@@ -401,37 +462,84 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // defense-in-depth pattern as pos-sync).
   useCrossTableRefresh('kdsview', ['orders', 'order_items'], () => fetchKDSRef.current(), 1500);
 
-  // U-1 fix: per-item ✓ now calls the FROZEN atomic mark-ready route for a
-  // single item (the old action 'updateItemStatus' was not handled by
-  // /api/orders, so clicks silently no-op'd). Optimistic update is rolled
-  // back on failure so a 400 (already-ready / wrong state) stays consistent.
-  const handleItemStatus = async (orderId: string, itemId: string, status: string) => {
+  // 12i (owner): "tik işləmir — tik etmək olur lakin tiki çıxarmaq olmaz".
+  // The ✓ is now a TOGGLE: pending/accepted/sent/preparing → 'ready' (frozen
+  // mark_item_ready_atomic, single item); ready → 'recalled' (item_kitchen_
+  // terminal = registry recall semantics, ready → pending, verified edge).
+  // Served items are final (no toggle). Rollback restores the PREVIOUS state
+  // (the old code hard-coded 'preparing' — wrong for a 'pending' item).
+  const handleItemToggle = async (orderId: string, itemId: string, current: string) => {
+    const uncheck = current === 'ready';
+    const prevStatus = current;
     setOrders(prev => prev.map(o => o.id === orderId ? {
       ...o,
-      items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: status } : i),
+      items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: uncheck ? 'pending' : 'ready' } : i),
     } : o));
     try {
-      const res = await apiFetch('/api/orders/mark-ready', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId, item_ids: [itemId] }),
-      });
+      const res = uncheck
+        ? await apiFetch('/api/kitchen/item-recall', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_item_id: itemId }),
+          })
+        : await apiFetch('/api/orders/mark-ready', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_id: orderId, item_ids: [itemId] }),
+          });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         setOrders(prev => prev.map(o => o.id === orderId ? {
           ...o,
-          items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: 'preparing' } : i),
+          items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: prevStatus } : i),
         } : o));
         toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
       }
+    } catch {
+      setOrders(prev => prev.map(o => o.id === orderId ? {
+        ...o,
+        items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: prevStatus } : i),
+      } : o));
+      toast.error(t('status_update_error'), { id: 'kds-toast' });
+    }
+  };
+
+  // 12i workflow handlers — the ticket NEVER leaves the board optimistically
+  // (the old handleMarkReady removed it on "Sifarişi Tamamla", but the DB
+  // order only becomes 'ready' — the next poll brought the ticket BACK:
+  // the "tamamla → itir → geri" blink the owner reported). Now: state flips
+  // in place, and the board refetch confirms.
+  const patchOrder = (orderId: string, fn: (o: KDSOrder) => Partial<KDSOrder>) => {
+    setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, ...fn(o) } : o)));
+  };
+
+  const handleAccept = async (orderId: string) => {
+    try {
+      const res = await apiFetch('/api/kitchen/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
+        return;
+      }
+      patchOrder(orderId, () => ({
+        kitchen_status: 'accepted',
+        kitchen_accepted_at: new Date().toISOString(),
+      }));
+      toast.success(t('kds_accepted_toast') || 'Qəbul olundu — hazırlanır', { id: 'kds-toast' });
     } catch {
       toast.error(t('status_update_error'), { id: 'kds-toast' });
     }
   };
 
-  const handleMarkReady = async (orderId: string) => {
-    // 2026-09-22 (BDS E2E finding): the old body never checked res.ok — a
-    // 500 from mark-ready would still drop the ticket + show success.
+  // "Hazırdır" — whole order, NO forced per-item tick (owner: "sifariş
+  // tamamlamaq üçün məcburi tika basmaq olmamalıdır"): mark_item_ready_atomic
+  // with null item_ids = all non-ready items → ready (+ stock, + rollup
+  // stamps orders.kitchen_ready_at).
+  const handleMakeReady = async (orderId: string) => {
     try {
       const res = await apiFetch('/api/orders/mark-ready', {
         method: 'POST',
@@ -443,12 +551,24 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
         toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
         return;
       }
-      setOrders(prev => prev.filter(o => o.id !== orderId));
+      const ts = new Date().toISOString();
+      patchOrder(orderId, o => ({
+        kitchen_status: 'ready',
+        kitchen_ready_at: ts,
+        items: o.items.map(i =>
+          (i.quantity ?? 0) > 0 && !['served', 'completed', 'cancelled', 'voided'].includes(i.kitchen_status)
+            ? { ...i, kitchen_status: 'ready' } : i),
+      }));
       toast.success(`${t('order_ready')}!`, { id: 'kds-toast' });
     } catch {
       toast.error(t('status_update_error'), { id: 'kds-toast' });
     }
   };
+
+  // NOTE 12i (owner): the SERVE ("Sərvil") press is a FLOOR/POS action, not a
+  // kitchen one — see /api/orders/serve, wired to the POS "Servisə Ver". The
+  // KDS ends at "Hazırdır"; the board then reads SƏRVİSE HAZIRDİR until the
+  // floor serves (kitchen rollup → 'served').
 
   // BDS #28 — the active board: on a station tab only tickets with ≥1 item
   // routed to that station are shown; each ticket lists ONLY its items for
@@ -543,6 +663,9 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 const criticalMin = Math.max(1, Math.round(delayMin / 2));
                 const timer = getItemTimerStatus(order.created_at, criticalMin, delayMin);
                 const allItemsReady = order.items.every(isItemReady);
+                // 12i: canonical workflow state (derived — see kdsWorkflowState).
+                const wf = kdsWorkflowState(order, isItemReady, nowMs);
+                const wfMeta = wfMetaFor(wf, lightMode);
                 // BDS #28: on a station board the ticket lists only that
                 // station's items; progress + the "other stations" hint are
                 // computed on the visible subset. 2026-09-24: itemInBoard
@@ -556,44 +679,49 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                  const otherPending = stationFilter
                    ? order.items.filter(i => itemInBoard(i) && itemStation(i) !== stationFilter && !isItemReady(i)).length
                    : 0;
-                 // 12f: per-station progress for the in-place detail block —
-                 // ALL stations of the order (the chef sees the whole picture
-                 // when the ticket is expanded, not just the visible board).
-                 const stationProgress: { name: string; qty: number; ready: number }[] = (() => {
-                   const m = new Map<string, { name: string; qty: number; ready: number }>();
-                   for (const it of order.items) {
-                     if ((it.quantity ?? 0) <= 0) continue;
-                     const st = itemStation(it);
-                     const nm = st ? (stations.find(s => s.id === st)?.name || 'Main Kitchen') : (stationType ? null : 'Main Kitchen');
-                     if (!nm) continue;
-                     const e = m.get(nm) || { name: nm, qty: 0, ready: 0 };
-                     e.qty += it.quantity;
-                     if (isItemReady(it)) e.ready += it.quantity;
-                     m.set(nm, e);
-                   }
-                   return Array.from(m.values());
-                 })();
+                  // 12i: per-station progress — ALL stations of the order,
+                  // shown on the card itself (owner: "stationslar bir-birindən
+                  // xəbərli olmalıdırlar" — a station board must show what the
+                  // OTHER station is doing, not just its own lines). Served
+                  // counts as done (the kitchen's job is finished).
+                  const stationProgress: { name: string; qty: number; ready: number }[] = (() => {
+                    const m = new Map<string, { name: string; qty: number; ready: number }>();
+                    for (const it of order.items) {
+                      if ((it.quantity ?? 0) <= 0) continue;
+                      const st = itemStation(it);
+                      const nm = st ? (stations.find(s => s.id === st)?.name || 'Main Kitchen') : (stationType ? null : 'Main Kitchen');
+                      if (!nm) continue;
+                      const e = m.get(nm) || { name: nm, qty: 0, ready: 0 };
+                      e.qty += it.quantity;
+                      if (isItemReady(it) || it.kitchen_status === 'served') e.ready += it.quantity;
+                      m.set(nm, e);
+                    }
+                    return Array.from(m.values());
+                  })();
                   const isExpanded = expandedId === order.id;
                   // 12h (owner: "çirkin görünüşdə saxlamayaq" — full Apple reset,
                   // SAITO_UI_VISUAL_DIRECTION §4/§5): NO badge spam, NO tinted
                   // boxes. State lives in the border + the timer text; the rest
                   // is typography. Delay = red timer (GEÇİKME adds a dot).
                   const timerLate = timer.color === 'red' || timer.color === 'purple';
-                  const cardCls = `relative overflow-hidden rounded-4xl border p-4 transition-colors duration-300 ${
-                    allItemsReady
-                      ? (lightMode ? 'border-emerald-500/50 bg-white shadow-card' : 'border-emerald-500/40 bg-white/[0.02] shadow-card')
+                   const cardCls = `relative overflow-hidden rounded-4xl border p-4 transition-colors duration-300 ${
+                     allItemsReady || wf === 'served'
+                       ? (lightMode ? 'border-emerald-500/50 bg-white shadow-card' : 'border-emerald-500/40 bg-white/[0.02] shadow-card')
                       : timer.color === 'purple'
                         ? (lightMode ? 'border-red-400 bg-white shadow-card' : 'border-red-500/45 bg-white/[0.02] shadow-card')
                         : timer.color === 'red'
                           ? (lightMode ? 'border-red-300 bg-white shadow-card' : 'border-red-500/35 bg-white/[0.02] shadow-card')
                           : (lightMode ? 'border-zinc-200 bg-white shadow-card' : 'border-white/[0.08] bg-white/[0.02] shadow-card')
                   }`;
-                  // One quiet meta line: source word · phone (dine-in has none).
-                  const titleIsFallback = order.order_source !== 'dine_in' && !order.customer_name;
-                  const metaLine = [
-                    titleIsFallback ? '' : (order.order_source === 'takeaway' ? t('takeaway_short') : order.order_source === 'delivery' ? t('delivery_short') : '').toLowerCase(),
-                    order.order_source !== 'dine_in' ? (order.customer_phone || '') : '',
-                  ].filter(Boolean).join('  ·  ');
+                  // 12i (owner): the ORDER TYPE (çatdırılma / gel-al) must be
+                  // EYE-CATCHING — bold text, not a quiet lowercase word;
+                  // dine-in shows the order number instead.
+                  const metaType = order.order_source !== 'dine_in'
+                    ? (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))
+                    : null;
+                  const metaRest = order.order_source !== 'dine_in'
+                    ? (order.customer_phone || '')
+                    : (order.order_number || '');
                   return (
                     <Fragment key={order.id}>
                      {isExpanded ? (
@@ -603,13 +731,14 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                        // "crossfade restore" glitch can happen).
                        <div aria-hidden className="relative opacity-0 pointer-events-none select-none">
                          <div className={`rounded-4xl border p-4 ${lightMode ? 'border-zinc-200' : 'border-white/[0.08]'}`}>
-                           <div className="h-[20px] mb-1" />
-                           {metaLine && <div className="h-[15px] mb-3" />}
-                           <div className="space-y-1.5">
-                             {visibleItems.map(it => <div key={it.id} className="h-[34px]" />)}
-                           </div>
-                           {order.customer_note && <div className="h-[15px] mt-2.5" />}
-                           {allItemsReady && <div className="h-[40px] mt-3" />}
+                            <div className="h-[20px] mb-1" />
+                            <div className="h-[15px] mb-1" />
+                            {stationProgress.length > 1 && <div className="h-[15px] mb-2" />}
+                            <div className="space-y-1.5">
+                              {visibleItems.map(it => <div key={it.id} className="h-[34px]" />)}
+                            </div>
+                            {order.customer_note && <div className="h-[15px] mt-2.5" />}
+                            {wf !== 'served' && <div className="h-[40px] mt-3" />}
                          </div>
                        </div>
                      ) : (
@@ -641,95 +770,150 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                           </span>
                         </span>
                       </div>
-                      {/* Row 2 — quiet meta (source · phone) */}
-                      {metaLine && (
-                        <p className={`mt-1 text-[11px] font-medium truncate ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{metaLine}</p>
-                      )}
+                       {/* Row 2 — 12i: ORDER TYPE in bold (eye-catching) +
+                           phone / order number; right = workflow status in
+                           state color (text only — no chip). */}
+                       <div className="mt-1 flex items-center justify-between gap-2 min-w-0">
+                         <p className={`text-[11px] truncate min-w-0 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                           {metaType && (
+                             <span className={`font-bold ${lightMode ? 'text-zinc-600' : 'text-white/65'}`}>{metaType}<span className="font-medium"> · </span></span>
+                           )}
+                           {metaRest}
+                         </p>
+                         <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider ${wfMeta.cls}`}>{t(wfMeta.key as any)}</span>
+                       </div>
+                       {/* 12i — cross-station awareness (owner: "stationslar
+                           bir-birindən xəbərli olmalıdırlar"): when the ticket
+                           spans stations, the card shows each station's live
+                           progress — the Bar board sees what Main Kitchen owes. */}
+                       {stationProgress.length > 1 && (
+                         <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] font-semibold tabular-nums">
+                           {stationProgress.map((g, idx) => {
+                             const done = g.ready >= g.qty;
+                             return (
+                               <span key={g.name}>
+                                 {idx > 0 && <span className={lightMode ? 'text-zinc-300' : 'text-white/20'}> · </span>}
+                                 <span className={done ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-500' : 'text-white/45')}>
+                                   {g.name} {g.ready}/{g.qty}
+                                 </span>
+                               </span>
+                             );
+                           })}
+                         </p>
+                       )}
 
-                      {/* Items — 12h: FLAT rows on hairline dividers (no boxes,
-                          no tint). name + one quiet spec line — the special
-                          note wins over modifiers on the card; the FULL spec
-                          (modifiers with ₼, allergens, course) lives in the
-                          modal. 40px ✓ targets kept (kitchen tablets). */}
-                      <div className={`${metaLine ? 'mt-2.5' : 'mt-3'} divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.05]'}`}>
-                        {visibleItems.map(item => {
-                          const itemReady = item.kitchen_status === 'ready' || item.kitchen_status === 'completed';
-                          // Modifier names with quantities — "add 2 cheese" must
-                          // reach the kitchen as "Cheese ×2", not "Cheese".
-                          const modText = (item.modifiers ?? [])
-                            .map(m => (m.quantity && m.quantity > 1 ? `${m.name} ×${m.quantity}` : m.name))
-                            .join(', ');
-                          const alLabels = parseAllergens(item.allergens).map((a: any) =>
-                            resolveAllergenEntry(a)?.label ||
-                            (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
-                          ).filter(Boolean);
-                          return (
-                            <div key={item.id} className="flex items-center justify-between gap-2 py-2">
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className={`text-[13px] font-medium truncate ${itemReady ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-800' : 'text-white/85')}`}>
-                                    {item.name}
-                                  </span>
-                                  {item.is_hold && (
-                                    <span className={`text-[9px] font-bold tracking-wider shrink-0 ${lightMode ? 'text-amber-600' : 'text-amber-400'}`}>HOLD</span>
+                       {/* Items — 12i (owner: "modifikatorunu rahat görə bilmək
+                           lazımdır, neçə edəd, allergenləri nəzərə çarpan"):
+                           flat rows on hairline dividers, but the FULL spec is
+                           on the card — quantity BOLD, each spec on its own
+                           line in its semantic color (modifier zinc-dark,
+                           note amber, allergen RED-bold). POS sends per-
+                           instance rows, so every spec is per-item.
+                           40px ✓ = TOGGLE (tick + un-tick; served = final). */}
+                        <div className={`mt-2.5 divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.05]'}`}>
+                          {visibleItems.map(item => {
+                            const itemReady = isItemReady(item);
+                            const itemServed = item.kitchen_status === 'served';
+                            const dim = itemReady || itemServed;
+                            // Per-instance modifiers with quantities — "add 2
+                            // cheese" reaches the kitchen as "Cheese ×2".
+                            const modText = (item.modifiers ?? [])
+                              .map(m => (m.quantity && m.quantity > 1 ? `${m.name} ×${m.quantity}` : m.name))
+                              .join(', ');
+                            const alLabels = parseAllergens(item.allergens).map((a: any) =>
+                              resolveAllergenEntry(a)?.label ||
+                              (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
+                            ).filter(Boolean);
+                            return (
+                              <div key={item.id} className={`flex items-center justify-between gap-2 py-2 ${dim ? 'opacity-75' : ''}`}>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`text-[13px] font-semibold truncate ${dim ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-900' : 'text-white/90')}`}>
+                                      {item.name}
+                                    </span>
+                                    {item.is_hold && (
+                                      <span className={`text-[9px] font-bold tracking-wider shrink-0 ${lightMode ? 'text-amber-600' : 'text-amber-400'}`}>HOLD</span>
+                                    )}
+                                    {item.course && (
+                                      <span className={`text-[9px] font-semibold uppercase tracking-wider shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{item.course}</span>
+                                    )}
+                                  </div>
+                                  {modText && (
+                                    <p className={`text-[11px] font-medium truncate mt-0.5 ${lightMode ? 'text-zinc-600' : 'text-white/55'}`}>{modText}</p>
                                   )}
-                                  {item.course && (
-                                    <span className={`text-[9px] font-semibold uppercase tracking-wider shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{item.course}</span>
+                                  {item.special_notes && (
+                                    <p className={`text-[11px] font-medium truncate mt-0.5 ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>{item.special_notes}</p>
                                   )}
-                                  {/* 2026-09-28: per-instance ALLERGEN flags —
-                                      red text (safety), no box. */}
                                   {alLabels.length > 0 && (
-                                    <span className={`text-[9px] font-bold shrink-0 ${lightMode ? 'text-red-500' : 'text-red-400'}`}>⚠ {alLabels.join(' · ')}</span>
+                                    <p className={`text-[11px] font-bold truncate mt-0.5 ${lightMode ? 'text-red-600' : 'text-red-400'}`}>⚠ {alLabels.join(' · ')}</p>
                                   )}
                                 </div>
-                                {(item.special_notes || modText) && (
-                                  <p className={`text-[11px] truncate mt-0.5 ${item.special_notes ? (lightMode ? 'text-amber-600' : 'text-amber-400/90') : (lightMode ? 'text-zinc-400' : 'text-white/30')}`}>
-                                    {item.special_notes || modText}
-                                  </p>
-                                )}
+                                <div className="flex items-center gap-2.5 shrink-0">
+                                  <span className={`text-[13px] font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
+                                  {itemServed ? (
+                                    <span className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold opacity-50 ${lightMode ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-zinc-950'}`}>✓</span>
+                                  ) : itemReady ? (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleItemToggle(order.id, item.id, item.kitchen_status); }}
+                                      title={t('kds_uncheck')}
+                                      className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-all active:scale-90 hover:opacity-80 ${lightMode ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-zinc-950'}`}
+                                    >✓</button>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleItemToggle(order.id, item.id, item.kitchen_status); }}
+                                      className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold border transition-all active:scale-90 ${lightMode ? 'border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'border-white/20 text-white/40 hover:border-emerald-400 hover:text-emerald-400'}`}
+                                    >✓</button>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2.5 shrink-0">
-                                <span className={`text-xs font-semibold tabular-nums ${itemReady ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-400' : 'text-white/40')}`}>×{item.quantity}</span>
-                                {!itemReady ? (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); handleItemStatus(order.id, item.id, 'ready'); }}
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold border transition-all active:scale-90 ${lightMode ? 'border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'border-white/20 text-white/40 hover:border-emerald-400 hover:text-emerald-400'}`}
-                                  >
-                                    ✓
-                                  </button>
-                                ) : (
-                                  <span className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold ${lightMode ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-zinc-950'}`}>✓</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
 
                      {/* Customer note — plain amber text (no box) */}
                      {order.customer_note && (
                        <p className={`mt-2.5 text-[11px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{order.customer_note}</p>
                      )}
 
-                     {/* Action — whole-order invariant (unchanged): the
-                         complete button appears only when EVERY station's
-                         items are ready. Station board done-but-others-pending
-                         = quiet text, not a disabled box. */}
-                     {allItemsReady ? (
-                       <motion.button
-                         initial={{ opacity: 0, y: 4 }}
-                         animate={{ opacity: 1, y: 0 }}
-                         transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
-                         onClick={(e) => { e.stopPropagation(); handleMarkReady(order.id); }}
-                         className={`mt-3 w-full h-10 rounded-2xl text-[13px] font-semibold transition-all active:scale-[0.99] ${lightMode ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400'}`}
-                       >
-                         {t('complete_order')}
-                       </motion.button>
-                     ) : stationFilter && visibleAllReady && otherPending > 0 ? (
-                       <p className={`mt-2.5 text-[11px] font-semibold ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                         {t('kds_other_stations_pending')} · {otherPending}
-                       </p>
-                     ) : null}
+                      {/* 12i — canonical workflow action. The forced-tick gate
+                          is GONE (owner): "Hazırdır" finalizes the whole order
+                          without ticking each item. On a STATION board the
+                          whole-order "Hazırdır" is hidden (it would cook the
+                          other station's items for them) — instead the chef
+                          ticks per-item ✓ and, once his station is done, sees
+                          the cross-station hint. */}
+                      {wf === 'ready' || wf === 'serving' ? (
+                        // 12i (owner): "servis et buttonu POS-da olacaq" — the
+                        // kitchen's part ENDS at Hazırdır; SERVE is a floor
+                        // (POS) action. The card waits in SƏRVİSE state.
+                        <p className={`mt-2.5 text-[11px] font-semibold ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{t('kds_serving_hint')}</p>
+                      ) : wf === 'preparing' && !stationFilter ? (
+                        <motion.button
+                          key="preparing"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
+                          onClick={(e) => { e.stopPropagation(); handleMakeReady(order.id); }}
+                          className={`mt-3 w-full h-10 rounded-2xl text-[13px] font-semibold transition-all active:scale-[0.99] ${lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90'}`}
+                        >
+                          {t('kds_ready_btn')}
+                        </motion.button>
+                      ) : wf === 'pending' ? (
+                        <motion.button
+                          key="pending"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
+                          onClick={(e) => { e.stopPropagation(); handleAccept(order.id); }}
+                          className={`mt-3 w-full h-10 rounded-2xl text-[13px] font-semibold transition-all active:scale-[0.99] ${lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90'}`}
+                        >
+                          {t('kds_accept_btn')}
+                        </motion.button>
+                      ) : wf === 'preparing' && stationFilter && visibleAllReady && otherPending > 0 ? (
+                        <p className={`mt-2.5 text-[11px] font-semibold ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                          {t('kds_other_stations_pending')} · {otherPending}
+                        </p>
+                      ) : null}
                     </motion.div>
                     )}
                   </Fragment>
@@ -752,13 +936,17 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
           const timer = getItemTimerStatus(o.created_at, Math.max(1, Math.round(delayMin / 2)), delayMin);
           const items = o.items.filter(i => (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status));
           const allReady = items.length > 0 && items.every(isItemReady);
+          // 12i: workflow state (modal footer + header status label).
+          const wf = kdsWorkflowState(o, isItemReady, nowMs);
+          const wfMeta = wfMetaFor(wf, lightMode);
           const stationMap = new Map<string, { name: string; qty: number; ready: number }>();
           for (const it of items) {
             const st = itemStation(it);
             const nm = st ? (stations.find(s => s.id === st)?.name || 'Main Kitchen') : 'Main Kitchen';
             const e = stationMap.get(nm) || { name: nm, qty: 0, ready: 0 };
             e.qty += it.quantity;
-            if (isItemReady(it)) e.ready += it.quantity;
+            // 12i: served = done (the station's share is finished).
+            if (isItemReady(it) || it.kitchen_status === 'served') e.ready += it.quantity;
             stationMap.set(nm, e);
           }
           const title = o.order_source === 'dine_in' ? `Masa ${o.table_number ?? '?'}` : o.customer_name || (o.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'));
@@ -786,22 +974,27 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                        <h2 className={`text-xl font-semibold tracking-tight truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{title}</h2>
                        <PartnerLogo source={o.partner_source} height={18} lightMode={lightMode} />
                      </div>
-                     <div className="flex items-center gap-2.5 mt-1.5 min-w-0">
-                       {o.order_source !== 'dine_in' && !o.customer_name && (
-                         <span className={`text-xs font-medium ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                           {o.order_source === 'takeaway' ? t('takeaway_short').toLowerCase() : t('delivery_short').toLowerCase()}
-                         </span>
-                       )}
-                       {o.customer_phone && (
-                         <a href={`tel:${o.customer_phone}`} className={`text-xs font-semibold tabular-nums ${lightMode ? 'text-zinc-500' : 'text-white/45'}`}>{o.customer_phone}</a>
-                       )}
-                       <span className={`flex items-center gap-1.5 text-xs font-semibold tabular-nums shrink-0 ${timer.color === 'green' ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-red-500' : 'text-red-400')}`}>
-                         {timer.color === 'purple' && <span className={`w-1.5 h-1.5 rounded-full ${lightMode ? 'bg-red-500' : 'bg-red-400'}`} />}
-                         {formatElapsedMin(timer.elapsed)}
-                         {(timer.color === 'red' || timer.color === 'purple') && (
-                           <span className="text-[10px] font-bold uppercase tracking-wider">{timer.text}</span>
-                         )}
-                       </span>
+                      <div className="flex items-center gap-2.5 mt-1.5 min-w-0">
+                        {/* 12i: ORDER TYPE bold (eye-catching) — dine-in shows
+                            the order number. */}
+                        <span className={`text-xs ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                          {o.order_source !== 'dine_in' ? (
+                            <span className={`font-bold ${lightMode ? 'text-zinc-600' : 'text-white/65'}`}>{o.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short')}</span>
+                          ) : (
+                            <span>{o.order_number || ''}</span>
+                          )}
+                        </span>
+                        {o.customer_phone && (
+                          <a href={`tel:${o.customer_phone}`} className={`text-xs font-semibold tabular-nums ${lightMode ? 'text-zinc-500' : 'text-white/45'}`}>{o.customer_phone}</a>
+                        )}
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${wfMeta.cls}`}>{t(wfMeta.key as any)}</span>
+                        <span className={`flex items-center gap-1.5 text-xs font-semibold tabular-nums shrink-0 ${timer.color === 'green' ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-red-500' : 'text-red-400')}`}>
+                          {timer.color === 'purple' && <span className={`w-1.5 h-1.5 rounded-full ${lightMode ? 'bg-red-500' : 'bg-red-400'}`} />}
+                          {formatElapsedMin(timer.elapsed)}
+                          {(timer.color === 'red' || timer.color === 'purple') && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider">{timer.text}</span>
+                          )}
+                        </span>
                        <button
                          type="button"
                          onClick={() => reprintTicket(o)}
@@ -839,33 +1032,39 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                          resolveAllergenEntry(a)?.label ||
                          (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
                        ).filter(Boolean);
-                       return (
-                         <div key={item.id} className="flex items-start justify-between gap-3 py-3 first:pt-0">
-                           <div className="min-w-0 flex-1">
-                             <div className="flex items-center gap-2 flex-wrap">
-                               <span className={`text-sm font-semibold ${itemReady ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-900' : 'text-white/90')}`}>{item.name}</span>
-                               {item.is_hold && <span className={`text-[10px] font-bold tracking-wider ${lightMode ? 'text-amber-600' : 'text-amber-400'}`}>HOLD</span>}
-                               {item.course && <span className={`text-[10px] font-semibold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{item.course}</span>}
-                               {alLabels.length > 0 && <span className={`text-[10px] font-bold ${lightMode ? 'text-red-500' : 'text-red-400'}`}>⚠ {alLabels.join(' · ')}</span>}
-                             </div>
-                             {modText && <p className={`mt-1 text-xs ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{modText}</p>}
-                             {item.special_notes && <p className={`mt-1 text-xs font-medium ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>{item.special_notes}</p>}
-                           </div>
-                           <div className="flex items-center gap-3 shrink-0 pt-0.5">
-                             <span className={`text-sm font-semibold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>×{item.quantity}</span>
-                             {!itemReady ? (
-                               <button
-                                 onClick={() => handleItemStatus(o.id, item.id, 'ready')}
-                                 className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border transition-all active:scale-90 ${lightMode ? 'border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'border-white/20 text-white/35 hover:border-emerald-400 hover:text-emerald-400'}`}
-                               >
-                                 ✓
-                               </button>
-                             ) : (
-                               <span className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${lightMode ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-zinc-950'}`}>✓</span>
-                             )}
-                           </div>
-                         </div>
-                       );
+                        const itemServed = item.kitchen_status === 'served';
+                        const dim = itemReady || itemServed;
+                        return (
+                          <div key={item.id} className={`flex items-start justify-between gap-3 py-3 first:pt-0 ${dim ? 'opacity-75' : ''}`}>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-sm font-semibold ${dim ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-900' : 'text-white/90')}`}>{item.name}</span>
+                                {item.is_hold && <span className={`text-[10px] font-bold tracking-wider ${lightMode ? 'text-amber-600' : 'text-amber-400'}`}>HOLD</span>}
+                                {item.course && <span className={`text-[10px] font-semibold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{item.course}</span>}
+                              </div>
+                              {modText && <p className={`mt-1 text-xs font-medium ${lightMode ? 'text-zinc-600' : 'text-white/55'}`}>{modText}</p>}
+                              {item.special_notes && <p className={`mt-1 text-xs font-medium ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>{item.special_notes}</p>}
+                              {alLabels.length > 0 && <p className={`mt-1 text-xs font-bold ${lightMode ? 'text-red-600' : 'text-red-400'}`}>⚠ {alLabels.join(' · ')}</p>}
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0 pt-0.5">
+                              <span className={`text-sm font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
+                              {itemServed ? (
+                                <span className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold opacity-50 ${lightMode ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-zinc-950'}`}>✓</span>
+                              ) : itemReady ? (
+                                <button
+                                  onClick={() => handleItemToggle(o.id, item.id, item.kitchen_status)}
+                                  title={t('kds_uncheck')}
+                                  className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold transition-all active:scale-90 hover:opacity-80 ${lightMode ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-zinc-950'}`}
+                                >✓</button>
+                              ) : (
+                                <button
+                                  onClick={() => handleItemToggle(o.id, item.id, item.kitchen_status)}
+                                  className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border transition-all active:scale-90 ${lightMode ? 'border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'border-white/20 text-white/35 hover:border-emerald-400 hover:text-emerald-400'}`}
+                                >✓</button>
+                              )}
+                            </div>
+                          </div>
+                        );
                      })}
                    </div>
 
@@ -916,19 +1115,33 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                    })()}
                  </div>
 
-                 {/* Sticky footer — the action is always visible (POS pattern) */}
-                 <div className="p-5 pt-0 flex-shrink-0">
-                   {allReady ? (
-                     <button
-                       onClick={() => handleMarkReady(o.id)}
-                       className={`w-full h-12 rounded-2xl text-sm font-semibold transition-all active:scale-[0.99] ${lightMode ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400'}`}
-                     >
-                       {t('complete_order')}
-                     </button>
-                   ) : (
-                     <p className={`text-center text-[11px] font-semibold uppercase tracking-[0.12em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_check_items')}</p>
-                   )}
-                 </div>
+                  {/* Sticky footer — 12i canonical workflow action, always
+                      visible (the forced-tick gate is gone). The modal is the
+                      whole-order surface, so "Hazırdır" here finalizes ALL
+                      stations — that is the intended one-tap. */}
+                  <div className="p-5 pt-0 flex-shrink-0">
+                    {wf === 'served' ? (
+                      <p className={`text-center text-sm font-semibold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>✓ {t('kds_served')}</p>
+                    ) : wf === 'ready' || wf === 'serving' ? (
+                      // 12i (owner): SERVE is the POS (floor) action — the
+                      // modal only informs; the chef's part is done.
+                      <p className={`text-center text-[11px] font-semibold uppercase tracking-[0.12em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_serving_hint')}</p>
+                    ) : wf === 'preparing' ? (
+                      <button
+                        onClick={() => handleMakeReady(o.id)}
+                        className={`w-full h-12 rounded-2xl text-sm font-semibold transition-all active:scale-[0.99] ${lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90'}`}
+                      >
+                        {t('kds_ready_btn')}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAccept(o.id)}
+                        className={`w-full h-12 rounded-2xl text-sm font-semibold transition-all active:scale-[0.99] ${lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90'}`}
+                      >
+                        {t('kds_accept_btn')}
+                      </button>
+                    )}
+                  </div>
               </motion.div>
             </motion.div>
           );

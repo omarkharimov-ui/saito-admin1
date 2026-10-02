@@ -2072,6 +2072,24 @@ export const az = {
   kds_station_empty: 'Bu stansiyada aktiv sifariş yoxdur',
   kds_other_stations_pending: 'Digər stansiyalar hazırlayır',
 
+  // 12i (owner): canonical kitchen workflow — qəbul → hazırlanır → hazırdır →
+  // (3s) sərvise → servis edildi.
+  kds_st_waiting: 'GÖZLƏYİR',
+  kds_st_preparing: 'HAZIRLANIR',
+  kds_st_ready: 'HAZIRDIR',
+  kds_st_serving: 'SƏRVİSE HAZIRDİR',
+  kds_st_served: 'SERVİS EDİLDİ',
+  kds_accept_btn: 'Qəbul et',
+  kds_ready_btn: 'Hazırdır',
+  kds_serve_btn: 'Sərvil et',
+  kds_served: 'Servis edildi',
+  kds_uncheck: 'Tiki çıxar',
+  kds_accepted_toast: 'Qəbul olundu — hazırlanır',
+  // 12i: SERVE is a FLOOR/POS action — the kitchen ends at Hazırdır.
+  kds_serving_hint: 'Sərvil POS-dan edilir',
+  kds_not_ready_toast: 'Mətbəx hələ hazırlanır — əvvəl "Hazırdır" basılmalıdır',
+  mark_served_toast: 'Servisə verildi',
+
   void_item: 'Məhsulu silmək',
   loss: 'İtki yazmaq',
   pin_for: 'üçün PIN daxil edin',

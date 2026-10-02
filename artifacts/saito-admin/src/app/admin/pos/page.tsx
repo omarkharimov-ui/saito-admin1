@@ -1161,12 +1161,34 @@ export default function POSPage() {
   };
   const handleBillRequest = (tableNumber: number, requested: boolean = true) =>
     void postBillRequest(tableNumber, requested);
+  // 12i (owner): "servis et buttonu POS-da olacaq" — SERVE is the FLOOR's
+  // action. The kitchen serve (mark_order_served_atomic: all ready items →
+  // served; idempotent noop for drink-only orders) IS the serve — it flips
+  // KDS/BDS/table badge to "SERVİS EDİLDİ" via the frozen rollup.
+  // The OLD code additionally did orderStateMachine.transition(order,
+  // 'served') — but the frozen ORDER registry has no dine-in edge into
+  // 'served' from 'confirmed' (→served only from paid/ready), so it always
+  // 409'd and toasted INVALID_TRANSITION over a successful serve (E2E r12i
+  // catch). The dine-in order status advances through its own lifecycle
+  // (payment), so the kitchen serve stands alone.
   const handleMarkServed = async () => {
     if (!actionSheetTable) return;
     const orderId = actionSheetTable.current_order_id || actionSheetTable.order_ids?.[0] || (Array.isArray(actionSheetTable.orders) ? actionSheetTable.orders[0]?.id : undefined);
     if (!orderId) return;
     try {
-      await orderStateMachine.transition(orderId, 'served');
+      const serveRes = await apiFetch('/api/orders/serve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId }),
+      });
+      if (!serveRes.ok) {
+        const d = await serveRes.json().catch(() => ({}));
+        toast.error(d?.error === 'ORDER_NOT_FULLY_READY'
+          ? (t('kds_not_ready_toast') || 'Mətbəx hələ hazırlanır — əvvəl KDS-də "Hazırdır"')
+          : (d?.error || t('error_occurred')));
+        return;
+      }
+      toast.success(t('mark_served_toast') || 'Servisə verildi');
       setActionSheetOpen(false);
       pos.fetchData();
     } catch (e: any) {

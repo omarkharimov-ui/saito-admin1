@@ -2074,6 +2074,23 @@ export const en: TranslationMap = {
   kds_station_empty: 'No active orders at this station',
   kds_other_stations_pending: 'Other stations still preparing',
 
+  // 12i: canonical kitchen workflow (accept → preparing → ready → serve → served)
+  kds_st_waiting: 'WAITING',
+  kds_st_preparing: 'PREPARING',
+  kds_st_ready: 'READY',
+  kds_st_serving: 'READY TO SERVE',
+  kds_st_served: 'SERVED',
+  kds_accept_btn: 'Accept',
+  kds_ready_btn: 'Ready',
+  kds_serve_btn: 'Serve',
+  kds_served: 'Served',
+  kds_uncheck: 'Uncheck',
+  kds_accepted_toast: 'Accepted — preparing',
+  // 12i: SERVE is a FLOOR/POS action — the kitchen ends at Ready.
+  kds_serving_hint: 'Serve from the POS',
+  kds_not_ready_toast: 'The kitchen is still preparing — mark it ready first',
+  mark_served_toast: 'Served',
+
   void_item: 'Void item',
   loss: 'Write off',
   pin_for: 'enter PIN',

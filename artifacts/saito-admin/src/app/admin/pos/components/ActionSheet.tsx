@@ -300,7 +300,13 @@ export function ActionSheet({
       { id: 'assign_courier', icon: UserCheck, label: t('assign_courier' as any) || 'Assign Courier', visible: true },
       { id: 'courier_status', icon: Navigation, label: t('courier_status' as any) || 'Kuryer statusu', visible: hasCourier === true },
     ] : []),
-    ...(posMode === 'dine_in' && table?.status === 'ready' ? [
+    // 12i (owner): "servis et buttonu POS-da olacaq" — SERVE is the floor's
+    // action, visible when the KITCHEN is done. The old gate read
+    // table.status === 'ready' — but 'ready' there is a TABLE state (table
+    // cleaned & free); an order-bearing table is 'occupied', so the button
+    // never rendered (E2E r12i catch). Kitchen state lives in
+    // table_floors.kitchen_status (mirrored by the kitchen rollup).
+    ...(posMode === 'dine_in' && table?.kitchen_status === 'ready' ? [
       { id: 'mark_served', icon: CheckCircle, label: t('mark_served'), visible: true },
     ] : []),
     ...(isTakeawayOrDelivery ? [

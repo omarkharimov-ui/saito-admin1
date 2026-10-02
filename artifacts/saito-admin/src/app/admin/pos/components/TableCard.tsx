@@ -693,26 +693,34 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                 {/* 2026-09-26 (Task 54 verify fix, P2): kitchen status chip —
                     normalize case ('PARTIALLY_READY' leak) + map every known
                     value to a localized label; NEVER render the raw enum. */}
-                {(() => { const ks = String(kitchenStatus || '').toLowerCase(); return !showOccupiedFlash && isOccupied && showKitchenStatus && ks && !['completed', 'cancelled', 'ready'].includes(ks) && table.status !== 'served' && table.status !== 'dining'; })() ? (
+                  {/* 12i: 'served' joins the hidden set with 'ready' — the
+                      kitchen's job is done and the table's DINING state takes
+                      over (KDS/BDS are the kitchen-state surfaces). The old
+                      code showed 'served' with the zinc fallback + a
+                      "Hazırlanır" label (else-branch leak — E2E r12i catch). */}
+                  {(() => { const ks = String(kitchenStatus || '').toLowerCase(); return !showOccupiedFlash && isOccupied && showKitchenStatus && ks && !['completed', 'cancelled', 'ready', 'served'].includes(ks) && table.status !== 'served' && table.status !== 'dining'; })() ? (
                   <motion.div
                     key="kitchen"
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4, transition: { duration: 0.28, ease: [0.45, 0, 0.55, 1] } }}
                     transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                      className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${
-                        ['preparing', 'cooking', 'partially_ready'].includes(String(kitchenStatus).toLowerCase())
-                          ? lightMode ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-blue-500/25 border-blue-400/50 text-blue-300'
-                        : String(kitchenStatus).toLowerCase() === 'ready'
-                          ? lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-700' : 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300'
-                          : lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-600' : 'bg-white/10 border-white/20 text-zinc-300'
-                    }`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      ['preparing', 'cooking', 'partially_ready'].includes(String(kitchenStatus).toLowerCase()) ? (lightMode ? 'bg-blue-500 animate-pulse' : 'bg-blue-400 animate-pulse')
-                        : String(kitchenStatus).toLowerCase() === 'ready' ? (lightMode ? 'bg-emerald-500' : 'bg-emerald-400')
-                        : lightMode ? 'bg-zinc-400' : 'bg-white/40'
-                    }`} />
-                    {(() => { const ks2 = String(kitchenStatus).toLowerCase(); return ks2 === 'preparing' || ks2 === 'cooking' ? t('kitchen_preparing' as any) : ks2 === 'ready' ? t('table_ready' as any) : ks2 === 'new' ? t('kitchen_new_badge' as any) : ks2 === 'pending' ? t('kitchen_pending' as any) : t('kitchen_preparing' as any); })()}
+                       className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${
+                         ['preparing', 'cooking', 'partially_ready', 'accepted', 'sent'].includes(String(kitchenStatus).toLowerCase())
+                           ? lightMode ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-blue-500/25 border-blue-400/50 text-blue-300'
+                         : ['ready', 'served'].includes(String(kitchenStatus).toLowerCase())
+                           ? lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-700' : 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300'
+                            : lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-600' : 'bg-white/10 border-white/20 text-zinc-300'
+                      }`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${
+                       ['preparing', 'cooking', 'partially_ready', 'accepted', 'sent'].includes(String(kitchenStatus).toLowerCase()) ? (lightMode ? 'bg-blue-500 animate-pulse' : 'bg-blue-400 animate-pulse')
+                         : ['ready', 'served'].includes(String(kitchenStatus).toLowerCase()) ? (lightMode ? 'bg-emerald-500' : 'bg-emerald-400')
+                         : lightMode ? 'bg-zinc-400' : 'bg-white/40'
+                     }`} />
+                     {/* 12i: full canonical vocabulary (qəbul → hazırlanır →
+                         hazırdır → sərvise → servis edildi) — no raw-enum or
+                         else-branch leaks. */}
+                     {(() => { const ks2 = String(kitchenStatus).toLowerCase(); return ks2 === 'preparing' || ks2 === 'cooking' || ks2 === 'accepted' || ks2 === 'sent' ? t('kitchen_preparing' as any) : ks2 === 'partially_ready' ? t('bds_k_partially' as any) : ks2 === 'ready' ? t('table_ready' as any) : ks2 === 'served' ? t('kds_st_served' as any) : ks2 === 'new' ? t('kitchen_new_badge' as any) : ks2 === 'pending' ? t('kitchen_pending' as any) : t('kitchen_preparing' as any); })()}
                   </motion.div>
                 ) : (
                  <motion.div

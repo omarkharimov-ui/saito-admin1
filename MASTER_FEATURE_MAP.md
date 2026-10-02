@@ -839,6 +839,57 @@ Owner: "…sonraya saxlayaq bunu (route). Delivery page customer info sonra tama
 
 ---
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12i: KANONİK MƏTBƏX WORKFLOW — QƏBUL→HAZIRLANIR→HAZIRDIR→SƏRVİSE→SERVİS EDİLDİ + POS SERVE + VİZUAL GÖRÜNÜRLÜK + BUG FIX)
+
+Owner: **"stil duzgundur lakin bəzi yerlər nəzərə çarpan olmalı idi — sifariş tipi (çatdırılma/pickup/dine-in), modifikatoru rahat görmək, neçə edəd, allergenləri; tik işləmir — tik etmək olur lakin çıxarmaq olmaz; modifikator per-item olmur (birləşir); sifariş tamamlamaq üçün məcburi tik olmamalı; MƏTBƏX workflow: qəbul → hazırlanır → hazırdır → (2-3s) sərvise → servis edildi; STATIONSLAR BİR-BİRİNDƏN XƏBƏRLİ OLMALIDIRLAR; 'sifariş tamamla' deyirsen itir sonra yenidən gelir — bu tip bugları özün araşdır; bunları MFM-də də qeyd et + rəqiblərlə müqayisə."** İkinci mesaj (clarification): **"servis et buttonu POS-da olacaq — metbəxdə olanlar 'sifarişi qəbul et' + 'hazırdır' buttonlarıdır; sən bunu özün avtomatik bilib qurmalısansa."**
+
+**(A) KANONİK WORKFLOW (spec — bundan sonra hər KDS/BDS/POS dəyişikliyi buna uyğun olmalıdır):**
+```
+item  : pending ──✓──▶ ready ──(POS Servisə Ver)──▶ served
+        ▲ recall (un-tick: item_kitchen_terminal 'recalled', registry edge
+        │ ready→pending verified in state_transitions)
+order : GÖZLƏYİR ──Qəbul et──▶ HAZIRLANIR ──Hazırdır──▶ HAZIRDIR
+        (rollup: accepted/sent/preparing/     (mark_item_ready_atomic:
+         partially_ready)                      ALL non-ready → ready,
+                                               kitchen_ready_at stamp)
+        HAZIRDIR ──(+3 s, DERIVED from kitchen_ready_at — no cron)──▶ SƏRVİSE HAZIRDİR
+        ──POS "Servisə Ver" (floor action!)──▶ SERVİS EDİLDİ (served)
+```
+- **Mətbəx (KDS) = YALNIZ 2 button:** "Qəbul et" (pending) + "Hazırdır" (preparing) — owner clarification: SERVE metbəxdə YOXDUR.
+- **POS = "Servisə Ver" (floor action):** `/api/orders/serve` (floor.manage + CSRF) → `mark_order_served_atomic` (12i migration, all-ready invariant, idempotent, audit log) → rollup = served → KDS/BDS/floor hamısı "SERVİS EDİLDİ".
+- **SƏRVİSE flip = derived:** `kitchen_ready_at + 3s` (1s client tick) — 100% keyless (cron/worker YOX).
+- **Məcburi tik YOXDU:** "Hazırdır" = bütün order bir tap (12f-dən qalan allReady-gate ARXIVLADI).
+- **Cross-station:** kartda inter-station progress xətti ("Main Kitchen 2/3 · Bar 0/2"); station board-da "Hazırdır" GÖZMİR (başqa stationın item-lərini yeməsin) + "Digər stansiyalar hazırlayır · n" hint.
+
+**(B) VİZUAL GÖRÜNÜRLÜK (Apple-flat saxlanılır, amma emphasis weight/color ilə):**
+- Order type BOLD ("Çatdırılma · +994…" / "Gel-Al · …"; dine-in = order no); status label 10px uppercase bold, state color (emerald = done family, zinc = in-flight).
+- Item spec = 3 ayrı sətir: **modifier zinc-dark** (per-instance — POS artıq per-instance göndərir: `cartLineKey(variant, notes, modifiers)`; "Green Tea ×2 şəkərsiz" = 1 sətir ×2, fərqli spec = ayrı sətirlər — **12h "birləşmə" kökü = 1 spec sətiri idi `note || modifier` — indi HAMISI görünür**), **note amber**, **allergen RED-bold "⚠ Süd"**; **×qty bold**.
+- KDS + BDS eyni spec dili (BDS-yə yeni: `bdsItemSpec` + eyni allergen helpers).
+
+**(C) BUG FIX (E2E-catch):**
+1. **"tamamla → itir → geri" (owner report):** kök = `handleMarkReady` optimistik REMOVE edirdi, amma DB order = 'ready' (terminal YOX) → 5s poll yenidən geri gətirirdi. Fix = workflow: ticket HƏR ZAMAN board-da qalır, state in-place çevrilir.
+2. **POS "Servisə Ver" GATE (E2E catch):** `ActionSheet` gate = `table.status === 'ready'` — amma 'ready' TABLE state idi (masa təmizdir); order-bearing table = 'occupied' → button HEÇ VAXT render olunmurdu (double dead path). Fix = `table.kitchen_status === 'ready'`.
+3. **INVALID_TRANSITION toast (E2E catch):** köhnə `handleMarkServed` order status `'confirmed' → 'served'` transition edirdi — frozen registry-də bu edge YOXDUR (→served only paid/ready) → hər serve üstünə `INVALID_TRANSITION: confirmed → served` toast. Fix: kitchen serve = SSOT; order status öz lifecycle-i ilə irəliləyir (payment), transition call ARXIVLADI.
+4. **Floor badge "HAZIRLANIR" on served tables (E2E catch):** `TableCard` kitchen-chip label else-branch 'served'-i "Hazırlanır" kimi render edirdi. Fix: 'served' = hidden set (kitchen done = dining state) + tam label/color vocabulary (accepted/sent/preparing/partially_ready/ready/served).
+5. **Rollback bug:** `handleItemStatus` fail-də 'preparing' hardcode edirdi ('pending' item üçün yanlış) → indi previous state restore.
+6. "Blink" (owner) = bug #1-in görünüşü (exit+entry anim loop) — workflow fix ilə aradan qalxdı; ayrıca 30s MutationObserver E2E: 139/139 sample eyni position, 0 node add/remove.
+
+**(D) KOD:**
+- DB: migration `20261002060000_12i_kitchen_workflow.sql` = `mark_order_served_atomic` (REAL DB-də APPLIED + psql verify: pending order → `ORDER_NOT_FULLY_READY` 409 ✓).
+- API: `/api/kitchen/accept` (accept_kitchen_ticket_atomic), `/api/kitchen/item-recall` (item_kitchen_terminal 'recalled'), `/api/orders/serve` (floor.manage; POS) — hamısı session identity (client performed_by YOX).
+- KDSView: `kdsWorkflowState` (derived, 1s `nowMs` tick), ✓ TOGGLE (40px card / 48px modal; served = final, dim), `handleAccept`/`handleMakeReady` (optimistic, NO remove), inter-station row, modal footer = workflow (ready/serving = "Sərvil POS-dan edilir" sakit xətti).
+- POS: `handleMarkServed` = `/api/orders/serve` + `mark_served_toast`; ActionSheet gate fix.
+- BDS: `bdsKitchenState` (read-only projection, eyni vocabulary) + item spec lines (kart + modal); `kitchenReady` += 'served'.
+- TableCard: badge fix. i18n: kds_st_* ×5, kds_accept_btn/ready_btn/serve_btn/served/uncheck/accepted_toast/serving_hint/not_ready_toast, mark_served_toast (az/en/ru).
+
+**(E) E2E (r12i, 4 partial run):** KDS: Qəbul et→HAZIRLANIR ✓, Hazırdır→ticket QALDI (bug #1 regression ✓)→HAZIRDIR→5s→SƏRVİSE HAZIRDİR (auto-flip ✓, button YOX ✓), un-tick ✓ (✓→dairə, status back), modal (STANSIYALAR "Bar 2/2 · Main Kitchen 1/1", ESC ✓), station board (Hazırdır GÖZMÜR ✓), 30s blink-watch 0 ✓. POS: SERVİSƏ VER tile (gate ✓) → "Servisə verildi" toast, 0 error (INVALID_TRANSITION YOX ✓) → KDS SERVİS EDİLDİ + dim + no button ✓; floor badge: 502/991 = yalnız DOLU (kitchen chip YOX ✓). BDS: "Mətbax: SƏRVİSE HAZIRDİR / SERVİS EDİLDİ" (emerald) + spec lines (şəkərsiz amber, ⚠ Süd red, Kremli/Losos/Avokado zinc) ✓. Console **0+0** bütün runlarda. tsc clean.
+- Shots: r12i-{kds-1, kds-preparing, kds-ready, kds-modal, kds-station, kds-served, pos-serve, pos-floor, bds-1}.png (real PNG).
+- Test data (live DB): #D085 → SƏRVİSE (ready), ORD-2950 (Masa 502) + ORD-2951 (Masa 991) → served, ORD-2949 (Masa 5) → ready.
+
+**Qalan (owner GO gözləyir):** 12d route (Task #11) + DB-dəki köhnə non-terminal order temizliyi (exact siyahı əvvəl) + 12f chime ear-check + optional "Main Kitchen"→"Hot" rename.
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12h: KDS/BDS — FULL APPLE VISUAL RESET + STATIONS HOT+BAR ONLY)
 
 Owner: **"hele de cox cirkindiree — yeni kartin ustundeki chipler textlert, apple felsefesi ile dedik axi sen ise yungul polish edirsenee daha qeseng netice vere. Yuxaridan grill prep service stationsini çıxar — sadece hot ve bar stationsları var (gələcəkdə arta bilər). Yeni sen apple felsefesi ile her yeri deyismirsen ne axi"** → 12g "yüngül polish" sayıldı; bu round = SAITO_UI_VISUAL_DIRECTION.md §4/§5 qaydalarının **hamısının** KDS + BDS-yə tətbiqi (kart/tab/modal/çip/text — "her yer") + station SSOT-un hot line + Bar-a endazəsi.

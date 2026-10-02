@@ -28,6 +28,7 @@ import { apiFetch } from '@/lib/api-fetch';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useCrossTableRefresh } from '@/hooks/useCrossTableRefresh';
+import { parseAllergens, resolveAllergenEntry } from '@/lib/allergens';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 26 } as const;
 // 2026-10-02 (12g, owner): "POS-da olan tick transition var — eynisindən
@@ -42,7 +43,9 @@ const BDS_STALE_MS = 24 * 60 * 60 * 1000;
 
 interface Station { id: string; name: string; station_type?: string; }
 interface BdsStation { id: string; name: string; station_type: 'delivery' | 'pickup'; }
-interface BdItem { id: string; name?: string | null; product_name?: string | null; quantity: number; kitchen_status: string; station_id: string | null; }
+// 12i: the spec fields (per-instance modifiers, note, allergens) flow from
+// /api/orders order_items(*) raw — the dispatcher must see them too.
+interface BdItem { id: string; name?: string | null; product_name?: string | null; quantity: number; kitchen_status: string; station_id: string | null; modifiers?: any[] | string; special_notes?: string | null; allergens?: any[] | string; }
 interface BdOrder {
   id: string;
   order_source: string;
@@ -51,6 +54,7 @@ interface BdOrder {
   order_number: string | null;
   status: string;
   kitchen_status: string | null;
+  kitchen_ready_at?: string | null;
   delivery_status: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
@@ -63,6 +67,41 @@ interface BdOrder {
   total_amount: number | string;
   created_at: string;
   order_items?: BdItem[];
+}
+
+// 12i (owner): the canonical kitchen workflow is projected READ-ONLY onto the
+// dispatcher board — same vocabulary as the KDS (qəbul → hazırlanır → hazırdır
+// → (3 s, derived) sərvise → servis edildi). Served counts as "done".
+function bdsKitchenState(o: BdOrder, now: number): { key: string; emerald: boolean } {
+  const items = (o.order_items || []).filter(i => i.quantity > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status));
+  const allServed = items.length > 0 && items.every(i => ['served', 'completed'].includes(i.kitchen_status));
+  const allReady = items.length > 0 && items.every(i => ['ready', 'served', 'completed'].includes(i.kitchen_status));
+  if (allServed || o.kitchen_status === 'served') return { key: 'kds_st_served', emerald: true };
+  if (allReady || o.kitchen_status === 'ready') {
+    const ra = o.kitchen_ready_at ? now - new Date(o.kitchen_ready_at).getTime() : -1;
+    return ra >= 3000 ? { key: 'kds_st_serving', emerald: true } : { key: 'kds_st_ready', emerald: true };
+  }
+  if (o.kitchen_status === 'partially_ready') return { key: 'bds_k_partially', emerald: false };
+  if (['accepted', 'sent', 'preparing'].includes(o.kitchen_status || '')) return { key: 'kds_st_preparing', emerald: false };
+  return { key: 'bds_k_pending', emerald: false };
+}
+
+// 12i: the per-item spec (owner: "modifikatoru rahat görə bilmək lazımdır"):
+// modifiers + note + allergen, resolved with the SAME helpers as the KDS so
+// both boards read the ticket identically.
+function bdsItemSpec(it: BdItem): { mods: string; note: string; allergen: string } {
+  const mods = Array.isArray(it.modifiers)
+    ? (it.modifiers as any[]).map(m => (m.quantity && m.quantity > 1 ? `${m.name} ×${m.quantity}` : m.name)).join(', ')
+    : '';
+  let allergen = '';
+  const al = parseAllergens(it.allergens);
+  if (al.length > 0) {
+    allergen = al.map((a: any) =>
+      resolveAllergenEntry(a)?.label ||
+      (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
+    ).filter(Boolean).join(' · ');
+  }
+  return { mods, note: it.special_notes || '', allergen };
 }
 
 const DELIVERY_DONE = ['delivered', 'cancelled'];
@@ -326,8 +365,10 @@ export default function BDSPage() {
   // 'completed' counts as ready — same rule as KDSView (isItemReady); without
   // it the ALINDI / TƏHVİL ET buttons stayed disabled on finished orders
   // (2026-09-23 E2E).
-  const kitchenReady = (o: BdOrder) => o.kitchen_status === 'ready' || o.kitchen_status === 'completed'
-    || (o.kitchen_status === 'partially_ready' && (o.order_items || []).length > 0 && (o.order_items || []).every(i => ['ready', 'completed'].includes(i.kitchen_status)));
+  // 12i: 'served' also counts — the kitchen's job is done (ALINDI / picked_up
+  // stay valid after the chef hands the food over).
+  const kitchenReady = (o: BdOrder) => ['ready', 'served', 'completed'].includes(o.kitchen_status || '')
+    || (o.kitchen_status === 'partially_ready' && (o.order_items || []).length > 0 && (o.order_items || []).every(i => ['ready', 'served', 'completed'].includes(i.kitchen_status)));
 
   const KITCHEN_LABEL: Record<string, { key: string; cls: string }> = {
     pending: { key: 'bds_k_pending', cls: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20' },
@@ -506,38 +547,56 @@ export default function BDSPage() {
                      )}
 
                      {/* Items — flat rows, read-only kitchen view (max 4 + "n") */}
-                     {cardItems.length > 0 && (
-                       <div className={`mt-2.5 divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.05]'}`}>
-                         {cardItems.slice(0, 4).map(it => {
-                           const itReady = ['ready', 'completed'].includes(it.kitchen_status);
-                           return (
-                             <div key={it.id} className="flex items-center justify-between gap-2 py-1.5">
-                               <span className={`text-xs font-medium truncate ${itReady ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>
-                                 {it.product_name || it.name || '—'} ×{it.quantity}
-                               </span>
-                               <span className={`text-[10px] font-semibold tabular-nums shrink-0 ${itReady ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-400' : 'text-white/30')}`}>
-                                 {stationName(it.station_id)}{itReady ? ' ✓' : ''}
-                               </span>
-                             </div>
-                           );
-                         })}
+                      {cardItems.length > 0 && (
+                        <div className={`mt-2.5 divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.05]'}`}>
+                          {cardItems.slice(0, 4).map(it => {
+                            const itReady = ['ready', 'completed', 'served'].includes(it.kitchen_status);
+                            const spec = bdsItemSpec(it);
+                            return (
+                              <div key={it.id} className="py-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className={`text-xs truncate min-w-0 ${itReady ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>
+                                    <span className={`font-semibold ${itReady ? '' : (lightMode ? 'text-zinc-800' : 'text-white/85')}`}>{it.product_name || it.name || '—'}</span>{' '}
+                                    <span className={`font-bold tabular-nums ${itReady ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-600' : 'text-white/55')}`}>×{it.quantity}</span>
+                                  </span>
+                                  <span className={`text-[10px] font-semibold tabular-nums shrink-0 ${itReady ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-400' : 'text-white/30')}`}>
+                                    {stationName(it.station_id)}{itReady ? ' ✓' : ''}
+                                  </span>
+                                </div>
+                                {(spec.allergen || spec.mods || spec.note) && (
+                                  <p className="mt-0.5 text-[10px] truncate">
+                                    {spec.allergen && <span className={`font-bold ${lightMode ? 'text-red-600' : 'text-red-400'}`}>⚠ {spec.allergen}</span>}
+                                    {spec.allergen && (spec.mods || spec.note) && <span className={lightMode ? 'text-zinc-300' : 'text-white/15'}> · </span>}
+                                    {spec.mods && <span className={`font-medium ${lightMode ? 'text-zinc-500' : 'text-white/45'}`}>{spec.mods}</span>}
+                                    {spec.mods && spec.note && <span className={lightMode ? 'text-zinc-300' : 'text-white/15'}> · </span>}
+                                    {spec.note && <span className={`font-medium ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>{spec.note}</span>}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
                          {cardItems.length > 4 && (
                            <p className={`pt-1.5 text-[10px] font-semibold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>+{cardItems.length - 4}</p>
                          )}
                        </div>
                      )}
 
-                     {/* Kitchen line — quiet, state in color (owned by KDS);
-                         the assigned courier travels on the same line. */}
-                     <p className="mt-2.5 text-[11px] font-semibold">
-                       <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>Mətbax: </span>
-                       <span className={kReady ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-500' : 'text-white/45')}>
-                         {kReady ? (t('bds_k_ready') || 'Hazırdır') : t(kLabel.key as any)}
-                       </span>
-                       {kind === 'delivery' && o.courier_name && (
-                         <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}> · Kuryer: {o.courier_name}</span>
-                       )}
-                     </p>
+                      {/* Kitchen line — 12i: the canonical workflow state
+                          (GÖZLƏYİR → HAZIRLANIR → HAZIRDIR → SƏRVİSE →
+                          SERVİS EDİLDİ), same vocabulary as the KDS board;
+                          the assigned courier travels on the same line. */}
+                      {(() => {
+                        const ks = bdsKitchenState(o, Date.now());
+                        return (
+                          <p className="mt-2.5 text-[11px] font-semibold">
+                            <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>Mətbax: </span>
+                            <span className={`uppercase tracking-wide ${ks.emerald ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-500' : 'text-white/45')}`}>{t(ks.key as any)}</span>
+                            {kind === 'delivery' && o.courier_name && (
+                              <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}> · Kuryer: {o.courier_name}</span>
+                            )}
+                          </p>
+                        );
+                      })()}
 
                      {/* Takeaway — the frequent one-tap stays on the card.
                          Delivery transitions + courier pick = in the modal. */}
@@ -664,21 +723,34 @@ export default function BDSPage() {
                    {activeItems.length > 0 && (
                      <section className={kind === 'delivery' && (o.delivery_address || o.delivery_zone) ? 'mt-5' : ''}>
                        <p className={`text-[11px] font-semibold uppercase tracking-[0.12em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_items')}</p>
-                       <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.06]'}`}>
-                         {activeItems.map(it => {
-                           const itReady = ['ready', 'completed'].includes(it.kitchen_status);
-                           return (
-                             <div key={it.id} className="flex items-center justify-between gap-2 py-2">
-                               <span className={`text-[13px] font-medium truncate ${itReady ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-800' : 'text-white/80')}`}>
-                                 {it.product_name || it.name || '—'} <span className="tabular-nums">×{it.quantity}</span>
-                               </span>
-                               <span className={`text-[11px] font-semibold tabular-nums shrink-0 ${itReady ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>
-                                 {stationName(it.station_id)}{itReady ? ' ✓' : ''}
-                               </span>
-                             </div>
-                           );
-                         })}
-                       </div>
+                        <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.06]'}`}>
+                          {activeItems.map(it => {
+                            const itReady = ['ready', 'completed', 'served'].includes(it.kitchen_status);
+                            const spec = bdsItemSpec(it);
+                            return (
+                              <div key={it.id} className={`py-2 ${itReady ? 'opacity-75' : ''}`}>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className={`text-[13px] truncate min-w-0 ${itReady ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-800' : 'text-white/80')}`}>
+                                    <span className="font-semibold">{it.product_name || it.name || '—'}</span>{' '}
+                                    <span className={`font-bold tabular-nums ${itReady ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-600' : 'text-white/55')}`}>×{it.quantity}</span>
+                                  </span>
+                                  <span className={`text-[11px] font-semibold tabular-nums shrink-0 ${itReady ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>
+                                    {stationName(it.station_id)}{itReady ? ' ✓' : ''}
+                                  </span>
+                                </div>
+                                {(spec.allergen || spec.mods || spec.note) && (
+                                  <p className="mt-0.5 text-[11px] truncate">
+                                    {spec.allergen && <span className={`font-bold ${lightMode ? 'text-red-600' : 'text-red-400'}`}>⚠ {spec.allergen}</span>}
+                                    {spec.allergen && (spec.mods || spec.note) && <span className={lightMode ? 'text-zinc-300' : 'text-white/15'}> · </span>}
+                                    {spec.mods && <span className={`font-medium ${lightMode ? 'text-zinc-500' : 'text-white/45'}`}>{spec.mods}</span>}
+                                    {spec.mods && spec.note && <span className={lightMode ? 'text-zinc-300' : 'text-white/15'}> · </span>}
+                                    {spec.note && <span className={`font-medium ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>{spec.note}</span>}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                      </section>
                    )}
 
@@ -687,13 +759,16 @@ export default function BDSPage() {
                      <p className={`mt-4 text-[13px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{o.customer_note}</p>
                    )}
 
-                   {/* Mətbax — quiet line (owned by KDS, read-only) */}
-                   <p className="mt-5 text-[11px] font-semibold">
-                     <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>Mətbax: </span>
-                     <span className={kReady ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-500' : 'text-white/45')}>
-                       {kReady ? (t('bds_k_ready') || 'Hazırdır') : t(kLabel.key as any)}
-                     </span>
-                   </p>
+                    {/* Mətbax — 12i: canonical workflow state (read-only) */}
+                    {(() => {
+                      const ks = bdsKitchenState(o, Date.now());
+                      return (
+                        <p className="mt-5 text-[11px] font-semibold">
+                          <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>Mətbax: </span>
+                          <span className={`uppercase tracking-wide ${ks.emerald ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-500' : 'text-white/45')}`}>{t(ks.key as any)}</span>
+                        </p>
+                      );
+                    })()}
 
                    {/* Kuryer (delivery) — one functional control + picker */}
                    {kind === 'delivery' && (

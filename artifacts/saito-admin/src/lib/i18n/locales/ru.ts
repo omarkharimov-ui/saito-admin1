@@ -2075,6 +2075,23 @@ export const ru: TranslationMap = {
   kds_station_empty: 'Нет активных заказов на этой станции',
   kds_other_stations_pending: 'Другие станции ещё готовят',
 
+  // 12i: канонический workflow кухни (принять → готовить → готово → выдача → выдано)
+  kds_st_waiting: 'ОЖИДАНИЕ',
+  kds_st_preparing: 'ПРИГОТОВЛЕНИЕ',
+  kds_st_ready: 'ГОТОВО',
+  kds_st_serving: 'ГОТОВО К ВЫДАЧЕ',
+  kds_st_served: 'ВЫДАНО',
+  kds_accept_btn: 'Принять',
+  kds_ready_btn: 'Готово',
+  kds_serve_btn: 'Выдать',
+  kds_served: 'Сервировано',
+  kds_uncheck: 'Снять отметку',
+  kds_accepted_toast: 'Принято — готовится',
+  // 12i: ВЫДАЧА — действие зала/POS, кухня заканчивается на «Готово».
+  kds_serving_hint: 'Выдача с POS',
+  kds_not_ready_toast: 'Кухня ещё готовит — сначала отметьте «Готово»',
+  mark_served_toast: 'Сервировано',
+
   void_item: 'Списать товар',
   loss: 'Списать убыток',
   pin_for: 'введите PIN',

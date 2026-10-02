@@ -2103,6 +2103,12 @@ export const ru: TranslationMap = {
   kds_day_production: 'Производство',
   kds_day_tickets: 'Заказы',
   kds_day_empty: 'Сегодня заказов нет',
+  // 12m — dual station board labels.
+  kds_tab_preparing: 'ПРИГОТОВЛЕНИЕ',
+  kds_tab_ready: 'ГОТОВО',
+  kds_tab_empty_preparing: 'Нет заказов в работе',
+  kds_tab_empty_ready: 'Нет готовых заказов',
+  kds_note_label: 'Заметка',
 
   void_item: 'Списать товар',
   loss: 'Списать убыток',

@@ -2077,7 +2077,7 @@ export const az = {
   kds_st_waiting: 'GÖZLƏYİR',
   kds_st_preparing: 'HAZIRLANIR',
   kds_st_ready: 'HAZIRDIR',
-  kds_st_serving: 'SƏRVİSƏ HAZIRDİR',
+  kds_st_serving: 'SERVİSƏ HAZIRDIR',
   kds_st_served: 'SERVİS EDİLDİ',
   kds_accept_btn: 'Qəbul et',
   kds_ready_btn: 'Hazırdır',
@@ -2090,7 +2090,7 @@ export const az = {
   kds_not_ready_toast: 'Mətbəx hələ hazırlanır — əvvəl "Hazırdır" basılmalıdır',
   mark_served_toast: 'Servisə verildi',
   // 12j: POS floor chip + tick + GÜN (All Day) view.
-  kds_chip_serve: 'SƏRVİSƏ HAZIRDİR',
+  kds_chip_serve: 'SERVİSƏ HAZIRDIR',
   kds_tick_add: 'Hazırdır',
   kds_day_tab: 'GÜN',
   kds_day_m_orders: 'Sifariş',
@@ -2101,6 +2101,12 @@ export const az = {
   kds_day_production: 'İstehsal',
   kds_day_tickets: 'Sifarişlər',
   kds_day_empty: 'Bugün hələ sifariş qeyd olunmayıb',
+  // 12m — dual station board: HAZIRLANIR | HAZIRDİR sub-tabs + "Qeyd:" label.
+  kds_tab_preparing: 'HAZIRLANIR',
+  kds_tab_ready: 'HAZIRDİR',
+  kds_tab_empty_preparing: 'Hazırlanan sifariş yoxdur',
+  kds_tab_empty_ready: 'Hazır sifariş yoxdur',
+  kds_note_label: 'Qeyd',
 
   void_item: 'Məhsulu silmək',
   loss: 'İtki yazmaq',

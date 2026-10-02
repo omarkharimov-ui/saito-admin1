@@ -582,7 +582,7 @@ export default function BDSPage() {
                      )}
 
                       {/* Kitchen line — 12i: the canonical workflow state
-                          (GÖZLƏYİR → HAZIRLANIR → HAZIRDIR → SƏRVİSE →
+                          (GÖZLƏYİR → HAZIRLANIR → HAZIRDIR → SERVİSƏ →
                           SERVİS EDİLDİ), same vocabulary as the KDS board;
                           the assigned courier travels on the same line. */}
                       {(() => {

@@ -77,7 +77,7 @@ interface KDSOrder {
   created_at: string;
   kitchen_status: string;
   /** 12i: workflow timestamps (rollup-stamped by the frozen RPCs).
-   *  kitchen_ready_at drives the 3 s HAZIRDIR → SƏRVİSE flip (derived). */
+   *  kitchen_ready_at drives the 3 s HAZIRDIR → SERVİSƏ flip (derived). */
   kitchen_ready_at?: string | null;
   kitchen_accepted_at?: string | null;
 }
@@ -190,7 +190,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // Motion philosophy rule 12: respect prefers-reduced-motion.
   const reduceMotion = useReducedMotion();
-  // 12i: 1 s tick — the HAZIRDIR → SƏRVİSE flip (3 s, derived from
+  // 12i: 1 s tick — the HAZIRDIR → SERVİSƏ flip (3 s, derived from
   // kitchen_ready_at) and the elapsed timer must not wait for the 5 s poll.
   // Board is small (≤ a dozen tickets); a per-second re-render is exactly
   // what a kitchen terminal is for. tabular-nums keeps the digits from
@@ -218,7 +218,21 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   const [dayView, setDayView] = useState(false);
   const [dayData, setDayData] = useState<any | null>(null);
   const [dayLoading, setDayLoading] = useState(false);
-  const [stationFilter, setStationFilter] = useState<string | null>(null);
+  // 12m (owner): the station-tab row (HAMISI/MK/Bar) is GONE — the board is
+  // now DUAL fixed panels (Main Kitchen + Bar) side by side, each with its
+  // own HAZIRLANIR | HAZIRDİR sub-tab (per-station, persisted in this map).
+  // "İstifadəçi hər dəfə ayrıca Kitchen bölməsinə keçmədən həm mətbəx həm
+  // bar statuslarını rahat görür; bölmələr bir-birinə qarışmır."
+  const [panelTab, setPanelTab] = useState<Record<string, 'preparing' | 'ready'>>({});
+  const getPanelTab = (stId: string): 'preparing' | 'ready' => panelTab[stId] || 'preparing';
+  // 12m (owner: "soldakı məhsullara klikləyəndə arxadakı məhsulların
+  // hərəkət etməsi və ya collapse olması"): the modal placeholder used to be
+  // an ESTIMATED height (34px/item) — multi-line spec cards are taller, so
+  // opening a ticket reflowed the whole grid behind. Now the card's REAL
+  // height is measured on click and the placeholder gets it exactly → zero
+  // reflow.
+  const cardEls = useRef<Record<string, HTMLElement | null>>({});
+  const [placeholderH, setPlaceholderH] = useState<Record<string, number>>({});
   useEffect(() => {
     // kind=kitchen: kitchen-family stations only — delivery/pickup (BDS)
     // stations are a separate family and must never appear as kitchen boards.
@@ -245,6 +259,34 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   const isItemReady = (i: KDSItem) => i.kitchen_status === 'ready' || i.kitchen_status === 'completed';
   const stationPendingCount = (stId: string) =>
     orders.reduce((sum, o) => sum + o.items.filter(i => itemStation(i) === stId && !isItemReady(i)).length, 0);
+
+  // 12m — DUAL STATION BOARD helpers. One ticket lives in exactly ONE tab of
+  // its station panel (owner: "eyni sifariş iki tabda görünərək çaşqınlıq
+  // yaratmasın"): HAZIRLANİR = the station still owes work; HAZIRDİR = every
+  // station item is done (ready/served) and the ticket waits for the POS
+  // floor to serve (there is NO serve button on the kitchen side — 12i).
+  const isActiveItem = (i: KDSItem) =>
+    (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status);
+  const stationItems = (o: KDSOrder, stId: string) => o.items.filter(i => itemStation(i) === stId && isActiveItem(i));
+  const stationDone = (i: KDSItem) => isItemReady(i) || i.kitchen_status === 'served';
+  const stationAllDone = (o: KDSOrder, stId: string) => {
+    const its = stationItems(o, stId);
+    return its.length > 0 && its.every(stationDone);
+  };
+  const stationTickets = (stId: string) => orders
+    .filter(o => o.items.some(i => itemStation(i) === stId && isActiveItem(i)))
+    // 12m: a fully served order leaves the board (floor chip = SERVİS EDİLDİ;
+    // GÜN keeps the full-day history). It must not linger in HAZIRDİR.
+    .filter(o => kdsWorkflowState(o, isItemReady, nowMs) !== 'served');
+  // 12m: "Hazırdır" on a station panel marks ONLY that station's remaining
+  // items ready (the bar can finish drinks while the hot kitchen still
+  // cooks). The whole-order variant (item_ids = null) stays on the ticket
+  // MODAL only — the one-tap whole-order surface.
+  const stationPendingItemIds = (o: KDSOrder, stId: string) =>
+    stationItems(o, stId).filter(i => !stationDone(i)).map(i => i.id);
+  // 12m: the header count = unique orders visible across ALL panels.
+  const boardOrderIds = new Set<string>();
+  boardStations.forEach(st => stationTickets(st.id).forEach(o => boardOrderIds.add(o.id)));
 
   // pr v1 — this KDS terminal is a browser print terminal too: claims
   // kitchen (and receipt) jobs routed to browser devices of the location.
@@ -443,7 +485,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             })),
             created_at: o.created_at,
             kitchen_status: o.kitchen_status || 'pending',
-            // 12i: workflow timestamps — the HAZIRDIR→SƏRVİSE flip is derived
+            // 12i: workflow timestamps — the HAZIRDIR→SERVİSƏ flip is derived
             // from kitchen_ready_at (stamped by mark_item_ready_atomic).
             kitchen_ready_at: o.kitchen_ready_at ?? null,
             kitchen_accepted_at: o.kitchen_accepted_at ?? null,
@@ -575,16 +617,16 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     }
   };
 
-  // "Hazırdır" — whole order, NO forced per-item tick (owner: "sifariş
-  // tamamlamaq üçün məcburi tika basmaq olmamalıdır"): mark_item_ready_atomic
-  // with null item_ids = all non-ready items → ready (+ stock, + rollup
-  // stamps orders.kitchen_ready_at).
-  const handleMakeReady = async (orderId: string) => {
+  // "Hazırdır" — NO forced per-item tick (owner: "sifariş tamamlamaq üçün
+  // məcburi tika basmaq olmamalıdır"). 12m: STATION-SCOPED — item_ids given
+  // (the panel's own remaining items only) → mark_item_ready_atomic reads
+  // those; null (ticket MODAL) = whole order, the one-tap surface.
+  const handleMakeReady = async (orderId: string, itemIds?: string[]) => {
     try {
       const res = await apiFetch('/api/orders/mark-ready', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId }),
+        body: JSON.stringify(itemIds ? { order_id: orderId, item_ids: itemIds } : { order_id: orderId }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -592,12 +634,15 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
         return;
       }
       const ts = new Date().toISOString();
+      const idSet = itemIds ? new Set(itemIds) : null;
       patchOrder(orderId, o => ({
-        kitchen_status: 'ready',
-        kitchen_ready_at: ts,
         items: o.items.map(i =>
           (i.quantity ?? 0) > 0 && !['served', 'completed', 'cancelled', 'voided'].includes(i.kitchen_status)
+            && (!idSet || idSet.has(i.id))
             ? { ...i, kitchen_status: 'ready' } : i),
+        // whole-order press stamps ready (rollup will confirm on refetch);
+        // station-scoped press never fakes the order rollup.
+        ...(idSet ? {} : { kitchen_status: 'ready' as const, kitchen_ready_at: ts }),
       }));
       toast.success(`${t('order_ready')}!`, { id: 'kds-toast' });
     } catch {
@@ -607,22 +652,337 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
 
   // NOTE 12i (owner): the SERVE ("Sərvil") press is a FLOOR/POS action, not a
   // kitchen one — see /api/orders/serve, wired to the POS "Servisə Ver". The
-  // KDS ends at "Hazırdır"; the board then reads SƏRVİSE HAZIRDİR until the
+  // KDS ends at "Hazırdır"; the board then reads SERVİSƏ HAZIRDIR until the
   // floor serves (kitchen rollup → 'served').
 
-  // BDS #28 — the active board: on a station tab only tickets with ≥1 item
-  // routed to that station are shown; each ticket lists ONLY its items for
-  // that station. The complete-order button stays on the whole-order
-  // invariant (all stations done) so a station can never pull the order
-  // into TƏHVİLƏ HAZIR while another station is still cooking.
-  const boardOrders = orders.filter(o =>
-    o.items.some(i => itemInBoard(i) && (!stationFilter || itemStation(i) === stationFilter))
-  );
+  // 12m — BDS #28's station scoping survives, but the TAB ROW is gone: each
+  // station is a FIXED panel (see renderStationPanel); a ticket lists ONLY
+  // its items for that panel's station, and "Hazırdır" is station-scoped
+  // (the whole-order one-tap lives on the ticket modal).
 
   // 2026-10-02 (12g, owner): "in place yox — elementin MORPH edərək ekranın
   // ortasında modal kimi açılması" — the tapped ticket lives in a centered
   // modal (POS product-grid tick transition); the grid slot keeps an
   // invisible placeholder. ESC closes.
+
+  // 12m — TICKET (one station panel's view of an order):
+  //  - lists ONLY that station's items (cross-station awareness stays on the
+  //    progress line: "Main Kitchen 1/2 · Bar 2/2");
+  //  - HAZIRLANIR tab: "Qəbul et" = a small quiet pill up top (owner 12m: the
+  //    less-used action gets a comfortable spot, NOT the CTA bar); "Hazırdır"
+  //    = the main CTA, STATION-SCOPED (item_ids of this station only), 12j
+  //    persistent pattern (no blink);
+  //  - HAZIRDİR tab: read-only — the ticket MOVED here when this station's
+  //    items all became ready (one order, one tab — no confusion); SERVE is
+  //    the POS floor action (12i), no kitchen serve button;
+  //  - source (İçəridə/Çatdırılma/Gel-Al) = Apple chip w/ icon; course +
+  //    allergens = chips; modifiers = price-less chips; notes = "Qeyd: xxx"
+  //    (the word "Qeyd" as a separate bold label); NO prices anywhere
+  //    (owner 12m);
+  //  - click = measure the card's REAL height → the modal placeholder gets
+  //    it exactly → the grid behind NEVER reflows (owner 12m: the
+  //    "collapse behind" bug — the old placeholder was an estimate).
+  const renderTicket = (order: KDSOrder, stId: string, tab: 'preparing' | 'ready') => {
+    const criticalMin = Math.max(1, Math.round(delayMin / 2));
+    const timer = getItemTimerStatus(order.created_at, criticalMin, delayMin);
+    const wf = kdsWorkflowState(order, isItemReady, nowMs);
+    const visibleItems = stationItems(order, stId);
+    const visibleReady = visibleItems.filter(i => stationDone(i)).length;
+    const inReadyTab = tab === 'ready';
+    const timerLate = timer.color === 'red' || timer.color === 'purple';
+    // 12i: per-station progress (ALL stations of the order) — awareness.
+    const stationProgress: { name: string; qty: number; ready: number }[] = (() => {
+      const m = new Map<string, { name: string; qty: number; ready: number }>();
+      for (const it of order.items) {
+        if ((it.quantity ?? 0) <= 0) continue;
+        const st = itemStation(it);
+        const nm = st ? (stations.find(x => x.id === st)?.name || 'Main Kitchen') : (stationType ? null : 'Main Kitchen');
+        if (!nm) continue;
+        const e = m.get(nm) || { name: nm, qty: 0, ready: 0 };
+        e.qty += it.quantity;
+        if (isItemReady(it) || it.kitchen_status === 'served') e.ready += it.quantity;
+        m.set(nm, e);
+      }
+      return Array.from(m.values());
+    })();
+    const cardCls = `relative overflow-hidden rounded-4xl border p-4 transition-colors duration-300 ${
+      inReadyTab
+        ? (lightMode ? 'border-emerald-500/50 bg-white shadow-card' : 'border-emerald-500/40 bg-white/[0.02] shadow-card')
+        : timer.color === 'purple'
+          ? (lightMode ? 'border-red-400 bg-white shadow-card' : 'border-red-500/45 bg-white/[0.02] shadow-card')
+          : timer.color === 'red'
+            ? (lightMode ? 'border-red-300 bg-white shadow-card' : 'border-red-500/35 bg-white/[0.02] shadow-card')
+            : (lightMode ? 'border-zinc-200 bg-white shadow-card' : 'border-white/[0.08] bg-white/[0.02] shadow-card')
+    }`;
+    const metaRest = order.order_source !== 'dine_in'
+      ? (order.customer_phone || '')
+      : (order.order_number || '');
+    const wfMeta = inReadyTab
+      ? { key: 'kds_st_ready', cls: lightMode ? 'text-emerald-600' : 'text-emerald-400' }
+      : wfMetaFor(wf, lightMode);
+    const isExpanded = expandedId === order.id;
+    return (
+      <Fragment key={order.id}>
+        {isExpanded ? (
+          // 12m: MEASURED height (cardEls) — the exact card size, so opening
+          // the modal never moves the cards behind (zero reflow).
+          <div aria-hidden style={{ height: placeholderH[order.id] || undefined }} className="relative opacity-0 pointer-events-none select-none">
+            <div className={`h-full w-full rounded-4xl border ${lightMode ? 'border-zinc-200' : 'border-white/[0.08]'}`} />
+          </div>
+        ) : (
+          <motion.div
+            ref={el => { cardEls.current[order.id] = el; }}
+            layout
+            layoutId={`kds-ticket-${order.id}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
+            whileTap={{ scale: 0.965, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
+            onClick={() => {
+              const el = cardEls.current[order.id];
+              if (el) setPlaceholderH(p => ({ ...p, [order.id]: el.offsetHeight }));
+              setExpandedId(order.id);
+            }}
+            className={`cursor-pointer ${cardCls}`}
+          >
+            {/* Row 1 — title + "Qəbul et" (quiet pill, pending only) + timer */}
+            <div className="flex items-center justify-between gap-2">
+              <span className={`text-[15px] font-semibold tracking-tight truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
+              </span>
+              <span className="flex items-center gap-1.5 shrink-0">
+                {!inReadyTab && wf === 'pending' && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); handleAccept(order.id); }}
+                    className={`h-7 px-3 rounded-full border text-[11px] font-semibold transition-colors active:scale-[0.98] ${lightMode ? 'bg-white border-zinc-300 text-zinc-700 hover:border-zinc-400' : 'bg-white/[0.06] border-white/20 text-white/75 hover:border-white/40'}`}
+                  >
+                    {t('kds_accept_btn')}
+                  </button>
+                )}
+                {visibleItems.length > 1 && (
+                  <span className={`text-[11px] font-semibold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{visibleReady}/{visibleItems.length}</span>
+                )}
+                <span className={`flex items-center gap-1.5 text-[13px] font-semibold tabular-nums ${timerLate ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>
+                  {timer.color === 'purple' && <span className={`w-1.5 h-1.5 rounded-full ${lightMode ? 'bg-red-500' : 'bg-red-400'}`} />}
+                  {formatElapsedMin(timer.elapsed)}
+                </span>
+              </span>
+            </div>
+            {/* Row 2 — source chip (Apple) + phone/order no + workflow status */}
+            <div className="mt-1.5 flex items-center gap-2 min-w-0">
+              {(() => {
+                const src = order.order_source === 'dine_in' ? t('dine_in') : order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short');
+                const SrcIcon = order.order_source === 'dine_in' ? Utensils : order.order_source === 'takeaway' ? Package : Truck;
+                const cls = order.order_source === 'delivery'
+                  ? (lightMode ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-blue-500/10 border-blue-500/30 text-blue-300')
+                  : order.order_source === 'takeaway'
+                    ? (lightMode ? 'bg-violet-50 border-violet-200 text-violet-700' : 'bg-violet-500/10 border-violet-500/30 text-violet-300')
+                    : (lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/[0.05] border-white/10 text-white/55');
+                return (
+                  <span className={`inline-flex items-center gap-1 h-5 px-2 rounded-full border text-[10px] font-bold uppercase tracking-wider shrink-0 ${cls}`}>
+                    <SrcIcon size={10} strokeWidth={2.5} />
+                    {src}
+                  </span>
+                );
+              })()}
+              {metaRest && <p className={`text-[11px] truncate min-w-0 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{metaRest}</p>}
+              <span className={`ml-auto shrink-0 text-[10px] font-bold uppercase tracking-wider ${wfMeta.cls}`}>{t(wfMeta.key as any)}</span>
+            </div>
+            {/* 12i cross-station awareness (unchanged) */}
+            {stationProgress.length > 1 && (
+              <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] font-semibold tabular-nums">
+                {stationProgress.map((g, idx) => {
+                  const done = g.ready >= g.qty;
+                  return (
+                    <span key={g.name}>
+                      {idx > 0 && <span className={lightMode ? 'text-zinc-300' : 'text-white/20'}> · </span>}
+                      <span className={done ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-500' : 'text-white/45')}>
+                        {g.name} {g.ready}/{g.qty}
+                      </span>
+                    </span>
+                  );
+                })}
+              </p>
+            )}
+            {/* Items — 12m spec: course chip + modifier chips (NO price) +
+                "Qeyd: xxx" + allergen chips (all Apple-style, light-safe) */}
+            <div className={`mt-2.5 divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.05]'}`}>
+              {visibleItems.map(item => {
+                const itemReady = isItemReady(item);
+                const itemServed = item.kitchen_status === 'served';
+                const dim = itemReady || itemServed;
+                const alLabels = parseAllergens(item.allergens).map((a: any) =>
+                  resolveAllergenEntry(a)?.label ||
+                  (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
+                ).filter(Boolean);
+                return (
+                  <div key={item.id} className={`flex items-center justify-between gap-2 py-2 ${dim ? 'opacity-75' : ''}`}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`text-[13px] font-semibold truncate ${dim ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-900' : 'text-white/90')}`}>
+                          {item.name}
+                        </span>
+                        {item.is_hold && (
+                          <span className={`text-[9px] font-bold tracking-wider shrink-0 ${lightMode ? 'text-amber-700' : 'text-amber-400'}`}>HOLD</span>
+                        )}
+                        {item.course && (
+                          <span className={`inline-flex items-center h-[16px] px-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider shrink-0 ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/[0.07] text-white/40'}`}>{item.course}</span>
+                        )}
+                      </div>
+                      {item.modifiers && item.modifiers.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {item.modifiers.map((m, mi) => (
+                            <span key={m.id || mi} className={`inline-flex items-center h-[18px] px-1.5 rounded-md border text-[10px] font-medium ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/[0.05] border-white/10 text-white/55'}`}>
+                              {m.quantity && m.quantity > 1 ? `${m.name} ×${m.quantity}` : m.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {item.special_notes && (
+                        <p className={`mt-1 text-[11px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
+                          <span className="font-bold">{t('kds_note_label')}:</span> {item.special_notes}
+                        </p>
+                      )}
+                      {alLabels.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {alLabels.map((a, ai) => (
+                            <span key={ai} className={`inline-flex items-center gap-0.5 h-[18px] px-1.5 rounded-md border text-[10px] font-bold ${lightMode ? 'bg-red-50 border-red-200 text-red-700' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                              ⚠ {a}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <span className={`text-[13px] font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
+                      {/* 12j POS-pattern ✓ (unchanged: persistent + bounce + pop) */}
+                      <motion.button
+                        onClick={(e) => { if (!itemServed) { e.stopPropagation(); handleItemToggle(order.id, item.id, item.kitchen_status); } }}
+                        title={itemServed ? undefined : (itemReady ? t('kds_uncheck') : t('kds_tick_add'))}
+                        animate={tickPulse[item.id] ? { scale: [1, 1.18, 1.04, 1] } : { scale: 1 }}
+                        transition={{ duration: 0.45, ease: 'easeOut' }}
+                        whileTap={itemServed ? undefined : { scale: 0.86 }}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center border select-none transition-all duration-200 ${
+                          itemServed
+                            ? (lightMode ? 'bg-emerald-600/50 border-emerald-600/50 text-white/70' : 'bg-emerald-500/40 border-emerald-400/40 text-zinc-950/70')
+                            : itemReady
+                              ? (lightMode ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-500 border-emerald-500 text-zinc-950')
+                              : (lightMode ? 'bg-white border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'bg-transparent border-white/25 text-white/45 hover:border-emerald-400 hover:text-emerald-400')
+                        }`}
+                      >
+                        <motion.span
+                          key={itemReady || itemServed ? 'on' : 'off'}
+                          initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 26 }}
+                          className="text-base font-bold leading-none"
+                        >✓</motion.span>
+                      </motion.button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Customer note — "Qeyd: xxx" (12m: label separate) */}
+            {order.customer_note && (
+              <p className={`mt-2.5 text-[11px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
+                <span className="font-bold">{t('kds_note_label')}:</span> {order.customer_note}
+              </p>
+            )}
+            {/* CTA — 12m: HAZIRLANIR = station-scoped "Hazırdır" (main bar);
+                HAZIRDİR tab = read-only info bar (serve = POS floor, 12i).
+                ONE persistent button (12j no-blink pattern). */}
+            {(() => {
+              let label = t('kds_ready_btn');
+              let active = false;
+              let emerald = false;
+              let act: (() => void) | null = null;
+              if (inReadyTab) { label = t('kds_serving_hint'); emerald = true; }
+              else {
+                const pendingIds = stationPendingItemIds(order, stId);
+                active = pendingIds.length > 0;
+                act = () => handleMakeReady(order.id, pendingIds);
+              }
+              return (
+                <button
+                  onClick={(e) => { if (!active) return; e.stopPropagation(); act?.(); }}
+                  disabled={!active}
+                  aria-disabled={!active}
+                  className={`mt-3 w-full h-10 rounded-2xl text-[13px] font-semibold transition-all duration-300 active:scale-[0.99] ${
+                    emerald
+                      ? (lightMode ? 'bg-emerald-600/90 text-white' : 'bg-emerald-500/85 text-zinc-950')
+                      : active
+                        ? (lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90')
+                        : (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/30')
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })()}
+          </motion.div>
+        )}
+      </Fragment>
+    );
+  };
+
+  // 12m — STATION PANEL: name + count + HAZIRLANIR | HAZIRDİR sub-tabs +
+  // this station's tickets only. Fixed side-by-side layout (owner: see both
+  // hot + bar without switching; sections never mix).
+  const renderStationPanel = (st: KDSStation) => {
+    const tab = getPanelTab(st.id);
+    const tickets = stationTickets(st.id);
+    const prepList = tickets.filter(o => !stationAllDone(o, st.id));
+    const readyList = tickets.filter(o => stationAllDone(o, st.id));
+    const list = tab === 'ready' ? readyList : prepList;
+    return (
+      // 12m: key REQUIRED — renderStationPanel is a plain function called
+      // inside boardStations.map (React list; a keyless <section> logs the
+      // "unique key prop" console error, E2E r12m catch).
+      <section key={st.id} className={`overflow-hidden rounded-4xl border ${lightMode ? 'border-zinc-200 bg-zinc-50/70' : 'border-white/[0.07] bg-white/[0.015]'}`}>
+        <div className={`flex items-center gap-2 px-4 h-12 flex-shrink-0 border-b ${lightMode ? 'border-zinc-200/80' : 'border-white/[0.06]'}`}>
+          <h3 className={`text-[13px] font-bold tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{st.name}</h3>
+          <span className={`text-[11px] font-semibold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{tickets.length}</span>
+          <div className="ml-auto flex items-center gap-1">
+            {(['preparing', 'ready'] as const).map(tb => {
+              const n = tb === 'ready' ? readyList.length : prepList.length;
+              const active = tab === tb;
+              return (
+                <button
+                  key={tb}
+                  type="button"
+                  onClick={() => setPanelTab(p => ({ ...p, [st.id]: tb }))}
+                  className={`h-7 px-3 rounded-full text-[11px] font-semibold tabular-nums transition-colors ${active
+                    ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950')
+                    : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/75')}`}
+                >
+                  {t(tb === 'ready' ? 'kds_tab_ready' : 'kds_tab_preparing')}
+                  <span className={active ? '' : (lightMode ? 'text-zinc-400' : 'text-white/30')}> {n}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="p-3">
+          {list.length === 0 ? (
+            <div className={`flex flex-col items-center justify-center py-12 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+              {tab === 'ready' ? <CheckCircle2 size={26} className="mb-2 opacity-60" /> : <Clock size={26} className="opacity-50" />}
+              <p className="text-xs font-medium">{t(tab === 'ready' ? 'kds_tab_empty_ready' : 'kds_tab_empty_preparing')}</p>
+            </div>
+          ) : (
+            <div className={`grid gap-3 ${boardStations.length > 1 ? 'grid-cols-1 2xl:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}`}>
+              <AnimatePresence>
+                {list.slice().sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map(order => renderTicket(order, st.id, tab))}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  };
+
   const expandedOrder = orders.find(o => o.id === expandedId) || null;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setExpandedId(null); };
@@ -634,70 +994,41 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     <div className="flex flex-col h-full">
        {/* Header — 12h (Apple reset, visual direction §4 "no decorative UI"):
            the icon tile is gone; chrome = title + count + quiet controls. */}
-       <div className={`flex items-center justify-between flex-shrink-0 pb-4 border-b ${lightMode ? 'border-zinc-200' : 'border-white/[0.06]'}`}>
-         <div>
-           <p className={`text-[17px] font-semibold tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{stationType ? t('bds_bar_screen') : t('kds_screen')}</p>
-           <p className={`text-xs font-medium mt-0.5 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{boardOrders.length} {t('active_orders_short')}</p>
-         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' : 'bg-white/[0.04] border-white/[0.08] text-white/40 hover:bg-white/[0.08]'}`}
-          >
-            {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-          </button>
-          <button onClick={onBack} className={`h-9 px-3.5 rounded-2xl text-xs font-semibold transition-all border ${lightMode ? 'text-gray-500 hover:text-gray-700 bg-white border-gray-200' : 'text-white/35 hover:text-white/65 bg-white/[0.04] border-white/[0.08]'}`}>
-            {t('back')}
-          </button>
-        </div>
-      </div>
-
-      {/* BDS #28 — station board tabs (SSOT: stations). One board per
-          station; a ticket appears on a station board while it has ≥1 item
-          routed there. Items without a snapshot land at Main Kitchen.
-          2026-09-24: the bar display (stationType='bar') hides the tab row
-          when there is a single bar station — the whole screen is that board. */}
-       {boardStations.length > 0 && (!stationType || boardStations.length > 1) && (
-         // 12h: text-only tabs (iOS segmented feel) — no icons, no borders,
-         // no RED count badges (red is reserved for delay semantics).
-         <div className="flex items-center gap-1 flex-shrink-0 px-0.5 pb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        <div className={`flex items-center justify-between flex-shrink-0 pb-4 border-b ${lightMode ? 'border-zinc-200' : 'border-white/[0.06]'}`}>
+          <div>
+            <p className={`text-[17px] font-semibold tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{stationType ? t('bds_bar_screen') : t('kds_screen')}</p>
+            <p className={`text-xs font-medium mt-0.5 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{boardOrderIds.size} {t('active_orders_short')}</p>
+          </div>
+         <div className="flex items-center gap-2">
+           {/* 12m (owner: GÜN "cox da istifade olunmayacaq — rahat bir yer"):
+               the All Day view left the (removed) tab row and lives here — a
+               quiet ghost button next to the sound toggle, active state =
+               filled. Same surface for /admin/kds and the bar display. */}
            <button
              type="button"
-              onClick={() => { setDayView(false); setStationFilter(null); }}
-              className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold tabular-nums transition-colors ${stationFilter === null && !dayView ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950') : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/75')}`}
-            >
-              {t('kds_all_stations')}
-             <span className={`ml-1.5 ${stationFilter === null ? '' : (lightMode ? 'text-zinc-400' : 'text-white/30')}`}>{orders.length}</span>
+             onClick={() => setDayView(v => !v)}
+             className={`h-9 px-3.5 rounded-2xl text-xs font-semibold transition-all border ${dayView
+               ? (lightMode ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-950 border-white')
+               : (lightMode ? 'text-gray-500 hover:text-gray-700 bg-white border-gray-200' : 'text-white/35 hover:text-white/65 bg-white/[0.04] border-white/[0.08]')}`}
+           >
+             {t('kds_day_tab')}
            </button>
-           {boardStations.map(st => {
-              const pending = stationPendingCount(st.id);
-              const active = stationFilter === st.id && !dayView;
-              return (
-                <button
-                  key={st.id}
-                  type="button"
-                  onClick={() => { setDayView(false); setStationFilter(active ? null : st.id); }}
-                 className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold tabular-nums transition-colors ${active ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950') : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/75')}`}
-               >
-                  {st.name}
-                  {pending > 0 && <span className={`ml-1.5 ${active ? '' : (lightMode ? 'text-zinc-400' : 'text-white/30')}`}>{pending}</span>}
-                </button>
-              );
-            })}
-            {/* 12j (owner, Toast comparison): GÜN = All Day view (all-day
-                tickets + production counts + productivity). HIDDEN on the
-                bar display (stationType set) — the bar screen is a board. */}
-            {!stationType && (
-              <button
-                type="button"
-                onClick={() => { setDayView(v => !v); setStationFilter(null); }}
-                className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold tabular-nums transition-colors ${dayView ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950') : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/75')}`}
-              >
-                {t('kds_day_tab')}
-              </button>
-            )}
-          </div>
-        )}
+           <button
+             onClick={() => setSoundEnabled(!soundEnabled)}
+             className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' : 'bg-white/[0.04] border-white/[0.08] text-white/40 hover:bg-white/[0.08]'}`}
+           >
+             {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+           </button>
+           <button onClick={onBack} className={`h-9 px-3.5 rounded-2xl text-xs font-semibold transition-all border ${lightMode ? 'text-gray-500 hover:text-gray-700 bg-white border-gray-200' : 'text-white/35 hover:text-white/65 bg-white/[0.04] border-white/[0.08]'}`}>
+             {t('back')}
+           </button>
+         </div>
+       </div>
+
+      {/* 12m — the station TAB ROW (HAMISI · Main Kitchen · Bar · GÜN) is
+          GONE (owner: "HAMISI tab-ı sil" + "hər dəfə ayrıca Kitchen
+          bölməsinə keçmədən"): the stations are FIXED panels below,
+          side by side, each with its own HAZIRLANIR | HAZIRDİR sub-tab. */}
 
       {/* Orders Grid / 12j — GÜN (All Day view + production + productivity) */}
       <div className="flex-1 overflow-y-auto py-3">
@@ -782,299 +1113,22 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
               </>
             )}
           </div>
-        ) : boardOrders.length === 0 ? (
+        ) : boardOrderIds.size === 0 ? (
           /* 2026-09-23 sweep fix: dark-mode empty state was unreadable
              (white/15 + 30% icon). Bumped to white/45 + 60% icon. */
           <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>
             <CheckCircle2 size={40} className="mb-3 opacity-60" />
-            <p className="text-sm">{stationFilter ? t('kds_station_empty') : t('all_orders_ready')}</p>
+            <p className="text-sm">{t('all_orders_ready')}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            <AnimatePresence>
-              {boardOrders.slice().sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map(order => {
-                const criticalMin = Math.max(1, Math.round(delayMin / 2));
-                const timer = getItemTimerStatus(order.created_at, criticalMin, delayMin);
-                const allItemsReady = order.items.every(isItemReady);
-                // 12i: canonical workflow state (derived — see kdsWorkflowState).
-                const wf = kdsWorkflowState(order, isItemReady, nowMs);
-                const wfMeta = wfMetaFor(wf, lightMode);
-                // BDS #28: on a station board the ticket lists only that
-                // station's items; progress + the "other stations" hint are
-                // computed on the visible subset. 2026-09-24: itemInBoard
-                // additionally scopes everything to the terminal's station
-                // family (bar display).
-                const visibleItems = order.items.filter(i =>
-                  itemInBoard(i) && (!stationFilter || itemStation(i) === stationFilter)
-                );
-                const visibleReady = visibleItems.filter(isItemReady).length;
-                const visibleAllReady = visibleItems.length > 0 && visibleReady === visibleItems.length;
-                 const otherPending = stationFilter
-                   ? order.items.filter(i => itemInBoard(i) && itemStation(i) !== stationFilter && !isItemReady(i)).length
-                   : 0;
-                  // 12i: per-station progress — ALL stations of the order,
-                  // shown on the card itself (owner: "stationslar bir-birindən
-                  // xəbərli olmalıdırlar" — a station board must show what the
-                  // OTHER station is doing, not just its own lines). Served
-                  // counts as done (the kitchen's job is finished).
-                  const stationProgress: { name: string; qty: number; ready: number }[] = (() => {
-                    const m = new Map<string, { name: string; qty: number; ready: number }>();
-                    for (const it of order.items) {
-                      if ((it.quantity ?? 0) <= 0) continue;
-                      const st = itemStation(it);
-                      const nm = st ? (stations.find(s => s.id === st)?.name || 'Main Kitchen') : (stationType ? null : 'Main Kitchen');
-                      if (!nm) continue;
-                      const e = m.get(nm) || { name: nm, qty: 0, ready: 0 };
-                      e.qty += it.quantity;
-                      if (isItemReady(it) || it.kitchen_status === 'served') e.ready += it.quantity;
-                      m.set(nm, e);
-                    }
-                    return Array.from(m.values());
-                  })();
-                  const isExpanded = expandedId === order.id;
-                  // 12h (owner: "çirkin görünüşdə saxlamayaq" — full Apple reset,
-                  // SAITO_UI_VISUAL_DIRECTION §4/§5): NO badge spam, NO tinted
-                  // boxes. State lives in the border + the timer text; the rest
-                  // is typography. Delay = red timer (GEÇİKME adds a dot).
-                  const timerLate = timer.color === 'red' || timer.color === 'purple';
-                   const cardCls = `relative overflow-hidden rounded-4xl border p-4 transition-colors duration-300 ${
-                     allItemsReady || wf === 'served'
-                       ? (lightMode ? 'border-emerald-500/50 bg-white shadow-card' : 'border-emerald-500/40 bg-white/[0.02] shadow-card')
-                      : timer.color === 'purple'
-                        ? (lightMode ? 'border-red-400 bg-white shadow-card' : 'border-red-500/45 bg-white/[0.02] shadow-card')
-                        : timer.color === 'red'
-                          ? (lightMode ? 'border-red-300 bg-white shadow-card' : 'border-red-500/35 bg-white/[0.02] shadow-card')
-                          : (lightMode ? 'border-zinc-200 bg-white shadow-card' : 'border-white/[0.08] bg-white/[0.02] shadow-card')
-                  }`;
-                  // 12i (owner): the ORDER TYPE (çatdırılma / gel-al) must be
-                  // EYE-CATCHING — bold text, not a quiet lowercase word;
-                  // dine-in shows the order number instead.
-                  const metaType = order.order_source !== 'dine_in'
-                    ? (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))
-                    : null;
-                  const metaRest = order.order_source !== 'dine_in'
-                    ? (order.customer_phone || '')
-                    : (order.order_number || '');
-                  return (
-                    <Fragment key={order.id}>
-                     {isExpanded ? (
-                       // Invisible placeholder: reserves the card's height while
-                       // the ticket lives in the modal (ProductGrid pattern —
-                       // only ONE layoutId element in the tree at a time, so no
-                       // "crossfade restore" glitch can happen).
-                       <div aria-hidden className="relative opacity-0 pointer-events-none select-none">
-                         <div className={`rounded-4xl border p-4 ${lightMode ? 'border-zinc-200' : 'border-white/[0.08]'}`}>
-                            <div className="h-[20px] mb-1" />
-                            <div className="h-[15px] mb-1" />
-                            {stationProgress.length > 1 && <div className="h-[15px] mb-2" />}
-                            <div className="space-y-1.5">
-                              {visibleItems.map(it => <div key={it.id} className="h-[34px]" />)}
-                            </div>
-                            {order.customer_note && <div className="h-[15px] mt-2.5" />}
-                            {wf !== 'served' && <div className="h-[40px] mt-3" />}
-                         </div>
-                       </div>
-                     ) : (
-                     <motion.div
-                       layout
-                       layoutId={`kds-ticket-${order.id}`}
-                       initial={{ opacity: 0, y: 10 }}
-                       animate={{ opacity: 1, y: 0 }}
-                       exit={{ opacity: 0, scale: 0.98 }}
-                       transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
-                       whileTap={{ scale: 0.965, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
-                       // 12g: tap = the card MORPHS into the centered ticket
-                       // modal (POS product-grid tick transition, same spring).
-                       onClick={() => setExpandedId(order.id)}
-                       className={`cursor-pointer ${cardCls}`}
-                     >
-                      {/* Row 1 — title + timer (delay = red text + dot, NO chip) */}
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className={`text-[15px] font-semibold tracking-tight truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                          {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
-                        </span>
-                        <span className="flex items-baseline gap-1.5 shrink-0">
-                          {stationFilter && visibleItems.length > 1 && (
-                            <span className={`text-[11px] font-semibold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{visibleReady}/{visibleItems.length}</span>
-                          )}
-                          <span className={`flex items-center gap-1.5 text-[13px] font-semibold tabular-nums ${timerLate ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>
-                            {timer.color === 'purple' && <span className={`w-1.5 h-1.5 rounded-full ${lightMode ? 'bg-red-500' : 'bg-red-400'}`} />}
-                            {formatElapsedMin(timer.elapsed)}
-                          </span>
-                        </span>
-                      </div>
-                       {/* Row 2 — 12i: ORDER TYPE in bold (eye-catching) +
-                           phone / order number; right = workflow status in
-                           state color (text only — no chip). */}
-                       <div className="mt-1 flex items-center justify-between gap-2 min-w-0">
-                         <p className={`text-[11px] truncate min-w-0 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                           {metaType && (
-                             <span className={`font-bold ${lightMode ? 'text-zinc-600' : 'text-white/65'}`}>{metaType}<span className="font-medium"> · </span></span>
-                           )}
-                           {metaRest}
-                         </p>
-                         <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider ${wfMeta.cls}`}>{t(wfMeta.key as any)}</span>
-                       </div>
-                       {/* 12i — cross-station awareness (owner: "stationslar
-                           bir-birindən xəbərli olmalıdırlar"): when the ticket
-                           spans stations, the card shows each station's live
-                           progress — the Bar board sees what Main Kitchen owes. */}
-                       {stationProgress.length > 1 && (
-                         <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] font-semibold tabular-nums">
-                           {stationProgress.map((g, idx) => {
-                             const done = g.ready >= g.qty;
-                             return (
-                               <span key={g.name}>
-                                 {idx > 0 && <span className={lightMode ? 'text-zinc-300' : 'text-white/20'}> · </span>}
-                                 <span className={done ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-500' : 'text-white/45')}>
-                                   {g.name} {g.ready}/{g.qty}
-                                 </span>
-                               </span>
-                             );
-                           })}
-                         </p>
-                       )}
-
-                       {/* Items — 12i (owner: "modifikatorunu rahat görə bilmək
-                           lazımdır, neçə edəd, allergenləri nəzərə çarpan"):
-                           flat rows on hairline dividers, but the FULL spec is
-                           on the card — quantity BOLD, each spec on its own
-                           line in its semantic color (modifier zinc-dark,
-                           note amber, allergen RED-bold). POS sends per-
-                           instance rows, so every spec is per-item.
-                           40px ✓ = TOGGLE (tick + un-tick; served = final). */}
-                        <div className={`mt-2.5 divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.05]'}`}>
-                          {visibleItems.map(item => {
-                            const itemReady = isItemReady(item);
-                            const itemServed = item.kitchen_status === 'served';
-                            const dim = itemReady || itemServed;
-                            // Per-instance modifiers with quantities — "add 2
-                            // cheese" reaches the kitchen as "Cheese ×2".
-                            const modText = (item.modifiers ?? [])
-                              .map(m => (m.quantity && m.quantity > 1 ? `${m.name} ×${m.quantity}` : m.name))
-                              .join(', ');
-                            const alLabels = parseAllergens(item.allergens).map((a: any) =>
-                              resolveAllergenEntry(a)?.label ||
-                              (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
-                            ).filter(Boolean);
-                            return (
-                              <div key={item.id} className={`flex items-center justify-between gap-2 py-2 ${dim ? 'opacity-75' : ''}`}>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className={`text-[13px] font-semibold truncate ${dim ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-900' : 'text-white/90')}`}>
-                                      {item.name}
-                                    </span>
-                                    {item.is_hold && (
-                                      <span className={`text-[9px] font-bold tracking-wider shrink-0 ${lightMode ? 'text-amber-600' : 'text-amber-400'}`}>HOLD</span>
-                                    )}
-                                    {item.course && (
-                                      <span className={`text-[9px] font-semibold uppercase tracking-wider shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{item.course}</span>
-                                    )}
-                                  </div>
-                                  {modText && (
-                                    <p className={`text-[11px] font-medium truncate mt-0.5 ${lightMode ? 'text-zinc-600' : 'text-white/55'}`}>{modText}</p>
-                                  )}
-                                  {item.special_notes && (
-                                    <p className={`text-[11px] font-medium truncate mt-0.5 ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>{item.special_notes}</p>
-                                  )}
-                                  {alLabels.length > 0 && (
-                                    <p className={`text-[11px] font-bold truncate mt-0.5 ${lightMode ? 'text-red-600' : 'text-red-400'}`}>⚠ {alLabels.join(' · ')}</p>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2.5 shrink-0">
-                                  <span className={`text-[13px] font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
-                                   {/* 12j (owner: "tik ikonuna POS-dakı kimi
-                                       zövqlü transition") — the POS ProductGrid
-                                       cart-badge pattern, bit-tibi: ONE
-                                       persistent control (never unmounts →
-                                       zero blink). On tap the circle BOUNCES
-                                       (scale keyframes, easeOut — the POS
-                                       bounce) and the ✓ glyph POPS in/out on
-                                       state flip (spring); the fill itself
-                                       crossfades via transition-all. */}
-                                   <motion.button
-                                     onClick={(e) => { if (!itemServed) { e.stopPropagation(); handleItemToggle(order.id, item.id, item.kitchen_status); } }}
-                                     title={itemServed ? undefined : (itemReady ? t('kds_uncheck') : t('kds_tick_add'))}
-                                     animate={tickPulse[item.id] ? { scale: [1, 1.18, 1.04, 1] } : { scale: 1 }}
-                                     transition={{ duration: 0.45, ease: 'easeOut' }}
-                                     whileTap={itemServed ? undefined : { scale: 0.86 }}
-                                     className={`w-10 h-10 rounded-full flex items-center justify-center border select-none transition-all duration-200 ${
-                                       itemServed
-                                         ? (lightMode ? 'bg-emerald-600/50 border-emerald-600/50 text-white/70' : 'bg-emerald-500/40 border-emerald-400/40 text-zinc-950/70')
-                                         : itemReady
-                                           ? (lightMode ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-500 border-emerald-500 text-zinc-950')
-                                           : (lightMode ? 'bg-white border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'bg-transparent border-white/25 text-white/45 hover:border-emerald-400 hover:text-emerald-400')
-                                     }`}
-                                   >
-                                     <motion.span
-                                       key={itemReady || itemServed ? 'on' : 'off'}
-                                       initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
-                                       animate={{ scale: 1, opacity: 1 }}
-                                       transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 26 }}
-                                       className="text-base font-bold leading-none"
-                                     >✓</motion.span>
-                                   </motion.button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                     {/* Customer note — plain amber text (no box) */}
-                     {order.customer_note && (
-                       <p className={`mt-2.5 text-[11px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{order.customer_note}</p>
-                     )}
-
-                      {/* 12j (owner: "Sifarişi tamamla və Qəbul et
-                          düymələrindəki blink effektini aradan qaldır") — ONE
-                          PERSISTENT action surface. No key-remount, no
-                          initial-opacity, no button↔<p> swap: the same element
-                          stays mounted and its TEXT + COLOR morph via CSS
-                          transitions as the workflow steps. Active states:
-                          Qəbul et (pending) / Hazırdır (preparing, whole-order
-                          board only — a station board never cooks for the
-                          other station). Inactive = the surface becomes an
-                          info bar: "Sərvil POS-dan edilir" (ready/serving —
-                          SERVE is the POS floor action, 12i), "Digər
-                          stansiyalar hazırlayır · n" (station done), or
-                          "Servis edildi" (served). */}
-                      {(() => {
-                        let label = t('kds_ready_btn');
-                        let active = false;
-                        let emerald = false;
-                        let act: (() => void) | null = null;
-                        if (wf === 'pending') { label = t('kds_accept_btn'); active = true; act = () => handleAccept(order.id); }
-                        else if (wf === 'preparing') {
-                          if (!stationFilter) { label = t('kds_ready_btn'); active = true; act = () => handleMakeReady(order.id); }
-                          else if (visibleAllReady && otherPending > 0) { label = `${t('kds_other_stations_pending')} · ${otherPending}`; }
-                        }
-                        else if (wf === 'ready' || wf === 'serving') { label = t('kds_serving_hint'); emerald = true; }
-                        else { label = t('kds_served'); emerald = true; }
-                        return (
-                          <button
-                            onClick={(e) => { if (!active) return; e.stopPropagation(); act?.(); }}
-                            disabled={!active}
-                            aria-disabled={!active}
-                            className={`mt-3 w-full h-10 rounded-2xl text-[13px] font-semibold transition-all duration-300 active:scale-[0.99] ${
-                              emerald
-                                ? (lightMode ? 'bg-emerald-600/90 text-white' : 'bg-emerald-500/85 text-zinc-950')
-                                : active
-                                  ? (lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90')
-                                  : (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/30')
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })()}
-                    </motion.div>
-                    )}
-                  </Fragment>
-                 );
-               })}
-            </AnimatePresence>
+          /* 12m — DUAL STATION PANELS (fixed, side by side; the station tab
+             row with HAMISI is gone). One panel per board station:
+             HAZIRLANIR | HAZIRDİR. /admin/kds = hot + bar panels; the bar
+             display (stationType='bar') = the single bar panel. */
+          <div className={boardStations.length > 1 ? 'grid grid-cols-1 xl:grid-cols-2 gap-4 items-start' : ''}>
+            {boardStations.map(st => renderStationPanel(st))}
           </div>
-         )}
+        )}
        </div>
 
       {/* ══════════════════════════════════════════════════════════════
@@ -1178,9 +1232,11 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                    <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.06]'}`}>
                      {items.map(item => {
                        const itemReady = isItemReady(item);
-                       const modText = (item.modifiers ?? []).map(m =>
-                         `${m.name}${(m.quantity && m.quantity > 1) ? ` ×${m.quantity}` : ''}${(m.price ?? 0) > 0 ? ` · ₼${Number(m.price).toFixed(2).replace(/\.?0+$/, '')}` : ''}`
-                       ).join(', ');
+                        // 12m (owner): NO prices in KDS/BDS — modifier names +
+                        // quantities only (the old ` · ₼X.XX` suffix is gone).
+                        const modText = (item.modifiers ?? []).map(m =>
+                          `${m.name}${(m.quantity && m.quantity > 1) ? ` ×${m.quantity}` : ''}`
+                        ).join(', ');
                        const alLabels = parseAllergens(item.allergens).map((a: any) =>
                          resolveAllergenEntry(a)?.label ||
                          (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
@@ -1190,14 +1246,33 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                         return (
                           <div key={item.id} className={`flex items-start justify-between gap-3 py-3 first:pt-0 ${dim ? 'opacity-75' : ''}`}>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`text-sm font-semibold ${dim ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-900' : 'text-white/90')}`}>{item.name}</span>
-                                {item.is_hold && <span className={`text-[10px] font-bold tracking-wider ${lightMode ? 'text-amber-600' : 'text-amber-400'}`}>HOLD</span>}
-                                {item.course && <span className={`text-[10px] font-semibold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{item.course}</span>}
-                              </div>
-                              {modText && <p className={`mt-1 text-xs font-medium ${lightMode ? 'text-zinc-600' : 'text-white/55'}`}>{modText}</p>}
-                              {item.special_notes && <p className={`mt-1 text-xs font-medium ${lightMode ? 'text-amber-600' : 'text-amber-400/90'}`}>{item.special_notes}</p>}
-                              {alLabels.length > 0 && <p className={`mt-1 text-xs font-bold ${lightMode ? 'text-red-600' : 'text-red-400'}`}>⚠ {alLabels.join(' · ')}</p>}
+                               <div className="flex items-center gap-2 flex-wrap">
+                                 <span className={`text-sm font-semibold ${dim ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-900' : 'text-white/90')}`}>{item.name}</span>
+                                 {item.is_hold && <span className={`text-[10px] font-bold tracking-wider ${lightMode ? 'text-amber-700' : 'text-amber-400'}`}>HOLD</span>}
+                                 {/* 12m: course = Apple chip (same as the card) */}
+                                 {item.course && <span className={`inline-flex items-center h-[18px] px-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/[0.07] text-white/40'}`}>{item.course}</span>}
+                               </div>
+                               {modText && (
+                                 <div className="flex flex-wrap gap-1 mt-1">
+                                   {modText.split(', ').map((mt, mi) => (
+                                     <span key={mi} className={`inline-flex items-center h-[18px] px-1.5 rounded-md border text-[10px] font-medium ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/[0.05] border-white/10 text-white/55'}`}>{mt}</span>
+                                   ))}
+                                 </div>
+                               )}
+                               {item.special_notes && (
+                                 <p className={`mt-1 text-xs font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
+                                   <span className="font-bold">{t('kds_note_label')}:</span> {item.special_notes}
+                                 </p>
+                               )}
+                               {alLabels.length > 0 && (
+                                 <div className="flex flex-wrap gap-1 mt-1">
+                                   {alLabels.map((a, ai) => (
+                                     <span key={ai} className={`inline-flex items-center gap-0.5 h-[18px] px-1.5 rounded-md border text-[10px] font-bold ${lightMode ? 'bg-red-50 border-red-200 text-red-700' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                                       ⚠ {a}
+                                     </span>
+                                   ))}
+                                 </div>
+                               )}
                             </div>
                             <div className="flex items-center gap-3 shrink-0 pt-0.5">
                               <span className={`text-sm font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
@@ -1241,9 +1316,12 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                            <a href={`tel:${o.customer_phone}`} className={`text-sm font-medium tabular-nums shrink-0 ${lightMode ? 'text-blue-600' : 'text-blue-400'}`}>{o.customer_phone}</a>
                          )}
                        </div>
-                       {o.customer_note && (
-                         <p className={`mt-2 text-[13px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{o.customer_note}</p>
-                       )}
+                        {o.customer_note && (
+                          /* 12m: "Qeyd:" as a separate bold label (owner) */
+                          <p className={`mt-2 text-[13px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
+                            <span className="font-bold">{t('kds_note_label')}:</span> {o.customer_note}
+                          </p>
+                        )}
                      </section>
                    )}
 

@@ -47,7 +47,7 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
   // ~0.4s selection ring for table tap → order navigation.
   const [openRingNonce, setOpenRingNonce] = useState(0);
 
-  // 'merged' (12j, E2E catch: "Masa 4·5 kartında SƏRVİSE chip yoxdu"): the
+  // 'merged' (12j, E2E catch: "Masa 4·5 kartında SERVİSƏ chip yoxdu"): the
   // group PARENT row carries status='merged' in table_floors — it was MISSING
   // from this list, so isOccupied=false and the kitchen chip's gate
   // (line ~703: isOccupied && showKitchenStatus) could never open for a
@@ -704,7 +704,7 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                   {/* 12j (owner: "POS-da Hazırlanır / Servis et / Servis
                       edildi statusları görünmür — aydın və ardıcıl göstər"):
                       the kitchen chip now shows for EVERY live workflow state
-                      (GÖZLƏYİR → HAZIRLANIR → SƏRVİSE → SERVİS EDİLDİ) and is
+                      (GÖZLƏYİR → HAZIRLANIR → SERVİSƏ → SERVİS EDİLDİ) and is
                       hidden only for terminal kitchen states. The 12i
                       "hidden for ready/served" rule — which made exactly the
                       states the owner needs to SEE invisible — is removed.
@@ -738,7 +738,7 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
                     const label = showKitchen
                       // 12j: the floor chip speaks the SAME canonical
                       // vocabulary as the KDS board (ardıcıl): 'ready' =
-                      // SƏRVİSE — the actionable signal for the server (the
+                      // SERVİSƏ — the actionable signal for the server (the
                       // 3 s KDS flip is a kitchen-side detail, not a floor one).
                       ? (ks === 'partially_ready' ? t('bds_k_partially' as any)
                         : ks === 'ready' ? t('kds_chip_serve' as any)

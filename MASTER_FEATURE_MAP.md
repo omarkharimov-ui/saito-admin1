@@ -839,6 +839,32 @@ Owner: "…sonraya saxlayaq bunu (route). Delivery page customer info sonra tama
 
 ---
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12m: DUAL STATION BOARD — HAZIRLANIR|HAZIRDİR TABS, HAMISI SİL, PRICELESS + APPLE CHIPS + QEYD, ZERO-REFLOW MODAL, LIGHT AMBER)
+
+Owner: **"Bu axını həm əsas mətbəx, həm də bar üçün necə daha aydın və praktik qurmaq olar? (Bar mətbəx kimi işləyir, lakin yalnız içki, hot kitchen deyil.) Həm Main Kitchen, həm Bar üçün 'Hazırlanır' və 'Hazırdır' tabları yarat; BDS (BDS bar-dır, unutma) üçün də keçərli olsun. Sifariş qəbul ediləndə 'Hazırlanır' tabına düşsün; tik optional. 'Hazırdır' basanda sifariş 'Hazırdır' tabına keçsin, 'Hazırlanır'-dan silinsin (eyni sifariş iki tabda görünməsin). 'Servis et'-i axından çıxar — servisə keçid 'Hazırdır'-dan idarə olunsun. Qiymətlər KDS/BDS-də və modifier bölməsində əks olunmasın. Course/allergens/delivery-dine-in-takeaway Apple chip-lərlə. Qeydləri 'Qeyd: xxxxx' formatında ('Qeyd' ayrıca). Soldakı məhsula klikləyəndə arxadakıların hərəkət etməsi/collapse-i düzəlt. 'HAMISI' tab-ı sil. İstifadəçi hər dəfə ayrıca Kitchen bölməsinə keçmədən həm mətbəx, həm bar statusunu rahat görür olsun; bölmələr qarışmasın. 'Qəbul et' kimi az istifadə olunan button rahat bir yerdə olsun. Light modda sarı yazılar görünmür."**
+
+**(A) Dual station board (HAMISI yoxdur):** KDS tab-row (`HAMISI · Main Kitchen · Bar · GÜN`) SİLİNDİ. İndi **sabit panellər side-by-side**: `/admin/kds` = `Main Kitchen` + `Bar` panelləri (gelecekde yeni stansiya = yeni panel, `grid xl:grid-cols-2`); bar display `/admin/bds` (stationType='bar') = **tək Bar paneli** (eyni anatomiya). Hər paneldə öz sub-tab-ları: **`HAZIRLANIR (n)` | `HAZIRDİR (n)`** (per-station, `panelTab` state).
+
+**(B) Station-scoped workflow (eyni sifariş 2 tab-da görünmür):** `stationItems/stationAllDone/stationTickets` helpers. HAZIRLANİR = stansiya hələ non-ready item daşıyır; HAZIRDİR = stansiyanın BÜTÜN item-ləri ready/served. **"Hazırdır" indi STATION-SCOPE**: `handleMakeReady(orderId, itemIds?)` — panel öz stansiyasının qalan `item_ids`-ini mark-ready edir (bar içkini hot cooking-dən BAĞMSIZ bitirir); `item_ids=null` (bütün order) YALNIZ ticket MODAL-da qalır (one-tap surface). Press → ticket HAZIRLANIR-dan **silinir** + HAZIRDİR-ə **keçir** (cross-station: digər panel hələ HAZIRLANIR-da qalır, progress line `Main Kitchen 0/1 · Bar 1/1`).
+
+**(C) Servis et çıxarıldı / Qəbul et rahat yerə:** HAZIRDİR tab-da kart **read-only** (emerald border + info bar "Servis POS-dan edilir") — servis POS floor action (12i), KDS-də serve düyməsi YOX. **"Qəbul et"** (az istifadə = rahat yer) kart header-inə kiçik quiet pill kimi köçdü (yalnız pending), **"Hazırdır"** = əsas CTA bar (12j persistent, no-blink).
+
+**(D) Priceless + Apple chips + Qeyd:** KDS/BDS + modal modifier-lərdən **BÜTÜN `₼` qiymət** silindi (E2E: `₼` count = 0). Source (İÇƏRİDƏ/ÇATDIRILMA/GEL-AL) = Apple chip + ikon (dine-in zinc, delivery blue, takeaway violet); **course + allergen = chip**; modifier = price-less chip; qeyd = **`Qeyd: xxx`** (`Qeyd` = ayrıca bold label, `kds_note_label`).
+
+**(E) Zero-reflow modal (owner bug):** "soldakı məhsula klik → arxadakılar collapse/hərəkət". Kök: modal placeholder ESTİMAT height idi (34px/item) → çox-sətirli spec kartı daha hündürdü → grid reflow. Fix: klik anında kartın **REAL** `offsetHeight`-i ölçülür (`cardEls` ref + `placeholderH`) → placeholder dəqiq eyni hight → **zero reflow**. E2E ölçmə: kart h=224 → placeholder h=224 (Δ0px), qonşu kart shift **0px**.
+
+**(F) Light-mode amber görünməzliyi:** item note / customer note / HOLD = `amber-600`(light) → **`amber-700`** (ağ background-da oxunaqlı; E2E: `Qeyd:` = lab(47,43,69) on rgb(247,247,248) — dark amber, görünür).
+
+**(G) Bug catch (E2E r12m):** React "unique key prop" console error (×4) = `boardStations.map(st => renderStationPanel(st))` keyless `<section>` → `<section key={st.id}>`. Fix → console **0**.
+
+**E2E r12m (browser, 9 screenshot):** (1) HAMISI yox, 2 panel eyni anda (MK 8 + Bar 3), sub-tabs, GÜN header-də, ₼=0, `Qeyd: çox istiləməsin` ✓; (2) Bar "Hazırlanır" press → HAZIRDİR-ə keçdi, read-only, MK hələ HAZIRLANIR-da (progress line) ✓; (3) modal reflow Δ0px ✓; (4) Qəbul et pill → GÖZLƏYİR→HAZIRLANIR ✓; (5) /admin/bds tək Bar panel ✓; (6) light amber oxunaqlı ✓; (7) GÜN header-dan açılır ✓; (8) console 0. **tsc clean.**
+
+**Qeyd (deviation, təhlükəsiz):** "Qəbul et" order-level — bir pill-ə basmaq HƏMİŞƏ order-ı qəbul edir (hər iki panel pill-i birdən yox olur). Cross-station order modal açılanda HƏR iki panelinin kartı eyni hight placeholder-a çevrilir (buna görə heç nə shift-etmir).
+
+**LÜĞƏT SSOT UPDATE (owner, 12m dövrü — 18:14 birbaşa fix):** düzgün yazılış = **`SERVİSƏ` = S-E-R-V-İ-S-Ə** — **kök E-dir, Ə DEYİL**; son = Ə (dative); HAZIRDİR = plain I (hazırdır, nəqsəsiz ı). Owner az.ts (`kds_chip_serve`, `kds_st_serving`) + component comment-lərini öz eli ilə düzəltdi (17:40–18:14); mən 12k/12l-də kök-Ə ("SƏRVİSƏ") yazmışdım — YANLIŞDI (hər jurnal sətirindəki SƏRVİSƏ/SƏRVİSE = həmin round-da kodun REALLƏ o variantı daşıdığını qeyd edən tarixi qeydlərdir). Qalan son `SƏRVİSE` (delivery/page.tsx L585 comment) 12m-də düzəldildi → **src-də Ə-kök "SƏRV..." = 0** (codepoint audit). İstifadə qaydası: hər yeni AZ status sözünü lüğətlə yoxla — kök harf (E/Ə) + dative sonu (ə) + ı/i ayırtı (hazırdır = ı, servis = i).
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12l: "SƏRVİSƏ" BARE → "SƏRVİSƏ HAZIRDİR" TAM LÜĞƏT PHRASE (owner qərarı))
 
 Owner: **"servisə hazırdır olur brat — duzgun istifadə et lüğətdən."** 12k-də floor chip `kds_chip_serve: 'SƏRVİSƏ'` (yalnız dative, əməl-siz) qalmışdı — tam lüğət phrase = **"SERVİSƏ HAZIRDİR"** (BDS-dəki mövcud pattern ilə də eyni: "TƏHVİLƏ HAZIRDİR").

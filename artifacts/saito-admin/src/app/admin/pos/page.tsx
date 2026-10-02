@@ -1708,7 +1708,7 @@ export default function POSPage() {
     // used to show ONLY the parent row's kitchen_status — the order often sits
     // on a CHILD (Masa 5, merged_into 4) whose 'ready' never reached the card.
     // The group chip now reflects the MOST ADVANCEd live state across parent +
-    // children, so the floor always sees the actionable signal (SƏRVİSE etc).
+    // children, so the floor always sees the actionable signal (SERVİSƏ etc).
     const rank = (ks?: string | null) => {
       const s = String(ks || '').toLowerCase();
       if (s === 'served') return 6;

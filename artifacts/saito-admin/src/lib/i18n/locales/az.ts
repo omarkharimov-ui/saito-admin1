@@ -2089,6 +2089,18 @@ export const az = {
   kds_serving_hint: 'Sərvil POS-dan edilir',
   kds_not_ready_toast: 'Mətbəx hələ hazırlanır — əvvəl "Hazırdır" basılmalıdır',
   mark_served_toast: 'Servisə verildi',
+  // 12j: POS floor chip + tick + GÜN (All Day) view.
+  kds_chip_serve: 'SƏRVİSE',
+  kds_tick_add: 'Hazırdır',
+  kds_day_tab: 'GÜN',
+  kds_day_m_orders: 'Sifariş',
+  kds_day_m_items: 'Item',
+  kds_day_m_produced: 'Hazır',
+  kds_day_m_accept: 'Ø Qəbul',
+  kds_day_m_ready: 'Ø Hazırlanma',
+  kds_day_production: 'İstihsal',
+  kds_day_tickets: 'Sifarişlər',
+  kds_day_empty: 'Bugün hələ sifariş yoxdur',
 
   void_item: 'Məhsulu silmək',
   loss: 'İtki yazmaq',

@@ -839,6 +839,37 @@ Owner: "…sonraya saxlayaq bunu (route). Delivery page customer info sonra tama
 
 ---
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12j: POS KITCHEN STATUS GÖRÜNÜRLÜLÜYÜ (BÜTÜN STATE) + KDS GÜN (ALL DAY VIEW + İSTİHSAL + PRODUKTİVİLİK) + ✓ TICK POS-PATTERN ANİMASİYA + CTA BLINK REMOVAL — 3 E2E-ROOT-CAUSE)
+
+Owner: **"POS-da 'Hazırlanır', 'Servis et', 'Servis edildi' statusları görünmür — aydın və ardıcıl göstər. All Day View, production counts və kitchen productivity əlavə et. 'Tik' ikonuna POS-dakı kimi zövqlü transition. 'Sifarişi tamamla' və 'Qəbul et' blink-ini aradan qaldır."** (12i-dən sonra: floor chip ready/served GÖZMÜŞDÜ — 12i-nin öz "hidden set" qaydası + iki gizli bug.)
+
+**(A) POS FLOOR CHIP — BÜTÜN LİV STATE GÖRÜNÜR (ardıcıl = KDS vocabulary):**
+- `TableCard` chip visibility = `!['completed','cancelled'].includes(ks)` — 12i-nin "ready/served gizli" qaydası SİLİNDİ (owner: məhz bu statuslar görünməli idi).
+- Label axını (floor + KDS EYDİ dil): `GÖZLƏYİR` (pending) → `HAZIRLANIR` (accepted/sent/preparing/cooking, blue pulse dot) → `QİSMƏN HAZIRDIR` → **`SƏRVİSE`** (ready — floor üçün actionable signal: 3s KDS flip mətbəx detallarıdır) → **`SERVİS EDİLDİ`** (served, emerald).
+- **E2E root cause #1 (merged masa):** group parent row `status='merged'` idi — `isOccupied` list-dən YOX idi → chip gate heç vaxt açılmırdı (Masa 4·5 → chip YOX). Fix: 'merged' += isOccupied (side-effect audit: ring/flash prev-status-gate-lidir → spuriously ring YOX; əksinə occupied→merged false-flash artıq YOX).
+- **E2E root cause #2 (SSOT):** `merged_groups` children `kitchen_status` daşımırdu (yalnız `floor` raw row) → `/api/pos/tables`-da hər child üçün `composedKitchenStatus` (eyni 4-arg SSOT); client `tableGroupInfo` group = parent+children arasında **ən irəliləmiş** state (rank: served>ready>partially>preparing>pending).
+- **E2E root cause #3 (STUCK ANIMATEPRESENCE = owner-in "status görünmür"ünün GİZLİ yarısı):** kitchen↔status chip swap `AnimatePresence mode="wait"` + 2 keyed `motion.div` idi. Condition mid-transition flip olduqda (SWR snapshot / floor-swap remount / HMR) EXIT HƏR ZAMAN resolve olunmurdu → gələn chip `initial`-də donurdu: **`opacity:0; translateY(4px)` = sonsuza qədər GÖRÜNMƏZ** (DOM outerHTML ilə sübut olundu — "Dolu" pill opacity:0). Fix = 12j no-blink pattern: **TEK persistent element** — key YOX, AnimatePresence YOX, initial YOX; bg/border/color/label CSS transition-la in-place morph edir. Stick-invisible sinifinin özü aradan qaldı.
+
+**(B) KDS GÜN (All Day View + İstehal + Produktivlik — Toast qalan geridəliyinin HAMISI):**
+- Yeni endpoint: `GET /api/kitchen/daily` (requireAuth + `resolveReadLocationScope`; today = SERVER local day; service-role REST; limit 500). Return: `{metrics:{tickets,items,produced,avgAcceptMin,avgReadyMin}, production:[{name,qty}] top-30 (yalnız served/completed item-lər), tickets:[{id,title,time,status,minutes,qty}]}`.
+- **Bug (E2E-catch, 502):** PostgREST range operator sütun-dan SONRA gəlir — `gte.created_at=…` = 400 → düzgün: `created_at=gte.…` (live service-role key ilə A/B verify edildi).
+- UI: yeni **GÜN** tab (HAMISI/MK/Bar yanında; bar display-də GİZLİ — orada board var). Panel: metrics row (böyük tabular nums + hairline üst small-caps label: SİFARİŞ / SƏTR / İSTİHSAL / Ø QƏBUL / Ø HAZIRLANMA) + **İSTİHSAL** (məhsul ×qty, flat hairline list) + **SİFARİŞLƏR** (time · title · ×qty · status pill · dəqiqə). 30s refresh (gün-view = ləng surface, canlı board deyil).
+
+**(C) ✓ TICK = POS ProductGrid PATTERN-İ (owner: "POS-dakı kimi"):**
+- Persistent `motion.button` (həmişə mounted — AnimatePresence YOX, initial-opacity YOX = "bounces without disappearing" invariant). Tap: `pulseTick(id)` 700ms window → container `animate={tickPulse ? {scale:[1,1.18,1.04,1]} : {scale:1}}` 0.45s easeOut (POS badge [1,1.1,1.02,1] 0.5s-in KDS ölçüsünə uyğun qalan versiyası) + `whileTap {scale:0.86}` + glyph spring-pop (key on/off, stiffness 500/damping 26) + fill crossfade `transition-all duration-200`.
+- E2E measurement (rAF): tap-da max scale **1.179** @184ms; un-tick 1.180 — ✓ pop in/out İKİ istiqamətdə.
+
+**(D) CTA BLINK REMOVAL ("Sifarişi tamamla"/"Qəbul et"):**
+- Kök: CTA elementinin key-swap/initial-opacity-ə malik olması (state çevriləndə element exit→enter = blink). Fix: kart + modal footer hər ikisi = **tek persistent `<button>`** (IIFE {label,active,emerald,act}) + `transition-all duration-300`; inactive state-lər disabled INFO bar-larıdır ("Sərvil POS-dan edilir" / "Servis edildi" / "Digər stansiyalar hazırlayır · n") — element dəyişmir, text+color morph edir.
+- E2E measurement (MutationObserver + rAF): state flip-də **0 removed frames** — text VƏ background (white→emerald) atomic in-place swap.
+
+**(E) E2E (r12j, 5 run):** KDS board: 10/10 kart persistent CTA ✓; tick bounce 1.18 ✓; GÜN: 502→200 fix (real data: 9 sifariş / 16 sətr / istehal Filadelfiya ×4 + Coca ×1 / 9 ticket siyahısı) ✓; POS floor: 502/991 SERVİS EDİLDİ (opacity 1), VIP 1/8/9 GÖZLƏYİR, Masa 4·5 SƏRVİSE (opacity 1) ✓; console **0+0**. tsc clean.
+- Shots: r12j-{kds-board, kds-day, pos-final, pos-group-chip}.png (+ -chips/-chips-vip/-chips-recheck ara shotlar).
+
+**Qalan (owner GO gözləyir):** 12d route (Task #11) + 103 köhnə non-terminal order temizliyi (exact siyahı əvvəl) + 12f chime ear-check + optional "Main Kitchen"→"Hot" rename. **Qeyd (funksional YOX):** floor pill label dərhal dəyişir, grid repaint ~10s gecikir (AnimatePresence+SWR) — ayrı round candidate.
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12i: KANONİK MƏTBƏX WORKFLOW — QƏBUL→HAZIRLANIR→HAZIRDIR→SƏRVİSE→SERVİS EDİLDİ + POS SERVE + VİZUAL GÖRÜNÜRLÜK + BUG FIX)
 
 Owner: **"stil duzgundur lakin bəzi yerlər nəzərə çarpan olmalı idi — sifariş tipi (çatdırılma/pickup/dine-in), modifikatoru rahat görmək, neçə edəd, allergenləri; tik işləmir — tik etmək olur lakin çıxarmaq olmaz; modifikator per-item olmur (birləşir); sifariş tamamlamaq üçün məcburi tik olmamalı; MƏTBƏX workflow: qəbul → hazırlanır → hazırdır → (2-3s) sərvise → servis edildi; STATIONSLAR BİR-BİRİNDƏN XƏBƏRLİ OLMALIDIRLAR; 'sifariş tamamla' deyirsen itir sonra yenidən gelir — bu tip bugları özün araşdır; bunları MFM-də də qeyd et + rəqiblərlə müqayisə."** İkinci mesaj (clarification): **"servis et buttonu POS-da olacaq — metbəxdə olanlar 'sifarişi qəbul et' + 'hazırdır' buttonlarıdır; sən bunu özün avtomatik bilib qurmalısansa."**

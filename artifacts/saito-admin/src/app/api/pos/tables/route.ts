@@ -202,11 +202,22 @@ export async function GET() {
           // 2026-09-27 (E2E probe: "mg-undefined" key collision + unmerge 400):
           // children MUST carry their table_number — the ActionSheet chips and
           // the unmerge payload (child_table_numbers) read it directly.
+          // 12j (E2E catch: "merged masa kartında chip görünmürdü"): the child
+          // row MUST carry its COMPOSED kitchen status (same source as the
+          // single-table card, line 175) — the order usually sits on the CHILD
+          // (Masa 5, merged_into 4) and the raw floor mirror is the only
+          // signal the group card can show.
           return {
             table_number: ctn,
             floor: cFloor,
             guest_count: cFloor?.guest_count ?? (cSum.guests || null),
             total_amount: cSum.total,
+            kitchen_status: composedKitchenStatus(
+              cFloor?.current_order_id ? currentOrderMap.get(cFloor.current_order_id) : null,
+              cFloor?.kitchen_status,
+              cOrders as any,
+              cSum.items
+            ),
           };
         });
         floorMap[fn].merged_groups.push({

@@ -47,7 +47,16 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
   // ~0.4s selection ring for table tap → order navigation.
   const [openRingNonce, setOpenRingNonce] = useState(0);
 
-  const isOccupied = ['ordering', 'occupied', 'cooking', 'waiting_bill', 'waiting', 'ordered', 'confirmed', 'in_kitchen', 'served', 'dining', 'bill_requested', 'payment_pending', 'paid', 'cleaning'].includes(table.status);
+  // 'merged' (12j, E2E catch: "Masa 4·5 kartında SƏRVİSE chip yoxdu"): the
+  // group PARENT row carries status='merged' in table_floors — it was MISSING
+  // from this list, so isOccupied=false and the kitchen chip's gate
+  // (line ~703: isOccupied && showKitchenStatus) could never open for a
+  // group card, no matter what the group's kitchen state was. Merged =
+  // in-use by definition. Side effect check: seat/occupied-flash rings are
+  // prev-status-gated ('empty'→occupied / 'occupied'→free) — 'merged' is
+  // neither, so no spurious rings; merge (occupied→merged) previously
+  // fired a FALSE occupied-flash via the isOccupied flip — now gone.
+  const isOccupied = ['ordering', 'occupied', 'merged', 'cooking', 'waiting_bill', 'waiting', 'ordered', 'confirmed', 'in_kitchen', 'served', 'dining', 'bill_requested', 'payment_pending', 'paid', 'cleaning'].includes(table.status);
   const isServed = table.status === 'served';
   const isDirty = table.status === 'dirty';
   const isReserved = table.status === 'reserved';
@@ -688,79 +697,79 @@ export function TableCard({ table, onTap, onAction, onToggleBill, isSelected, se
               {/* RIGHT: status label chips + HESAB — ml-auto (with the
                   row's flex-wrap) keeps the pill right-aligned even when it
                   wraps under the group chip on narrow cards. */}
-               <div className="ml-auto flex items-center gap-2 flex-wrap justify-end min-w-0">
-                 <AnimatePresence mode="wait">
-                {/* 2026-09-26 (Task 54 verify fix, P2): kitchen status chip —
-                    normalize case ('PARTIALLY_READY' leak) + map every known
-                    value to a localized label; NEVER render the raw enum. */}
-                  {/* 12i: 'served' joins the hidden set with 'ready' — the
-                      kitchen's job is done and the table's DINING state takes
-                      over (KDS/BDS are the kitchen-state surfaces). The old
-                      code showed 'served' with the zinc fallback + a
-                      "Hazırlanır" label (else-branch leak — E2E r12i catch). */}
-                  {(() => { const ks = String(kitchenStatus || '').toLowerCase(); return !showOccupiedFlash && isOccupied && showKitchenStatus && ks && !['completed', 'cancelled', 'ready', 'served'].includes(ks) && table.status !== 'served' && table.status !== 'dining'; })() ? (
-                  <motion.div
-                    key="kitchen"
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4, transition: { duration: 0.28, ease: [0.45, 0, 0.55, 1] } }}
-                    transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                       className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${
-                         ['preparing', 'cooking', 'partially_ready', 'accepted', 'sent'].includes(String(kitchenStatus).toLowerCase())
-                           ? lightMode ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-blue-500/25 border-blue-400/50 text-blue-300'
-                         : ['ready', 'served'].includes(String(kitchenStatus).toLowerCase())
-                           ? lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-700' : 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300'
-                            : lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-600' : 'bg-white/10 border-white/20 text-zinc-300'
-                      }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                       ['preparing', 'cooking', 'partially_ready', 'accepted', 'sent'].includes(String(kitchenStatus).toLowerCase()) ? (lightMode ? 'bg-blue-500 animate-pulse' : 'bg-blue-400 animate-pulse')
-                         : ['ready', 'served'].includes(String(kitchenStatus).toLowerCase()) ? (lightMode ? 'bg-emerald-500' : 'bg-emerald-400')
-                         : lightMode ? 'bg-zinc-400' : 'bg-white/40'
-                     }`} />
-                     {/* 12i: full canonical vocabulary (qəbul → hazırlanır →
-                         hazırdır → sərvise → servis edildi) — no raw-enum or
-                         else-branch leaks. */}
-                     {(() => { const ks2 = String(kitchenStatus).toLowerCase(); return ks2 === 'preparing' || ks2 === 'cooking' || ks2 === 'accepted' || ks2 === 'sent' ? t('kitchen_preparing' as any) : ks2 === 'partially_ready' ? t('bds_k_partially' as any) : ks2 === 'ready' ? t('table_ready' as any) : ks2 === 'served' ? t('kds_st_served' as any) : ks2 === 'new' ? t('kitchen_new_badge' as any) : ks2 === 'pending' ? t('kitchen_pending' as any) : t('kitchen_preparing' as any); })()}
-                  </motion.div>
-                ) : (
-                 <motion.div
-                   key="status"
-                   initial={{ opacity: 0, y: 4 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   exit={{ opacity: 0, y: -4, transition: { duration: 0.28, ease: [0.45, 0, 0.55, 1] } }}
-                   transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                    className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${
-                       seatedNoOrder
-                         // 2026-09-29 (owner: "light-da statuslar qapı-qara olmasın —
-                         // qara modda necədirsə elə olsun"): dark = orange → light
-                         // mirrors it (was solid zinc-900: the "jet-black pill"
-                         // defect from the light audit).
-                         ? (lightMode ? 'bg-orange-100 border-orange-400 text-orange-800' : 'bg-orange-500/25 border-orange-400/60 text-orange-300')
-                         : currentStatus.bg
-                     }`}>
-                     {StatusIcon && <StatusIcon size={10} strokeWidth={2.5} className={seatedNoOrder ? (lightMode ? 'text-orange-600' : 'text-orange-400') : currentStatus.iconColor} />}
-                    <AnimatePresence mode="wait" initial={false}>
-                      <motion.span
-                        key={showOccupiedFlash ? 'occupied-flash' : (seatedNoOrder ? 'seated-no-order' : currentStatus.label)}
-                        initial={{ opacity: 0, y: 6, filter: 'blur(3px)' }}
-                        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                        exit={{ opacity: 0, y: -6, filter: 'blur(3px)' }}
-                        transition={{ duration: 0.16, ease: [0.4, 0, 0.2, 1] }}
-                        className="whitespace-nowrap"
-                      >
-                        {showOccupiedFlash ? t('occupied' as any) : (seatedNoOrder ? t('seated_no_order' as any) : currentStatus.label)}
-                      </motion.span>
-                    </AnimatePresence>
-                   {table.status === 'dirty' && (
-                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                       <path d="M12 3v15" />
-                       <path d="M5 20h14v4H5z" />
-                       <path d="M9 16c1-2 3-2 6 0" />
-                     </svg>
-                   )}
-                 </motion.div>
-               )}
-             </AnimatePresence>
+                <div className="ml-auto flex items-center gap-2 flex-wrap justify-end min-w-0">
+                  {/* 2026-09-26 (Task 54 verify fix, P2): kitchen status chip —
+                      normalize case ('PARTIALLY_READY' leak) + map every known
+                      value to a localized label; NEVER render the raw enum. */}
+                  {/* 12j (owner: "POS-da Hazırlanır / Servis et / Servis
+                      edildi statusları görünmür — aydın və ardıcıl göstər"):
+                      the kitchen chip now shows for EVERY live workflow state
+                      (GÖZLƏYİR → HAZIRLANIR → SƏRVİSE → SERVİS EDİLDİ) and is
+                      hidden only for terminal kitchen states. The 12i
+                      "hidden for ready/served" rule — which made exactly the
+                      states the owner needs to SEE invisible — is removed.
+                      12j E2E root cause #3 ("Dolu" pill stuck at opacity:0):
+                      the old kitchen↔status swap was AnimatePresence
+                      mode="wait" with TWO keyed motion.divs — when the
+                      condition flipped mid-transition (SWR snapshot,
+                      floor-swap remount, HMR) the EXIT never resolved and the
+                      incoming chip froze at its INITIAL state (opacity 0,
+                      translateY 4px) = invisible FOREVER. The DOM proved it.
+                      Now: ONE persistent element — no key, no AnimatePresence,
+                      no initial — bg/border/color/label morph IN PLACE via CSS
+                      transitions (the same 12j no-blink pattern as the KDS
+                      CTA). The chip can never be "stuck invisible" again. */}
+                  {(() => {
+                    const ks = String(kitchenStatus || '').toLowerCase();
+                    const showKitchen = !showOccupiedFlash && isOccupied && showKitchenStatus && ks && !['completed', 'cancelled'].includes(ks);
+                    const isPrep = ['preparing', 'cooking', 'partially_ready', 'accepted', 'sent'].includes(ks);
+                    const isDone = ['ready', 'served'].includes(ks);
+                    const bg = showKitchen
+                      ? (isPrep
+                          ? (lightMode ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-blue-500/25 border-blue-400/50 text-blue-300')
+                          : isDone
+                            ? (lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-700' : 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300')
+                            : (lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-600' : 'bg-white/10 border-white/20 text-zinc-300'))
+                      : (seatedNoOrder
+                          // 2026-09-29 (owner: "light-da statuslar qapı-qara
+                          // olmasın"): dark = orange → light mirrors it.
+                          ? (lightMode ? 'bg-orange-100 border-orange-400 text-orange-800' : 'bg-orange-500/25 border-orange-400/60 text-orange-300')
+                          : currentStatus.bg);
+                    const label = showKitchen
+                      // 12j: the floor chip speaks the SAME canonical
+                      // vocabulary as the KDS board (ardıcıl): 'ready' =
+                      // SƏRVİSE — the actionable signal for the server (the
+                      // 3 s KDS flip is a kitchen-side detail, not a floor one).
+                      ? (ks === 'partially_ready' ? t('bds_k_partially' as any)
+                        : ks === 'ready' ? t('kds_chip_serve' as any)
+                        : ks === 'served' ? t('kds_st_served' as any)
+                        : (ks === 'pending' || ks === 'new') ? t('kds_st_waiting' as any)
+                        : t('kds_st_preparing' as any))
+                      : (showOccupiedFlash ? t('occupied' as any)
+                        : seatedNoOrder ? t('seated_no_order' as any)
+                        : currentStatus.label);
+                    return (
+                      <div className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest [transition:background-color_0.2s_cubic-bezier(0.4,0,0.2,1),border-color_0.2s_cubic-bezier(0.4,0,0.2,1),color_0.2s_cubic-bezier(0.4,0,0.2,1)] ${bg}`}>
+                        {showKitchen ? (
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            isPrep ? (lightMode ? 'bg-blue-500 animate-pulse' : 'bg-blue-400 animate-pulse')
+                              : isDone ? (lightMode ? 'bg-emerald-500' : 'bg-emerald-400')
+                              : (lightMode ? 'bg-zinc-400' : 'bg-white/40')
+                          }`} />
+                        ) : (
+                          StatusIcon && <StatusIcon size={10} strokeWidth={2.5} className={seatedNoOrder ? (lightMode ? 'text-orange-600' : 'text-orange-400') : currentStatus.iconColor} />
+                        )}
+                        <span className="whitespace-nowrap">{label}</span>
+                        {table.status === 'dirty' && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 3v15" />
+                            <path d="M5 20h14v4H5z" />
+                            <path d="M9 16c1-2 3-2 6 0" />
+                          </svg>
+                        )}
+                      </div>
+                    );
+                  })()}
               {/* HESAB chip: 2026-09-23 (owner) — was open-only. Now tappable to
                   CLOSE (bill_requested=false). Sits right of the status chip,
                   whitespace-nowrap so it never overlaps the status. */}

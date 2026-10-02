@@ -1703,12 +1703,32 @@ export default function POSPage() {
     : pos.floors[0];
 
   const tableGroupInfo = useMemo(() => {
-    const info: Record<number, { groupNum: number; children: number[] }> = {};
+    const info: Record<number, { groupNum: number; children: number[]; kitchenStatus?: string | null }> = {};
+    // 12j (E2E catch: "merged masa kartında chip görünmürdü"): the group card
+    // used to show ONLY the parent row's kitchen_status — the order often sits
+    // on a CHILD (Masa 5, merged_into 4) whose 'ready' never reached the card.
+    // The group chip now reflects the MOST ADVANCEd live state across parent +
+    // children, so the floor always sees the actionable signal (SƏRVİSE etc).
+    const rank = (ks?: string | null) => {
+      const s = String(ks || '').toLowerCase();
+      if (s === 'served') return 6;
+      if (s === 'ready') return 5;
+      if (s === 'partially_ready') return 4;
+      if (['preparing', 'cooking', 'accepted', 'sent'].includes(s)) return 3;
+      if (s === 'pending' || s === 'new') return 2;
+      return 0;
+    };
     if (activeFloor?.merged_groups) {
       activeFloor.merged_groups.forEach((g: any, idx: number) => {
+        const rows: any[] = [g.parent, ...(g.children || [])];
+        const best = rows.map(r => r?.kitchen_status || null).filter(Boolean);
+        const groupKs = best.length
+          ? best.sort((a, b) => rank(b) - rank(a))[0]
+          : (g.parent?.kitchen_status ?? null);
         info[g.parent.table_number] = {
           groupNum: idx + 1,
-          children: g.children?.map((c: any) => c.table_number) || []
+          children: g.children?.map((c: any) => c.table_number) || [],
+          kitchenStatus: groupKs
         };
       });
     }
@@ -3103,8 +3123,12 @@ export default function POSPage() {
                          isTransferTarget={transferTarget === table.table_number}
                          groupNumber={groupInfo?.groupNum}
                          mergedChildNumbers={groupInfo?.children}
-                         isMergedChild={false}
-                         kitchenStatus={table.kitchen_status}
+                          isMergedChild={false}
+                          // 12j: a group card shows the MOST ADVANCED kitchen
+                          // state across parent + children (the order usually
+                          // sits on a child) — a null parent must not swallow
+                          // the child's 'ready' (E2E: "Masa 4 · 5 chip yoxdu").
+                          kitchenStatus={isGroup ? (groupInfo?.kitchenStatus || table.kitchen_status) : table.kitchen_status}
                          flashNonce={flashInfo?.tableNumber === table.table_number ? (flashInfo?.nonce ?? 0) : 0}
                          tapPulseNonce={tableTapPulse && tableTapPulse.tableNumber === table.table_number ? tableTapPulse.nonce : 0}
                         />

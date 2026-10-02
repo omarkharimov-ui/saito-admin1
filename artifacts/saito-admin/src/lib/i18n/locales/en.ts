@@ -2090,6 +2090,18 @@ export const en: TranslationMap = {
   kds_serving_hint: 'Serve from the POS',
   kds_not_ready_toast: 'The kitchen is still preparing — mark it ready first',
   mark_served_toast: 'Served',
+  // 12j: POS floor chip + tick + DAY (All Day) view.
+  kds_chip_serve: 'TO SERVE',
+  kds_tick_add: 'Mark ready',
+  kds_day_tab: 'DAY',
+  kds_day_m_orders: 'Orders',
+  kds_day_m_items: 'Items',
+  kds_day_m_produced: 'Produced',
+  kds_day_m_accept: 'Avg accept',
+  kds_day_m_ready: 'Avg prep',
+  kds_day_production: 'Production',
+  kds_day_tickets: 'Tickets',
+  kds_day_empty: 'No orders today',
 
   void_item: 'Void item',
   loss: 'Write off',

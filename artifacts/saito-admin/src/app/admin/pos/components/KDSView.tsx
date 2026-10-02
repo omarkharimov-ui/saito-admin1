@@ -200,6 +200,24 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     const id = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+  // 12j (owner: "tik ikonuna POS-dakı kimi transition"): the POS ProductGrid
+  // cart-badge pattern, bit-tibi — a PERSISTENT element that BOUNCES
+  // (scale keyframes [1, 1.18, 1.04, 1], ~0.45 s easeOut) on every tap,
+  // driven by a pulseMap that is set on tap and cleared after 700 ms. No
+  // AnimatePresence, no initial-opacity, no key-remount → zero blink.
+  const [tickPulse, setTickPulse] = useState<Record<string, number>>({});
+  const pulseTick = useCallback((id: string) => {
+    setTickPulse(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+    setTimeout(() => {
+      setTickPulse(prev => { const n = { ...prev }; delete n[id]; return n; });
+    }, 700);
+  }, []);
+  // 12j (owner, from the Toast comparison): "GÜN" (All Day) view — all-day
+  // tickets + production counts + kitchen productivity (one light read,
+  // refreshed every 30 s while open).
+  const [dayView, setDayView] = useState(false);
+  const [dayData, setDayData] = useState<any | null>(null);
+  const [dayLoading, setDayLoading] = useState(false);
   const [stationFilter, setStationFilter] = useState<string | null>(null);
   useEffect(() => {
     // kind=kitchen: kitchen-family stations only — delivery/pickup (BDS)
@@ -455,6 +473,26 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     return () => clearInterval(interval);
   }, [playSound]);
 
+  // 12j: "GÜN" (All Day) data — fetched while the tab is open, refreshed
+  // every 30 s (a day-view is a slow surface, not a live board).
+  useEffect(() => {
+    if (!dayView) return;
+    let live = true;
+    const load = async () => {
+      setDayLoading(true);
+      try {
+        const res = await apiFetch('/api/kitchen/daily');
+        if (!res.ok) return;
+        const d = await res.json();
+        if (live) setDayData(d);
+      } catch {}
+      if (live) setDayLoading(false);
+    };
+    load();
+    const id = setInterval(load, 30000);
+    return () => { live = false; clearInterval(id); };
+  }, [dayView]);
+
   // 2026-09-26 (Task 53 P0-2 realtime): KDS/BDS was the last major board on
   // poll-only sync (5s). Now orders/order_items row changes push a debounced
   // refetch (~1.5s coalescing) — sub-second ticket appearance across
@@ -471,6 +509,8 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   const handleItemToggle = async (orderId: string, itemId: string, current: string) => {
     const uncheck = current === 'ready';
     const prevStatus = current;
+    // 12j: POS cart-badge bounce on the tap itself (instant, before the RPC).
+    pulseTick(itemId);
     setOrders(prev => prev.map(o => o.id === orderId ? {
       ...o,
       items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: uncheck ? 'pending' : 'ready' } : i),
@@ -623,33 +663,126 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
          <div className="flex items-center gap-1 flex-shrink-0 px-0.5 pb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
            <button
              type="button"
-             onClick={() => setStationFilter(null)}
-             className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold tabular-nums transition-colors ${stationFilter === null ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950') : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/75')}`}
-           >
-             {t('kds_all_stations')}
+              onClick={() => { setDayView(false); setStationFilter(null); }}
+              className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold tabular-nums transition-colors ${stationFilter === null && !dayView ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950') : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/75')}`}
+            >
+              {t('kds_all_stations')}
              <span className={`ml-1.5 ${stationFilter === null ? '' : (lightMode ? 'text-zinc-400' : 'text-white/30')}`}>{orders.length}</span>
            </button>
            {boardStations.map(st => {
-             const pending = stationPendingCount(st.id);
-             const active = stationFilter === st.id;
-             return (
-               <button
-                 key={st.id}
-                 type="button"
-                 onClick={() => setStationFilter(active ? null : st.id)}
+              const pending = stationPendingCount(st.id);
+              const active = stationFilter === st.id && !dayView;
+              return (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => { setDayView(false); setStationFilter(active ? null : st.id); }}
                  className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold tabular-nums transition-colors ${active ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950') : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/75')}`}
                >
-                 {st.name}
-                 {pending > 0 && <span className={`ml-1.5 ${active ? '' : (lightMode ? 'text-zinc-400' : 'text-white/30')}`}>{pending}</span>}
-               </button>
-             );
-           })}
-         </div>
-       )}
+                  {st.name}
+                  {pending > 0 && <span className={`ml-1.5 ${active ? '' : (lightMode ? 'text-zinc-400' : 'text-white/30')}`}>{pending}</span>}
+                </button>
+              );
+            })}
+            {/* 12j (owner, Toast comparison): GÜN = All Day view (all-day
+                tickets + production counts + productivity). HIDDEN on the
+                bar display (stationType set) — the bar screen is a board. */}
+            {!stationType && (
+              <button
+                type="button"
+                onClick={() => { setDayView(v => !v); setStationFilter(null); }}
+                className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold tabular-nums transition-colors ${dayView ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950') : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/45 hover:text-white/75')}`}
+              >
+                {t('kds_day_tab')}
+              </button>
+            )}
+          </div>
+        )}
 
-      {/* Orders Grid */}
+      {/* Orders Grid / 12j — GÜN (All Day view + production + productivity) */}
       <div className="flex-1 overflow-y-auto py-3">
-        {boardOrders.length === 0 ? (
+        {dayView ? (
+          <div className="max-w-[1100px] mx-auto px-1">
+            {dayLoading && !dayData ? (
+              <div className="h-full flex items-center justify-center">
+                <Clock size={22} className={`animate-pulse ${lightMode ? 'text-zinc-300' : 'text-white/20'}`} />
+              </div>
+            ) : !dayData ? (
+              <div className="flex flex-col items-center justify-center h-full gap-2">
+                <CheckCircle2 size={36} className="opacity-40" />
+                <p className={`text-sm font-semibold ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{t('kds_day_empty')}</p>
+              </div>
+            ) : (
+              <>
+                {/* Productivity — BIG tabular numbers + small-caps labels on a
+                    hairline. No boxes (visual direction §4). */}
+                <div className={`flex items-end gap-8 sm:gap-12 pb-4 border-b ${lightMode ? 'border-zinc-200' : 'border-white/[0.07]'}`}>
+                  {([
+                    [dayData.metrics.tickets, t('kds_day_m_orders')],
+                    [dayData.metrics.items, t('kds_day_m_items')],
+                    [dayData.metrics.produced, t('kds_day_m_produced')],
+                    [dayData.metrics.avgAcceptMin != null ? `${dayData.metrics.avgAcceptMin}m` : '—', t('kds_day_m_accept')],
+                    [dayData.metrics.avgReadyMin != null ? `${dayData.metrics.avgReadyMin}m` : '—', t('kds_day_m_ready')],
+                  ] as [string | number, string][]).map(([n, label]) => (
+                    <div key={label}>
+                      <p className={`text-3xl font-black tabular-nums tracking-tight leading-none ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{n}</p>
+                      <p className={`text-[10px] font-bold uppercase tracking-[0.14em] mt-1.5 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 mt-6">
+                  {/* Production — per-product produced qty (Toast: production
+                      item counts). served/completed only = actually cooked. */}
+                  <section>
+                    <h3 className={`text-[10px] font-bold uppercase tracking-[0.14em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_day_production')}</h3>
+                    {dayData.production.length === 0 ? (
+                      <p className={`text-xs ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>—</p>
+                    ) : (
+                      <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.05]'}`}>
+                        {dayData.production.map((p: any) => (
+                          <div key={p.name} className="flex items-center justify-between gap-3 py-1.5">
+                            <span className={`text-[13px] font-medium truncate ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>{p.name}</span>
+                            <span className={`text-[13px] font-bold tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>×{p.qty}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                  {/* All-day tickets (ALL of today, incl. served/closed) */}
+                  <section>
+                    <h3 className={`text-[10px] font-bold uppercase tracking-[0.14em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_day_tickets')}</h3>
+                    {dayData.tickets.length === 0 ? (
+                      <p className={`text-xs ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_day_empty')}</p>
+                    ) : (
+                      <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.05]'}`}>
+                        {dayData.tickets.map((tk: any) => {
+                          const sc = tk.status === 'served' || tk.status === 'ready'
+                            ? (lightMode ? 'text-emerald-600' : 'text-emerald-400')
+                            : tk.status === 'preparing' || tk.status === 'partially'
+                              ? (lightMode ? 'text-zinc-600' : 'text-white/55')
+                              : (lightMode ? 'text-zinc-400' : 'text-white/30');
+                          const sl = tk.status === 'served' ? t('kds_st_served')
+                            : tk.status === 'ready' ? t('kds_chip_serve')
+                            : tk.status === 'partially' ? t('bds_k_partially')
+                            : tk.status === 'preparing' ? t('kds_st_preparing')
+                            : t('kds_st_waiting');
+                          return (
+                            <div key={tk.id} className="flex items-center gap-3 py-2">
+                              <span className={`text-xs font-semibold tabular-nums shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{tk.time}</span>
+                              <span className={`text-[13px] font-semibold truncate min-w-0 ${lightMode ? 'text-zinc-800' : 'text-white/80'}`}>{tk.title}</span>
+                              <span className={`text-xs font-bold tabular-nums shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>×{tk.qty}</span>
+                              <span className={`ml-auto text-[10px] font-bold uppercase tracking-wider shrink-0 ${sc}`}>{sl}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
+                </div>
+              </>
+            )}
+          </div>
+        ) : boardOrders.length === 0 ? (
           /* 2026-09-23 sweep fix: dark-mode empty state was unreadable
              (white/15 + 30% icon). Bumped to white/45 + 60% icon. */
           <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>
@@ -850,20 +983,37 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                                 </div>
                                 <div className="flex items-center gap-2.5 shrink-0">
                                   <span className={`text-[13px] font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
-                                  {itemServed ? (
-                                    <span className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold opacity-50 ${lightMode ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-zinc-950'}`}>✓</span>
-                                  ) : itemReady ? (
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); handleItemToggle(order.id, item.id, item.kitchen_status); }}
-                                      title={t('kds_uncheck')}
-                                      className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-all active:scale-90 hover:opacity-80 ${lightMode ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-zinc-950'}`}
-                                    >✓</button>
-                                  ) : (
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); handleItemToggle(order.id, item.id, item.kitchen_status); }}
-                                      className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold border transition-all active:scale-90 ${lightMode ? 'border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'border-white/20 text-white/40 hover:border-emerald-400 hover:text-emerald-400'}`}
-                                    >✓</button>
-                                  )}
+                                   {/* 12j (owner: "tik ikonuna POS-dakı kimi
+                                       zövqlü transition") — the POS ProductGrid
+                                       cart-badge pattern, bit-tibi: ONE
+                                       persistent control (never unmounts →
+                                       zero blink). On tap the circle BOUNCES
+                                       (scale keyframes, easeOut — the POS
+                                       bounce) and the ✓ glyph POPS in/out on
+                                       state flip (spring); the fill itself
+                                       crossfades via transition-all. */}
+                                   <motion.button
+                                     onClick={(e) => { if (!itemServed) { e.stopPropagation(); handleItemToggle(order.id, item.id, item.kitchen_status); } }}
+                                     title={itemServed ? undefined : (itemReady ? t('kds_uncheck') : t('kds_tick_add'))}
+                                     animate={tickPulse[item.id] ? { scale: [1, 1.18, 1.04, 1] } : { scale: 1 }}
+                                     transition={{ duration: 0.45, ease: 'easeOut' }}
+                                     whileTap={itemServed ? undefined : { scale: 0.86 }}
+                                     className={`w-10 h-10 rounded-full flex items-center justify-center border select-none transition-all duration-200 ${
+                                       itemServed
+                                         ? (lightMode ? 'bg-emerald-600/50 border-emerald-600/50 text-white/70' : 'bg-emerald-500/40 border-emerald-400/40 text-zinc-950/70')
+                                         : itemReady
+                                           ? (lightMode ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-500 border-emerald-500 text-zinc-950')
+                                           : (lightMode ? 'bg-white border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'bg-transparent border-white/25 text-white/45 hover:border-emerald-400 hover:text-emerald-400')
+                                     }`}
+                                   >
+                                     <motion.span
+                                       key={itemReady || itemServed ? 'on' : 'off'}
+                                       initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
+                                       animate={{ scale: 1, opacity: 1 }}
+                                       transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 26 }}
+                                       className="text-base font-bold leading-none"
+                                     >✓</motion.span>
+                                   </motion.button>
                                 </div>
                               </div>
                             );
@@ -875,45 +1025,48 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                        <p className={`mt-2.5 text-[11px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{order.customer_note}</p>
                      )}
 
-                      {/* 12i — canonical workflow action. The forced-tick gate
-                          is GONE (owner): "Hazırdır" finalizes the whole order
-                          without ticking each item. On a STATION board the
-                          whole-order "Hazırdır" is hidden (it would cook the
-                          other station's items for them) — instead the chef
-                          ticks per-item ✓ and, once his station is done, sees
-                          the cross-station hint. */}
-                      {wf === 'ready' || wf === 'serving' ? (
-                        // 12i (owner): "servis et buttonu POS-da olacaq" — the
-                        // kitchen's part ENDS at Hazırdır; SERVE is a floor
-                        // (POS) action. The card waits in SƏRVİSE state.
-                        <p className={`mt-2.5 text-[11px] font-semibold ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{t('kds_serving_hint')}</p>
-                      ) : wf === 'preparing' && !stationFilter ? (
-                        <motion.button
-                          key="preparing"
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
-                          onClick={(e) => { e.stopPropagation(); handleMakeReady(order.id); }}
-                          className={`mt-3 w-full h-10 rounded-2xl text-[13px] font-semibold transition-all active:scale-[0.99] ${lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90'}`}
-                        >
-                          {t('kds_ready_btn')}
-                        </motion.button>
-                      ) : wf === 'pending' ? (
-                        <motion.button
-                          key="pending"
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={reduceMotion ? { duration: 0 } : CARD_SPRING}
-                          onClick={(e) => { e.stopPropagation(); handleAccept(order.id); }}
-                          className={`mt-3 w-full h-10 rounded-2xl text-[13px] font-semibold transition-all active:scale-[0.99] ${lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90'}`}
-                        >
-                          {t('kds_accept_btn')}
-                        </motion.button>
-                      ) : wf === 'preparing' && stationFilter && visibleAllReady && otherPending > 0 ? (
-                        <p className={`mt-2.5 text-[11px] font-semibold ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                          {t('kds_other_stations_pending')} · {otherPending}
-                        </p>
-                      ) : null}
+                      {/* 12j (owner: "Sifarişi tamamla və Qəbul et
+                          düymələrindəki blink effektini aradan qaldır") — ONE
+                          PERSISTENT action surface. No key-remount, no
+                          initial-opacity, no button↔<p> swap: the same element
+                          stays mounted and its TEXT + COLOR morph via CSS
+                          transitions as the workflow steps. Active states:
+                          Qəbul et (pending) / Hazırdır (preparing, whole-order
+                          board only — a station board never cooks for the
+                          other station). Inactive = the surface becomes an
+                          info bar: "Sərvil POS-dan edilir" (ready/serving —
+                          SERVE is the POS floor action, 12i), "Digər
+                          stansiyalar hazırlayır · n" (station done), or
+                          "Servis edildi" (served). */}
+                      {(() => {
+                        let label = t('kds_ready_btn');
+                        let active = false;
+                        let emerald = false;
+                        let act: (() => void) | null = null;
+                        if (wf === 'pending') { label = t('kds_accept_btn'); active = true; act = () => handleAccept(order.id); }
+                        else if (wf === 'preparing') {
+                          if (!stationFilter) { label = t('kds_ready_btn'); active = true; act = () => handleMakeReady(order.id); }
+                          else if (visibleAllReady && otherPending > 0) { label = `${t('kds_other_stations_pending')} · ${otherPending}`; }
+                        }
+                        else if (wf === 'ready' || wf === 'serving') { label = t('kds_serving_hint'); emerald = true; }
+                        else { label = t('kds_served'); emerald = true; }
+                        return (
+                          <button
+                            onClick={(e) => { if (!active) return; e.stopPropagation(); act?.(); }}
+                            disabled={!active}
+                            aria-disabled={!active}
+                            className={`mt-3 w-full h-10 rounded-2xl text-[13px] font-semibold transition-all duration-300 active:scale-[0.99] ${
+                              emerald
+                                ? (lightMode ? 'bg-emerald-600/90 text-white' : 'bg-emerald-500/85 text-zinc-950')
+                                : active
+                                  ? (lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90')
+                                  : (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/30')
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })()}
                     </motion.div>
                     )}
                   </Fragment>
@@ -1048,20 +1201,30 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                             </div>
                             <div className="flex items-center gap-3 shrink-0 pt-0.5">
                               <span className={`text-sm font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
-                              {itemServed ? (
-                                <span className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold opacity-50 ${lightMode ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-zinc-950'}`}>✓</span>
-                              ) : itemReady ? (
-                                <button
-                                  onClick={() => handleItemToggle(o.id, item.id, item.kitchen_status)}
-                                  title={t('kds_uncheck')}
-                                  className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold transition-all active:scale-90 hover:opacity-80 ${lightMode ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-zinc-950'}`}
-                                >✓</button>
-                              ) : (
-                                <button
-                                  onClick={() => handleItemToggle(o.id, item.id, item.kitchen_status)}
-                                  className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border transition-all active:scale-90 ${lightMode ? 'border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'border-white/20 text-white/35 hover:border-emerald-400 hover:text-emerald-400'}`}
-                                >✓</button>
-                              )}
+                               {/* 12j: POS cart-badge tick pattern (48px) —
+                                   persistent control + tap bounce + glyph pop. */}
+                               <motion.button
+                                 onClick={() => { if (!itemServed) handleItemToggle(o.id, item.id, item.kitchen_status); }}
+                                 title={itemServed ? undefined : (itemReady ? t('kds_uncheck') : t('kds_tick_add'))}
+                                 animate={tickPulse[item.id] ? { scale: [1, 1.18, 1.04, 1] } : { scale: 1 }}
+                                 transition={{ duration: 0.45, ease: 'easeOut' }}
+                                 whileTap={itemServed ? undefined : { scale: 0.86 }}
+                                 className={`w-12 h-12 rounded-full flex items-center justify-center border select-none transition-all duration-200 ${
+                                   itemServed
+                                     ? (lightMode ? 'bg-emerald-600/50 border-emerald-600/50 text-white/70' : 'bg-emerald-500/40 border-emerald-400/40 text-zinc-950/70')
+                                     : itemReady
+                                       ? (lightMode ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-500 border-emerald-500 text-zinc-950')
+                                       : (lightMode ? 'bg-white border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'bg-transparent border-white/25 text-white/45 hover:border-emerald-400 hover:text-emerald-400')
+                                 }`}
+                               >
+                                 <motion.span
+                                   key={itemReady || itemServed ? 'on' : 'off'}
+                                   initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
+                                   animate={{ scale: 1, opacity: 1 }}
+                                   transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 26 }}
+                                   className="text-lg font-bold leading-none"
+                                 >✓</motion.span>
+                               </motion.button>
                             </div>
                           </div>
                         );
@@ -1115,32 +1278,35 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                    })()}
                  </div>
 
-                  {/* Sticky footer — 12i canonical workflow action, always
-                      visible (the forced-tick gate is gone). The modal is the
-                      whole-order surface, so "Hazırdır" here finalizes ALL
-                      stations — that is the intended one-tap. */}
+                  {/* Sticky footer — 12j: ONE PERSISTENT action surface (no
+                      blink — same element, text+color morph via CSS). The
+                      modal is the whole-order surface: "Hazırdır" here
+                      finalizes ALL stations (intended one-tap); SERVE stays
+                      the POS floor action (12i). */}
                   <div className="p-5 pt-0 flex-shrink-0">
-                    {wf === 'served' ? (
-                      <p className={`text-center text-sm font-semibold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>✓ {t('kds_served')}</p>
-                    ) : wf === 'ready' || wf === 'serving' ? (
-                      // 12i (owner): SERVE is the POS (floor) action — the
-                      // modal only informs; the chef's part is done.
-                      <p className={`text-center text-[11px] font-semibold uppercase tracking-[0.12em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_serving_hint')}</p>
-                    ) : wf === 'preparing' ? (
-                      <button
-                        onClick={() => handleMakeReady(o.id)}
-                        className={`w-full h-12 rounded-2xl text-sm font-semibold transition-all active:scale-[0.99] ${lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90'}`}
-                      >
-                        {t('kds_ready_btn')}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleAccept(o.id)}
-                        className={`w-full h-12 rounded-2xl text-sm font-semibold transition-all active:scale-[0.99] ${lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90'}`}
-                      >
-                        {t('kds_accept_btn')}
-                      </button>
-                    )}
+                    {(() => {
+                      let label = t('kds_ready_btn');
+                      let active = true;
+                      let emerald = false;
+                      let act: (() => void) = () => handleMakeReady(o.id);
+                      if (wf === 'pending') { label = t('kds_accept_btn'); act = () => handleAccept(o.id); }
+                      else if (wf === 'ready' || wf === 'serving') { label = t('kds_serving_hint'); active = false; emerald = true; }
+                      else if (wf === 'served') { label = `✓ ${t('kds_served')}`; active = false; emerald = true; }
+                      return (
+                        <button
+                          onClick={() => { if (!active) return; act(); }}
+                          disabled={!active}
+                          aria-disabled={!active}
+                          className={`w-full h-12 rounded-2xl text-sm font-semibold transition-all duration-300 active:scale-[0.99] ${
+                            emerald
+                              ? (lightMode ? 'bg-emerald-600/90 text-white' : 'bg-emerald-500/85 text-zinc-950')
+                              : (lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90')
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })()}
                   </div>
               </motion.div>
             </motion.div>

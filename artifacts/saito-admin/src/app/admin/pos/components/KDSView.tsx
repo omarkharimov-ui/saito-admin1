@@ -269,6 +269,13 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status);
   const stationItems = (o: KDSOrder, stId: string) => o.items.filter(i => itemStation(i) === stId && isActiveItem(i));
   const stationDone = (i: KDSItem) => isItemReady(i) || i.kitchen_status === 'served';
+  // 12o (owner: "tik oğlanda avtomatik hazırdır qəbul etməsin sistem") — the
+  // per-item ✓ is PREPARATION PROGRESS: a tick lights the circle and counts
+  // toward "done" via order_items.prepared_quantity WITHOUT touching
+  // kitchen_status (no auto-accept, no auto-ready, rollup keeps the same
+  // order status). Declaring HAZIRDIR stays the "Hazırdır" CTA's job;
+  // un-declaring stays RECALL (ready→pending, frozen edge).
+  const isItemTicked = (i: KDSItem) => stationDone(i) || (i.prepared_quantity ?? 0) > 0;
   const stationAllDone = (o: KDSOrder, stId: string) => {
     const its = stationItems(o, stId);
     return its.length > 0 && its.every(stationDone);
@@ -542,46 +549,64 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // defense-in-depth pattern as pos-sync).
   useCrossTableRefresh('kdsview', ['orders', 'order_items'], () => fetchKDSRef.current(), 1500);
 
-  // 12i (owner): "tik işləmir — tik etmək olur lakin tiki çıxarmaq olmaz".
-  // The ✓ is now a TOGGLE: pending/accepted/sent/preparing → 'ready' (frozen
-  // mark_item_ready_atomic, single item); ready → 'recalled' (item_kitchen_
-  // terminal = registry recall semantics, ready → pending, verified edge).
-  // Served items are final (no toggle). Rollback restores the PREVIOUS state
-  // (the old code hard-coded 'preparing' — wrong for a 'pending' item).
-  const handleItemToggle = async (orderId: string, itemId: string, current: string) => {
-    const uncheck = current === 'ready';
-    const prevStatus = current;
+  // 12i→12j: the ✓ was a TOGGLE on kitchen_status (tick = mark_item_ready_
+  // atomic). 12o (owner: "tik oğlanda avtomatik hazırdır qəbul etməsin
+  // sistem"): a tick on a NON-ready item no longer touches the state machine
+  // at all — it writes order_items.prepared_quantity (preparation progress,
+  // /api/kitchen/item-prepared). Only the UN-TICK of a declared-READY item
+  // stays RECALL (item_kitchen_terminal 'recalled', ready→pending — frozen
+  // registry edge, 12i). Served items are final (no toggle). Optimistic
+  // update + rollback of BOTH fields on failure.
+  const handleItemToggle = async (orderId: string, item: KDSItem) => {
+    const recall = item.kitchen_status === 'ready';
+    const prevStatus = item.kitchen_status;
+    const prevPrepared = item.prepared_quantity ?? 0;
+    // recall → circle fully off (progress reset too); otherwise toggle the
+    // prepared mark (0 ↔ quantity).
+    const nextPrepared = recall ? 0 : (prevPrepared > 0 ? 0 : (item.quantity ?? 1));
     // 12j: POS cart-badge bounce on the tap itself (instant, before the RPC).
-    pulseTick(itemId);
+    pulseTick(item.id);
     setOrders(prev => prev.map(o => o.id === orderId ? {
       ...o,
-      items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: uncheck ? 'pending' : 'ready' } : i),
+      items: o.items.map(i => i.id === item.id ? {
+        ...i,
+        ...(recall ? { kitchen_status: 'pending' as const } : {}),
+        prepared_quantity: nextPrepared,
+      } : i),
+    } : o));
+    const rollback = () => setOrders(prev => prev.map(o => o.id === orderId ? {
+      ...o,
+      items: o.items.map(i => i.id === item.id ? { ...i, kitchen_status: prevStatus, prepared_quantity: prevPrepared } : i),
     } : o));
     try {
-      const res = uncheck
+      const res = recall
         ? await apiFetch('/api/kitchen/item-recall', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order_item_id: itemId }),
+            body: JSON.stringify({ order_item_id: item.id }),
           })
-        : await apiFetch('/api/orders/mark-ready', {
+        : await apiFetch('/api/kitchen/item-prepared', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order_id: orderId, item_ids: [itemId] }),
+            body: JSON.stringify({ order_item_id: item.id, prepared_quantity: nextPrepared }),
           });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        setOrders(prev => prev.map(o => o.id === orderId ? {
-          ...o,
-          items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: prevStatus } : i),
-        } : o));
+        rollback();
         toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
+        return;
+      }
+      // legacy safety: a READY item that somehow carried prep progress loses
+      // it on recall (mark_item_ready_atomic itself never sets the column).
+      if (recall && prevPrepared > 0) {
+        await apiFetch('/api/kitchen/item-prepared', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_item_id: item.id, prepared_quantity: 0 }),
+        }).catch(() => {});
       }
     } catch {
-      setOrders(prev => prev.map(o => o.id === orderId ? {
-        ...o,
-        items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: prevStatus } : i),
-      } : o));
+      rollback();
       toast.error(t('status_update_error'), { id: 'kds-toast' });
     }
   };
@@ -687,11 +712,14 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     const timer = getItemTimerStatus(order.created_at, criticalMin, delayMin);
     const wf = kdsWorkflowState(order, isItemReady, nowMs);
     const visibleItems = stationItems(order, stId);
-    const visibleReady = visibleItems.filter(i => stationDone(i)).length;
-    // 12n: "ready section" membership — this station's whole share done.
+    // 12o: progress = TICKED (prepared_quantity) + declared-ready + served.
+    const visibleReady = visibleItems.filter(i => isItemTicked(i)).length;
+    // 12n: "ready section" membership — this station's whole share DECLARED
+    // done (kitchen_status truth only — a tick alone never promotes a card).
     const inReadyTab = stationAllDone(order, stId);
     const timerLate = timer.color === 'red' || timer.color === 'purple';
     // 12i: per-station progress (ALL stations of the order) — awareness.
+    // 12o: counts ticked (prepared) items as progress too.
     const stationProgress: { name: string; qty: number; ready: number }[] = (() => {
       const m = new Map<string, { name: string; qty: number; ready: number }>();
       for (const it of order.items) {
@@ -701,7 +729,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
         if (!nm) continue;
         const e = m.get(nm) || { name: nm, qty: 0, ready: 0 };
         e.qty += it.quantity;
-        if (isItemReady(it) || it.kitchen_status === 'served') e.ready += it.quantity;
+        if (isItemTicked(it)) e.ready += it.quantity;
         m.set(nm, e);
       }
       return Array.from(m.values());
@@ -814,9 +842,12 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 "Qeyd: xxx" + allergen chips (all Apple-style, light-safe) */}
             <div className={`mt-2.5 divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.05]'}`}>
               {visibleItems.map(item => {
-                const itemReady = isItemReady(item);
+                // 12o: circle lit = declared-ready OR ticked (preparation
+                // progress). A ticked-but-not-declared item is still "work
+                // in flight" for the card (dimmed, counted in progress).
+                const itemTicked = isItemTicked(item);
                 const itemServed = item.kitchen_status === 'served';
-                const dim = itemReady || itemServed;
+                const dim = itemTicked || itemServed;
                 const alLabels = parseAllergens(item.allergens).map((a: any) =>
                   resolveAllergenEntry(a)?.label ||
                   (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
@@ -863,21 +894,21 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                       <span className={`text-[13px] font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
                       {/* 12j POS-pattern ✓ (unchanged: persistent + bounce + pop) */}
                       <motion.button
-                        onClick={(e) => { if (!itemServed) { e.stopPropagation(); handleItemToggle(order.id, item.id, item.kitchen_status); } }}
-                        title={itemServed ? undefined : (itemReady ? t('kds_uncheck') : t('kds_tick_add'))}
+                        onClick={(e) => { if (!itemServed) { e.stopPropagation(); handleItemToggle(order.id, item); } }}
+                        title={itemServed ? undefined : (itemTicked ? t('kds_uncheck') : t('kds_tick_add'))}
                         animate={tickPulse[item.id] ? { scale: [1, 1.18, 1.04, 1] } : { scale: 1 }}
                         transition={{ duration: 0.45, ease: 'easeOut' }}
                         whileTap={itemServed ? undefined : { scale: 0.86 }}
                         className={`w-10 h-10 rounded-full flex items-center justify-center border select-none transition-all duration-200 ${
                           itemServed
                             ? (lightMode ? 'bg-emerald-600/50 border-emerald-600/50 text-white/70' : 'bg-emerald-500/40 border-emerald-400/40 text-zinc-950/70')
-                            : itemReady
+                            : itemTicked
                               ? (lightMode ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-500 border-emerald-500 text-zinc-950')
                               : (lightMode ? 'bg-white border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'bg-transparent border-white/25 text-white/45 hover:border-emerald-400 hover:text-emerald-400')
                         }`}
                       >
                         <motion.span
-                          key={itemReady || itemServed ? 'on' : 'off'}
+                          key={itemTicked || itemServed ? 'on' : 'off'}
                           initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 26 }}
@@ -895,38 +926,39 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 <span className="font-bold">{t('kds_note_label')}:</span> {order.customer_note}
               </p>
             )}
-            {/* CTA — 12n unified board: in-progress = station-scoped
-                "Hazırdır" (main bar); ready section = read-only info bar
-                (serve = POS floor, 12i). ONE persistent button (12j no-blink
-                pattern). */}
-            {(() => {
-              let label = t('kds_ready_btn');
-              let active = false;
-              let emerald = false;
-              let act: (() => void) | null = null;
-              if (inReadyTab) { label = t('kds_serving_hint'); emerald = true; }
-              else {
+            {/* CTA — 12o: ready section = QUIET TEXT, not a button (owner:
+                "servis posdan edilir adlı button ləğv elə olmasın orada") —
+                the ticket is read-only there; SERVE is the POS floor action
+                (12i), so the kitchen side shows a small emerald caption only.
+                In-progress = the station-scoped "Hazırdır" main bar (12j
+                persistent, no-blink). */}
+            {inReadyTab ? (
+              <div className="mt-3 px-0.5">
+                <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${lightMode ? 'text-emerald-700/80' : 'text-emerald-400/70'}`}>
+                  <CheckCircle2 size={12} />
+                  {t('kds_serving_hint')}
+                </span>
+              </div>
+            ) : (
+              (() => {
                 const pendingIds = stationPendingItemIds(order, stId);
-                active = pendingIds.length > 0;
-                act = () => handleMakeReady(order.id, pendingIds);
-              }
-              return (
-                <button
-                  onClick={(e) => { if (!active) return; e.stopPropagation(); act?.(); }}
-                  disabled={!active}
-                  aria-disabled={!active}
-                  className={`mt-3 w-full h-10 rounded-2xl text-[13px] font-semibold transition-all duration-300 active:scale-[0.99] ${
-                    emerald
-                      ? (lightMode ? 'bg-emerald-600/90 text-white' : 'bg-emerald-500/85 text-zinc-950')
-                      : active
+                const active = pendingIds.length > 0;
+                return (
+                  <button
+                    onClick={(e) => { if (!active) return; e.stopPropagation(); handleMakeReady(order.id, pendingIds); }}
+                    disabled={!active}
+                    aria-disabled={!active}
+                    className={`mt-3 w-full h-10 rounded-2xl text-[13px] font-semibold transition-all duration-300 active:scale-[0.99] ${
+                      active
                         ? (lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90')
                         : (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/30')
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })()}
+                    }`}
+                  >
+                    {t('kds_ready_btn')}
+                  </button>
+                );
+              })()
+            )}
           </motion.div>
         )}
       </Fragment>
@@ -1161,7 +1193,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             const e = stationMap.get(nm) || { name: nm, qty: 0, ready: 0 };
             e.qty += it.quantity;
             // 12i: served = done (the station's share is finished).
-            if (isItemReady(it) || it.kitchen_status === 'served') e.ready += it.quantity;
+            if (isItemTicked(it)) e.ready += it.quantity; // 12o: ticked (prepared) counts too
             stationMap.set(nm, e);
           }
           const title = o.order_source === 'dine_in' ? `Masa ${o.table_number ?? '?'}` : o.customer_name || (o.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'));
@@ -1238,8 +1270,9 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                  <div className="p-5 flex-1 min-h-0 overflow-y-auto">
                    {/* Məhsullar — flat rows, 48px ✓ targets */}
                    <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.06]'}`}>
-                     {items.map(item => {
-                       const itemReady = isItemReady(item);
+                      {items.map(item => {
+                        // 12o: circle lit = declared-ready OR ticked (prepared progress).
+                        const itemReady = isItemTicked(item);
                         // 12m (owner): NO prices in KDS/BDS — modifier names +
                         // quantities only (the old ` · ₼X.XX` suffix is gone).
                         const modText = (item.modifiers ?? []).map(m =>
@@ -1287,7 +1320,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                                {/* 12j: POS cart-badge tick pattern (48px) —
                                    persistent control + tap bounce + glyph pop. */}
                                <motion.button
-                                 onClick={() => { if (!itemServed) handleItemToggle(o.id, item.id, item.kitchen_status); }}
+                                 onClick={() => { if (!itemServed) handleItemToggle(o.id, item); }}
                                  title={itemServed ? undefined : (itemReady ? t('kds_uncheck') : t('kds_tick_add'))}
                                  animate={tickPulse[item.id] ? { scale: [1, 1.18, 1.04, 1] } : { scale: 1 }}
                                  transition={{ duration: 0.45, ease: 'easeOut' }}

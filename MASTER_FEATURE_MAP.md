@@ -839,6 +839,28 @@ Owner: "…sonraya saxlayaq bunu (route). Delivery page customer info sonra tama
 
 ---
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12o: TICK = HAZIRLIQ PROGRESS (auto-accept/auto-ready YOX) + "SERVİS POS-DAN EDİR" BUTTON→QIET TEXT + QƏBUL ET AÇIKLAMASI)
+
+Owner (E2E Wolt ticket screenshot ilə): **"(1) 'servis posdan edilir' adlı button ləğv elə olmasın orada. (2) Birdəki tik oğlanda avtomatik hazır qəbul etməsin sistem. (3) Və oradaki 'Qəbul et' buttonu nə üçündür ki?"**
+
+**(1) Button → quiet text:** ready section-da kartın altındakı emerald dolu "Servis POS-dan edir" bar (button şəkilli) **SİLİNDİ** → kiçik emerald caption (`11px`, `CheckCircle2 12px`, dark `text-emerald-400/70` / light `text-emerald-700/80`). Səbəb: servisin KDS-də buttonu olmamalıdır (12i: SERVE = POS floor action) — info, action deyil. Eyni slot (mt-3), read-only.
+
+**(2) Tick semantika (kök səbəb):** `handleItemToggle` əvvəl NON-ready tick-də `mark_item_ready_atomic` çağırırdı → item 'ready' → rollup → order avtomatik HAZIRDIR → +3s SERVİSƏ HAZIRDİR → POS floor chip çevrilirdi — **tik basan anadək order rəsmən qəbul+hazır olurdu** (screenshot-dakı GÖZLƏYİR ticket-da da işləyərdi). İndi:
+- **Tick (non-ready) = YALNIZ `order_items.prepared_quantity`** (0 ↔ quantity) — yeni route `/api/kitchen/item-prepared` (requireKdsAction + service-role **plain UPDATE**; `kitchen_status` SET-ə daxil DEYİL → `trg_item_state_machine_guard` + `trg_kds_ticket_emit` (hər ikisi `UPDATE OF kitchen_status`) səsiz; frozen rollup (`trg_sync_order_kitchen_status`, AFTER UPDATE) yenidən hesablayır amma CASE **yalnız kitchen_status-a** baxır → order statusu eyni qalır — real DB fn-inde verified).
+- **Un-tick (READY item) = RECALL qalır** (`item_kitchen_terminal 'recalled'`, ready→pending, frozen edge) + legacy prepared>0 idisə 0-a sıfırlanır.
+- **GÖZLƏYİR order tick-lənsə də GÖZLƏYİR qalır** (auto-accept YOX), kart emerald qrupa qalxmır (`stationAllDone` = kitchen_status truth only), "Qəbul et" pill qalır.
+- **HAZIRDIR bəyanı = YALNIZ "Hazırdır" CTA** (station-scoped / modal whole-order).
+- Counter (x/y) + cross-station progress line + modal progress indi **ticked (prepared) + ready + served** sayır (`isItemTicked` helper); circle lit = `isItemTicked`.
+- Legacy uyğunluq: `prepared_quantity` sütunu mövcud idi (default 0) + köhnə `/kitchen/track` sistemi eyni semantikadan istifadə edirdi → iki səth eyni sahəyə birləşdi. `mark_item_ready_atomic` prepared-a toxunmur (verified) → recall-da circle tam söndür.
+
+**(3) Qəbul et (sualın cavabı — owner-a report-də):** "Qəbul et" = mətbəxin sifarişi **rəsmi götürməsi**: GÖZLƏYİR→accepted (kitchen_accepted_at vurulur), GÜN-dəki **Ø QƏBUL** metriki məhz bu zamanı ölçür (sifariş nə qədər tez götürülüb). 12o-dan sonra rolu aydınlaşdı: tick artıq qəbul ETMƏDİYİ üçün "Qəbul et" = ilk mərhələnin yeganə dəqi addımı (optional — "Hazırdır" birbaşa da çata bilir). Silinmə istəyi qalsaydı, owner növbəti mesajda bildirəcək.
+
+**E2E r12o (browser + REAL DB, 8/8 PASS, 5 PNG):** baseline (order pending / accepted NULL / item pending / prepared 0) → tick: circle ON 1/1, **GÖZLƏYİR qaldı**, "Qəbul et" pill qaldı, kart qalxmadı, DB prepared=1+status pending (auto-accept/auto-ready YOX) → un-tick: prepared=0 → tick + "Hazırdır": order ready, kart emerald qrupda, alt = **quiet text (konteynerdə 0 button)**, "Servis et"=0 → recall: **BASELINE-a qayıt (net sıfır)**; light: oklab(0.508 -0.114 0.029/0.8) 11px oxunaqlı; console **0** error, **0** key warning. İki eyniadlı "E2E Wolt" order var — `created_at` ilə disambiguation.
+
+**tsc:** clean. **Commit:** `12o`. **Fayllar:** `KDSView.tsx` (isItemTicked, handleItemToggle rewrite, CTA quiet-text, counters), YENİ `src/app/api/kitchen/item-prepared/route.ts`.
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12n: KDS UMUMİ BOARD + STANSİYA NAVBAR — dual panel + HAZIRLANIR|HAZIRDİR sub-tab-silindi, Toast modeli)
 
 Owner: **"ay qardaş, belə problemi dedimki mətbəxdə umumi olsun, 2 dənə ayrı tab YOXEEE — yuxarıda navbar olsun, fso hər birinə baxmaq üçün."** 12m-in yana-yana dual panel-lərini (hər birində HAZIRLANIR|HAZIRDİR sub-tab) owner rədd etdi; ask_user ilə variant təsdiqi → **"Tab yox — tam umumi"** (Toast modeli): mətbəx = 1 umumi board, yuxarıda stansiya navbar, hər stansiya fasiləsiz baxılır.

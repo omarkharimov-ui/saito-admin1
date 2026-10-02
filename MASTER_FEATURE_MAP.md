@@ -839,6 +839,36 @@ Owner: "…sonraya saxlayaq bunu (route). Delivery page customer info sonra tama
 
 ---
 
+### Jurnal sətiri — 2026-10-02 (ROUND 12h: KDS/BDS — FULL APPLE VISUAL RESET + STATIONS HOT+BAR ONLY)
+
+Owner: **"hele de cox cirkindiree — yeni kartin ustundeki chipler textlert, apple felsefesi ile dedik axi sen ise yungul polish edirsenee daha qeseng netice vere. Yuxaridan grill prep service stationsini çıxar — sadece hot ve bar stationsları var (gələcəkdə arta bilər). Yeni sen apple felsefesi ile her yeri deyismirsen ne axi"** → 12g "yüngül polish" sayıldı; bu round = SAITO_UI_VISUAL_DIRECTION.md §4/§5 qaydalarının **hamısının** KDS + BDS-yə tətbiqi (kart/tab/modal/çip/text — "her yer") + station SSOT-un hot line + Bar-a endazəsi.
+
+**(A) Stations — DB migration `20261002050000_12h_stations_hot_bar_only.sql` (REAL DB-də APPLIED):**
+- Grill `2c61cc08…` / Prep `66b3fd8c…` / Service `30c7286b…` **SİLİNDİ**; qalan 4: Main Kitchen (hot line) + Bar (kitchen) / Çatdırılma + Gel-Al (BDS family).
+- Remap: `products` (9) + `order_items` snapshot (211) → Main Kitchen — **0 dangling station ref** (psql verify).
+- ⚠️ Kök catch: `trg_item_money_lock` served-state item-lərdə `ITEM_STATION_FROZEN` raise edir → one-off reconfig migration `ALTER TABLE order_items DISABLE TRIGGER … ` → remap → `ENABLE TRIGGER` — BÜTÜNÜ BİR transaction-da, COMMIT-dan əvvəl geri.
+- KDS top-tabs indi: **HAMISI · Main Kitchen · Bar** (E2E: 8 · 4 · 1) — 12e-nin station-board filter logic-i toxunulmayıb, sadəcə SSOT daraldıldı (gələcəkdə station əlavə edilib tab avtomatik qalxar — owner: "gələcəkdə arta bilər").
+
+**(B) KDSView.tsx — full Apple reset (12f/12g-in çip/pill/block dilini silindi):**
+- **Header:** "Mətbəx Ekranı" + "8 aktiv sifariş" (sakit 11px) — badge strip YOX; sağda səs + "Geri".
+- **Tabs:** düz text (HAMISI 8 / Main Kitchen 4 / Bar 1) — ikonlu pill chip YOX; active = inverted pill (qara/white) — POS ilə eyni dil.
+- **Kart (12h):** 0 çip 0 pill 0 nested box. Row 1 = title (15px semibold) + **elapsed red + nöqtə** (≥30m GEÇİKME / <30m KRİTİK — nöqtə = red dot, timer qırmızı text — 12g-in solid-red chip-i ARXIVLADI); Row 2 = sakit meta (`çatdırılma · 0501234567` / `+994…`) 11px; item sətirləri = **DÜZ TEXT** (ad + 1 spec sətiri: amber `special_notes` > zinc modifier; HOLD/course/⚠allergen kiçik text) + **40px ✓** (pending = hairline dairə, ready = DOLU emerald dairə — line-through YOX). CTA "Sifarişi Tamamla" **yalnız allItemsReady**-da görünür (emerald, full-width, sticky).
+- **Border states (state = border + text color ONLY):** allReady = `emerald-500/50` / GEÇİKME = `red-400` / KRİTİK = `red-300` / normal = `zinc-200` (dark `white/[0.08]`); ready-green > delay-red prioriteti 12g-dən qorunur.
+- **Modal (12g-in morph + layoutId toxunulmadı):** header sakit (title + order no + customer · phone — pill YOX); body = flat `divide-y` hairline list (item + spec + 40px ✓); STANSİYALAR = text rows (progress "2/5"); footer = sticky. `getOrderBadge` (ÇATDIR/TAKEAWAY badge) + `PartnerStripe` **SİLİNDİ** — order type artıq row-2 meta-da text kimi.
+
+**(C) delivery/page.tsx (BDS) — eyni reset:**
+- **Kart = MƏLUMAT səthi:** Row 1 = "Çatdırılma 085" (15px semibold + tabular no) + elapsed (red ≥30m); Row 2 = customer · `tel:` phone (sakit); **YALNIZ BİR sakit ünvan sətiri** "Nizami 5, Bakı · ₼2 · ETA 02:34" (ETA overdue = red text — chip YOX, icon YOX); item sətirləri flat (ad ×qty + station + ✓, max 4 + "+n"); **Mətbax: GÖZLƏYİR/HAZIRDIR** (color-only: zinc/emerald) + "· Kuryer: ad" eyni sətirdə.
+- Kartda YALNIZ 1 action = **takeaway ALINDI** (高频 one-tap qalır kartda); delivery transitions + Kuryer seç = **modal-da** (12g footer). Kartyel emerald border (kitchen ready, delivery tabində YOX — dispatcher diqqəti çatdırılmaya), taken = opacity-60.
+- **Modal:** header = icon + "Çatdırılma 085" (JSX fragment — ⚠️ E2E-catch: əvvəl template string-ə JSX yazılmışdı → literal `<span …>` görünürdü; fix + targeted re-E2E "Çatdırılma 085" exact ✓) + customer/phone/ünvan meta rows (flat, chip YOX); MƏHSULLAR flat list; Kuryer picker modal içində (collapse YOX — 12g invariant); sticky footer (maşın düymələri / ALINDI / KDS hint).
+
+**(D) E2E (browser r12h, READ-ONLY):** KDS: tabs = **HAMISI 8 · Main Kitchen 4 · Bar 1** (Grill/Prep/Service YOXDU); kartlar: çip 0, pill 0, nested box 0 — flat text rows + 40px ✓ (ready = dolu emerald dairə); GEÇİKME kart = red dot + red elapsed + red border (4 kart); all-ready (Test 11y ×2, Çatdırılma 082) = emerald border + emerald CTA; tap "E2E Wolt" → centered morph modal (sakit header, flat item list, STANSIYALAR text rows, ESC/X ✓); BDS: 6 kart flat info-surface (emerald ready border, red ETA "02:34/02:13/23:14/20:03" overdue, Mətbax: HAZIRDIR emerald / GÖZLƏYİR zinc); tap 085 → modal: "Çatdırılma 085" exact + ünvan "Nizami 5, Bakı · ₼2 · ETA 02:34" + MƏHSULLAR + Kuryer picker = **tofiq agayev** (ilk run-da HMR-reload transient boş görünmüşdü — re-run ✓); console **0+0**. Shots: r12h-kds-1 / r12h-kds-modal / r12h-bds-1 / r12h-bds-modal (real PNG 1568×925).
+
+**tsc:** clean (title-fragment fix-dən SONRA). **Dead code (zararsız, tsconfig noUnusedLocals YOXDU):** KDS `getTimerStyles`/`PartnerStripe` import + BDS `stEntries`/card-scope `bdsButtons`.
+
+**Qalan (owner GO gözləyir):** 12d route (Task #11) + DB-dəki 103 köhnə non-terminal order temizliyi (geri dönüşsüz — əvvəl exact siyahı) + 12f chime sahibi-qulağı yoxlanışı. **Opsional (sual owner-ə):** "Main Kitchen" tab adının "Hot" olması (owner: "sadece hot ve bar stationsları var" — adlandırma təsdiqi gözləyir).
+
+---
+
 ### Jurnal sətiri — 2026-10-02 (ROUND 12g: KDS/BDS — POS TICK TRANSITION MORPH-TO-CENTERED-MODAL + RED DELAY STATE)
 
 Owner: **"'In place' yox, daha doğrusu, elementin morph edərək ekranın ortasında modal kimi açılmasını nəzərdə tutmuşdum. Gecikmə qırmızı rəngdə göstərilsin. POS-da olan tick transition var — eynisindən istifadə edək. ... Bu hissəni də həmin yanaşma ilə yenidən, təmiz, minimal və estetik şəkildə hazırlayaq; belə çirkin görünüşdə saxlamayaq."** → 12f-in in-place expand ARXIVLADI; tap = kart **shared-element MORPH** edərək ekranın ORTASINA modal kimi açılır — mənbə = `ProductGrid.tsx:1633-1765` POS tick transition **BİT-TİB**: `layoutId` card ⇄ centered modal, spring **300/30/0.8**, `whileTap scale 0.96`, `appleBackdrop` (0.22s easeOut, bg-black/45 + backdrop-blur-sm), expand zamanı grid-slot **invisible placeholder** (aria-hidden, height-reserving skeleton) — DOM-da yalnız BİR layoutId elementi qalır (framer "crossfade restore" glitchini qatır, POS-dakı eyni qayda).

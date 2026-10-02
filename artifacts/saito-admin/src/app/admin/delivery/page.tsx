@@ -425,221 +425,137 @@ export default function BDSPage() {
                   o.order_source === 'delivery' ? 'delivery' : o.order_source === 'takeaway' ? 'pickup' : 'dine_in';
                 const isDeliveryKind = isAllTab ? kind === 'delivery' : isDeliveryTab;
                 const taken = kind === 'pickup' && o.status === 'served';
-                 // 12g: POS aesthetic — rounded-4xl + shadow-card.
-                 const cardCls = `rounded-4xl border p-4 flex flex-col gap-3 ${
-                   taken
-                     ? (lightMode ? 'bg-white border-zinc-200 opacity-70 shadow-card' : 'bg-white/[0.015] border-white/[0.06] opacity-70 shadow-card')
-                     : (kReady && !isDeliveryTab
-                       ? (lightMode ? 'bg-emerald-50/60 border-emerald-200 shadow-card' : 'bg-emerald-500/[0.04] border-emerald-500/25 shadow-card')
-                       : (lightMode ? 'bg-white border-zinc-200 shadow-card' : 'bg-white/[0.02] border-white/[0.08] shadow-card'))
-                 }`;
-                 return (
-                   <Fragment key={o.id}>
-                    {expandedId === o.id ? (
-                      // Invisible placeholder: reserves the card's height while
-                      // the order lives in the modal (ProductGrid pattern —
-                      // only ONE layoutId element in the tree at a time).
-                      <div aria-hidden className="relative opacity-0 pointer-events-none select-none">
-                        <div className={`rounded-4xl border p-4 ${lightMode ? 'border-zinc-200' : 'border-white/[0.08]'}`}>
-                          <div className="h-[22px] mb-3" />
-                          <div className="h-[18px] mb-3" />
-                          {isDeliveryKind && (o.delivery_address || o.delivery_zone) && <div className="h-[20px] mb-3" />}
-                          {stEntries.length > 0 && <div className="h-[26px] mb-3" />}
-                          <div className="h-[26px] mb-3" />
-                          {kind === 'delivery' && <div className="h-[34px] mb-3" />}
-                          <div className="h-[38px]" />
-                        </div>
-                      </div>
-                    ) : (
-                    <motion.div
-                      layout
-                      layoutId={`bds-card-${o.id}`}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.97 }}
-                      transition={reduceMotion ? { duration: 0 } : SPRING}
-                      whileTap={{ scale: 0.965, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
-                      // 12g: tap = the card MORPHS into the centered order modal
-                      onClick={() => setExpandedId(o.id)}
-                      className={`cursor-pointer ${cardCls}`}
-                    >
-                      {/* Title row — per-order kind: "Masa N" / "Çatdırılma XXXX" / "Gel-Al XXXX" */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {kind === 'delivery'
-                            ? <Bike size={15} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
-                            : kind === 'dine_in'
-                              ? <Utensils size={15} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
-                              : <ShoppingBag size={15} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />}
-                          <span className={`text-sm font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                            {kind === 'delivery' ? t('delivery_short') : kind === 'dine_in' ? `${t('table_label')} ${o.table_number ?? '?'}` : t('takeaway_short')}
-                          </span>
-                          {kind !== 'dine_in' && (
-                            <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{orderNo}</span>
-                          )}
-                        </div>
-                        <span className={`text-[11px] font-bold tabular-nums flex items-center gap-1 shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                          <Clock size={11} />
-                          {elapsed(o.created_at)}
+                  // 12h (Apple reset): the card is an INFORMATION surface —
+                  // quiet text rows, state in border + text color. Actions
+                  // (delivery transitions, courier) live in the modal; the card
+                  // keeps only the frequent one-tap: takeaway handover.
+                  const elapsedMin = (Date.now() - new Date(o.created_at).getTime()) / 60000;
+                  const late = elapsedMin >= 30;
+                  const cardCls = `rounded-4xl border p-4 flex flex-col ${
+                    taken
+                      ? (lightMode ? 'bg-white border-zinc-200 opacity-60 shadow-card' : 'bg-white/[0.015] border-white/[0.06] opacity-60 shadow-card')
+                      : (kReady && !isDeliveryTab
+                        ? (lightMode ? 'bg-white border-emerald-500/50 shadow-card' : 'bg-white/[0.02] border-emerald-500/40 shadow-card')
+                        : (lightMode ? 'bg-white border-zinc-200 shadow-card' : 'bg-white/[0.02] border-white/[0.08] shadow-card'))
+                  }`;
+                  const cardItems = (o.order_items || []).filter(it => it.quantity > 0 && !['completed', 'cancelled', 'voided'].includes(it.kitchen_status));
+                  return (
+                    <Fragment key={o.id}>
+                     {expandedId === o.id ? (
+                       // Invisible placeholder: reserves the card's height while
+                       // the order lives in the modal (ProductGrid pattern —
+                       // only ONE layoutId element in the tree at a time).
+                       <div aria-hidden className="relative opacity-0 pointer-events-none select-none">
+                         <div className={`rounded-4xl border p-4 ${lightMode ? 'border-zinc-200' : 'border-white/[0.08]'}`}>
+                           <div className="h-[20px] mb-1" />
+                           <div className="h-[15px] mb-1.5" />
+                           {isDeliveryKind && (o.delivery_address || o.delivery_zone) && <div className="h-[32px] mb-2.5" />}
+                           {cardItems.slice(0, 4).map(it => <div key={it.id} className="h-[26px]" />)}
+                           <div className="h-[15px] mt-2.5" />
+                           {kind === 'pickup' && !taken && <div className="h-[36px] mt-2.5" />}
+                         </div>
+                       </div>
+                     ) : (
+                     <motion.div
+                       layout
+                       layoutId={`bds-card-${o.id}`}
+                       initial={{ opacity: 0, y: 12 }}
+                       animate={{ opacity: 1, y: 0 }}
+                       exit={{ opacity: 0, scale: 0.97 }}
+                       transition={reduceMotion ? { duration: 0 } : SPRING}
+                       whileTap={{ scale: 0.965, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
+                       // 12g: tap = the card MORPHS into the centered order modal
+                       onClick={() => setExpandedId(o.id)}
+                       className={`cursor-pointer ${cardCls}`}
+                     >
+                      {/* Row 1 — title + elapsed (red once ≥30m) */}
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className={`flex items-baseline gap-1.5 min-w-0 text-[15px] font-semibold tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                          <span className="truncate">{kind === 'delivery' ? t('delivery_short') : kind === 'dine_in' ? t('table_label') : t('takeaway_short')}</span>
+                          <span className="tabular-nums shrink-0">{kind === 'dine_in' ? (o.table_number ?? '?') : orderNo}</span>
                         </span>
-                     </div>
-
-                    {/* Customer */}
-                    <div className="flex items-center gap-2 min-w-0">
-                      <User size={12} className={lightMode ? 'text-zinc-300' : 'text-white/25'} />
-                      <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>{o.customer_name || '—'}</span>
-                       {o.customer_phone && (
-                         <a href={`tel:${o.customer_phone}`} onClick={e => e.stopPropagation()} className={`ml-auto flex items-center gap-1 text-[11px] font-bold tabular-nums shrink-0 ${lightMode ? 'text-blue-500' : 'text-blue-300'}`}>
-                          <Phone size={11} />
-                          {o.customer_phone}
-                        </a>
-                      )}
-                    </div>
-
-                    {/* Delivery: address + zone + fee */}
-                    {isDeliveryKind && (o.delivery_address || o.delivery_zone) && (
-                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                        <span className="flex items-center gap-1 text-[11px] min-w-0 truncate">
-                          <MapPin size={11} className={lightMode ? 'text-zinc-300' : 'text-white/25'} />
-                          <span className={`font-semibold truncate ${lightMode ? 'text-zinc-600' : 'text-white/55'}`}>{o.delivery_address || '—'}</span>
-                        </span>
-                        {o.delivery_zone && <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${lightMode ? 'bg-purple-50 text-purple-500 border-purple-200' : 'bg-purple-500/10 text-purple-300 border-purple-400/20'}`}>{o.delivery_zone}</span>}
-                        {Number(o.delivery_fee) > 0 && <span className={`flex items-center gap-1 text-[10px] font-black ${lightMode ? 'text-amber-500' : 'text-amber-300'}`}><Wallet size={10} />₼{Number(o.delivery_fee).toFixed(0)}</span>}
-                        {/* Delivery Phase 2: promised ETA (server-resolved from
-                            the zone's ETA range at send) — red once overdue. */}
-                        {o.estimated_delivery_time && (() => {
-                          const eta = new Date(o.estimated_delivery_time);
-                          const overdue = !Number.isNaN(eta.getTime()) && eta.getTime() < Date.now();
-                          return (
-                            <span className={`flex items-center gap-1 text-[10px] font-black ${overdue ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-zinc-400' : 'text-white/40')}`}>
-                              <Clock size={10} />
-                              ETA {eta.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          );
-                        })()}
+                        <span className={`text-[13px] font-semibold tabular-nums shrink-0 ${late ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>{elapsed(o.created_at)}</span>
                       </div>
-                    )}
-
-                    {/* Station split (station_id) — read-only kitchen view */}
-                    {stEntries.length > 0 && (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {stEntries.map(([nm, g]) => {
-                          const done = g.ready >= g.qty;
-                          return (
-                            <span key={nm} className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full border ${
-                              done
-                                ? (lightMode ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25')
-                                : (lightMode ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-amber-500/10 text-amber-300 border-amber-500/20')
-                            }`}>
-                              <ChefHat size={10} />
-                              {nm} · {g.ready}/{g.qty}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Kitchen status — READ-ONLY (owned by KDS) */}
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-[10px] font-black px-2 py-1 rounded-full border ${lightMode ? kLabel.cls : kLabel.cls}`}>
-                        {t(kLabel.key as any)}
-                      </span>
-                      <span className={`text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded-md border ${lightMode ? 'text-zinc-400 border-zinc-200 bg-zinc-50' : 'text-white/30 border-white/[0.08] bg-white/[0.03]'}`}>
-                        KDS
-                      </span>
-                      {!kReady && !isDeliveryTab && <span className={`text-[10px] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('bds_waiting_kitchen')}</span>}
-                    </div>
-
-                    {/* Courier assignment (delivery only) — real staff record */}
-                    {kind === 'delivery' && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                         <button
-                           onClick={(e) => { e.stopPropagation(); setCourierPickerFor(courierPickerFor === o.id ? null : o.id); }}
-                          className={`flex items-center gap-1.5 h-8 px-3 rounded-full text-[11px] font-black border transition-all active:scale-[0.97] ${
-                            o.courier_name
-                              ? (lightMode ? 'bg-sky-50 border-sky-300 text-sky-600' : 'bg-sky-500/10 border-sky-400/30 text-sky-300')
-                              : (lightMode ? 'bg-white border-dashed border-zinc-300 text-zinc-400 hover:border-zinc-400' : 'bg-white/[0.02] border-dashed border-white/15 text-white/40 hover:border-white/30')
-                          }`}
-                        >
-                          <Bike size={12} />
-                          {o.courier_name || (t('bds_pick_courier') || 'Kuryer seç')}
-                        </button>
-                         {courierPickerFor === o.id && (
-                           <div className="flex flex-wrap gap-1.5" onClick={e => e.stopPropagation()}>
-                            {couriers.length === 0 && (
-                              <span className={`text-[10px] font-bold px-2 py-1 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                {t('bds_courier_empty') || 'Staff-də aktiv kuryer yoxdur'}
-                              </span>
-                            )}
-                            {couriers.map(c => (
-                              <button
-                                key={c.id}
-                                onClick={() => assignCourier(o, c)}
-                                className={`h-7 px-2.5 rounded-full text-[11px] font-black border transition-all active:scale-95 ${
-                                  c.name === o.courier_name
-                                    ? 'bg-emerald-500 text-white border-emerald-400'
-                                    : (lightMode ? 'bg-white border-zinc-300 text-zinc-600 hover:border-emerald-400' : 'bg-white/5 border-white/10 text-white/60 hover:border-emerald-400/50')
-                                }`}
-                              >
-                                {c.name}
-                              </button>
-                            ))}
-                          </div>
+                      {/* Row 2 — customer · phone (quiet) */}
+                      <div className="mt-1 flex items-center gap-2 min-w-0">
+                        <span className={`text-[11px] font-medium truncate ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{o.customer_name || '—'}</span>
+                        {o.customer_phone && (
+                          <a href={`tel:${o.customer_phone}`} onClick={e => e.stopPropagation()} className={`ml-auto text-[11px] font-semibold tabular-nums shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
+                            {o.customer_phone}
+                          </a>
                         )}
                       </div>
-                    )}
 
-                    {/* BDS-owned actions (courier side / handover) */}
-                    <div className="flex items-center gap-2 mt-auto flex-wrap">
-                      {kind === 'dine_in' ? (
-                        // Dine-in: nothing for the courier side — kitchen
-                        // progress is owned by the KDS (read-only hint).
-                        <span className={`flex items-center gap-1.5 text-[10px] font-bold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                          <ChefHat size={11} />
-                          {t('bds_dinein_kds') || 'Mətbəx statusu KDS-də idarə olunur'}
-                        </span>
-                      ) : isDeliveryKind ? (
-                        bdsButtons.length === 0 ? (
-                          <span className={`text-[10px] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                            {!kReady ? t('bds_waiting_kitchen') : o.courier_name ? `${t('bds_courier')}: ${o.courier_name}` : t('bds_no_action')}
-                          </span>
-                        ) : bdsButtons.map(s => {
-                          const meta = BDS_OWNED[s];
-                          const Icon = meta.icon;
-                          const disabled = (s === 'picked_up' && !kReady) || busyId === o.id;
-                          return (
-                             <button
-                               key={s}
-                               disabled={disabled}
-                               onClick={(e) => { e.stopPropagation(); doDeliveryTransition(o, s); }}
-                              title={s === 'picked_up' && !kReady ? t('bds_kitchen_not_ready') : undefined}
-                              className={`${s === 'delivered' ? btnPrimary : btnNeutral} ${disabled ? btnDisabled : ''}`}
-                            >
-                              <Icon size={13} />
-                              {t(meta.key as any)}
-                            </button>
-                          );
-                        })
-                      ) : (
-                        taken ? (
-                          <span className={`flex items-center gap-1.5 text-[10px] font-black ${lightMode ? 'text-emerald-500' : 'text-emerald-400'}`}>
-                            <CheckCircle2 size={12} /> {t('bds_handed_over')}
-                          </span>
-                        ) : (
-                           <button
-                             disabled={!kReady || busyId === o.id}
-                             onClick={(e) => { e.stopPropagation(); doTakeawayHandover(o); }}
-                            title={!kReady ? t('bds_kitchen_not_ready') : undefined}
-                            className={kReady ? btnPrimary : btnDisabled}
-                          >
-                            <PackageCheck size={13} />
-                            {t('bds_handover')}
-                          </button>
-                        )
+                     {/* Address — one quiet line: ünvan · zone · ₼fee · ETA
+                         (ETA red once overdue). No chips, no icons. */}
+                     {isDeliveryKind && (o.delivery_address || o.delivery_zone) && (
+                       <p className="mt-1.5 text-[11px] font-medium leading-relaxed">
+                         <span className={lightMode ? 'text-zinc-500' : 'text-white/45'}>{o.delivery_address || '—'}</span>
+                         {o.delivery_zone && <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}> · {o.delivery_zone}</span>}
+                         {Number(o.delivery_fee) > 0 && <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}> · ₼{Number(o.delivery_fee).toFixed(0)}</span>}
+                         {o.estimated_delivery_time && (() => {
+                           const eta = new Date(o.estimated_delivery_time);
+                           const overdue = !Number.isNaN(eta.getTime()) && eta.getTime() < Date.now();
+                           return (
+                             <span className={`tabular-nums ${overdue ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>
+                               {' · ETA '}{eta.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                             </span>
+                           );
+                         })()}
+                       </p>
+                     )}
+
+                     {/* Items — flat rows, read-only kitchen view (max 4 + "n") */}
+                     {cardItems.length > 0 && (
+                       <div className={`mt-2.5 divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.05]'}`}>
+                         {cardItems.slice(0, 4).map(it => {
+                           const itReady = ['ready', 'completed'].includes(it.kitchen_status);
+                           return (
+                             <div key={it.id} className="flex items-center justify-between gap-2 py-1.5">
+                               <span className={`text-xs font-medium truncate ${itReady ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>
+                                 {it.product_name || it.name || '—'} ×{it.quantity}
+                               </span>
+                               <span className={`text-[10px] font-semibold tabular-nums shrink-0 ${itReady ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-400' : 'text-white/30')}`}>
+                                 {stationName(it.station_id)}{itReady ? ' ✓' : ''}
+                               </span>
+                             </div>
+                           );
+                         })}
+                         {cardItems.length > 4 && (
+                           <p className={`pt-1.5 text-[10px] font-semibold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>+{cardItems.length - 4}</p>
+                         )}
+                       </div>
+                     )}
+
+                     {/* Kitchen line — quiet, state in color (owned by KDS);
+                         the assigned courier travels on the same line. */}
+                     <p className="mt-2.5 text-[11px] font-semibold">
+                       <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>Mətbax: </span>
+                       <span className={kReady ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-500' : 'text-white/45')}>
+                         {kReady ? (t('bds_k_ready') || 'Hazırdır') : t(kLabel.key as any)}
+                       </span>
+                       {kind === 'delivery' && o.courier_name && (
+                         <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}> · Kuryer: {o.courier_name}</span>
                        )}
-                     </div>
+                     </p>
 
-                    </motion.div>
+                     {/* Takeaway — the frequent one-tap stays on the card.
+                         Delivery transitions + courier pick = in the modal. */}
+                     {kind === 'pickup' && (
+                       taken ? (
+                         <p className={`mt-2.5 text-[11px] font-semibold ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>{t('bds_handed_over')}</p>
+                       ) : (
+                         <button
+                           disabled={!kReady || busyId === o.id}
+                           onClick={(e) => { e.stopPropagation(); doTakeawayHandover(o); }}
+                           title={!kReady ? t('bds_kitchen_not_ready') : undefined}
+                           className={`mt-2.5 w-full h-9 rounded-xl text-xs font-semibold transition-all active:scale-[0.99] ${kReady ? (lightMode ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400') : (lightMode ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed' : 'bg-white/[0.03] text-white/20 cursor-not-allowed')}`}
+                         >
+                           {t('bds_handover')}
+                         </button>
+                       )
+                     )}
+                     </motion.div>
                     )}
                   </Fragment>
                  );
@@ -682,145 +598,143 @@ export default function BDSPage() {
                 onClick={e => e.stopPropagation()}
                 className={`w-full max-w-[640px] max-h-[92vh] flex flex-col rounded-4xl border shadow-elevated overflow-hidden ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
               >
-                {/* Header */}
-                <div className={`flex flex-shrink-0 items-start justify-between gap-4 p-5 pb-4 border-b ${lightMode ? 'border-zinc-100' : 'border-white/[0.08]'}`}>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {kind === 'delivery'
-                        ? <Bike size={18} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
-                        : kind === 'dine_in'
-                          ? <Utensils size={18} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
-                          : <ShoppingBag size={18} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />}
-                      <h2 className={`text-2xl font-black tracking-tight truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                        {kind === 'delivery' ? t('delivery_short') : kind === 'dine_in' ? `${t('table_label')} ${o.table_number ?? '?'}` : t('takeaway_short')}
-                      </h2>
-                      {kind !== 'dine_in' && <span className={`text-xl font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{orderNo}</span>}
-                      <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold tabular-nums border ${lightMode ? 'bg-zinc-100 text-zinc-500 border-zinc-200' : 'bg-white/[0.04] text-white/40 border-white/[0.08]'}`}>
-                        <Clock size={11} />{elapsed(o.created_at)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 min-w-0 mt-2.5">
-                      <User size={13} className={lightMode ? 'text-zinc-300' : 'text-white/30'} />
-                      <span className={`text-sm font-bold truncate ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>{o.customer_name || '—'}</span>
-                      {o.customer_phone && (
-                        <a
-                          href={`tel:${o.customer_phone}`}
-                          className={`ml-auto flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold tabular-nums border transition-all active:scale-[0.97] shrink-0 ${lightMode ? 'bg-white border-zinc-200 text-blue-500 hover:border-blue-300' : 'bg-white/[0.04] border-white/[0.08] text-blue-300 hover:border-blue-400/40'}`}
-                        >
-                          <Phone size={14} />{o.customer_phone}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  <motion.button
-                    onClick={() => setExpandedId(null)}
-                    whileHover={{ rotate: 90, scale: 1.06 }}
-                    whileTap={{ scale: 0.82 }}
-                    transition={SPRING}
-                    aria-label="Bağla"
-                    className={`p-2 rounded-xl border shrink-0 ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-100 hover:text-red-400' : 'border-white/10 text-white/70 hover:bg-white/10 hover:text-red-400'}`}
-                  >
-                    <X size={20} />
-                  </motion.button>
-                </div>
+                 {/* Header — 12h: title + one quiet meta line; no pills */}
+                 <div className={`flex flex-shrink-0 items-start justify-between gap-3 p-5 pb-4 border-b ${lightMode ? 'border-zinc-100' : 'border-white/[0.07]'}`}>
+                   <div className="min-w-0 flex-1">
+                     <div className="flex items-center gap-2.5 min-w-0">
+                       {kind === 'delivery'
+                         ? <Bike size={16} className={`shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`} />
+                         : kind === 'dine_in'
+                           ? <Utensils size={16} className={`shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`} />
+                           : <ShoppingBag size={16} className={`shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`} />}
+                       <h2 className={`text-xl font-semibold tracking-tight truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                         {kind === 'dine_in'
+                           ? `${t('table_label')} ${o.table_number ?? '?'}`
+                           : (
+                             <>
+                               {kind === 'delivery' ? t('delivery_short') : t('takeaway_short')} <span className="tabular-nums">{orderNo}</span>
+                             </>
+                           )}
+                       </h2>
+                     </div>
+                     <div className="flex items-center gap-2.5 mt-1.5 min-w-0">
+                       <span className={`text-xs font-medium truncate ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{o.customer_name || '—'}</span>
+                       {o.customer_phone && (
+                         <a href={`tel:${o.customer_phone}`} className={`text-xs font-semibold tabular-nums shrink-0 ${lightMode ? 'text-zinc-500' : 'text-white/45'}`}>{o.customer_phone}</a>
+                       )}
+                       <span className={`ml-auto text-xs font-semibold tabular-nums shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{elapsed(o.created_at)}</span>
+                     </div>
+                   </div>
+                   <motion.button
+                     onClick={() => setExpandedId(null)}
+                     whileHover={{ rotate: 90, scale: 1.06 }}
+                     whileTap={{ scale: 0.82 }}
+                     transition={SPRING}
+                     aria-label="Bağla"
+                     className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${lightMode ? 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700' : 'text-white/40 hover:bg-white/[0.06] hover:text-white/80'}`}
+                   >
+                     <X size={18} />
+                   </motion.button>
+                 </div>
 
-                {/* Body — scrollable */}
-                <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto">
-                  {/* Address + zone + fee + ETA (delivery) */}
-                  {kind === 'delivery' && (o.delivery_address || o.delivery_zone) && (
-                    <div className={`rounded-2xl border p-4 ${lightMode ? 'bg-zinc-50/70 border-zinc-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
-                      <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Ünvan</p>
-                      <div className="flex items-start gap-2">
-                        <MapPin size={14} className={`mt-0.5 shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`} />
-                        <p className={`text-sm font-semibold break-words ${lightMode ? 'text-zinc-800' : 'text-white/80'}`}>{o.delivery_address || '—'}</p>
-                      </div>
-                      <div className="flex items-center gap-2 mt-3 flex-wrap">
-                        {o.delivery_zone && <span className={`text-[11px] font-black px-2.5 py-1 rounded-full border ${lightMode ? 'bg-purple-50 text-purple-500 border-purple-200' : 'bg-purple-500/10 text-purple-300 border-purple-400/20'}`}>{o.delivery_zone}</span>}
-                        {Number(o.delivery_fee) > 0 && <span className={`flex items-center gap-1 text-[11px] font-black ${lightMode ? 'text-amber-500' : 'text-amber-300'}`}><Wallet size={11} />₼{Number(o.delivery_fee).toFixed(0)}</span>}
-                        {o.estimated_delivery_time && (() => {
-                          const eta = new Date(o.estimated_delivery_time);
-                          const overdue = !Number.isNaN(eta.getTime()) && eta.getTime() < Date.now();
-                          return (
-                            <span className={`flex items-center gap-1 text-[11px] font-black ${overdue ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-zinc-400' : 'text-white/40')}`}>
-                              <Clock size={11} /> ETA {eta.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
+                 {/* Body — 12h: flat sections, quiet typography */}
+                 <div className="p-5 flex-1 min-h-0 overflow-y-auto">
+                   {/* Ünvan — address + one meta line (zone · ₼fee · ETA) */}
+                   {kind === 'delivery' && (o.delivery_address || o.delivery_zone) && (
+                     <section>
+                       <p className={`text-[11px] font-semibold uppercase tracking-[0.12em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Ünvan</p>
+                       <p className={`text-sm font-semibold break-words ${lightMode ? 'text-zinc-800' : 'text-white/80'}`}>{o.delivery_address || '—'}</p>
+                       <p className="mt-1.5 text-xs font-medium leading-relaxed">
+                         {o.delivery_zone && <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>{o.delivery_zone}</span>}
+                         {Number(o.delivery_fee) > 0 && <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>{o.delivery_zone ? ' · ' : ''}₼{Number(o.delivery_fee).toFixed(0)}</span>}
+                         {o.estimated_delivery_time && (() => {
+                           const eta = new Date(o.estimated_delivery_time);
+                           const overdue = !Number.isNaN(eta.getTime()) && eta.getTime() < Date.now();
+                           return (
+                             <span className={`tabular-nums ${overdue ? (lightMode ? 'text-red-500' : 'text-red-400') : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>
+                               {(o.delivery_zone || Number(o.delivery_fee) > 0) ? ' · ' : ''}ETA {eta.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                             </span>
+                           );
+                         })()}
+                       </p>
+                     </section>
+                   )}
 
-                  {/* Məhsullar — read-only (kitchen status is owned by the KDS) */}
-                  {activeItems.length > 0 && (
-                    <div>
-                      <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_items')}</p>
-                      <div className="space-y-1.5">
-                        {activeItems.map(it => {
-                          const itReady = ['ready', 'completed'].includes(it.kitchen_status);
-                          return (
-                            <div key={it.id} className={`flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 border ${lightMode ? 'bg-zinc-50/70 border-zinc-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
-                              <span className={`text-sm font-semibold truncate ${itReady ? (lightMode ? 'text-emerald-600 line-through' : 'text-emerald-400 line-through') : (lightMode ? 'text-zinc-800' : 'text-white/80')}`}>
-                                {it.product_name || it.name || '—'} ×{it.quantity}
-                              </span>
-                              <span className={`text-[10px] font-black shrink-0 ${itReady ? 'text-emerald-500' : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>
-                                {stationName(it.station_id)}{itReady ? ' ✓' : ''}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                   {/* Məhsullar — flat rows (read-only, kitchen = KDS) */}
+                   {activeItems.length > 0 && (
+                     <section className={kind === 'delivery' && (o.delivery_address || o.delivery_zone) ? 'mt-5' : ''}>
+                       <p className={`text-[11px] font-semibold uppercase tracking-[0.12em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_items')}</p>
+                       <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.06]'}`}>
+                         {activeItems.map(it => {
+                           const itReady = ['ready', 'completed'].includes(it.kitchen_status);
+                           return (
+                             <div key={it.id} className="flex items-center justify-between gap-2 py-2">
+                               <span className={`text-[13px] font-medium truncate ${itReady ? (lightMode ? 'text-zinc-400' : 'text-white/35') : (lightMode ? 'text-zinc-800' : 'text-white/80')}`}>
+                                 {it.product_name || it.name || '—'} <span className="tabular-nums">×{it.quantity}</span>
+                               </span>
+                               <span className={`text-[11px] font-semibold tabular-nums shrink-0 ${itReady ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-400' : 'text-white/35')}`}>
+                                 {stationName(it.station_id)}{itReady ? ' ✓' : ''}
+                               </span>
+                             </div>
+                           );
+                         })}
+                       </div>
+                     </section>
+                   )}
 
-                  {/* Customer note */}
-                  {o.customer_note && (
-                    <p className={`text-sm font-medium rounded-xl px-3.5 py-2.5 ${lightMode ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-amber-500/[0.07] text-amber-300 border border-amber-500/15'}`}>{o.customer_note}</p>
-                  )}
+                   {/* Customer note — plain amber text */}
+                   {o.customer_note && (
+                     <p className={`mt-4 text-[13px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{o.customer_note}</p>
+                   )}
 
-                  {/* Kitchen status — READ-ONLY (owned by KDS) */}
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[11px] font-black px-2.5 py-1 rounded-full border ${kLabel.cls}`}>{t(kLabel.key as any)}</span>
-                    <span className={`text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded-md border ${lightMode ? 'text-zinc-400 border-zinc-200 bg-zinc-50' : 'text-white/30 border-white/[0.08] bg-white/[0.03]'}`}>KDS</span>
-                    {!kReady && kind !== 'dine_in' && <span className={`text-[11px] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('bds_waiting_kitchen')}</span>}
-                  </div>
+                   {/* Mətbax — quiet line (owned by KDS, read-only) */}
+                   <p className="mt-5 text-[11px] font-semibold">
+                     <span className={lightMode ? 'text-zinc-400' : 'text-white/35'}>Mətbax: </span>
+                     <span className={kReady ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-500' : 'text-white/45')}>
+                       {kReady ? (t('bds_k_ready') || 'Hazırdır') : t(kLabel.key as any)}
+                     </span>
+                   </p>
 
-                  {/* Courier (delivery only) — real staff record */}
-                  {kind === 'delivery' && (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        onClick={() => setCourierPickerFor(courierPickerFor === o.id ? null : o.id)}
-                        className={`flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-black border transition-all active:scale-[0.97] ${
-                          o.courier_name
-                            ? (lightMode ? 'bg-sky-50 border-sky-300 text-sky-600' : 'bg-sky-500/10 border-sky-400/30 text-sky-300')
-                            : (lightMode ? 'bg-white border-dashed border-zinc-300 text-zinc-400 hover:border-zinc-400' : 'bg-white/[0.02] border-dashed border-white/15 text-white/40 hover:border-white/30')
-                        }`}
-                      >
-                        <Bike size={13} />
-                        {o.courier_name || (t('bds_pick_courier') || 'Kuryer seç')}
-                      </button>
-                      {courierPickerFor === o.id && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {couriers.length === 0 && (
-                            <span className={`text-[11px] font-bold px-2 py-1 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('bds_courier_empty') || 'Staff-də aktiv kuryer yoxdur'}</span>
-                          )}
-                          {couriers.map(c => (
-                            <button
-                              key={c.id}
-                              onClick={() => assignCourier(o, c)}
-                              className={`h-8 px-3 rounded-full text-[11px] font-black border transition-all active:scale-95 ${
-                                c.name === o.courier_name
-                                  ? 'bg-emerald-500 text-white border-emerald-400'
-                                  : (lightMode ? 'bg-white border-zinc-300 text-zinc-600 hover:border-emerald-400' : 'bg-white/5 border-white/10 text-white/60 hover:border-emerald-400/50')
-                              }`}
-                            >
-                              {c.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                   {/* Kuryer (delivery) — one functional control + picker */}
+                   {kind === 'delivery' && (
+                     <section className="mt-4">
+                       <p className={`text-[11px] font-semibold uppercase tracking-[0.12em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('bds_courier') || 'Kuryer'}</p>
+                       <div className="flex items-center gap-2 flex-wrap">
+                         <button
+                           onClick={() => setCourierPickerFor(courierPickerFor === o.id ? null : o.id)}
+                           className={`flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-semibold border transition-all active:scale-[0.97] ${
+                             o.courier_name
+                               ? (lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-700' : 'bg-white/[0.04] border-white/10 text-white/70')
+                               : (lightMode ? 'bg-white border-dashed border-zinc-300 text-zinc-400 hover:border-zinc-400' : 'bg-white/[0.02] border-dashed border-white/15 text-white/40 hover:border-white/30')
+                           }`}
+                         >
+                           <Bike size={13} />
+                           {o.courier_name || (t('bds_pick_courier') || 'Kuryer seç')}
+                         </button>
+                         {courierPickerFor === o.id && (
+                           <div className="flex flex-wrap gap-1.5">
+                             {couriers.length === 0 && (
+                               <span className={`text-[11px] font-medium ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('bds_courier_empty') || 'Staff-də aktiv kuryer yoxdur'}</span>
+                             )}
+                             {couriers.map(c => (
+                               <button
+                                 key={c.id}
+                                 onClick={() => assignCourier(o, c)}
+                                 className={`h-9 px-3 rounded-xl text-xs font-semibold border transition-all active:scale-95 ${
+                                   c.name === o.courier_name
+                                     ? (lightMode ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-500 border-emerald-500 text-zinc-950')
+                                     : (lightMode ? 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-400' : 'bg-white/[0.04] border-white/10 text-white/60 hover:border-white/30')
+                                 }`}
+                               >
+                                 {c.name}
+                               </button>
+                             ))}
+                           </div>
+                         )}
+                       </div>
+                     </section>
+                   )}
+                 </div>
 
                 {/* Sticky footer — BDS-owned actions */}
                 <div className="p-5 pt-0 flex-shrink-0">

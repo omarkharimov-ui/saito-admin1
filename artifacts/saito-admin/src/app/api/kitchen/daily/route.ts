@@ -24,7 +24,7 @@ export async function GET(_request: NextRequest) {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     const q = [
-      'select=id,order_number,table_number,order_source,kitchen_status,created_at,kitchen_accepted_at,kitchen_ready_at',
+      'select=id,order_number,table_number,order_source,kitchen_status,created_at,kitchen_accepted_at,kitchen_ready_at,is_rush',
       ',order_items(id,product_name,quantity,kitchen_status)',
       `&location_id=eq.${encodeURIComponent(sessLoc)}`,
        // PostgREST: the range op comes AFTER the column (created_at=gte.…);
@@ -70,6 +70,9 @@ export async function GET(_request: NextRequest) {
         status,
         minutes: Math.max(0, Math.round((endAt - created) / 60000)),
         qty,
+        // 12q: rush tickets are marked in the day view (red indicator only —
+        // the GÜN row is a summary, not a live ticket).
+        is_rush: Boolean(o.is_rush),
       };
     });
 

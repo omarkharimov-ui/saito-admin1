@@ -38,6 +38,20 @@ export async function POST(req: NextRequest) {
       .update({ kitchen_accepted_at: new Date().toISOString() })
       .eq('id', order_id)
       .is('kitchen_accepted_at', null);
+    // 12q (owner: "hazırdır basıram, sonra status evvelkisinə qaydır"): the
+    // RPC sets the ORDER to 'accepted' but leaves the items 'pending' — and
+    // the frozen rollup (trg_sync_order_kitchen_status) computes the order
+    // status from ITEMS ALONE, so ANY later item update (even a
+    // prepared_quantity tick, 12o) demoted the order back to 'pending'
+    // (GÖZLƏYİR). Align the items to the REGISTERED item edge
+    // pending/sent → accepted (state_transitions, kitchen.manage — verified
+    // in the real DB: guard passes, rollup then keeps 'accepted' across
+    // ticks, and mark_item_ready_atomic accepts 'accepted' items):
+    await supabase
+      .from('order_items')
+      .update({ kitchen_status: 'accepted' })
+      .eq('order_id', order_id)
+      .in('kitchen_status', ['pending', 'sent']);
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error('[API /kitchen/accept] Error:', error);

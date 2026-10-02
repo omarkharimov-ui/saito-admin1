@@ -2086,6 +2086,13 @@ export const ru: TranslationMap = {
   kds_serve_btn: 'Выдать',
   kds_served: 'Сервировано',
   kds_uncheck: 'Снять отметку',
+  // 12q: kitchen gap sweep — RUSH toggle, course firing, 86 (item void).
+  kds_rush: 'СРОЧНО',
+  kds_rush_toggle_on: 'Включить срочный',
+  kds_rush_toggle_off: 'Выключить срочный',
+  kds_fire_course: 'Отдать курс',
+  kds_item_86: '86 — нет в наличии',
+  kds_86_toast: 'Позиция снята (86)',
   kds_accepted_toast: 'Принято — готовится',
   // 12i: ВЫДАЧА — действие зала/POS, кухня заканчивается на «Готово».
   kds_serving_hint: 'Выдача с POS',

@@ -4,7 +4,7 @@ import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Clock, ChefHat, CheckCircle2, AlertTriangle, Volume2, VolumeX,
-  Package, Truck, Utensils, Flame, Timer, Bell, Printer, Coffee, Phone, X
+  Package, Truck, Utensils, Flame, Timer, Bell, Printer, Coffee, Phone, X, Zap, XCircle
 } from '@/components/ui/saito-icons';
 import { appleBackdrop } from '@/lib/modal-transitions';
 import { toast } from '@/lib/toast';
@@ -80,6 +80,8 @@ interface KDSOrder {
    *  kitchen_ready_at drives the 3 s HAZIRDIR → SERVİSƏ flip (derived). */
   kitchen_ready_at?: string | null;
   kitchen_accepted_at?: string | null;
+  /** 12q: urgent-ticket flag (orders.is_rush, toggle_rush) — red emphasis. */
+  is_rush?: boolean;
 }
 
 // 12i (owner): "metbex hazırdır basanda status uje hazırdır, 2-3 saniyə sonra
@@ -445,12 +447,59 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     return () => window.removeEventListener('pointerdown', unlock);
   }, []);
 
+  // 12q (owner: "hazırdır basıram, mehsul hazırdır, sonra evvelkine statusuna
+  // geri qaydır" + "buttonlar 2-3s fikirləşir") — TWO root causes:
+  //   (a) handleMakeReady had NO optimistic update → the card only moved when
+  //       the RPC round-trip (advisory lock + FOR UPDATE + stock + PostgREST +
+  //       EU pooler) finished (~2-3 s perceived);
+  //   (b) fetchKDS did a BLIND full-replace setOrders() — a poll that STARTED
+  //       before the click resolved AFTER it and overwrote the confirmed
+  //       state with a stale snapshot (lost update) → the card visibly
+  //       reverted, then the next poll restored it.
+  // Fixes: optimistic patches BEFORE the await (instant visual feedback) +
+  // (1) fetch seq guard: superseded in-flight responses are dropped;
+  // (2) optimistic merge window: a confirmed local action is never demoted
+  //     by a stale snapshot (15 s, released as soon as the DB confirms).
+  const OPTIMISTIC_MS = 15000;
+  const fetchSeqRef = useRef(0);
+  const optimisticRef = useRef<Map<string, {
+    at: number;
+    readyItems: string[];
+    orderReadyAt: number | null;
+    orderAcceptedAt: number | null;
+    prepared: Record<string, number>;
+  }>>(new Map());
+  const getOptimistic = (orderId: string) => {
+    let o = optimisticRef.current.get(orderId);
+    if (!o) { o = { at: Date.now(), readyItems: [], orderReadyAt: null, orderAcceptedAt: null, prepared: {} }; optimisticRef.current.set(orderId, o); }
+    o.at = Date.now();
+    return o;
+  };
+  // 12q: drop one item's protection (recall un-readies it; a failed action
+  // restores the old value) + the order-level ready claim (a recall means the
+  // order is NOT all-ready anymore).
+  const clearOptimisticItem = (orderId: string, itemId: string) => {
+    const o = optimisticRef.current.get(orderId);
+    if (!o) return;
+    o.readyItems = o.readyItems.filter(x => x !== itemId);
+    delete o.prepared[itemId];
+    o.orderReadyAt = null;
+    if (o.readyItems.length === 0 && !o.orderReadyAt && !o.orderAcceptedAt && Object.keys(o.prepared).length === 0) {
+      optimisticRef.current.delete(orderId);
+    } else {
+      o.at = Date.now();
+    }
+  };
+
   useEffect(() => {
     const fetchKDS = async () => {
+      const seq = ++fetchSeqRef.current;
       try {
         const res = await apiFetch('/api/orders');
         if (!res.ok) return;
+        if (seq !== fetchSeqRef.current) return; // superseded — drop stale snapshot
         const data = await res.json();
+        if (seq !== fetchSeqRef.current) return; // dropped between await + json
         const kdsOrders: KDSOrder[] = (data.orders || [])
           // A KDS ticket is only valid while the order can still progress in
           // the kitchen. Terminal/fulfilled statuses (closed, refunded, ...)
@@ -490,14 +539,16 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 : [],
               station_id: i.station_id ?? null,
             })),
-            created_at: o.created_at,
-            kitchen_status: o.kitchen_status || 'pending',
-            // 12i: workflow timestamps — the HAZIRDIR→SERVİSƏ flip is derived
-            // from kitchen_ready_at (stamped by mark_item_ready_atomic).
-            kitchen_ready_at: o.kitchen_ready_at ?? null,
-            kitchen_accepted_at: o.kitchen_accepted_at ?? null,
-            order_number: o.order_number ?? null,
-          }));
+             created_at: o.created_at,
+             kitchen_status: o.kitchen_status || 'pending',
+             // 12i: workflow timestamps — the HAZIRDIR→SERVİSƏ flip is derived
+             // from kitchen_ready_at (stamped by mark_item_ready_atomic).
+             kitchen_ready_at: o.kitchen_ready_at ?? null,
+             kitchen_accepted_at: o.kitchen_accepted_at ?? null,
+             // 12q: rush flag (select=* carries orders.is_rush)
+             is_rush: Boolean(o.is_rush),
+             order_number: o.order_number ?? null,
+           }));
 
         // 2026-09-24 (bar display): the new-order sound counts only tickets
         // this terminal actually shows (station-family filtered).
@@ -509,6 +560,45 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
           toast(`${shownOrders.length - prevOrderCountRef.current} ${t('new_order')}!`, { id: 'kds-toast' });
         }
         prevOrderCountRef.current = shownOrders.length;
+        // 12q: OPTIMISTIC MERGE — this snapshot may predate a confirmed local
+        // action (the request started before the RPC committed). Never let a
+        // stale snapshot demote what THIS terminal just confirmed:
+        //   • items we marked ready (or the whole-order CTA) → stay 'ready';
+        //   • order-level 'ready'/'accepted' we confirmed → stay;
+        //   • ticked prepared_quantity → keep the confirmed value.
+        // Released per order as soon as the DB confirms (or 15 s max).
+        const nowT = Date.now();
+        for (const o of kdsOrders) {
+          const opt = optimisticRef.current.get(o.id);
+          if (!opt) continue;
+          if (nowT - opt.at > OPTIMISTIC_MS) { optimisticRef.current.delete(o.id); continue; }
+          const readySet = new Set(opt.readyItems);
+          let protectedNow = false;
+          o.items = o.items.map(i => {
+            const preReady = ['pending', 'accepted', 'sent', 'preparing', 'recalled'].includes(i.kitchen_status);
+            if (readySet.has(i.id) && preReady) { protectedNow = true; return { ...i, kitchen_status: 'ready' as const }; }
+            const pq = opt.prepared[i.id];
+            if (pq !== undefined && i.prepared_quantity !== pq) { protectedNow = true; return { ...i, prepared_quantity: pq }; }
+            return i;
+          });
+          if (opt.orderReadyAt && ['pending', 'accepted', 'sent', 'preparing', 'partially_ready'].includes(o.kitchen_status)) {
+            o.kitchen_status = 'ready';
+            o.kitchen_ready_at = new Date(opt.orderReadyAt).toISOString();
+            protectedNow = true;
+          }
+          if (opt.orderAcceptedAt && o.kitchen_status === 'pending') {
+            o.kitchen_status = 'accepted';
+            o.kitchen_accepted_at = new Date(opt.orderAcceptedAt).toISOString();
+            protectedNow = true;
+          }
+          // release: nothing left to protect → DB is the source of truth again
+          const stillNeed =
+            o.items.some(i => readySet.has(i.id) && ['pending', 'accepted', 'sent', 'preparing', 'recalled'].includes(i.kitchen_status))
+            || (opt.orderReadyAt != null && ['pending', 'accepted', 'sent', 'preparing', 'partially_ready'].includes(o.kitchen_status))
+            || (opt.orderAcceptedAt != null && o.kitchen_status === 'pending')
+            || Object.keys(opt.prepared).some(id => { const it = o.items.find(x => x.id === id); return it && it.prepared_quantity !== opt.prepared[id]; });
+          if (!protectedNow && !stillNeed) optimisticRef.current.delete(o.id);
+        }
         setOrders(kdsOrders);
       } catch {
         toast.error(t('orders_load_error'), { id: 'kds-toast' });
@@ -593,20 +683,29 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         rollback();
+        clearOptimisticItem(orderId, item.id);
         toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
         return;
       }
-      // legacy safety: a READY item that somehow carried prep progress loses
-      // it on recall (mark_item_ready_atomic itself never sets the column).
-      if (recall && prevPrepared > 0) {
-        await apiFetch('/api/kitchen/item-prepared', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order_item_id: item.id, prepared_quantity: 0 }),
-        }).catch(() => {});
+      if (recall) {
+        // un-readied → drop its protection (order is not all-ready anymore)
+        clearOptimisticItem(orderId, item.id);
+        // legacy safety: a READY item that somehow carried prep progress loses
+        // it on recall (mark_item_ready_atomic itself never sets the column).
+        if (prevPrepared > 0) {
+          await apiFetch('/api/kitchen/item-prepared', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_item_id: item.id, prepared_quantity: 0 }),
+          }).catch(() => {});
+        }
+      } else {
+        // 12q: protect the confirmed prepared_quantity from stale polls
+        getOptimistic(orderId).prepared[item.id] = nextPrepared;
       }
     } catch {
       rollback();
+      clearOptimisticItem(orderId, item.id);
       toast.error(t('status_update_error'), { id: 'kds-toast' });
     }
   };
@@ -620,22 +719,25 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, ...fn(o) } : o)));
   };
 
-  // 12p (owner): "bir dəfə qəbul et, ondan sonra görünməsin — əlavə qəbul
-  // et-ə ehtiyac yoxdur" — the "Qəbul et" button is GONE (card pill + modal
-  // footer). The terminal ACCEPTS each pending order ONCE, automatically,
-  // the moment it sees it (initial fetch / 5 s poll / realtime refetch):
-  // the order lands straight into HAZIRLANIR, in the button's place.
-  //   • fired once per order per session (acceptedRef Set);
-  //   • SILENT — no toast (it is not a user action);
-  //   • on failure: re-armed for the next tick; worst case the order stays
-  //     GÖZLƏYİR and the "Hazırdır" CTA still reaches ready from pending —
-  //     no dead end.
-  const acceptedRef = useRef<Set<string>>(new Set());
+  // 12p→12q (owner: "bir dəfə qəbul et, ondan sonra görünməsin — əlavə qəbul
+  // et-ə ehtiyac yoxdur") — the "Qəbul et" button is GONE; the terminal
+  // ACCEPTS every pending order automatically the moment it sees it (fetch /
+  // poll / realtime): the order lands straight in HAZIRLANIR.
+  //   • SILENT — no toast (not a user action);
+  //   • a 409 'not pending' (race: already accepted / made ready meanwhile)
+  //     is harmless and NOT cooldowned;
+  //   • hard failures cooldown 30 s per order (no spam);
+  //   • 12q: a DEMOTED accepted order (rollup reverted it to 'pending' — the
+  //     fix lives in /api/kitchen/accept item alignment) is re-accepted too:
+  //     no order can sit in GÖZLƏYİR forever.
+  const acceptAttemptRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
+    const nowT = Date.now();
     for (const o of orders) {
       if (o.kitchen_status !== 'pending') continue;
-      if (acceptedRef.current.has(o.id)) continue;
-      acceptedRef.current.add(o.id);
+      const last = acceptAttemptRef.current.get(o.id) || 0;
+      if (nowT - last < 30000) continue; // in-flight or failing — cooldown
+      acceptAttemptRef.current.set(o.id, nowT);
       void (async () => {
         try {
           const res = await apiFetch('/api/kitchen/accept', {
@@ -644,17 +746,25 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             body: JSON.stringify({ order_id: o.id }),
           });
           if (res.ok) {
+            acceptAttemptRef.current.delete(o.id);
             patchOrder(o.id, () => ({
               kitchen_status: 'accepted',
               kitchen_accepted_at: new Date().toISOString(),
             }));
+            // 12q: protect the confirmed accept from a stale poll snapshot
+            getOptimistic(o.id).orderAcceptedAt = Date.now();
           } else {
-            acceptedRef.current.delete(o.id);
-            console.warn('[KDS 12p] auto-accept failed:', o.id, res.status);
+            const d = await res.json().catch(() => ({}));
+            // 'not pending' races are expected (order already advanced) —
+            // clear the attempt so a genuine pending (re)state can retry.
+            if (res.status === 409 || d?.error === 'ORDER_NOT_PENDING' || d?.error === 'ACCEPT_FAILED') {
+              acceptAttemptRef.current.delete(o.id);
+            } else {
+              console.warn('[KDS 12q] auto-accept failed:', o.id, res.status, d?.error);
+            }
           }
         } catch (e) {
-          acceptedRef.current.delete(o.id);
-          console.warn('[KDS 12p] auto-accept failed:', o.id, e);
+          console.warn('[KDS 12q] auto-accept failed:', o.id, e);
         }
       })();
     }
@@ -665,29 +775,139 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // (the panel's own remaining items only) → mark_item_ready_atomic reads
   // those; null (ticket MODAL) = whole order, the one-tap surface.
   const handleMakeReady = async (orderId: string, itemIds?: string[]) => {
+    const idSet = itemIds ? new Set(itemIds) : null;
+    const before = orders.find(o => o.id === orderId); // rollback snapshot
+    // 12q (a): OPTIMISTIC FIRST — the card reacts at the moment of the tap,
+    // the RPC runs in the background (2-3 s round-trip no longer visible).
+    const nowIso = new Date().toISOString();
+    const willAllBeReady = (() => {
+      if (!before) return false;
+      const act = before.items.filter(i => (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided', 'served'].includes(i.kitchen_status));
+      return act.length > 0 && act.every(i => i.kitchen_status === 'ready' || (idSet ? idSet.has(i.id) : true));
+    })();
+    patchOrder(orderId, o => ({
+      items: o.items.map(i =>
+        (i.quantity ?? 0) > 0 && !['served', 'completed', 'cancelled', 'voided'].includes(i.kitchen_status)
+          && (!idSet || idSet.has(i.id))
+          ? { ...i, kitchen_status: 'ready' } : i),
+      // whole-order press stamps ready (rollup confirms on refetch);
+      // station-scoped press never fakes the order rollup.
+      ...(willAllBeReady ? { kitchen_status: 'ready' as const, kitchen_ready_at: nowIso } : {}),
+    }));
     try {
       const res = await apiFetch('/api/orders/mark-ready', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(itemIds ? { order_id: orderId, item_ids: itemIds } : { order_id: orderId }),
       });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || d?.success === false) {
+        // ROLLBACK to the pre-click snapshot + clear any guard we set.
+        if (before) setOrders(prev => prev.map(o => (o.id === orderId ? before : o)));
+        optimisticRef.current.delete(orderId);
         toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
         return;
       }
-      const ts = new Date().toISOString();
-      const idSet = itemIds ? new Set(itemIds) : null;
+      if (d?.stock_failed > 0) {
+        // server rolled some items back (stock) — drop the guard and
+        // re-sync from the DB truth immediately (no 5 s wait).
+        optimisticRef.current.delete(orderId);
+        fetchKDSRef.current();
+        toast.error(t('status_update_error'), { id: 'kds-toast' });
+        return;
+      }
+      // CONFIRMED — register the optimistic guard so a stale in-flight poll
+      // can't demote what we just proved (released when the DB confirms).
+      const opt = getOptimistic(orderId);
+      opt.readyItems = idSet
+        ? Array.from(idSet)
+        : (before?.items.filter(i => (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status)).map(i => i.id) || []);
+      if (willAllBeReady) opt.orderReadyAt = Date.now();
+    } catch {
+      if (before) setOrders(prev => prev.map(o => (o.id === orderId ? before : o)));
+      optimisticRef.current.delete(orderId);
+      toast.error(t('status_update_error'), { id: 'kds-toast' });
+    }
+  };
+
+  // 12q — KITCHEN GAP SWEEP (competitor parity, DB machinery pre-existed):
+  //
+  // RUSH (Toast/Square/Lightspeed): the urgent ticket. toggle_rush flips
+  // orders.is_rush; the card gets a red border + RUSH marker. Optimistic
+  // flip; the response echoes the new flag (the RPC returns nothing).
+  const handleRush = async (orderId: string) => {
+    const before = orders.find(o => o.id === orderId);
+    if (!before) return;
+    const next = !before.is_rush;
+    patchOrder(orderId, () => ({ is_rush: next }));
+    try {
+      const res = await apiFetch('/api/kitchen/rush', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || d?.success === false) {
+        patchOrder(orderId, () => ({ is_rush: Boolean(before.is_rush) }));
+        toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
+      } else if (d?.data?.is_rush !== undefined) {
+        patchOrder(orderId, () => ({ is_rush: Boolean(d.data.is_rush) }));
+      }
+    } catch {
+      patchOrder(orderId, () => ({ is_rush: Boolean(before.is_rush) }));
+      toast.error(t('status_update_error'), { id: 'kds-toast' });
+    }
+  };
+
+  // COURSE FIRING (Lightspeed parity: "course-based firing rules"): fire a
+  // course — its pending/accepted items go 'preparing' (fire_course_atomic;
+  // course NULL is treated as 'main'). Lets the kitchen hold later courses
+  // (main/drink) while the first one is plated.
+  const handleFireCourse = async (orderId: string, course: string) => {
+    patchOrder(orderId, o => ({
+      items: o.items.map(i =>
+        (i.quantity ?? 0) > 0 && (i.course || 'main') === course && ['pending', 'accepted'].includes(i.kitchen_status)
+          ? { ...i, kitchen_status: 'preparing' } : i),
+    }));
+    try {
+      const res = await apiFetch('/api/kitchen/fire-course', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, course }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || d?.success === false) {
+        fetchKDSRef.current(); // resync from the truth
+        toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
+      }
+    } catch {
+      fetchKDSRef.current();
+      toast.error(t('status_update_error'), { id: 'kds-toast' });
+    }
+  };
+
+  // 86 / ITEM VOID (Toast parity): an item that can't be made is voided from
+  // the ticket — canonical /api/kitchen/void-comp-waste (session + shiftGate
+  // + order.void). The row leaves the ticket (voided is terminal).
+  const handleVoidItem = async (orderId: string, item: KDSItem) => {
+    try {
+      // 12q: origin='kds' — 86 is a kitchen-availability action; the route
+      // exempts it from the cash-shift gate (kitchen terminals run when the
+      // register is closed; POS comp/void keep the gate).
+      const res = await apiFetch('/api/kitchen/void-comp-waste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'void', order_item_id: item.id, reason: 'kds_86', origin: 'kds' }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || d?.success === false) {
+        toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
+        return;
+      }
       patchOrder(orderId, o => ({
-        items: o.items.map(i =>
-          (i.quantity ?? 0) > 0 && !['served', 'completed', 'cancelled', 'voided'].includes(i.kitchen_status)
-            && (!idSet || idSet.has(i.id))
-            ? { ...i, kitchen_status: 'ready' } : i),
-        // whole-order press stamps ready (rollup will confirm on refetch);
-        // station-scoped press never fakes the order rollup.
-        ...(idSet ? {} : { kitchen_status: 'ready' as const, kitchen_ready_at: ts }),
+        items: o.items.map(i => (i.id === item.id ? { ...i, kitchen_status: 'voided' } : i)),
       }));
-      toast.success(`${t('order_ready')}!`, { id: 'kds-toast' });
+      toast.success(t('kds_86_toast'), { id: 'kds-toast' });
     } catch {
       toast.error(t('status_update_error'), { id: 'kds-toast' });
     }
@@ -755,11 +975,16 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     const cardCls = `relative overflow-hidden rounded-4xl border p-4 transition-colors duration-300 ${
       inReadyTab
         ? (lightMode ? 'border-emerald-500/50 bg-white shadow-card' : 'border-emerald-500/40 bg-white/[0.02] shadow-card')
-        : timer.color === 'purple'
-          ? (lightMode ? 'border-red-400 bg-white shadow-card' : 'border-red-500/45 bg-white/[0.02] shadow-card')
-          : timer.color === 'red'
-            ? (lightMode ? 'border-red-300 bg-white shadow-card' : 'border-red-500/35 bg-white/[0.02] shadow-card')
-            : (lightMode ? 'border-zinc-200 bg-white shadow-card' : 'border-white/[0.08] bg-white/[0.02] shadow-card')
+        : order.is_rush
+          // 12q: RUSH — the urgent ticket (red emphasis, visual direction:
+          // red = delay/rush ONLY). Stronger than KRİTİK's tint (worse than
+          // a timer, needs action now).
+          ? (lightMode ? 'border-red-500 bg-white shadow-card' : 'border-red-500/70 bg-white/[0.02] shadow-card')
+          : timer.color === 'purple'
+            ? (lightMode ? 'border-red-400 bg-white shadow-card' : 'border-red-500/45 bg-white/[0.02] shadow-card')
+            : timer.color === 'red'
+              ? (lightMode ? 'border-red-300 bg-white shadow-card' : 'border-red-500/35 bg-white/[0.02] shadow-card')
+              : (lightMode ? 'border-zinc-200 bg-white shadow-card' : 'border-white/[0.08] bg-white/[0.02] shadow-card')
     }`;
     const metaRest = order.order_source !== 'dine_in'
       ? (order.customer_phone || '')
@@ -804,6 +1029,14 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                   {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
                 </span>
                 <span className="flex items-center gap-1.5 shrink-0">
+                {/* 12q: RUSH marker (the toggle lives on the ticket modal —
+                    the less-used action in a comfortable spot, 12m pattern) */}
+                {order.is_rush && (
+                  <span className={`flex items-center gap-1 text-[10px] font-bold tracking-wider ${lightMode ? 'text-red-500' : 'text-red-400'}`}>
+                    <Zap size={10} />
+                    {t('kds_rush')}
+                  </span>
+                )}
                 {visibleItems.length > 1 && (
                   <span className={`text-[11px] font-semibold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{visibleReady}/{visibleItems.length}</span>
                 )}
@@ -1143,8 +1376,10 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                           return (
                             <div key={tk.id} className="flex items-center gap-3 py-2">
                               <span className={`text-xs font-semibold tabular-nums shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{tk.time}</span>
-                              <span className={`text-[13px] font-semibold truncate min-w-0 ${lightMode ? 'text-zinc-800' : 'text-white/80'}`}>{tk.title}</span>
-                              <span className={`text-xs font-bold tabular-nums shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>×{tk.qty}</span>
+                               <span className={`text-[13px] font-semibold truncate min-w-0 ${lightMode ? 'text-zinc-800' : 'text-white/80'}`}>{tk.title}</span>
+                               {/* 12q: rush marker (indicator only — the GÜN row is a summary). */}
+                               {tk.is_rush && <Zap size={11} className={`shrink-0 ${lightMode ? 'text-red-500' : 'text-red-400'}`} />}
+                               <span className={`text-xs font-bold tabular-nums shrink-0 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>×{tk.qty}</span>
                               <span className={`ml-auto text-[10px] font-bold uppercase tracking-wider shrink-0 ${sc}`}>{sl}</span>
                             </div>
                           );
@@ -1194,8 +1429,16 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
           const timer = getItemTimerStatus(o.created_at, Math.max(1, Math.round(delayMin / 2)), delayMin);
           const items = o.items.filter(i => (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status));
           const allReady = items.length > 0 && items.every(isItemReady);
-          // 12i: workflow state (modal footer + header status label).
-          const wf = kdsWorkflowState(o, isItemReady, nowMs);
+           // 12i: workflow state (modal footer + header status label).
+           const wf = kdsWorkflowState(o, isItemReady, nowMs);
+           // 12q: fireable courses (Lightspeed "course-based firing" parity) —
+           // courses that still have pending/accepted items. NULL course =
+           // 'main' (fire_course_atomic treats it the same way).
+           const fireableCourses = Array.from(new Set(
+             o.items
+               .filter(i => (i.quantity ?? 0) > 0 && ['pending', 'accepted'].includes(i.kitchen_status))
+               .map(i => i.course || 'main'),
+           ));
           const wfMeta = wfMetaFor(wf, lightMode);
           const stationMap = new Map<string, { name: string; qty: number; ready: number }>();
           for (const it of items) {
@@ -1326,11 +1569,26 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                                  </div>
                                )}
                             </div>
-                            <div className="flex items-center gap-3 shrink-0 pt-0.5">
-                              <span className={`text-sm font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
-                               {/* 12j: POS cart-badge tick pattern (48px) —
-                                   persistent control + tap bounce + glyph pop. */}
-                               <motion.button
+                             <div className="flex items-center gap-3 shrink-0 pt-0.5">
+                               <span className={`text-sm font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
+                               {/* 12q: 86 (məhsul yoxdur) — Toast parity. Ghost,
+                                   red on hover; the canonical void route
+                                   (session + shiftGate + order.void). Served
+                                   rows are final — no 86. */}
+                               {!itemServed && (
+                                 <button
+                                   type="button"
+                                   onClick={() => handleVoidItem(o.id, item)}
+                                   title={t('kds_item_86')}
+                                   aria-label={t('kds_item_86')}
+                                   className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${lightMode ? 'text-zinc-300 hover:bg-red-50 hover:text-red-500' : 'text-white/20 hover:bg-red-500/10 hover:text-red-400'}`}
+                                 >
+                                   <XCircle size={15} />
+                                 </button>
+                               )}
+                                {/* 12j: POS cart-badge tick pattern (48px) —
+                                    persistent control + tap bounce + glyph pop. */}
+                                <motion.button
                                  onClick={() => { if (!itemServed) handleItemToggle(o.id, item); }}
                                  title={itemServed ? undefined : (itemReady ? t('kds_uncheck') : t('kds_tick_add'))}
                                  animate={tickPulse[item.id] ? { scale: [1, 1.18, 1.04, 1] } : { scale: 1 }}
@@ -1413,34 +1671,73 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                       modal is the whole-order surface: "Hazırdır" here
                       finalizes ALL stations (intended one-tap); SERVE stays
                       the POS floor action (12i). */}
-                  <div className="p-5 pt-0 flex-shrink-0">
-                    {(() => {
-                      let label = t('kds_ready_btn');
-                      let active = true;
-                      let emerald = false;
-                        let act: (() => void) = () => handleMakeReady(o.id);
-                        // 12p: the pending branch ("Qəbul et" modal button)
-                        // is GONE — auto-accept is silent; a GÖZLƏYİR order
-                        // offers the same "Hazırdır" declaration (it works
-                        // from pending too).
-                        if (wf === 'ready' || wf === 'serving') { label = t('kds_serving_hint'); active = false; emerald = true; }
-                      else if (wf === 'served') { label = `✓ ${t('kds_served')}`; active = false; emerald = true; }
-                      return (
-                        <button
-                          onClick={() => { if (!active) return; act(); }}
-                          disabled={!active}
-                          aria-disabled={!active}
-                          className={`w-full h-12 rounded-2xl text-sm font-semibold transition-all duration-300 active:scale-[0.99] ${
-                            emerald
-                              ? (lightMode ? 'bg-emerald-600/90 text-white' : 'bg-emerald-500/85 text-zinc-950')
-                              : (lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90')
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })()}
-                  </div>
+                   <div className="p-5 pt-0 flex-shrink-0">
+                     {/* 12q: course firing — Lightspeed parity. Each button
+                         sends that course's pending/accepted items to
+                         'preparing' (fire_course_atomic) so later courses
+                         can be held while the first is plated. */}
+                     {fireableCourses.length > 0 && (
+                       <div className="flex items-center gap-2 mb-2.5">
+                         {fireableCourses.map(c => (
+                           <button
+                             key={c}
+                             type="button"
+                             onClick={() => handleFireCourse(o.id, c)}
+                             className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-colors ${lightMode ? 'border-zinc-300 text-zinc-500 hover:border-orange-400 hover:text-orange-600' : 'border-white/15 text-white/45 hover:border-orange-400/60 hover:text-orange-300'}`}
+                           >
+                             <Flame size={11} />{c}
+                           </button>
+                         ))}
+                       </div>
+                     )}
+                     <div className="flex items-center gap-2.5">
+                       {/* 12q: RUSH toggle — Toast/Square/Lightspeed parity
+                           (the urgent ticket). Active = solid red — per the
+                           visual direction, red is reserved for critical
+                           states (overdue / rush). Hidden once the order is
+                           ready/serving (kitchen work is done). */}
+                       {(wf === 'pending' || wf === 'preparing') && (
+                         <button
+                           type="button"
+                           onClick={() => handleRush(o.id)}
+                           title={o.is_rush ? t('kds_rush_toggle_off') : t('kds_rush_toggle_on')}
+                           className={`shrink-0 inline-flex items-center gap-1.5 h-12 px-4 rounded-2xl border text-xs font-bold uppercase tracking-wider transition-all duration-200 active:scale-[0.97] ${
+                             o.is_rush
+                               ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-zinc-950')
+                               : (lightMode ? 'bg-white border-zinc-300 text-zinc-500 hover:border-red-400 hover:text-red-500' : 'bg-transparent border-white/20 text-white/40 hover:border-red-400/70 hover:text-red-400')
+                           }`}
+                         >
+                           <Zap size={13} />{t('kds_rush')}
+                         </button>
+                       )}
+                       {(() => {
+                         let label = t('kds_ready_btn');
+                         let active = true;
+                         let emerald = false;
+                           let act: (() => void) = () => handleMakeReady(o.id);
+                           // 12p: the pending branch ("Qəbul et" modal button)
+                           // is GONE — auto-accept is silent; a GÖZLƏYİR order
+                           // offers the same "Hazırdır" declaration (it works
+                           // from pending too).
+                           if (wf === 'ready' || wf === 'serving') { label = t('kds_serving_hint'); active = false; emerald = true; }
+                         else if (wf === 'served') { label = `✓ ${t('kds_served')}`; active = false; emerald = true; }
+                         return (
+                           <button
+                             onClick={() => { if (!active) return; act(); }}
+                             disabled={!active}
+                             aria-disabled={!active}
+                             className={`flex-1 h-12 rounded-2xl text-sm font-semibold transition-all duration-300 active:scale-[0.99] ${
+                               emerald
+                                 ? (lightMode ? 'bg-emerald-600/90 text-white' : 'bg-emerald-500/85 text-zinc-950')
+                                 : (lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90')
+                             }`}
+                           >
+                             {label}
+                           </button>
+                         );
+                       })()}
+                     </div>
+                   </div>
               </motion.div>
             </motion.div>
           );

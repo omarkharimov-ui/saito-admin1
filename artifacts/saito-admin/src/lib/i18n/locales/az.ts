@@ -2084,6 +2084,14 @@ export const az = {
   kds_serve_btn: 'Servis et',
   kds_served: 'Servis edildi',
   kds_uncheck: 'Tiki çıxar',
+  // 12q: kitchən gap sweep — RUSH toggle, course firing, 86 (item void).
+  // (RUSH = tələkli bilet · mərhələni at = course fire · 86 = stock-dan düş)
+  kds_rush: 'RUSH',
+  kds_rush_toggle_on: 'RUSH aktivləşdir',
+  kds_rush_toggle_off: 'RUSH söndür',
+  kds_fire_course: 'Mərhələni at',
+  kds_item_86: '86 — məhsul yoxdur',
+  kds_86_toast: 'Məhsul 86-landı',
   kds_accepted_toast: 'Qəbul olundu — hazırlanır',
   // 12i: SERVE is a FLOOR/POS action — the kitchen ends at Hazırdır.
   kds_serving_hint: 'Servis POS-dan edilir',

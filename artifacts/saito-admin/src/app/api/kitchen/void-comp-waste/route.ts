@@ -15,15 +15,26 @@ export async function POST(req: NextRequest) {
     const auth = await requireAuth();
     if (!auth.authenticated) return auth;
     const body = await req.json().catch(() => ({}));
-    const shiftCheck = await shiftGate(req, body);
-    if (!shiftCheck.ok) return NextResponse.json({ error: shiftCheck.error, pin_required: !!shiftCheck.pin_required }, { status: 403 });
 
-    const { action, order_item_id, reason, terminal_id } = body;
+    const { action, order_item_id, reason, terminal_id, origin } = body;
     if (!action || !order_item_id) return NextResponse.json({ error: 'action and order_item_id required' }, { status: 400 });
     if (!['void', 'comp', 'waste'].includes(action)) return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 
     const g = await requireKdsAction({ order_item_id }, action === 'waste' ? 'kitchen.manage' : 'order.void');
     if (!g.ok) return g.res;
+
+    // 12q (E2E r12q2 finding): KDS 86 is a KITCHEN-AVAILABILITY action, not a
+    // register operation — a kitchen terminal must be able to 86 an out-of-
+    // stock item even when the cash shift is closed (Toast/Square parity: 86
+    // works from the KDS regardless of register state; the money correction
+    // lands at checkout, and the permission gate above + state machine +
+    // operation log still apply). POS comp/void/waste keep the shift gate
+    // (register-session hygiene, PinGuard escalation) — only an explicit
+    // KDS-origin 'void' is exempt.
+    if (!(origin === 'kds' && action === 'void')) {
+      const shiftCheck = await shiftGate(req, body);
+      if (!shiftCheck.ok) return NextResponse.json({ error: shiftCheck.error, pin_required: !!shiftCheck.pin_required }, { status: 403 });
+    }
 
     const supabase = await createAuthClient(); // service role
     let data: any; let error: any;

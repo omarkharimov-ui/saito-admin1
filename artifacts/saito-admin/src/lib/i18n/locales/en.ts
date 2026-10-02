@@ -2085,6 +2085,13 @@ export const en: TranslationMap = {
   kds_serve_btn: 'Serve',
   kds_served: 'Served',
   kds_uncheck: 'Uncheck',
+  // 12q: kitchen gap sweep — RUSH toggle, course firing, 86 (item void).
+  kds_rush: 'RUSH',
+  kds_rush_toggle_on: 'Turn RUSH on',
+  kds_rush_toggle_off: 'Turn RUSH off',
+  kds_fire_course: 'Fire course',
+  kds_item_86: '86 — out of stock',
+  kds_86_toast: 'Item 86\'d',
   kds_accepted_toast: 'Accepted — preparing',
   // 12i: SERVE is a FLOOR/POS action — the kitchen ends at Ready.
   kds_serving_hint: 'Serve from the POS',

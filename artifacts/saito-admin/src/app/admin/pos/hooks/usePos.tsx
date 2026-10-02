@@ -178,6 +178,18 @@ export function usePos() {
   // still the newest — an older response finishing later can never overwrite
   // newer floor state, regardless of network response ordering.
   const floorGenRef = useRef(0);
+  // 12q (owner: "hazırdır basıram, sonra status evvelkisinə geri qayılır") —
+  // POS observer side of the same race: a floor snapshot ISSUED before the
+  // KDS commit can still be the newest generation and would demote the chip
+  // (SERVİSƏ HAZIRDİR → HAZIRLANIR) for up to a full poll cycle. High-water
+  // clamp: while the SAME order's composed kitchen rank was recently (≤ 12 s)
+  // observed at/above 'ready', a lower NON-terminal rank from a stale
+  // snapshot is rejected (terminal states + new orders always apply).
+  // Window = 6 s: the stale poll arrives ≤ ~3 s after the commit (in-flight
+  // time) and the next fresh poll confirms ≤ 3 s later — 6 s covers both;
+  // a legitimate KDS recall can lag the chip by at most 6 s (self-heals).
+  const KITCHEN_RANK: Record<string, number> = { cancelled: -1, pending: 0, accepted: 1, sent: 1, preparing: 2, partially_ready: 3, ready: 4, served: 5, completed: 6 };
+  const kitchenHighWaterRef = useRef<Map<string, { orderId: string; rank: number; at: number; status: string }>>(new Map());
   // Realtime/poll coalescing: triggers inside a short window collapse into one
   // guarded refresh (see scheduleFloorRefresh below).
   const floorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -226,7 +238,27 @@ export function usePos() {
           debugSync('discard stale response', `gen=${gen}`, `latest=${floorGenRef.current}`);
           return;
         }
-        setFloors(data.floors || []);
+        // 12q: high-water clamp against the in-flight stale snapshot
+        // (see kitchenHighWaterRef). Terminal states and new orders always win.
+        const nowMs = Date.now();
+        const mergedFloors = (data.floors || []).map((f: any) => {
+          const st = (f.kitchen_status as string) || 'pending';
+          const rank = KITCHEN_RANK[st] ?? 0;
+          const hw = kitchenHighWaterRef.current.get(f.id);
+          const terminal = ['served', 'completed', 'cancelled'].includes(st);
+          if (hw && !terminal && hw.orderId && hw.orderId === (f.current_order_id || '')
+              && hw.rank >= 4 && rank < hw.rank && (nowMs - hw.at) < 6000) {
+            return { ...f, kitchen_status: hw.status };
+          }
+          kitchenHighWaterRef.current.set(f.id, {
+            orderId: f.current_order_id || '',
+            rank,
+            at: nowMs,
+            status: st,
+          });
+          return f;
+        });
+        setFloors(mergedFloors);
         setFloorLoadFailed(false);
       } else {
         syncStatsRef.current.failedFetches += 1;

@@ -822,6 +822,13 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-04 (ROUND 12z: GÜN poll 30s → 60s — pooler yükü)
+
+Owner: "4ü nədə et sonra keç inventory" — §12y təklif #4: GÜN (All Day) view-ün
+açıq-tab poll-u 30s → **60s** (all-day read = yavaş dəyişir; UX itkisi yox,
+pooler yükü yarıya). Background ETA data 5 dəq qalır (12u). E2E r25 (GÜN only,
+read-only): data render ✓, console 0, dark+light ✓. `r25-gun-*.png`.
+
 ### Jurnal sətiri — 2026-10-04 (ROUND 12y: SERVİS-TEXT TAM SİLİNMƏ + İZLƏMƏ CHIP YOX + 2s FLICKER KÖK-FIX)
 
 Owner (3-cü tələb: "sənə neçə dəfə dedim... posdan verilir buttonu ləğv et, lazımsızdır;

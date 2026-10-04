@@ -236,7 +236,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   }, []);
   // 12j (owner, from the Toast comparison): "GÜN" (All Day) view — all-day
   // tickets + production counts + kitchen productivity (one light read,
-  // refreshed every 30 s while open).
+  // refreshed every 60 s while open — 12z: 30 s → 60 s, pooler load).
   const [dayView, setDayView] = useState(false);
   const [dayData, setDayData] = useState<any | null>(null);
   const [dayLoading, setDayLoading] = useState(false);
@@ -819,7 +819,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   }, [playSound]);
 
   // 12j: "GÜN" (All Day) data. 12u (§1c #4): loaded on MOUNT too (5-min
-  // refresh; 30 s while the GÜN tab is open) — the board needs
+  // refresh; 60 s while the GÜN tab is open — 12z) — the board needs
   // avgReadyMin for the per-ticket kitchen ETA chip. The silent load must
   // not flicker the GÜN spinner, so dayLoading only tracks open-tab loads.
   useEffect(() => {
@@ -835,7 +835,10 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
       if (live && dayView) setDayLoading(false);
     };
     load();
-    const id = setInterval(load, dayView ? 30000 : 300000);
+    // 12z (owner #4): GÜN open-tab poll 30 s → 60 s — the all-day view is a
+    // slow-moving read; doubling the interval halves the pooler load with no
+    // visible UX loss (background ETA data stays at 5 min).
+    const id = setInterval(load, dayView ? 60000 : 300000);
     return () => { live = false; clearInterval(id); };
   }, [dayView]);
 

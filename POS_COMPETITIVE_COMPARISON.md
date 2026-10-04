@@ -61,8 +61,10 @@
  > **COGS/AvT/shrinkage Report** view + **LLM AdvisorCard**, **batch/expiry FEFO**
  > (chips + inspector CRUD), **recurring weekly** (cron DRAFT, human sends),
  > **offline stocktake buffer + staff assignment**, **LLM BOM calibration**
- > (propose-only → atomic save). Qalan: multi-location (biznes qərarı) + weekly
- > shrinkage pattern report (13d candidate).
+  > (propose-only → atomic save). **13d:** weekly **shrinkage pattern** BİNDİ
+  > (`/api/inventory/reports` → `shrinkage_pattern`: 28g Mon-start weeks,
+  > gün paylanması, per-item WoW trend + ReportsTab "İtki Pattern" kartı; E2E
+  > r28d2 verify). Qalan: **yalnız multi-location** (biznes qərarı — 1 lokasiya).
 
 ## 0. BEFORE / AFTER — 11a–11g dəyişikliklərinin tam müqayisəsi
 

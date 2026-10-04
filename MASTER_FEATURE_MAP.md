@@ -462,7 +462,7 @@ Products/ingredients/units/recipes/recipe costing; stock (current/min/max/reorde
 | Multi-location inventory transfers | ❌ | — | Addım 3 (biznes qərarı) |
 | **Par-based order guide → DRAFT PO** | ✅ (13c) | `GET /api/stock/order-guide` | ProcurementTab "Order Guide" pill |
 | **Recurring orders (DRAFT, human sends)** | ✅ (13c) | `recurring_weekly` + cron `recurring-draft-pos` (Dü 09:00) + `create_recurring_draft_pos()` | PO list "Həftəlik" badge |
-| **COGS / AvT / shrinkage report** | ✅ (13c) | `GET /api/inventory/reports` (30g rollup) | Stock page "Report" view (ReportsTab) |
+| **COGS / AvT / shrinkage report** | ✅ (13c) **+ shrinkage PATTERN (13d)** | `GET /api/inventory/reports` (30g rollup + `shrinkage_pattern` 28g: weeks/weekday/WoW/top-trend) | Stock page "Report" view (ReportsTab + "İtki Pattern" kartı) |
 | **LLM inventory advisor** | ✅ (13c) | `GET /api/inventory/advisor` (deterministic 30g stats + LLM narrative) | Stock page AdvisorCard |
 
 > **13a (2026-10-04, E2E r26):** modul = **DEAD-ZONE REVIVAL** — browser client
@@ -853,6 +853,71 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-10-05 (ROUND 13d: CLIENT-AUTH AUDIT TAMAM — table RLS + RPC EXECUTE qatı + İtki Pattern report)
+
+Owner auto-mandat: *"2-3 run: yarımçıq qalıbsan davam et, bitirmisəns digər səhifələrə keç —
+AMMA keçməzdən əvvəl etdiyin səhifələri E2E brauzer + kodda verify et; digər səhifələrin
+qurulması qərər sənə, professional."* → 13d-A (13a candidate: app-wide client-auth audit) +
+13d-B (§1d zəif #8: weekly shrinkage pattern) + 13d-C (E2E + commit + docs).
+
+**Kök (audit):** browser Supabase client = **anon**; pooler user-sessiyada
+`app.current_role`/`app.current_org_id` set ETMİR → `is_superadmin()`/`has_org_access()` =
+false → bütün `*_select_loc`/`*_insert_loc` policies = **sükutla boş oxu / bloklanan yazı**.
+**13d-də 2-ci qat açıldı:** RPC **EXECUTE grants** — `cancel_order_items`,
+`reverse_stock_for_items`, `add_order_items`, `cancel_table_orders`,
+`update_order_item_quantity` = anon-a GRANT YOX (yalnız postgres/service_role/±test_rls_role)
+→ browser `supabase.rpc(...)` = **401**; 4 OrderModal call-site `.error`-ı YOXLAMIRDI
+(supabase-js throw etmir) → **sükutla itki**: B2 tap = audit row yazıldı + success toast,
+item HEÇ silinmədi.
+
+**Fix (hamısı service-role bridge pattern, frozen RPC-lərə GRANT əlavə ETMƏDİK —
+location-scoping modeli qorunur):**
+- Table RLS (13d-A, r28/r28b verify): `GET /api/expo/board`, `GET /api/admin/badges`
+  (`Prefer: count=exact` + **13d-A2: 5xx retry** — pooler transient 500 ×2+ = kök),
+  `GET /api/customers?id=`, `GET /api/floors`, `GET /api/kitchen/reservations`,
+  `GET /api/orders/table-active`, `GET|POST /api/cancelled-orders`,
+  `POST /api/orders/item-quantity` (13d-A) — client-lər: expo/page, NotificationContext
+  (bell+overdue+səbət), OrderModal, ManualOrderModal, CustomerSelect, UpcomingReservations,
+  TableStatusGrid, kitchen/page (fetchTables + merged-name toasts).
+- **Yeni bridge (13d-A2):** `POST /api/orders/cancel-items` + `/reverse-stock` +
+  `/cancel-table` (useOrders "Clear Table"); OrderModal ×6 + ManualOrderModal → bridge,
+  hamısı throw → real error toast.
+- **`add_order_items` RPC = DB plan-time ÖLÜ** (13d tap): `v_item->>'modifiers'` (text) →
+  jsonb sütun = **HƏR payload-da** "column is of type jsonb but expression is of type text"
+  (psql repro). Browser 401 bunu maskalayıb. → client-lər `POST /api/orders {action:
+  'addItems'}` (production-proven path: service insert + discount recompute) istifadə
+  edir; yaradılmış `add-items` bridge route **silindi** (duplikasiya riski).
+- **UI gap:** desktop Sidebar `link.badge`-ı HEÇ render etmirdi (yalnız mobile dock) →
+  qızıl badge əlavə olundu (r28d verify = 1). **Race:** `handleConfirmWithDraft` save-dan
+  ƏVVƏL onRefresh call edirdi → köhnə list; indi yazı bitdikdən sonra refresh (r28c tap).
+- **13d-B:** `GET /api/inventory/reports` → `shrinkage_pattern` (28g: Mon-start H1–H4 +
+  Toplam, gün paylanması, per-item WoW trend, top-5) + ReportsTab **"İtki Pattern"** kartı.
+  §1d zəif #8 BĞLANDI → **qalan: yalnız multi-location (biznes)**.
+
+**E2E r28→r28b→r28c→r28d→r28d2 (hər run 1 real bug tapdı — hamısı düzəldildi + re-verify,
+console 0, dark+light):** r28 (POS/qty/badge — B2 401 tapdı) · r28b (item-quantity bridge
+PERSIST PASS + CustomerSelect 21 müştəri + Expo + İtki Pattern; B2 cancel FAIL → 13d-A2)
+· r28c (cancel FAIL = **jsonb scalar pitfall**: PostgREST body JSON→jsonb 1:1,
+`JSON.stringify(items)` = jsonb STRING SCALAR → "cannot extract elements"; psql
+text→jsonb cast bunu maskaladı → `p_items: items` real array; add-items FAIL = dead RPC;
+badge = Sidebar render gap) · r28d (cancel ✅ + badge ✅ + add FAIL = RPC ölü tapıldı)
+· r28d2 (**addItems action ✅ ₼46 persist**, badge ✅, light ✅).
+Aralıqda: dev server "bricked event loop" (instrumentation.ts failure mode) → restart +
+warm-up (chunks 20ms).
+
+**psql (son, net-clean):** Masa 1 = 1 order ₼46.00 (Green Tea ×1 @4 + Filadelfiya Classic
+×3 @**14** — menyu qiyməti 08-01-dən 14-dir; köhnə ₼67/₼21 = sentyabr test artefaktı,
+13c incident DEYİL) · cancelled_orders = 45 (44 + 1 REAL audit row — r28d D1 cancel;
+3 saxta r28b/r28c row silindi) · temp rezervasiyalar ×2 silindi · order_items net: +1 sətir
+(yeni Fil row).
+
+**OPEN (13e candidate):** (1) orders-page merged-group payment = yalnız seçilmiş
+order-row-u ödəyir (child-satırlar qalıb — POS pay loop ayrı işləyir; design qərari lazımdır)
+· (2) pooler transient 500 davam edir (badges retry gəldi; digər yerlər monitoring) ·
+(3) `useReports.ts` = DEAD code (import YOX — get_z_report/v.b.) · (4) POS cart unsent
+delta = in-memory (reload = itki; existing design, KDS offline buffer POS-a uzantı
+kandidatı). → `HANDOFF_13D.md`.
 
 ### Jurnal sətiri — 2026-10-04 (ROUND 13c: INVENTORY + RECIPES TAMAM — Toast parity 6/8 bağlandı + AI gücləndi)
 

@@ -30,8 +30,12 @@ export async function GET(_request: NextRequest) {
        // PostgREST: the range op comes AFTER the column (created_at=gte.…);
        // "gte.created_at" is a 400 (verified with the live service-role key).
        `&created_at=gte.${encodeURIComponent(start.toISOString())}`,
-      '&kitchen_status=not.is.null',
-      '&order=created_at.desc&limit=500',
+       // 12u (r20b): CANCELLED kitchen orders are not kitchen work — they
+       // used to render as ghost "×0 GÖZLƏYİR" rows in the GÜN ticket list
+       // and inflated the day metrics. `not.in` alone already excludes both
+       // 'cancelled' AND null (SQL: NULL NOT IN (...) is not true).
+       '&kitchen_status=not.in.(cancelled)',
+       '&order=created_at.desc&limit=500',
     ].join('');
     const res = await fetch(`${url}/rest/v1/orders?${q}`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
     if (!res.ok) return NextResponse.json({ error: 'Failed to load daily kitchen data' }, { status: 502 });

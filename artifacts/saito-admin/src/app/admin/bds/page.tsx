@@ -14,15 +14,20 @@
  */
 
 import { KDSView } from '@/app/admin/pos/components/KDSView';
+import { VirtualKeyboardProvider } from '@/app/admin/pos/components/VirtualKeyboard';
 import { useRouter } from 'next/navigation';
 import { useDeviceHeartbeat } from '@/lib/device-heartbeat';
 
 export default function BDSPage() {
   const router = useRouter();
   useDeviceHeartbeat('BDS', 'bds');
+  // 12u: same as the KDS page — KDSView's 86 flow (PinGuard keypad) needs
+  // the virtual keyboard context.
   return (
     <div className="h-full w-full p-6">
-      <KDSView stationType="bar" onBack={() => router.push('/admin')} />
+      <VirtualKeyboardProvider>
+        <KDSView stationType="bar" onBack={() => router.push('/admin')} />
+      </VirtualKeyboardProvider>
     </div>
   );
 }

@@ -25,7 +25,6 @@ import ProcurementTab from './components/ProcurementTab';
 import IntelligenceTabComponent from './components/IntelligenceTab';
 import { CalibrationSuggestionsPanel, CalibrationSuggestion } from './components/CalibrationSuggestionsPanel';
 import { InventoryHealthCard } from './components/InventoryHealthCard';
-import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
@@ -118,17 +117,16 @@ export default function StockPage() {
     setHistory(null);
     setHistoryLoading(true);
     try {
-      const { data: logs, error } = await supabase
-        .from('inventory_logs')
-        .select('id, type, quantity, cost_per_unit, reason, created_at')
-        .eq('ingredient_id', row.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (!error) setHistory(logs ?? []);
-      else toast.error('Tarixçə yüklənərkən xəta baş verdi', { id: 'action-toast' });
+      // 13a (E2E r26 S0): the client read of inventory_logs hit RLS and
+      // returned 0 rows (empty "Stok Tarixçəsi" — the pooler session does not
+      // set app.current_role for user JWTs). The service-role API route
+      // returns the same rows reliably.
+      const res = await fetch(`/api/inventory/logs?ingredient_id=${row.id}&limit=100`);
+      if (res.ok) setHistory(await res.json());
+      else throw new Error(`HTTP ${res.status}`);
     } catch {
       setHistory([]);
-      toast.error('Tarixçə yüklənərkən gözlənilməz xəta', { id: 'action-toast' });
+      toast.error('Tarixçə yüklənərkən xəta baş verdi', { id: 'action-toast' });
     } finally {
       setHistoryLoading(false);
     }
@@ -150,8 +148,11 @@ export default function StockPage() {
   const handleAction = async (type: 'stock_in' | 'waste' | 'adjustment' | 'audit') => {
     if (!selectedRow || !qtyInput) return;
     const amount = parseFloat(qtyInput);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Məbləğ 0-dan böyük olmalıdır');
+    // 13a (E2E r26 S5): "İnventarizasiya" sets an ABSOLUTE physical count —
+    // a real count of ZERO is legal (and is exactly how a negative phantom
+    // debt is cleared). stock_in/waste/adjustment still require > 0.
+    if (isNaN(amount) || (type === 'audit' ? amount < 0 : amount <= 0)) {
+      toast.error(type === 'audit' ? 'Fiziki sayım mənfi ola bilməz (0 icazədir)' : 'Məbləğ 0-dan böyük olmalıdır');
       return;
     }
     setSaving(true);

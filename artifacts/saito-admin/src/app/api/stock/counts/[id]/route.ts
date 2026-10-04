@@ -52,12 +52,27 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const supabase = await createAuthClient();
     const { id } = await params; // Next 15+: params is async
 
+    // 13a (E2E r26 S13): the old delete silently returned success:true when
+    // 0 rows matched (a completed count is NOT deletable by design, but the
+    // caller had no way to know). Now the status is checked explicitly.
+    const { data: existing, error: getErr } = await supabase
+      .from('stock_counts')
+      .select('id, status')
+      .eq('id', id)
+      .single();
+    if (getErr) throw getErr;
+    if (!existing) return NextResponse.json({ error: 'Sayım tapılmadı' }, { status: 404 });
+    if (existing.status !== 'draft' && existing.status !== 'cancelled') {
+      return NextResponse.json(
+        { error: 'Yalnız draft/cancelled sayımlar silinə bilər (completed = audit record)' },
+        { status: 409 }
+      );
+    }
+
     const { error } = await supabase
       .from('stock_counts')
       .delete()
-      .eq('id', id)
-      .in('status', ['draft', 'cancelled']);
-
+      .eq('id', id);
     if (error) throw error;
     return NextResponse.json({ success: true });
   } catch (err: any) {

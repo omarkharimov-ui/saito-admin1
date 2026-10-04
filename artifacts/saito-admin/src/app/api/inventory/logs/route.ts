@@ -1,45 +1,75 @@
+import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 
+// 13a (E2E r26 S0 root cause): the audit page + stock "Stok Tarixçəsi" read
+// inventory_logs DIRECTLY from the browser client. The table's RLS SELECT
+// policy gates non-order rows on `is_superadmin()` = current_setting
+// ('app.current_role'), which the pooler session does NOT set for user JWTs
+// → 200 + 0 rows (silent empty pages) while service-role writes succeed.
+// This route serves the same data via the service role (the pattern every
+// other working board uses) and folds in the order context (table number,
+// product names) so the client makes ONE call.
 function svc() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) throw new Error('Missing Supabase configuration');
-  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
 }
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (!auth.authenticated) return auth;
+
   try {
-    const auth = await requireAuth();
-    if (!auth.authenticated) return auth;
+    const { searchParams } = new URL(request.url);
+    const ingredientId = searchParams.get('ingredient_id');
+    const since = searchParams.get('since');
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '500', 10) || 500, 1), 500);
 
-    const { ingredient_id, type, quantity, reason, cost_per_unit } = await request.json();
+    const supabase = svc();
+    let q = supabase
+      .from('inventory_logs')
+      .select('id, type, quantity, cost_per_unit, reason, order_id, created_at, ingredient:ingredients(name, unit)')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (ingredientId) q = q.eq('ingredient_id', ingredientId);
+    if (since) q = q.gte('created_at', since);
 
-    if (!ingredient_id || !type || quantity == null) {
-      return NextResponse.json({ error: 'ingredient_id, type, quantity required' }, { status: 400 });
+    const { data: logs, error } = await q;
+    if (error) throw error;
+
+    // Order context in one round-trip each (service role — RLS-free).
+    const orderIds = [...new Set((logs ?? []).map(l => l.order_id).filter(Boolean))] as string[];
+    const orderMap: Record<string, { table_number: number | string | null }> = {};
+    const productMap: Record<string, string[]> = {};
+    if (orderIds.length > 0) {
+      const [ordersRes, itemsRes] = await Promise.all([
+        supabase.from('orders').select('id, table_number').in('id', orderIds),
+        supabase.from('order_items').select('order_id, product_name').in('order_id', orderIds),
+      ]);
+      for (const o of ordersRes.data ?? []) orderMap[o.id] = { table_number: o.table_number };
+      for (const it of itemsRes.data ?? []) {
+        (productMap[it.order_id] ||= []).push(it.product_name);
+      }
     }
 
-    const s = svc();
-    const res = await fetch(`${s.url}/rest/v1/inventory_logs`, {
-      method: 'POST',
-      headers: { ...s.headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify({
-        ingredient_id,
-        type,
-        quantity: Math.abs(quantity),
-        reason: reason || null,
-        cost_per_unit: cost_per_unit || null,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      return NextResponse.json({ error: `Failed to create inventory log: ${err}` }, { status: 500 });
-    }
-
-    const [log] = await res.json();
-    return NextResponse.json({ success: true, log });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const rows = (logs ?? []).map(l => ({
+      id: l.id,
+      type: l.type,
+      quantity: l.quantity,
+      cost_per_unit: l.cost_per_unit,
+      reason: l.reason,
+      order_id: l.order_id,
+      created_at: l.created_at,
+      ingredient_name: (l.ingredient as any)?.name || 'Naməlum',
+      ingredient_unit: (l.ingredient as any)?.unit || '',
+      table_number: l.order_id ? (orderMap[l.order_id]?.table_number ?? null) : null,
+      product_names: l.order_id ? (productMap[l.order_id] ?? []) : [],
+    }));
+    return NextResponse.json(rows);
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

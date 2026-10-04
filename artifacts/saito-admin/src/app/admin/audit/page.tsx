@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Loader2, ShoppingBag, AlertTriangle, TrendingDown, ArrowRight, Download } from '@/components/ui/saito-icons';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
-import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 import { PageTransition, PageHeader } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
@@ -60,60 +59,30 @@ export default function AuditPage() {
       else if (dateRange === 'month') dateFilter = thirtyDaysAgo;
       else dateFilter = new Date(0).toISOString();
 
-      const { data: logs } = await supabase
-        .from('inventory_logs')
-        .select('id, type, quantity, cost_per_unit, reason, order_id, created_at, ingredient:ingredients(name, unit)')
-        .gte('created_at', dateFilter)
-        .order('created_at', { ascending: false })
-        .limit(500);
+       // 13a (E2E r26 S0 root cause): the client read of inventory_logs
+       // returned 0 rows — the RLS policy gates manual (non-order) logs on
+       // is_superadmin() = current_setting('app.current_role'), which the
+       // pooler session does NOT set for user JWTs → the audit feed was
+       // silently empty forever. The service-role route serves the same rows
+       // and folds in the ingredient + order context in ONE call.
+       const res = await fetch(`/api/inventory/logs?since=${encodeURIComponent(dateFilter)}&limit=500`);
+       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+       const logs = (await res.json()) as any[];
+       if (!logs) { setEntries([]); return; }
 
-      if (!logs) { setEntries([]); return; }
-
-      // Fetch order context for order_consumption logs
-      const orderIds = [...new Set(logs.filter(l => l.order_id).map(l => l.order_id))].filter(Boolean) as string[];
-      let orderMap: Record<string, { table_number: string | null }> = {};
-      let orderItemMap: Record<string, string[]> = {};
-
-      if (orderIds.length > 0) {
-        const { data: orders } = await supabase
-          .from('orders')
-          .select('id, table_number')
-          .in('id', orderIds);
-
-        if (orders) {
-          orderMap = Object.fromEntries(orders.map(o => [o.id, { table_number: o.table_number }]));
-        }
-
-        const { data: orderItems } = await supabase
-          .from('order_items')
-          .select('order_id, product_name')
-          .in('order_id', orderIds);
-
-        if (orderItems) {
-          for (const item of orderItems) {
-            if (!orderItemMap[item.order_id]) orderItemMap[item.order_id] = [];
-            if (!orderItemMap[item.order_id].includes(item.product_name)) {
-              orderItemMap[item.order_id].push(item.product_name);
-            }
-          }
-        }
-      }
-
-      const mapped: AuditEntry[] = (logs as any[]).map(log => ({
-        id: log.id,
-        created_at: log.created_at,
-        type: log.type,
-        quantity: log.quantity,
-        cost_per_unit: log.cost_per_unit,
-        reason: log.reason,
-        order_id: log.order_id,
-        ingredient_name: (log.ingredient as any)?.name || 'Naməlum',
-        ingredient_unit: (log.ingredient as any)?.unit || '',
-        product_name: log.order_id && orderItemMap[log.order_id]
-          ? orderItemMap[log.order_id].join(', ')
-          : null,
-        table_number: log.order_id ? (orderMap[log.order_id]?.table_number ?? null) : null,
-      }));
+       const mapped: AuditEntry[] = logs.map(log => ({
+         id: log.id,
+         created_at: log.created_at,
+         type: log.type,
+         quantity: log.quantity,
+         cost_per_unit: log.cost_per_unit,
+         reason: log.reason,
+         order_id: log.order_id,
+         ingredient_name: log.ingredient_name || 'Naməlum',
+         ingredient_unit: log.ingredient_unit || '',
+         product_name: log.order_id && (log.product_names?.length ?? 0) > 0 ? log.product_names.join(', ') : null,
+         table_number: log.order_id ? (log.table_number ?? null) : null,
+       }));
 
       setEntries(mapped);
     } catch (e) {

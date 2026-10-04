@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles } from '@/components/ui/saito-icons';
-import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { Ingredient, ProductCatalogItem } from '@/types/inventory';
@@ -47,22 +46,23 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
     if (!isOpen) return;
     (async () => {
       setLoading(true);
-      const [productsData, iRes] = await Promise.all([
+      // 13a (E2E r26 S10c): client Supabase reads are anon-blocked by RLS →
+      // service-role API reads (the module was fully dead from the browser).
+      const [productsData, ingredientsData] = await Promise.all([
         fetch('/api/admin/products').then(r => r.json()).then(d => d.products as ProductCatalogItem[]),
-        supabase.from('ingredients').select('id, name, unit, average_cost_per_unit, current_stock, cold_waste_percentage').order('name'),
+        fetch('/api/ingredients').then(r => r.json()).catch(() => null as unknown as Ingredient[]),
       ]);
       setProducts(productsData);
-      setIngredients((iRes.data || []) as Ingredient[]);
+      const ingList: Ingredient[] = ingredientsData || [];
+      setIngredients(ingList);
 
       if (editProductId) {
         setSelectedProductId(editProductId);
-        const { data: existing } = await supabase
-          .from('recipes')
-          .select('ingredient_id, quantity_required, quantity_brutto, hot_waste_percentage')
-          .eq('menu_item_id', editProductId)
-          .eq('is_ai_suggested', false);
+        type ExistingRow = { ingredient_id: string; quantity_required: number; quantity_brutto?: number | null; hot_waste_percentage?: number | null };
+        const existing = (await fetch(`/api/recipes?product_id=${editProductId}&manual=1`)
+          .then(r => r.json()).catch(() => [])) as ExistingRow[];
         if (existing && existing.length > 0) {
-          const ingredientMap = new Map((iRes.data || []).map(i => [i.id, i]));
+          const ingredientMap = new Map(ingList.map(i => [i.id, i] as const));
           setRows(existing.map(r => {
             const ing = ingredientMap.get(r.ingredient_id);
             const qtyBrutto = r.quantity_brutto ?? r.quantity_required;
@@ -181,29 +181,22 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
     if (validRows.length === 0) { toast.error('Ən azı 1 inqrediyent əlavə edin', { style: toastStyle }); return; }
     setSaving(true);
     try {
-      const { data: oldRows } = await supabase.from('recipes').select('*').eq('menu_item_id', selectedProductId).eq('is_ai_suggested', false);
-
-      const { error: delErr } = await supabase.from('recipes').delete().eq('menu_item_id', selectedProductId).eq('is_ai_suggested', false);
-      if (delErr) throw delErr;
-
-      const inserts = validRows.map(r => ({
-        menu_item_id: selectedProductId,
-        ingredient_id: r.ingredient_id,
-        quantity_required: r.quantity,
-        quantity_brutto: r.quantity_brutto,
-        hot_waste_percentage: r.hot_waste_percentage,
-        is_ai_suggested: false,
-      }));
-      const { error: insErr } = await supabase.from('recipes').insert(inserts);
-      if (insErr) {
-        if (oldRows && oldRows.length > 0) {
-          await supabase.from('recipes').insert(oldRows);
-        }
-        throw insErr;
-      }
-
-      await supabase.from('products').update({ has_active_recipe: true }).eq('id', selectedProductId);
-
+      // 13a: atomic service-role save (the old 3-call client flow had no RLS
+      // write policy — every save silently failed / rolled back to nothing).
+      const res = await fetch('/api/recipes/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          menu_item_id: selectedProductId,
+          rows: validRows.map(r => ({
+            ingredient_id: r.ingredient_id,
+            quantity_required: r.quantity,
+            quantity_brutto: r.quantity_brutto,
+            hot_waste_percentage: r.hot_waste_percentage,
+          })),
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
       toast.success('Resept yadda saxlanıldı', { style: toastStyle });
       onSaved();
       onClose();

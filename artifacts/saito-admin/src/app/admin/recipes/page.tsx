@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import {
   Search, Plus, Trash2, Loader2, CookingPot, ChevronDown, ChevronUp,
@@ -65,14 +64,17 @@ export default function RecipesPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [productsData, iRes, rRes] = await Promise.all([
+      // 13a (E2E r26 S10c): client Supabase reads returned [] (the browser
+      // REST session is anon for user JWTs → RLS blocks) → every product
+      // showed "0 resept". Service-role API reads instead.
+      const [productsData, ingredientsData, recipesData] = await Promise.all([
         fetch('/api/admin/products').then(r => r.json()).then(d => d.products as ProductCatalogItem[]),
-        supabase.from('ingredients').select('id, name, unit, current_stock').order('name'),
-        supabase.from('recipes').select('id, menu_item_id, ingredient_id, quantity_required, is_ai_suggested'),
+        fetch('/api/ingredients').then(r => r.json()).catch(() => [] as Ingredient[]),
+        fetch('/api/recipes').then(r => r.json()).catch(() => [] as RecipeRow[]),
       ]);
       setProducts(productsData);
-      setIngredients((iRes.data || []) as Ingredient[]);
-      setRecipes((rRes.data || []) as RecipeRow[]);
+      setIngredients(ingredientsData || []);
+      setRecipes(recipesData || []);
     } finally {
       setLoading(false);
     }
@@ -120,18 +122,24 @@ export default function RecipesPage() {
     const ing = ingredients.find(i => i.id === newIngredientId);
     const coldWaste = ing?.cold_waste_percentage || 0;
     const qtyBrutto = coldWaste > 0 ? qty / (1 - coldWaste / 100) : qty;
-    const { error } = await supabase.from('recipes').insert({
-      menu_item_id: productId, ingredient_id: newIngredientId, quantity_required: qty,
-      quantity_brutto: Math.round(qtyBrutto * 100) / 100, hot_waste_percentage: 0,
+    // 13a: service-role write (client INSERT has no RLS policy — was dead).
+    const res = await fetch('/api/recipes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        menu_item_id: productId, ingredient_id: newIngredientId, quantity_required: qty,
+        quantity_brutto: Math.round(qtyBrutto * 100) / 100, hot_waste_percentage: 0,
+      }),
     });
-    if (error) toast.error('Xəta: ' + error.message);
+    if (!res.ok) { const err = await res.json().catch(() => ({})); toast.error('Xəta: ' + (err.error || res.status)); }
     else { toast.success('Resept əlavə edildi'); setNewIngredientId(''); setNewQuantity(''); setAddingFor(null); fetchData(); }
     setSaving(false);
   };
 
   const handleDelete = async (recipeId: string) => {
-    const { error } = await supabase.from('recipes').delete().eq('id', recipeId);
-    if (error) toast.error('Xəta');
+    // 13a: service-role delete (client DELETE had no RLS policy).
+    const res = await fetch(`/api/recipes?id=${recipeId}`, { method: 'DELETE' });
+    if (!res.ok) toast.error('Xəta');
     else { toast.success('Silindi'); fetchData(); }
   };
 
@@ -292,14 +300,13 @@ export default function RecipesPage() {
     if (recipe.ingredients.length === 0) { toast.error('Xəmmal tapılmadı'); return; }
     setSaving(true);
     try {
-      await supabase.from('recipes').delete().eq('menu_item_id', productId).eq('is_ai_suggested', true);
-      for (const ing of recipe.ingredients as any[]) {
-        await supabase.from('recipes').insert({
-          menu_item_id: productId, ingredient_id: ing.ingredient_id,
-          quantity_required: ing.quantity_required, is_ai_suggested: true,
-        });
-      }
-      await supabase.from('products').update({ has_active_recipe: true }).eq('id', productId);
+      // 13a: one service-role call replaces the 3+N RLS-blocked client calls.
+      const res = await fetch('/api/recipes/ai-apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: [{ menu_item_id: productId, rows: recipe.ingredients }] }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
       toast.success(`${recipe.recipeName} əlavə edildi`);
       setCookbookResults(prev => prev.filter(r => r.recipeName !== recipe.recipeName));
       fetchData();
@@ -312,18 +319,18 @@ export default function RecipesPage() {
     if (eligible.length === 0) { toast.error('Heç bir reseptə məhsul bağlanmayıb'); return; }
     setSaving(true);
     try {
-      for (const recipe of eligible) {
-        const pid = cookbookMatchMap[recipe.recipeName] || recipe.suggestedProductId;
-        if (!pid) continue;
-        await supabase.from('recipes').delete().eq('menu_item_id', pid).eq('is_ai_suggested', true);
-        for (const ing of recipe.ingredients as any[]) {
-          await supabase.from('recipes').insert({
-            menu_item_id: pid, ingredient_id: ing.ingredient_id,
-            quantity_required: ing.quantity_required, is_ai_suggested: true,
-          });
-        }
-        await supabase.from('products').update({ has_active_recipe: true }).eq('id', pid);
-      }
+      // 13a: batch service-role apply (one call for ALL products).
+      const res = await fetch('/api/recipes/ai-apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: eligible.map(recipe => ({
+            menu_item_id: cookbookMatchMap[recipe.recipeName] || recipe.suggestedProductId,
+            rows: recipe.ingredients,
+          })),
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
       toast.success(`${eligible.length} resept əlavə edildi`);
       setCookbookResults([]);
       fetchData();

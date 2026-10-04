@@ -69,6 +69,10 @@ export const PERMISSION_MATRIX: PermissionRule[] = [
   { page: '/admin/stock', permission: 'inventory.view' },
   { page: '/admin/purchase-orders', permission: 'inventory.manage' },
   { page: '/admin/waste-standards', permission: 'inventory.manage' },
+  // 13a: orphaned stocktake + supplier-returns pages wired into nav —
+  // same permission class as purchase-orders (both move stock/money).
+  { page: '/admin/stock/counts', permission: 'inventory.manage' },
+  { page: '/admin/stock/returns', permission: 'inventory.manage' },
   { page: '/admin/kitchen-analytics', permission: 'kitchen.view' },
 
   { page: '/admin/staff', permission: 'staff.view' },

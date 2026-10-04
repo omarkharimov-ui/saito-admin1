@@ -79,9 +79,12 @@ export default function AdminDesktopShell({
     const routes = [
       '/admin', '/admin/pos', '/admin/reservations', '/admin/products',
       '/admin/campaigns', '/admin/staff', '/admin/customers', '/admin/gift-cards',
-      '/admin/orders', '/admin/receipts', '/admin/stats', '/admin/audit', '/admin/checklists',
-      '/admin/stock/adjustments', '/admin/stock/counts', '/admin/stock/locations',
-      '/admin/stock/transfers', '/admin/stock/returns', '/admin/settings',
+      '/admin/orders', '/admin/stats', '/admin/audit', '/admin/checklists',
+      // 13a: dropped the 4 dead routes (/admin/receipts, /admin/stock/
+      // adjustments|locations|transfers — no such pages exist; they 404'd
+      // silently every dev boot).
+      '/admin/stock/counts', '/admin/stock/returns', '/admin/waste-standards',
+      '/admin/settings',
     ];
     let i = 0;
     let timer: number;

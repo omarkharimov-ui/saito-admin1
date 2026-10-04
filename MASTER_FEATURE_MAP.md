@@ -462,6 +462,17 @@ Products/ingredients/units/recipes/recipe costing; stock (current/min/max/reorde
 | Multi-location inventory transfers | ❌ | — | Addım 3 |
 | Auto reorder (PO auto-təklifi) | 🟡 | `stock/suggestions` var | Auto-PO generation yox |
 
+> **13a (2026-10-04, E2E r26):** modul = **DEAD-ZONE REVIVAL** — browser client
+> anon idi (RLS: `app.current_role` user JWT-də set olunmur) → audit page/stok
+> tarixçəsi/recipes modul heç vaxt data görmürdü; 3 page orphaned idi;
+> waste-standards create/patch = 500 (phantom sütun); counts DELETE = silent no-op;
+> `/api/notifications` yox idi. Fix = service-role API (`/api/inventory/logs`,
+> `/api/recipes*`, `/api/notifications`) + nav wiring + guards. E2E r26: audit
+> 83 sətir CANLI, recipes 11 məhsul CANLI, constructor load ✓, 409 guard ✓,
+> procurement feed CANLI, dark+light console 0. Owner qərarı: 5 mənfi stok sayım
+> ilə, 4 reseptsiz məhsul (Filadelfiya Classic!), `avakado`/`Qızardılmış soğan`
+> şübhəli dəyərlər, orphan resept. → `HANDOFF_13A.md`.
+
 ### 17. PURCHASING / SUPPLIERS (ayrı baxış)
 Supplier profile/products/pricing; PO lifecycle; receiving (qty/cost/batch/expiry/variance); invoices (upload/OCR/matching/approval/accounting).
 
@@ -821,6 +832,36 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-10-04 (ROUND 13a: INVENTORY — audit + dead-module revival)
+
+0-dan professional audit (code explore + psql + E2E r26 3 run). **Kök:** browser
+Supabase client = ANON (pooler `app.current_role`-u user JWT-də set etmir; RLS
+`is_superadmin()` = `current_setting('app.current_role')`) → **audit page HEÇ VAXT
+data görməmişdi** (966 log, 0 görünən), **Stok Tarixçəsi boş**, **recipes modul TAM
+DEAD** ("0 resept" × 15 məhsul; write policy = YOX → save 3 RLS-blocked call),
+**procurement feed = 404 + type mismatch**. + 3 orphaned page (counts/returns/
+waste-standards — URL ilə yalnız), waste-standards POST/PATCH = 500 (keyword_en/note
+phantom sütun), counts DELETE = silent no-op, warm list 4 ölü route.
+
+**Fix (hamısı service-role API pattern; frozen RPC toxunulmayıb):** 3 page → NAV
+(Scale/RotateCcw/Trash) + permissions; `GET /api/notifications` (yeni) + type fix;
+`GET /api/inventory/logs` (yeni; ingredient+order context 1 call) → audit page +
+Stok Tarixçəsi; **recipes modul API migration** (`GET/POST/DELETE /api/recipes` +
+`/save` atomic + `/ai-apply` batch — page+modal-da client call YOX);
+waste-standards = yalnız real sütunlar + upsert error-check; counts DELETE → 404/409
+guard; İnventarizasiya modal **0 icazədir** (mənfi phantom recovery yolu).
+
+**E2E r26 (S0–S17, dark+light, console 0, 19 shot):** reversible stock cycle
+(Avokado +1000/−100/−900 = net 0, DB verify); audit = **83 sətir CANLI** (3 E2E
+sətiri verbatim); recipes = **11 məhsul CANLI** (4 reseptsiz: P8_PROD / **Filadelfiya
+Classic** / Coca-Cola / Kaliforniya Gold); constructor edit = 5 sətir load;
+DELETE guard = 409; procurement feed = CANLI; sayım full flow (zero-delta);
+return create+cancel; waste-standards UI CRUD. **DB:** counts/waste_std=0,
+returns=1 (cancelled), Avokado −1290 exact, Mango adjustment 0.000.
+**Owner qərarı gözləyir (business data):** 5 mənfi stok (sayım ilə), 4 reseptsiz
+məhsul, `avakado` 192kg + `Qızardılmış soğan` 199kg şübhəli, orphan resept
+(12 sətir), P8_PROD. **App-wide client-auth audit** = 13b candidate.
 
 ### Jurnal sətiri — 2026-10-04 (ROUND 12z: GÜN poll 30s → 60s — pooler yükü)
 

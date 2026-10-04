@@ -51,7 +51,10 @@ export default function ProcurementTab() {
   const loadNotifications = async () => {
     setLoadingNotifs(true);
     try {
-      const res = await fetch('/api/notifications?type=supplier_auto_order&limit=20');
+      // 13a: the stock-threshold cron writes type='stock' (title "Ehtiyat
+      // azalıb: X") — the old 'supplier_auto_order' filter matched nothing,
+      // so this feed was always empty even once /api/notifications existed.
+      const res = await fetch('/api/notifications?type=stock&limit=20');
       if (res.ok) setNotifications(await res.json());
     } catch {}
     setLoadingNotifs(false);

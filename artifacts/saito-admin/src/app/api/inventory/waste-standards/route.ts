@@ -67,13 +67,15 @@ export async function GET(req: Request) {
         return NextResponse.json([{ keyword: q, waste_percentage: 0, note: 'Məlumat tapılmadı', category: null }]);
       }
 
-      await supabase.from('waste_standards').upsert({
-        keyword: q,
-        keyword_en: parsed.keyword_en || null,
-        waste_percentage: parsed.waste_percentage,
-        note: parsed.note || null,
-        category: parsed.category || null,
-      }).maybeSingle();
+       // 13a (E2E r26 S8): the table only has (id, keyword, waste_percentage,
+       // category, created_at) — the old upsert sent keyword_en + note and
+       // silently failed (no error check), so the AI cache NEVER persisted.
+       const up = await supabase.from('waste_standards').upsert({
+         keyword: q,
+         waste_percentage: parsed.waste_percentage,
+         category: parsed.category || null,
+       }).maybeSingle();
+       if (up.error) console.error('[waste-standards] AI cache upsert failed:', up.error.message);
 
       return NextResponse.json([{
         keyword: q,
@@ -103,7 +105,10 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = svc();
     const body = await req.json();
-    const { keyword, keyword_en, waste_percentage, note, category } = body;
+    const { keyword, waste_percentage, category } = body;
+    // 13a (E2E r26 S8): keyword_en + note do NOT exist in the table — the
+    // old insert 500'd ("Could not find the 'keyword_en' column ... schema
+    // cache"), i.e. the page's create form was hard-broken.
 
     if (!keyword || waste_percentage === undefined) {
       return NextResponse.json({ error: 'keyword və waste_percentage tələb olunur' }, { status: 400 });
@@ -111,7 +116,7 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await supabase
       .from('waste_standards')
-      .insert({ keyword: keyword.toLowerCase().trim(), keyword_en, waste_percentage, note, category })
+      .insert({ keyword: keyword.toLowerCase().trim(), waste_percentage, category: category ?? null })
       .select()
       .single();
 
@@ -134,7 +139,9 @@ export async function PATCH(req: NextRequest) {
   try {
     const supabase = svc();
     const body = await req.json();
-    const { id, keyword, keyword_en, waste_percentage, note, category } = body;
+    const { id, keyword, waste_percentage, category } = body;
+    // 13a (E2E r26 S8): same phantom columns (keyword_en/note/updated_at
+    // don't exist) — PATCH 500'd on every save.
 
     if (!id) {
       return NextResponse.json({ error: 'id tələb olunur' }, { status: 400 });
@@ -142,11 +149,8 @@ export async function PATCH(req: NextRequest) {
 
     const updates: any = {};
     if (keyword !== undefined) updates.keyword = keyword.toLowerCase().trim();
-    if (keyword_en !== undefined) updates.keyword_en = keyword_en;
     if (waste_percentage !== undefined) updates.waste_percentage = waste_percentage;
-    if (note !== undefined) updates.note = note;
     if (category !== undefined) updates.category = category;
-    updates.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
       .from('waste_standards')

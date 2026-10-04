@@ -430,8 +430,8 @@ Tickets, stations (kitchen/grill/fry/dessert/bar/expo), routing, queue, priority
 | RUSH UI (modal toggle + kart red border + ⚡RUSH marker + GÜN) | ✅ **12q** | `orders.is_rush`, `toggle_rush` (frozen) | `/api/kitchen/rush`, KDS modal ghost pill (active = solid red) |
 | 86 / item void UI — **12s: modal ✕ SİLİNDİ (owner)**; 86 = POS-only (comp/waste + PIN); DB mexanizmi qorunur | ✅ **12q → 12s** | `item_kitchen_terminal('voided')` (frozen) | POS `/api/kitchen/void-comp-waste` (`origin:'kds'` exemption + kitchen/`order.void` qüvvədə); KDS modal-da X button YOX |
 | Station-scoped ready (modal CTA + course firing — bir stansiya digərinin item-lərini ready EDƏMƏZ) | ✅ **12r** | `mark_item_ready_atomic` (frozen; rollup təbii 'ready') | `KDSView` `scopeStId`/`inScope`: unified = navbar stansiya, BDS = family; scope bitəndə CTA = sükut hint |
-| **WATCH mode — read-only cross-kitchen (12s):** BDS + unified — digər mətbəx family-sı eyni terminal-da yalnız İZLƏNİR (status/ready/count/qəbul; idarə YOX) | ✅ **12s** | — | `navStations` (öz family + digər kitchen) + `watchMode`: statik circle (button YOX), CTA = sükut "İzləmə" caption, RUSH non-clickable, `inScope()`=false; navbar Eye badge; i18n `kds_watch` |
-| **Modal = stansiya qrupları (12s):** hər stansiya `<section>` (ad + ready/qty); item-lər `station_id` ilə qruplaşır — "Filadelfiya Bar-da görünür" aralandı | ✅ **12s** | — | modal IIFE `groups[]`; read-only qrupda `· İzləmə` marker; flat STANSIYALAR counter bloku YOX |
+| **WATCH mode — read-only cross-kitchen (12s → 12t):** BÜTÜN station-lara eyni qayda — terminal-in öz family-sı (KDS=kitchen, BDS=bar) operable; digər family = yalnız İZLƏNİR (status/ready/count/qəbul; idarə YOX). 12t: KDS Bar tab DA view-only (12s-də operable idi) | ✅ **12s → 12t** | — | `ownType = stationType || 'kitchen'`; `watchMode = family !== ownType`: statik circle (button YOX), CTA = sükut "İzləmə" caption, **12t: modal footer-da HƏMİŞƏ button YOX** (course/RUSH/Hazırdır), navbar Eye badge; i18n `kds_watch` |
+| **Modal = YALNIZ aktiv stansiya (12t):** modal-da başqa stansiya-sının item-ləri HƏMİŞƏ yoxdur (12s-in multi-stansiya qrupları yerini aktiv stansiya-sının flat siyahısına verdi); item `station_id`-i aktiv tab-dan fərqlidirsə görünmür | ✅ **12s → 12t** | — | modal `items` filter: `itemStation(i) === activeStation.id`; empty = `kds_station_empty`; item-lər own tab-da operable, watch tab-da statik |
 | Modifier spec = sükut text, **HƏMİŞƏ ×N (12s)**: "Standart ×1 · Əlavə Losos ×3" — miqdar heç vaxt gizli | ✅ **12r → 12s** | — | kart 11px + modal 12px, ` · ` join (KDS/BDS eyni komponent) |
 | Ticket kimliyi: "Masa 2" / customer_phone — **ORD-kod YOX (12s)**; "Main Kitchen"→"Kitchen" (12s: DB `stations` + literal-lər) | ✅ **12s** | `stations` (live rename) | modal header + kart `metaRest` + `delivery/page.tsx` |
 | Board loading gate + stations retry (yalan "Bütün sifarişlər hazırdır" aralandı) | ✅ **12r** | — | spinner + `kds_loading` (az/en/ru); stations 3× 800ms retry + `stationsLoaded` |
@@ -818,6 +818,26 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-10-04 (ROUND 12t: MODAL = YALNIZ AKTİV STANSİYA + BAR TAB VIEW-ONLY + BÜTÜN STANSİYA-LARA EYNI QAYDA)
+
+Owner (Şəkil 1-4): "Hər modal YALNIZ həmin station-a aid məhsulları göstərsin (Green Tea kimi digər stansiya məhsulları modalda görünməsin) · KDS mətbəx panelində 'Bar' tab yalnız BAXIŞ (view-only) üçün — məhsullar üzərində heç bir klik, seçim, tick və ya digər əməliyyat düyməsi olmasın · Bar tabında da yalnız bar stansiya-sının məhsulları · qaydalar BÜTÜN station-lar üçün eyni · əvvəlki modal / yoxa çıxıb yenidən görünmə / filtr problemləri TAM düzəlsin."
+
+**Model (12t):** terminal-in ÖZ family-sı: KDS (ümumi panel, `stationType` yox) = `kitchen` → Kitchen tab operable, **Bar tab = WATCH**; BDS (`stationType='bar'`) = `bar` → Bar tab operable, Kitchen tab = WATCH (12s). İndi `watchMode = activeStation.family !== ownType` (12s-də yalnız restricted terminal üçün idi — KDS Bar tab operable idi; owner: KDS də Bar-ı yalnız izləsin).
+
+**FIX-ler (`KDSView.tsx`):**
+1. **`ownType = stationType || 'kitchen'`** — tək qayda bütün station-lara (navbar badge də eyni: `stIsWatch = family !== ownType`).
+2. **Modal = yalnız aktiv stansiya:** `items` filterinə `itemStation(i) === activeStation.id` əlavə olundu — 12s-in multi-stansiya qrupları (BAR · İzləmə / KITCHEN section-ləri) YALNIZ aktiv stansiya-sının item-ləri oldu (flat siyahı, qrup header-ləri + `stationMap` silindi). Başqa stansiya-sının item-ləri modalda HƏMİŞƏ yoxdur (öz tab-larında view-only izlənir).
+3. **WATCH footer = view-only:** modal footer watch-da HƏMİŞƏ sükut "İzləmə" sətiri (Eye) + RUSH status markerı (yalnız order rush-dursa) — course-fire button YOX, RUSH button YOX, "Hazırdır" button YOX (12s-in disabled button + böyük RUSH pill-i silindi). Kart: 12s-in statik circle + İzləmə caption (indi KDS Bar tab-da da aktiv).
+4. **`inScope` = `!watchMode && itemStation(i) === activeStation.id`** — BDS-də də eyni (12s `stationType ? null : …` special-case-i aralandı).
+5. **Yoxa çıxıb yenidən görünmə = TAM:** modal X/86 button-sız (12s), tick = in-place progress (sətir heç vaxt drop etmir), poll fail = `return` (orders silinmir, seq guard + optimistic merge 12q), ready flip = in-place (12i). E2E r16: modal 16s açıq qaldı — auto-close YOX, item disappear/reappear YOX (identical DOM).
+6. **Qalıq "supabaseKey is required" (6×, shared-tab history):** kök = 01:33 chunk-u (`.env.local` YARADILMADAN ƏVVƏL compile) — 07:19:10 (r15) son real error; 11:35 HMR recompile-dən sonra bütün chunk-lar real key ilə. **Fresh-tab verification: 0 error / 0 warning** (r16-fresh). Dev server restart ETMƏDİK (owner test-də idi — HMR qaydası).
+
+**E2E (r16, dark+light, read-only — heç bir tick/CTA toxunulmayıb):** KDS: Kitchen tab = Filadelfiya YALNIZ (card+modal, operable tick/RUSH/Hazırdır), Bar tab = Green Tea YALNIZ (card: statik circle + İzləmə caption; modal: heç bir button YOX, footer = sükut İzləmə) ✓; navbar İzləmə badge Bar-da ✓; BDS: Bar = Green Tea operable (card+modal tick/RUSH/Hazırdır) ✓, Kitchen = Filadelfiya view-only (card+modal button YOX) ✓; 16s modal hold = stable ✓; fresh console 0 ✓. Screenshot-lar: `e2e-shots/r16-*`.
+
+**Order-level qeyd (owner bilməlidir):** Masa 2-dəki "Qeyd: green tee soyuq olsn" = `orders.customer_note` (ORDER-level, item-lərin `special_notes`-ləri boşdur) → bütün station kartlarında görünür (order info = status, məhsul DEYİL). Item-level qeydlər station-scope-dan keçir (yalnız həmin item göründükdə). Owner istəsə order-note də station-a bölünə bilər.
+
+**Fayllar:** `KDSView.tsx`, `e2e-shots/r16-*`, `HANDOFF_12T.md`.
 
 ### Jurnal sətiri — 2026-10-04 (ROUND 12s: MODAL STANSIYA QUPRULARI + BDS WATCH MODE + X/ORD KOD SİLİNDİ + MODIFIER HƏMİŞƏ ×N)
 

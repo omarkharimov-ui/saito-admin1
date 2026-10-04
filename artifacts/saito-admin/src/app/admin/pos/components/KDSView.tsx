@@ -1253,9 +1253,14 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     boardStations.find(s => s.name === 'Kitchen') ||
     boardStations[0] ||
     null;
-  // 12s: the active station is a SIBLING family (BDS watching Kitchen) →
-  // READ-ONLY board (status/accept visible, no controls).
-  const watchMode = !!stationType && !!activeStation && (activeStation.station_type || 'kitchen') !== stationType;
+  // 12t (owner): the terminal's OWN family — KDS (unified panel, no
+  // stationType) = 'kitchen': its Kitchen tab is operable, the Bar tab is
+  // WATCH (view-only). BDS (stationType='bar') = 'bar': its Bar tab is
+  // operable, the Kitchen tab is WATCH. A station is operable ONLY when its
+  // family matches the terminal's own — the SAME rule for every station
+  // ("bu qaydalar bütün station-lar üçün eyni şəkildə").
+  const ownType = stationType || 'kitchen';
+  const watchMode = !!activeStation && (activeStation.station_type || 'kitchen') !== ownType;
   const activeTickets = activeStation
     ? stationTickets(activeStation.id).slice().sort((a, b) => {
         const ra = stationAllDone(a, activeStation.id) ? 0 : 1;
@@ -1318,8 +1323,9 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
           {navStations.map(st => {
             const navActive = !dayView && activeStation?.id === st.id;
             const n = stationTickets(st.id).length;
-            // 12s: a restricted terminal's sibling station = WATCH tab.
-            const stIsWatch = !!stationType && (st.station_type || 'kitchen') !== stationType;
+            // 12t: any station of another family than the terminal's own =
+            // WATCH tab (KDS: Bar; BDS: Kitchen).
+            const stIsWatch = (st.station_type || 'kitchen') !== ownType;
             return (
               <button
                 key={st.id}
@@ -1482,8 +1488,14 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
         {expandedOrder && (() => {
           const o = expandedOrder;
           const timer = getItemTimerStatus(o.created_at, Math.max(1, Math.round(delayMin / 2)), delayMin);
-          const items = o.items.filter(i => (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status));
-          const allReady = items.length > 0 && items.every(isItemReady);
+          // 12t (owner): the modal shows ONLY the ACTIVE STATION's items —
+          // "hər modal yalnız həmin station-a aid məhsulları göstərsin".
+          // Other stations' items live on their OWN tab (view-only watch) —
+          // they never appear inside this modal (12s showed them as an
+          // "İzləmə" group; the owner wants them out entirely).
+          const items = o.items.filter(i =>
+            (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status)
+            && (!activeStation || itemStation(i) === activeStation.id));
            // 12i: workflow state (modal footer + header status label).
            const wf = kdsWorkflowState(o, isItemReady, nowMs);
            // 12q: fireable courses (Lightspeed "course-based firing" parity) —
@@ -1495,10 +1507,12 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             // Modal CTA + course firing touch ONLY this scope; the old
             // whole-order call let the Bar chef ready Main Kitchen's food
             // (E2E r13v STEP 4.1: Bar CTA → both stations 1/1).
-            const scopeStId = stationType ? null : (activeStation ? activeStation.id : null);
-            // watchMode (BDS watching Kitchen) → EVERYTHING is read-only.
-            const inScope = (i: KDSItem) =>
-              !watchMode && itemInBoard(i) && (scopeStId ? itemStation(i) === scopeStId : true);
+             // 12t: the terminal's ACTION SCOPE = the active station (both
+             // terminals — BDS included). watchMode (a sibling-family tab —
+             // KDS Bar, BDS Kitchen) → EVERYTHING is read-only.
+             const scopeStId = activeStation ? activeStation.id : null;
+             const inScope = (i: KDSItem) =>
+               !watchMode && !!scopeStId && itemStation(i) === scopeStId;
             const fireableCourses = Array.from(new Set(
               o.items
                 .filter(i => (i.quantity ?? 0) > 0 && ['pending', 'accepted'].includes(i.kitchen_status))
@@ -1506,16 +1520,6 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 .map(i => i.course || 'main'),
             ));
           const wfMeta = wfMetaFor(wf, lightMode);
-          const stationMap = new Map<string, { name: string; qty: number; ready: number }>();
-          for (const it of items) {
-            const st = itemStation(it);
-            const nm = st ? (stations.find(s => s.id === st)?.name || 'Kitchen') : 'Kitchen';
-            const e = stationMap.get(nm) || { name: nm, qty: 0, ready: 0 };
-            e.qty += it.quantity;
-            // 12i: served = done (the station's share is finished).
-            if (isItemTicked(it)) e.ready += it.quantity; // 12o: ticked (prepared) counts too
-            stationMap.set(nm, e);
-          }
           const title = o.order_source === 'dine_in' ? `Masa ${o.table_number ?? '?'}` : o.customer_name || (o.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'));
           return (
             <motion.div
@@ -1585,40 +1589,18 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                      inside boxes. The full spec stays (modifiers + ₼,
                      allergens, notes) — now as quiet typography. */}
                  <div className="p-5 flex-1 min-h-0 overflow-y-auto">
-                    {/* Məhsullar — 12s (owner): grouped PER STATION. Each
-                        kitchen's items are action-able; OTHER stations'
-                        items stay visible READ-ONLY (status + accept —
-                        "yalnız izləyə bilsin, idarə edə bilməsin"). The
-                        old flat list + separate STANSIYALAR counts made
-                        item→station ownership ambiguous (owner: "Filadelfiya
-                        niyə Bar bölməsində görünür?"). */}
-                    {(() => {
-                      const groups: { name: string; items: KDSItem[] }[] = [];
-                      for (const gi of items) {
-                        const gst = itemStation(gi);
-                        const gnm = gst ? (stations.find(x => x.id === gst)?.name || 'Kitchen') : (stationType ? null : 'Kitchen');
-                        if (!gnm) continue;
-                        let g = groups.find(x => x.name === gnm);
-                        if (!g) { g = { name: gnm, items: [] }; groups.push(g); }
-                        g.items.push(gi);
-                      }
-                      return groups.map(g => {
-                        const gStat = stationMap.get(g.name);
-                        const gDone = gStat ? gStat.ready >= gStat.qty : false;
-                        const gOwn = g.items.every(i => inScope(i));
-                        return (
-                          <section key={g.name} className="mt-5 first:mt-0">
-                            <div className="flex items-center justify-between pb-1.5">
-                              <span className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                {g.name}
-                                {!gOwn && <span className={`ml-1.5 normal-case tracking-normal font-medium ${lightMode ? 'text-zinc-300' : 'text-white/20'}`}>· {t('kds_watch')}</span>}
-                              </span>
-                              {gStat && (
-                                <span className={`text-[11px] font-semibold tabular-nums ${gDone ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-400' : 'text-white/40')}`}>{gStat.ready}/{gStat.qty}</span>
-                              )}
-                            </div>
-                            <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.06]'}`}>
-                            {g.items.map(item => {
+                     {/* Məhsullar — 12t (owner): the modal is STATION-SCOPED —
+                         only the ACTIVE STATION's items (the tab already names
+                         the station; 12s's multi-station groups are gone —
+                         "hər modal yalnız həmin station-a aid məhsulları
+                         göstərsin"). In WATCH mode every circle is a static
+                         read-only status (no buttons — "yalnız baxış, heç bir
+                         klik/tick/əməliyyat düyməsi"). */}
+                     {items.length === 0 ? (
+                       <p className={`text-sm ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{t('kds_station_empty')}</p>
+                     ) : (
+                     <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.06]'}`}>
+                     {items.map(item => {
                          // 12o: circle lit = declared-ready OR ticked (prepared progress).
                          const itemReady = isItemTicked(item);
                         // 12m (owner): NO prices in KDS/BDS — modifier names +
@@ -1709,18 +1691,15 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                                   }`}>
                                     {(itemReady || itemServed) && <span className="text-lg font-bold leading-none">✓</span>}
                                   </div>
-                                )}
-                             </div>
-                           </div>
-                         );
-                         })}
+                                 )}
+                              </div>
                             </div>
-                          </section>
-                        );
-                      });
-                    })()}
+                          );
+                          })}
+                     </div>
+                     )}
 
-                    {/* Müştəri — flat section */}
+                     {/* Müştəri — flat section */}
                    {o.order_source !== 'dine_in' && (
                      <section className="mt-5">
                        <p className={`text-[11px] font-semibold uppercase tracking-[0.12em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_customer')}</p>
@@ -1762,12 +1741,33 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                        share only) — the order goes 'ready' via rollup when the
                        LAST station finishes; SERVE stays the POS floor action
                        (12i). */}
-                   <div className="p-5 pt-0 flex-shrink-0">
-                     {/* 12q: course firing — Lightspeed parity. Each button
-                         sends that course's pending/accepted items to
-                         'preparing' (fire_course_atomic) so later courses
-                         can be held while the first is plated. */}
-                     {fireableCourses.length > 0 && (
+                    <div className="p-5 pt-0 flex-shrink-0">
+                      {/* 12t (owner): WATCH tab = VIEW-ONLY — the footer has
+                          NO buttons at all (no course fire, no RUSH, no
+                          "Hazırdır"): only a quiet "İzləmə" status line + a
+                          small RUSH marker when the ticket is urgent.
+                          "heç bir klik, seçim, tick və ya digər əməliyyat
+                          düyməsi olmasın". */}
+                      {watchMode ? (
+                        <div className="flex items-center gap-3">
+                          <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                            <Eye size={12} />
+                            {t('kds_watch')}
+                          </span>
+                          {(wf === 'pending' || wf === 'preparing') && o.is_rush && (
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider ${lightMode ? 'text-red-500' : 'text-red-400'}`}>
+                              <Zap size={11} />
+                              {t('kds_rush')}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                      <>
+                      {/* 12q: course firing — Lightspeed parity. Each button
+                          sends that course's pending/accepted items to
+                          'preparing' (fire_course_atomic) so later courses
+                          can be held while the first is plated. */}
+                      {fireableCourses.length > 0 && (
                        <div className="flex items-center gap-2 mb-2.5">
                          {fireableCourses.map(c => (
                            <button
@@ -1787,32 +1787,20 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                            visual direction, red is reserved for critical
                            states (overdue / rush). Hidden once the order is
                            ready/serving (kitchen work is done). */}
-                        {(wf === 'pending' || wf === 'preparing') && (
-                          watchMode ? (
-                            /* 12s: watch tab — RUSH is a status indicator only
-                               (visible, not togglable). */
-                            <span className={`shrink-0 inline-flex items-center gap-1.5 h-12 px-4 rounded-2xl border text-xs font-bold uppercase tracking-wider ${
-                              o.is_rush
-                                ? (lightMode ? 'bg-red-600/60 border-red-600/60 text-white' : 'bg-red-500/50 border-red-500/50 text-zinc-950')
-                                : (lightMode ? 'bg-white border-zinc-200 text-zinc-400' : 'bg-transparent border-white/10 text-white/25')
-                            }`}>
-                              <Zap size={13} />{t('kds_rush')}
-                            </span>
-                          ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleRush(o.id)}
-                            title={o.is_rush ? t('kds_rush_toggle_off') : t('kds_rush_toggle_on')}
-                            className={`shrink-0 inline-flex items-center gap-1.5 h-12 px-4 rounded-2xl border text-xs font-bold uppercase tracking-wider transition-all duration-200 active:scale-[0.97] ${
-                              o.is_rush
-                                ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-zinc-950')
-                                : (lightMode ? 'bg-white border-zinc-300 text-zinc-500 hover:border-red-400 hover:text-red-500' : 'bg-transparent border-white/20 text-white/40 hover:border-red-400/70 hover:text-red-400')
-                            }`}
-                          >
-                            <Zap size={13} />{t('kds_rush')}
-                          </button>
-                          )
-                        )}
+                         {(wf === 'pending' || wf === 'preparing') && (
+                           <button
+                             type="button"
+                             onClick={() => handleRush(o.id)}
+                             title={o.is_rush ? t('kds_rush_toggle_off') : t('kds_rush_toggle_on')}
+                             className={`shrink-0 inline-flex items-center gap-1.5 h-12 px-4 rounded-2xl border text-xs font-bold uppercase tracking-wider transition-all duration-200 active:scale-[0.97] ${
+                               o.is_rush
+                                 ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-zinc-950')
+                                 : (lightMode ? 'bg-white border-zinc-300 text-zinc-500 hover:border-red-400 hover:text-red-500' : 'bg-transparent border-white/20 text-white/40 hover:border-red-400/70 hover:text-red-400')
+                             }`}
+                           >
+                             <Zap size={13} />{t('kds_rush')}
+                           </button>
+                         )}
                         {(() => {
                           let label = t('kds_ready_btn');
                           let active = true;
@@ -1844,13 +1832,15 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                                  : (lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90')
                              }`}
                            >
-                             {label}
-                           </button>
-                         );
-                       })()}
-                     </div>
-                   </div>
-              </motion.div>
+                              {label}
+                            </button>
+                          );
+                        })()}
+                      </div>
+                      </>
+                      )}
+                    </div>
+               </motion.div>
             </motion.div>
           );
         })()}

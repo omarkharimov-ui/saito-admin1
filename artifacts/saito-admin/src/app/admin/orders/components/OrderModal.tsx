@@ -87,8 +87,10 @@ export const OrderModal = ({
         body: JSON.stringify({ action: 'update', id: order.id, data: { customer_id: customerId } }),
       });
       if (customerId) {
-        const { data } = await supabase.from('customers').select('name').eq('id', customerId).single();
-        if (data) setCustomerName(data.name);
+        // 13d: service-role lookup — browser cannot read `customers` (RLS: zero policies)
+        const r = await fetch(`/api/customers?id=${customerId}`);
+        const rows: any[] = r.ok ? await r.json() : [];
+        if (rows[0]) setCustomerName(rows[0].name);
       } else {
         setCustomerName(null);
       }
@@ -104,9 +106,11 @@ export const OrderModal = ({
 
   useEffect(() => {
     if (order.customer_id) {
-      supabase.from('customers').select('name').eq('id', order.customer_id).single().then(({ data }) => {
-        if (data) setCustomerName(data.name);
-      });
+      // 13d: service-role lookup (browser RLS on `customers` = always empty)
+      fetch(`/api/customers?id=${order.customer_id}`)
+        .then(r => (r.ok ? r.json() : []))
+        .then((rows: any[]) => { if (rows[0]) setCustomerName(rows[0].name); })
+        .catch(() => {});
     } else {
       setCustomerName(null);
     }
@@ -221,12 +225,12 @@ export const OrderModal = ({
     setSelectedCancelItems({});
     setCancelledItemsHistory([]);
     setLoadingCancelled(true);
-    supabase
-      .from('cancelled_orders')
-      .select('*')
-      .eq('order_id', order.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => { setCancelledItemsHistory(data || []); setLoadingCancelled(false); });
+    // 13d: service-role read — `cancelled_orders` was RLS-blocked for the
+    // browser, so this per-order cancel history was always empty.
+    fetch(`/api/cancelled-orders?order_id=${order.id}`)
+      .then(r => (r.ok ? r.json() : []))
+      .then((data) => { setCancelledItemsHistory(Array.isArray(data) ? data : []); setLoadingCancelled(false); })
+      .catch(() => setLoadingCancelled(false));
   }, [order.id]);
 
   useEffect(() => {
@@ -258,7 +262,10 @@ export const OrderModal = ({
     const snapDraft = { ...draftQty };
     const snapDeleted = new Set(deletedIds);
     setDraftQty({}); setDeletedIds(new Set()); setPendingDeleteItemId(null);
-    closeAndRefresh();
+    // 13d-A2: close now, refresh LATER — the old closeAndRefresh() reloaded
+    // the list BEFORE the async bridge calls finished → the background list
+    // rendered stale totals until a manual reload (E2E r28b catch).
+    onClose();
     const snapReturned = new Set(returnedIds);
     setReturnedIds(new Set());
 
@@ -275,10 +282,15 @@ export const OrderModal = ({
           if ((item.served_quantity ?? 0) > 0) continue;
           qtyReductionReversal.push({ order_item_id: id, reverse_qty: diff });
         }
+        // 13d-A2: service-role bridge — the browser RPC was 401 (no anon
+        // EXECUTE grant) and the old call never checked `.error`, so stock
+        // reversals for consumed (READY) items were silently lost.
         if (qtyReductionReversal.length > 0) {
-          await supabase.rpc('reverse_stock_for_items', {
-            p_items: JSON.stringify(qtyReductionReversal),
+          const rsRes = await fetch('/api/orders/reverse-stock', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: qtyReductionReversal }),
           });
+          if (!rsRes.ok) throw new Error((await rsRes.json().catch(() => ({}))).error || 'Stok geri qaytarılmadı');
         }
 
         // Cancel deleted/returned items via RPC (handles delete + stock reversal + total recalc)
@@ -291,26 +303,33 @@ export const OrderModal = ({
               return { order_item_id: id, quantity: item.quantity };
             })
             .filter(Boolean) as { order_item_id: string; quantity: number }[];
+          // 13d-A2: service-role bridge — browser RPC 401 + unchecked error
+          // = deleted/returned items were silently NOT removed.
           if (cancelItems.length > 0) {
-            await supabase.rpc('cancel_order_items', {
-              p_order_id: order.id,
-              p_items: JSON.stringify(cancelItems),
+            const ciRes = await fetch('/api/orders/cancel-items', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ order_id: order.id, items: cancelItems }),
             });
+            if (!ciRes.ok) throw new Error((await ciRes.json().catch(() => ({}))).error || 'Məhsullar ləğv edilmədi');
           }
         }
 
-        // Update qty-changed items via RPC (FOR UPDATE + kitchen_status reset)
+        // 13d: service-role bridge for `update_order_item_quantity`.
+        // The browser RPC was SECURITY INVOKER: under RLS the function's
+        // `SELECT ... INTO` found no rows → ORDER_ITEM_NOT_FOUND → every qty
+        // edit saved here was SILENTLY LOST. Now errors are thrown, so a real
+        // failure surfaces instead of vanishing.
         for (const [id, qty] of Object.entries(snapDraft)) {
           const item = order.order_items?.find(i => i.id === id);
           if (!item) continue;
           const served = item.served_quantity ?? 0;
           if (qty < served) continue;
           const unit = item.unit_price || (item.total_price / item.quantity);
-          await supabase.rpc('update_order_item_quantity', {
-            p_order_item_id: id,
-            p_quantity: qty,
-            p_unit_price: unit,
+          const r = await fetch('/api/orders/item-quantity', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_item_id: id, quantity: qty, unit_price: unit }),
           });
+          if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Məhsul miqdarı yenilənə bilmədi (${id})`);
         }
 
         // Compute final values for order update
@@ -342,6 +361,7 @@ export const OrderModal = ({
           body: JSON.stringify({ action: 'update', id: order.id, data: updateData }),
         });
         if (!updRes.ok) throw new Error('Order update failed');
+        onRefresh(); // 13d-A2: list refresh only after all writes persisted
       } catch (err: any) {
         onRefresh();
         toast.error(t('error') + ': ' + (err?.message ?? t('error_saving')), { id: 'action-toast' });
@@ -359,12 +379,15 @@ export const OrderModal = ({
 
   const _handleCancelOrder = async (reasonKey: string) => {
     const reasonLabel = cancellationReasons.find(r => r.key === reasonKey)?.label || reasonKey;
-    await supabase.from('cancelled_orders').insert([{
-      order_id: order.id, table_number: order.table_number, total_amount: order.total_amount,
-      reason: reasonKey, reason_text: reasonLabel,
-      items: order.order_items?.map(i => ({ name: getProductName(i), quantity: i.quantity, price: i.unit_price })) || [],
-      created_at: new Date().toISOString(),
-    }]);
+    // 13d: service-role insert (browser RLS blocked this audit row)
+    await fetch('/api/cancelled-orders', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_id: order.id, table_number: order.table_number, total_amount: order.total_amount,
+        reason: reasonKey, reason_text: reasonLabel,
+        items: order.order_items?.map(i => ({ name: getProductName(i), quantity: i.quantity, price: i.unit_price })) || [],
+      }),
+    });
     // Set order as cancelled via API
     await fetch('/api/orders', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -389,10 +412,16 @@ export const OrderModal = ({
       });
     if (itemsToCancel.length === 0) { toast.error(t('no_items_to_cancel'), { id: 'action-toast' }); return; }
     const totalCancelledAmount = itemsToCancel.reduce((sum, i) => sum + i.total_price, 0);
-    await supabase.from('cancelled_orders').insert([{
-      order_id: order.id, table_number: order.table_number, total_amount: totalCancelledAmount,
-      reason: reasonKey, reason_text: reasonLabel, items: itemsToCancel, created_at: new Date().toISOString(),
-    }]);
+    // 13d: service-role insert — the browser RLS was silently DROPPING this
+    // audit row (partial cancels had no trace in the 13a-revived audit page).
+    const auditRes = await fetch('/api/cancelled-orders', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_id: order.id, table_number: order.table_number, total_amount: totalCancelledAmount,
+        reason: reasonKey, reason_text: reasonLabel, items: itemsToCancel,
+      }),
+    });
+    if (!auditRes.ok) throw new Error((await auditRes.json().catch(() => ({}))).error || 'Ləğv qeydi yazılmadı');
     // Split items into fully-cancelled (delete) and partially-cancelled (qty reduce)
     const fullCancelItems: { order_item_id: string; quantity: number }[] = [];
     const partialCancelItems: { order_item_id: string; new_qty: number; unit_price: number; cancel_qty: number }[] = [];
@@ -405,25 +434,33 @@ export const OrderModal = ({
         partialCancelItems.push({ order_item_id: item.id, new_qty: orderItem.quantity - item.quantity, unit_price: orderItem.unit_price || 0, cancel_qty: item.quantity });
       }
     }
-    // Full cancel via RPC (handles delete + stock reversal + total recalc)
+    // 13d-A2: service-role bridge (browser RPC 401 + unchecked error →
+    // E2E r28b: whole-line cancel wrote the audit row + success toast but
+    // the item was never removed). Now failures throw → real error toast.
     if (fullCancelItems.length > 0) {
-      await supabase.rpc('cancel_order_items', {
-        p_order_id: order.id,
-        p_items: JSON.stringify(fullCancelItems),
+      const ciRes = await fetch('/api/orders/cancel-items', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: order.id, items: fullCancelItems }),
       });
+      if (!ciRes.ok) throw new Error((await ciRes.json().catch(() => ({}))).error || 'Məhsul ləğv edilmədi');
     }
-    // Partial cancel via RPC (handles qty update + kitchen_status reset)
+    // 13d: partial cancel via service-role bridge (the browser RPC was
+    // INVOKER → ORDER_ITEM_NOT_FOUND → qty reduction silently lost while stock
+    // was still reversed = inconsistent state)
     for (const item of partialCancelItems) {
-      await supabase.rpc('update_order_item_quantity', {
-        p_order_item_id: item.order_item_id,
-        p_quantity: item.new_qty,
-        p_unit_price: item.unit_price,
+      const qtyRes = await fetch('/api/orders/item-quantity', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_item_id: item.order_item_id, quantity: item.new_qty, unit_price: item.unit_price }),
       });
+      if (!qtyRes.ok) throw new Error((await qtyRes.json().catch(() => ({}))).error || 'Miqdar ləğvi uğursuz oldu');
       // Reverse the cancelled portion through the canonical ledger (H6).
       // No-op when the item was never consumed; idempotency-keyed otherwise.
-      await supabase.rpc('reverse_stock_for_items', {
-        p_items: JSON.stringify([{ order_item_id: item.order_item_id, reverse_qty: item.cancel_qty }]),
+      // 13d-A2: service-role bridge (browser RPC was 401, unchecked).
+      const rsRes = await fetch('/api/orders/reverse-stock', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: [{ order_item_id: item.order_item_id, reverse_qty: item.cancel_qty }] }),
       });
+      if (!rsRes.ok) throw new Error((await rsRes.json().catch(() => ({}))).error || 'Stok geri qaytarılmadı');
     }
     const newOrderTotal = (order.total_amount || 0) - totalCancelledAmount;
     await fetch('/api/orders', {
@@ -565,23 +602,30 @@ export const OrderModal = ({
         extraTotal += unitPrice * item.quantity;
       }
 
-      // Insert new items via RPC (FOR UPDATE, automatic total recalc)
+      // 13d-A2: "add product to an existing order" via the PROVEN
+      // /api/orders addItems action (service-role insert + discount-aware
+      // total recompute). NOT the add_order_items RPC: (a) the browser 401s
+      // (no anon EXECUTE), (b) the function itself is dead at plan time —
+      // it inserts a text-typed `v_item->>'modifiers'` into the jsonb
+      // column, which Postgres rejects for EVERY payload (E2E r28d:
+      // "column modifiers is of type jsonb but expression is of type text").
       if (newItems.length > 0) {
-        const { error: insErr } = await supabase.rpc('add_order_items', {
-          p_order_id: order.id,
-          p_items: JSON.stringify(newItems),
+        const addRes = await fetch('/api/orders', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'addItems', id: order.id, items: newItems }),
         });
-        if (insErr) throw insErr;
+        const addData = await addRes.json().catch(() => ({}));
+        if (!addRes.ok) throw new Error(addData.error || 'Məhsul əlavə olunmadı');
       }
 
-      // Update existing item qty via RPC (FOR UPDATE, kitchen_status reset)
+      // 13d-A2: existing-item qty merge via the item-quantity bridge (the
+      // browser RPC was INVOKER + no anon EXECUTE → ORDER_ITEM_NOT_FOUND).
       for (const upd of existingUpdates) {
-        const { error: updErr } = await supabase.rpc('update_order_item_quantity', {
-          p_order_item_id: upd.id,
-          p_quantity: upd.qty,
-          p_unit_price: upd.unitPrice,
+        const qtyRes = await fetch('/api/orders/item-quantity', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_item_id: upd.id, quantity: upd.qty, unit_price: upd.unitPrice }),
         });
-        if (updErr) throw updErr;
+        if (!qtyRes.ok) throw new Error((await qtyRes.json().catch(() => ({}))).error || 'Miqdar yenilənə bilmədi');
       }
 
       // Update order total via API (add_order_items already added, need to add existing items' extra too)

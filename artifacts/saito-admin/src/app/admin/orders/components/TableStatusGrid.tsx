@@ -14,7 +14,6 @@ import type { Order, TableFilterType, TableFloor } from '../types';
 import { getOrderAgeMinutes, getKitchenStatusConfig } from '../utils';
 import { GitMerge } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
-import { supabase } from '@/lib/supabase';
 
 /* ─── TableCell ─── */
 const TableCell = React.memo(function TableCell({
@@ -180,14 +179,17 @@ export function TableStatusGrid({
   const [floorAssignments, setFloorAssignments] = useState<Map<number, string>>(new Map());
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
 
+  // 13d: service-role read — the browser could not see `table_floors` (RLS),
+  // so the floor filter had no floors to show.
   useEffect(() => {
-    supabase.from('table_floors').select('*').order('sort_order').then(({ data }) => {
-      if (data) {
+    fetch('/api/floors', { cache: 'no-store' }).then(async res => {
+      if (res.ok) {
+        const data = (await res.json()) as TableFloor[];
         const map = new Map<number, string>();
-        (data as TableFloor[]).forEach(f => map.set(f.table_number, f.floor_name));
+        data.forEach(f => map.set(f.table_number, f.floor_name));
         setFloorAssignments(map);
       }
-    });
+    }).catch(() => {});
   }, []);
 
   const floorNames = useMemo(() => {

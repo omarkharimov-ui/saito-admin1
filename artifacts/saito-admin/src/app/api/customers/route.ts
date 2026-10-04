@@ -14,12 +14,24 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
+    const byId = searchParams.get('id') || '';
     const limit = parseInt(searchParams.get('limit') || '20');
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
     if (!url || !key) {
       return NextResponse.json({ error: 'Missing Supabase configuration' }, { status: 500 });
+    }
+
+    // 13d: direct id lookup (POS OrderModal customer-name display) — the
+    // browser cannot read `customers` (RLS enabled, zero policies for it).
+    if (byId) {
+      const idRes = await fetch(
+        `${url}/rest/v1/customers?select=id,name,phone,total_visits,total_spent&id=eq.${byId}&limit=1`,
+        { headers: { 'apikey': key, 'Authorization': `Bearer ${key}` } }
+      );
+      if (!idRes.ok) return NextResponse.json({ error: 'Failed to fetch customers' }, { status: 500 });
+      return NextResponse.json(await idRes.json());
     }
 
     let query = `${url}/rest/v1/customers?select=id,name,phone,total_visits,total_spent&order=total_visits.desc&limit=${limit}`;

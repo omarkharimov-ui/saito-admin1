@@ -275,10 +275,16 @@ export function useOrders() {
 
   const handleClearTable = useCallback(async (tableNum: number) => {
     try {
-      // RPC — FOR UPDATE, reverses stock, cancels orders, releases table
-      // All named args: DB has 2 overloads of this RPC; p_table_number alone is ambiguous (PGRST203)
-      const { error } = await supabase.rpc('cancel_table_orders', { p_table_number: tableNum, p_reason: 'cleared_from_orders', p_performed_by: null });
-      if (error) throw error;
+      // 13d-A2: service-role bridge — the browser RPC was 401 (no anon
+      // EXECUTE grant), so "clear table" from the orders page failed with
+      // a visible error and the table stayed locked.
+      const res = await fetch('/api/orders/cancel-table', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_number: tableNum, reason: 'cleared_from_orders' }),
+      });
+      const ctData = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(ctData.error || 'Table clear failed');
 
       // Optimistic remove from UI
       setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => x.table_number === tableNum)));

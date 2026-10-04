@@ -16,8 +16,19 @@ interface Report {
   cogs: { total_cogs: number; total_waste: number; by_day: { date: string; cogs: number; waste: number }[] };
   avt: { id: string; name: string; unit: string; theoretical: number; actual: number; variance: number; variance_pct: number | null }[];
   shrinkage: { id: string; name: string; unit: string; qty: number; cost: number }[];
+  /** 13d: 28-day waste PATTERN (Toast "track patterns of missing value"). */
+  shrinkage_pattern: {
+    window_days: number;
+    total_cost: number;
+    weeks: { start: string; cost: number; qty: number }[];
+    week_over_week_pct: number | null;
+    by_weekday: { cost: number }[];
+    top: { id: string; name: string; unit: string; cost: number; qty: number; trend_pct: number | null }[];
+  } | null;
   freshness: { expiring: { id: string; name: string; unit: string; qty: number; expiry_date: string; expired: boolean }[]; batches_total: number };
 }
+
+const WEEKDAY_AZ = ['B.e', 'Çax', 'Ç', 'Cax', 'C', 'Ş', 'B'];
 
 function Card({ title, icon, children, sub }: { title: string; icon?: React.ReactNode; children: React.ReactNode; sub?: string }) {
   return (
@@ -124,6 +135,72 @@ export default function ReportsTab() {
           <span className="flex items-center gap-1.5 text-[10px] text-white/45 font-bold"><span className="w-2.5 h-2.5 rounded-sm bg-rose-500/70" /> İtki</span>
         </div>
       </Card>
+
+      {/* 13d: shrinkage pattern (28g) — weeks, weekday heat, top drivers w/ trend */}
+      {report.shrinkage_pattern && (
+        <Card title="İtki Pattern" sub="28 gün · həftəlik" icon={<TrendingDown size={13} className="text-rose-400" />}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* weekly totals */}
+            <div className="space-y-2">
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-white/30">Həftələr</p>
+              {report.shrinkage_pattern.weeks.map((w, i) => (
+                <div key={w.start} className="flex items-center justify-between gap-2 text-[11px]">
+                  <span className="text-white/40 font-bold">H{i + 1} · {new Date(w.start).toLocaleDateString('az', { day: 'numeric', month: 'short' })}</span>
+                  <span className={`tabular-nums font-black ${i === 3 ? 'text-white' : 'text-white/55'}`}>{w.cost.toLocaleString('az')} ₼</span>
+                </div>
+              ))}
+              <div className="pt-1.5 border-t border-white/[0.06] flex items-center justify-between text-[11px]">
+                <span className="text-white/40 font-bold">Toplam</span>
+                <span className="tabular-nums font-black text-rose-400">{report.shrinkage_pattern.total_cost.toLocaleString('az')} ₼</span>
+              </div>
+              {report.shrinkage_pattern.week_over_week_pct != null && (
+                <p className={`flex items-center gap-1.5 text-[11px] font-black ${report.shrinkage_pattern.week_over_week_pct > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {report.shrinkage_pattern.week_over_week_pct > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                  keçən həftəyə {report.shrinkage_pattern.week_over_week_pct > 0 ? '+' : ''}{report.shrinkage_pattern.week_over_week_pct}%
+                </p>
+              )}
+            </div>
+            {/* weekday heat */}
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-white/30 mb-2">Gün paylanması</p>
+              <div className="flex items-end gap-1.5 h-24">
+                {report.shrinkage_pattern.by_weekday.map((d, i) => {
+                  const max = Math.max(1, ...report.shrinkage_pattern!.by_weekday.map(x => x.cost));
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end" title={`${WEEKDAY_AZ[i]}: ${d.cost} ₼`}>
+                      <div className="w-full rounded-t-md bg-rose-500/60" style={{ height: `${(d.cost / max) * 100}%`, minHeight: d.cost > 0 ? 3 : 0 }} />
+                      <span className="text-[8px] font-bold text-white/30">{WEEKDAY_AZ[i]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {/* top drivers + trend */}
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-white/30 mb-2">Top itkilər · trend</p>
+              {report.shrinkage_pattern.top.length === 0 ? (
+                <p className="text-xs text-white/35 py-4">28 gündə itki qeydi yoxdur.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {report.shrinkage_pattern.top.map(s => (
+                    <div key={s.id} className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="min-w-0 truncate font-bold text-white/75">{s.name}</span>
+                      <span className="shrink-0 flex items-center gap-2 tabular-nums">
+                        {s.trend_pct != null ? (
+                          <span className={`flex items-center gap-0.5 font-black ${s.trend_pct > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                            {s.trend_pct > 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}{s.trend_pct > 0 ? '+' : ''}{s.trend_pct}%
+                          </span>
+                        ) : <span className="text-white/25">—</span>}
+                        <b className="text-rose-400">{s.cost.toLocaleString('az')} ₼</b>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* AvT */}

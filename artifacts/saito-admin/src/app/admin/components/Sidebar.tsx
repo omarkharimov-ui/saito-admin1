@@ -114,6 +114,15 @@ const Sidebar = ({
                     {link.name}
                   </span>
 
+                  {/* 13d-A2: badge was fed by NotificationContext but never
+                      rendered on the desktop sidebar (mobile dock only) —
+                      pending-reservation count was invisible. */}
+                  {typeof link.badge === 'number' && link.badge > 0 && (
+                    <span className="shrink-0 min-w-[18px] h-[18px] px-1.5 rounded-full bg-gold/15 border border-gold/40 text-gold text-[9px] font-black tabular-nums flex items-center justify-center">
+                      {link.badge > 99 ? '99+' : link.badge}
+                    </span>
+                  )}
+
                   {isActive && (
                     <motion.div
                       layoutId="active-glow"

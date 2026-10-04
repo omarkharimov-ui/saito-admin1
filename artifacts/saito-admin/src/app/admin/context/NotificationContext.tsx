@@ -3,7 +3,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { toast, type Toast } from '@/lib/toast';
 import { CheckCircle2, X } from '@/components/ui/saito-icons';
-import { supabase } from '@/lib/supabase';
+// 13d: direct browser supabase queries removed (RLS-dead — app.current_role
+// not set for user sessions); all badge data now comes from /api/admin/badges.
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { getSettings } from '@/lib/settings-client';
 
@@ -128,41 +129,50 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (audio) audio.play().catch(() => {});
   }, [audio]);
 
+  // 13d: ONE service-role call for every badge. The old implementation polled
+  // `orders` / `reservations` directly from the browser — RLS-gated (the
+  // pooler does not set app.current_role for user sessions) → the navbar bell
+  // was permanently 0, the "yeni rezervasiya" sound never fired, and the
+  // overdue-order warning never ran. All silently.
+  const delayMinutesRef = useRef(20);
+  const fetchBadges = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/badges?delay_minutes=${delayMinutesRef.current}`, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const d = await res.json();
+      if (skipOrdersOnMobileRef.current) {
+        setNewOrdersCount(0);
+        setReadyOrdersCount(0);
+      } else {
+        setNewOrdersCount(d.newOrders || 0);
+        setReadyOrdersCount(d.readyOrders || 0);
+      }
+      setPendingCount(d.pendingReservations || 0);
+      return d;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const fetchNewOrdersCount = useCallback(async () => {
     if (skipOrdersOnMobileRef.current) {
       setNewOrdersCount(0);
       return;
     }
-    const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'new');
-    if (count !== null) setNewOrdersCount(count);
-  }, []);
+    await fetchBadges();
+  }, [fetchBadges]);
 
   const fetchReadyOrdersCount = useCallback(async () => {
     if (skipOrdersOnMobileRef.current) {
       setReadyOrdersCount(0);
       return;
     }
-    const { count } = await supabase
-      .from('orders')
-      .select('*', { count: 'exact', head: true })
-      .eq('kitchen_status', 'ready')
-      .in('status', ['new', 'confirmed'])
-      .is('paid_at', null)
-      .is('closed_at', null);
-    if (count !== null) setReadyOrdersCount(count);
-  }, []);
+    await fetchBadges();
+  }, [fetchBadges]);
 
   const fetchPendingCount = useCallback(async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
-    const { count, error } = await supabase
-      .from('reservations')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending')
-      .gte('date', todayStr);
-    if (!error && count !== null) setPendingCount(count);
-  }, []);
+    await fetchBadges();
+  }, [fetchBadges]);
 
   useEffect(() => { playSoundRef.current = playSound; }, [playSound]);
   useEffect(() => { showNotificationRef.current = showNotification; }, [showNotification]);
@@ -171,38 +181,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => { fetchNewOrdersCountRef.current = fetchNewOrdersCount; }, [fetchNewOrdersCount]);
   useEffect(() => { fetchReadyOrdersCountRef.current = fetchReadyOrdersCount; }, [fetchReadyOrdersCount]);
 
+  // 13d: tomorrow count comes from the same service-role badges endpoint.
   const checkTomorrowReservations = useCallback(async () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-    const { data, error } = await supabase
-      .from('reservations')
-      .select('*')
-      .eq('date', tomorrowStr)
-      .neq('status', 'cancelled');
-
-    if (!error && data && data.length > 0) {
-      const title = `Sabah ${data.length} rezervasiya var!`;
+    const d = await fetchBadges();
+    if (d && d.tomorrowReservations > 0) {
+      const title = `Sabah ${d.tomorrowReservations} rezervasiya var!`;
       const body = 'Hazırlıq üçün sabahkı rezervasiyaları yoxlayın.';
       addNotification(title, body, 'reservation');
       showNotification(title, body);
     }
-  }, [addNotification, showNotification]);
+  }, [fetchBadges, addNotification, showNotification]);
 
+  // 13d: 60s reservation poll now rides the service-role badges endpoint
+  // (the direct browser count was RLS-dead). Sound + notification logic kept.
   useEffect(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
-
     const interval = setInterval(async () => {
-      const { count } = await supabase
-        .from('reservations')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending')
-        .gte('date', todayStr);
+      const d = await fetchBadges();
+      const count = d ? d.pendingReservations : null;
       if (count === null) return;
-      setPendingCount(count);
       if (prevPendingRef.current !== null && count > prevPendingRef.current) {
         const diff = count - prevPendingRef.current;
         const title = 'Saito: Yeni Rezervasiya!';
@@ -214,17 +210,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       prevPendingRef.current = count;
     }, 60000);
 
-    supabase
-      .from('reservations')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending')
-      .gte('date', todayStr)
-      .then(({ count }) => {
-        if (count !== null) prevPendingRef.current = count;
-      });
+    fetchBadges().then(d => {
+      if (d) prevPendingRef.current = d.pendingReservations;
+    });
 
     return () => clearInterval(interval);
-  }, [addNotification, showNotification]);
+  }, [fetchBadges]);
 
   useEffect(() => {
     fetchPendingCount();
@@ -351,47 +342,31 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     fetchReadyOrdersCount();
 
     // Load delay threshold from settings (whitelisted server endpoint)
-    let orderDelayMinutes = 20;
     getSettings('order').then((row) => {
       const val = Number(row.order_delay_minutes);
-      if (!isNaN(val) && val >= 1) orderDelayMinutes = val;
+      if (!isNaN(val) && val >= 1) delayMinutesRef.current = val;
     });
 
-     // Overdue order polling — warn admin every 5 min if any POS order exceeds delay threshold.
-     // Only flag orders whose table_number still exists in table_floors so we don't
-     // notify about tables that were already transferred/merged/deleted.
-     const overdueInterval = setInterval(async () => {
-       if (skipOrdersOnMobileRef.current) return;
-       const cutoff = new Date(Date.now() - orderDelayMinutes * 60 * 1000).toISOString();
-       const { data } = await supabase
-         .from('orders')
-         .select('id, table_number, created_at, status, paid_at, closed_at, kitchen_status')
-         .in('status', ['new', 'confirmed'])
-         .is('paid_at', null)
-         .is('closed_at', null)
-         .not('kitchen_status', 'eq', 'cancelled')
-         .gt('table_number', 0)
-         .lt('created_at', cutoff);
-       if (!data || data.length === 0) return;
-
-       const validTableNumbers = new Set(
-         (await supabase.from('table_floors').select('table_number')).data?.map((t: any) => t.table_number) ?? []
-       );
-       const validOverdue = data.filter((o: any) => validTableNumbers.has(o.table_number));
-       if (validOverdue.length === 0) return;
-
-       const tables = validOverdue.map((o: any) => `Masa ${o.table_number}`).join(', ');
-       toast((t) => <span onClick={() => dismissToast(t)}>{validOverdue.length} gecikən sifariş: {tables}</span>, {
-         duration: 5000,
-         style: { background: 'var(--theme-error-bg, #1f0d0d)', color: 'var(--theme-error-text, #f87171)', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 'bold', cursor: 'pointer' },
-       });
-     }, 5 * 60 * 1000);
+    // 13d: overdue sweep now rides the service-role badges endpoint — the old
+    // version queried `orders` AND `table_floors` directly from the browser,
+    // both RLS-dead, so this warning had NEVER fired in production.
+    const overdueInterval = setInterval(async () => {
+      if (skipOrdersOnMobileRef.current) return;
+      const d = await fetchBadges();
+      const overdueTables = d?.overdueTables;
+      if (!overdueTables || overdueTables.length === 0) return;
+      const tables = overdueTables.map((n: number) => `Masa ${n}`).join(', ');
+      toast((t) => <span onClick={() => dismissToast(t)}>{overdueTables.length} gecikən sifariş: {tables}</span>, {
+        duration: 5000,
+        style: { background: 'var(--theme-error-bg, #1f0d0d)', color: 'var(--theme-error-text, #f87171)', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 'bold', cursor: 'pointer' },
+      });
+    }, 5 * 60 * 1000);
 
     return () => {
       removeRealtimeChannel(channel);
       clearInterval(overdueInterval);
     };
-  }, [checkTomorrowReservations, fetchNewOrdersCount, fetchReadyOrdersCount, fetchPendingCount, isDuplicateToast]);
+  }, [checkTomorrowReservations, fetchNewOrdersCount, fetchReadyOrdersCount, fetchPendingCount, fetchBadges, isDuplicateToast]);
 
   return (
     <NotificationContext.Provider value={{

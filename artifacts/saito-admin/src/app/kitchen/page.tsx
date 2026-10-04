@@ -573,6 +573,9 @@ export default function KitchenPage() {
   // ── State ──────────────────────────────────────────────────────────────────
   const [showWelcome, setShowWelcome] = useState(true);
   const [orders, setOrders]           = useState<Order[]>([]);
+  // 13d: ref mirror for realtime-callback lookups (stale-closure safe)
+  const ordersRef = useRef<Order[]>([]);
+  useEffect(() => { ordersRef.current = orders; }, [orders]);
   const [activeTab, setActiveTab]     = useState<'active' | 'ready'>('active');
   const [soundOn, setSoundOn]         = useState(true);
   const [langLoading, setLangLoading] = useState(false);
@@ -640,11 +643,16 @@ export default function KitchenPage() {
   }, []);
 
   // Load table inventory for map view
+  // 13d: service-role read — the browser could not see `table_floors` rows
+  // (RLS), so the map view had an empty table set.
   useEffect(() => {
     const fetchTables = async () => {
       try {
-        const { data } = await supabase.from('table_floors').select('table_number').order('table_number');
-        if (data) setKitchenTables(data);
+        const res = await fetch('/api/floors', { cache: 'no-store' });
+        if (res.ok) {
+          const rows: any[] = await res.json();
+          setKitchenTables(rows.map((t: any) => ({ table_number: t.table_number })));
+        }
       } catch {}
     };
     fetchTables();
@@ -709,28 +717,14 @@ export default function KitchenPage() {
   }, []);
 
   // ── Helper: Get merged table display name (e.g., "9+7" if tables are merged)
-  const getMergedTableName = useCallback(async (tableNum: number | null, orderId?: string, orderType?: string): Promise<string> => {
+  // 13d: NO client query anymore — the old `orders` read was RLS-blocked
+  // (always plain "Masa N" in merge toasts). The /api/kitchen/orders + realtime
+  // payloads already carry the `merged_into_table` PostgREST embed (same source
+  // mapRawOrder normalizes into merged_from_tables), so we reuse it.
+  const getMergedTableName = useCallback((tableNum: number | null, mergedTables: number[] | null, orderType?: string): string => {
     if (!tableNum) return orderType === 'delivery' ? 'Çatdırılma' : orderType === 'takeaway' ? 'Takeaway' : 'Naməlum masa';
-    if (!orderId) return `Masa ${tableNum}`;
-    
-    try {
-      // Find orders that were merged INTO this order
-      const { data } = await supabase
-        .from('orders')
-        .select('table_number')
-        .eq('merged_into', orderId)
-        .not('table_number', 'is', null);
-      
-      if (data && data.length > 0) {
-        const mergedNums = data.map(o => o.table_number).filter(Boolean);
-        if (mergedNums.length > 0) {
-          return `Masa ${tableNum}+${mergedNums.join('+')}`;
-        }
-      }
-      return `Masa ${tableNum}`;
-    } catch {
-      return `Masa ${tableNum}`;
-    }
+    const nums = (mergedTables || []).filter(n => n != null && n !== tableNum);
+    return nums.length > 0 ? `Masa ${tableNum}+${nums.join('+')}` : `Masa ${tableNum}`;
   }, []);
 
   // ── Fetch (fallback) ───────────────────────────────────────────────────────
@@ -896,8 +890,10 @@ export default function KitchenPage() {
           const now = Date.now();
           if (recentMergeRef.current.key === mergeKey && (now - recentMergeRef.current.time) < 2000) return;
           recentMergeRef.current = { key: mergeKey, time: now };
-          const { data: targetOrder } = await supabase.from('orders').select('table_number').eq('id', targetOrderId).single();
-          const targetTable = targetOrder?.table_number;
+          // 13d: the target order is already in the API-fed `orders` state —
+          // the old client read was RLS-blocked (null → half-empty merge toast)
+          const targetOrder = ordersRef.current.find(o => o.id === targetOrderId);
+          const targetTable = targetOrder?.table_number ?? null;
           toast.custom((_t) => (
             <motion.div
               initial={{ opacity: 0, y: -16, scale: 0.94 }}
@@ -926,7 +922,11 @@ export default function KitchenPage() {
         if (isNewOrder && payload.new?.id) {
           recentlyInsertedRef.current.add(payload.new.id);
           const tableNum = payload.new?.table_number;
-          const tableName = await getMergedTableName(tableNum, payload.new?.id, payload.new?.order_type);
+          // 13d: merged tables come from the payload embed (no RLS-blocked query)
+          const mergedTables = Array.isArray(payload.new?.merged_into_table)
+            ? payload.new.merged_into_table.map((r: any) => (r != null && typeof r === 'object' ? r.table_number : r))
+            : payload.new?.merged_into_table != null ? [payload.new.merged_into_table] : null;
+          const tableName = getMergedTableName(tableNum, mergedTables, payload.new?.order_type);
           toast.custom((_t) => (
             <motion.div
               initial={{ opacity: 0, y: -16, scale: 0.94 }}
@@ -960,7 +960,11 @@ export default function KitchenPage() {
         
         if (isReset) {
           const tableNum = payload.new?.table_number;
-          const tableName = await getMergedTableName(tableNum, payload.new?.id, payload.new?.order_type);
+          // 13d: merged tables come from the payload embed (no RLS-blocked query)
+          const mergedTables = Array.isArray(payload.new?.merged_into_table)
+            ? payload.new.merged_into_table.map((r: any) => (r != null && typeof r === 'object' ? r.table_number : r))
+            : payload.new?.merged_into_table != null ? [payload.new.merged_into_table] : null;
+          const tableName = getMergedTableName(tableNum, mergedTables, payload.new?.order_type);
           toast.custom((_t) => (
             <motion.div
               initial={{ opacity: 0, y: -16, scale: 0.94 }}

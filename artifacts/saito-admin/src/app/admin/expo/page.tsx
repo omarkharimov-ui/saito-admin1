@@ -7,7 +7,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BellRing, Armchair, Receipt, Bike, ShoppingBag, Check } from '@/components/ui/saito-icons';
-import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { useDeviceHeartbeat } from '@/lib/device-heartbeat';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -36,54 +35,21 @@ export default function ExpoPage() {
   const [conn, setConn] = useState<'loading' | 'live' | 'offline'>('loading');
   const lastTickRef = useRef(0);
 
-  // 1) SİFARİŞ HAZIRDIR — orders: kitchen ready & active (takeaway + delivery)
-  const loadReady = async () => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('id, order_number, order_source, status, kitchen_status, updated_at')
-      .eq('kitchen_status', 'ready')
-      .in('order_source', ['takeaway', 'delivery'])
-      // real status values in DB (2026-09-25 verified): closed, cancelled,
-      // confirmed, paid, partially_ready, partially_refunded, refunded, served, voided
-      .not('status', 'in', '("closed","cancelled","canceled","voided","void","paid","served","refunded","partially_refunded","completed")')
-      .order('updated_at', { ascending: false })
-      .limit(8);
-    if (error) return;
-    setReady((data || []).map((o: any) => ({
-      key: o.id,
-      orderNo: (o.order_number || '').replace(/^(ORD-?|TL-?|TA-?)/i, ''),
-      label: o.order_source === 'delivery' ? 'Çatdırılma' : 'Gel-Al',
-      kind: o.order_source === 'delivery' ? 'delivery' : 'takeaway',
-    })));
-  };
-
-  // 2) MASA BOŞALDI + 3) HESAB GÖNDƏRİLDİ — table_floors fresh transitions
-  const loadFlashes = async () => {
-    const { data, error } = await supabase
-      .from('table_floors')
-      .select('id, table_number, status, bill_requested, updated_at')
-      .order('updated_at', { ascending: false })
-      .limit(40);
-    if (error) return;
-    const cutoff = Date.now() - EXPIRY_MS;
-    const out: FlashItem[] = [];
-    for (const t of data || []) {
-      const at = new Date(t.updated_at).getTime();
-      if (!Number.isFinite(at) || at < cutoff) continue;
-      if (t.status === 'empty') {
-        out.push({ key: `table-${t.id}`, kind: 'table', text: `Masa ${t.table_number}`, sub: 'boşaldı', at });
-      }
-      if (t.bill_requested) {
-        out.push({ key: `bill-${t.id}`, kind: 'bill', text: `Masa ${t.table_number}`, sub: 'hesab göndərildi', at });
-      }
-    }
-    out.sort((a, b) => b.at - a.at);
-    setFlashes(out.slice(0, 10));
+  // 13d: service-role board feed. The old implementation polled `orders` and
+  // `table_floors` directly from the browser — both RLS-gated (app.current_role
+  // not set for user sessions) → the physical display showed EMPTY lists while
+  // the "CANLI" lamp was green (empty ≠ error in Promise.allSettled).
+  const loadBoard = async () => {
+    const res = await fetch('/api/expo/board', { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Expo board HTTP ${res.status}`);
+    const d = await res.json();
+    setReady((d.ready || []) as ReadyItem[]);
+    setFlashes((d.flashes || []) as FlashItem[]);
   };
 
   const refresh = async () => {
-    const [r, f] = await Promise.allSettled([loadReady(), loadFlashes()]);
-    setConn(r.status === 'fulfilled' || f.status === 'fulfilled' ? 'live' : 'offline');
+    const [r] = await Promise.allSettled([loadBoard()]);
+    setConn(r.status === 'fulfilled' ? 'live' : 'offline');
   };
 
   useEffect(() => {

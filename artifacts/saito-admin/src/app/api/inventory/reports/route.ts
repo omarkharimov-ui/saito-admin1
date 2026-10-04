@@ -111,6 +111,62 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.cost - a.cost)
       .slice(0, 15);
 
+    // ── 13d: shrinkage PATTERN (28g — Toast "track patterns of missing value") ──
+    // Deterministic: waste log rows bucketed into Mon-start weeks, weekday
+    // distribution, and per-ingredient week-over-week trend.
+    const patternSince = new Date(); patternSince.setDate(patternSince.getDate() - 28);
+    const patternSinceIso = patternSince.toISOString();
+    const wasteLogs = logs.filter(l => l.type === 'waste' && (l.created_at || '') >= patternSinceIso);
+    const mondayOf = (d: Date) => {
+      const x = new Date(d); x.setHours(0, 0, 0, 0);
+      const dow = (x.getDay() + 6) % 7; // Mon=0
+      x.setDate(x.getDate() - dow);
+      return x;
+    };
+    const nowMonday = mondayOf(new Date());
+    const weeks: { start: string; cost: number; qty: number }[] = [];
+    for (let w = 3; w >= 0; w--) {
+      const s = new Date(nowMonday); s.setDate(s.getDate() - 7 * w);
+      weeks.push({ start: s.toISOString().slice(0, 10), cost: 0, qty: 0 });
+    }
+    const byWeekday: { cost: number }[] = Array.from({ length: 7 }, () => ({ cost: 0 }));
+    const patByIng: Record<string, { cost: number; qty: number; prev: number; last: number }> = {};
+    for (const l of wasteLogs) {
+      const qtyAbs = Math.abs(Number(l.quantity) || 0);
+      const cost = qtyAbs * (Number(l.cost_per_unit) || 0);
+      const dt = new Date(l.created_at);
+      const ws = mondayOf(dt).toISOString().slice(0, 10);
+      const idx = weeks.findIndex(x => x.start === ws);
+      if (idx >= 0) {
+        weeks[idx].cost += cost;
+        weeks[idx].qty += qtyAbs;
+        const v = (patByIng[l.ingredient_id] ||= { cost: 0, qty: 0, prev: 0, last: 0 });
+        v.cost += cost; v.qty += qtyAbs;
+        if (idx === 2) v.prev += cost;
+        if (idx === 3) v.last += cost;
+      }
+      byWeekday[(dt.getDay() + 6) % 7].cost += cost;
+    }
+    const lastW = weeks[3].cost, prevW = weeks[2].cost;
+    const shrinkage_pattern = {
+      window_days: 28,
+      total_cost: Math.round(weeks.reduce((s, w) => s + w.cost, 0)),
+      weeks: weeks.map(w => ({ start: w.start, cost: Math.round(w.cost), qty: Math.round(w.qty * 100) / 100 })),
+      week_over_week_pct: prevW > 0 ? Math.round(((lastW - prevW) / prevW) * 1000) / 10 : null,
+      by_weekday: byWeekday.map(d => ({ cost: Math.round(d.cost) })),
+      top: Object.entries(patByIng)
+        .map(([id, v]) => ({
+          id,
+          name: ingMap.get(id)?.name || 'Naməlum',
+          unit: ingMap.get(id)?.unit || '',
+          cost: Math.round(v.cost),
+          qty: Math.round(v.qty * 100) / 100,
+          trend_pct: v.prev > 0 ? Math.round(((v.last - v.prev) / v.prev) * 1000) / 10 : (v.last > 0 ? 100 : null),
+        }))
+        .sort((a, b) => b.cost - a.cost)
+        .slice(0, 5),
+    };
+
     // ── freshness (batches nearing expiry) ────────────────────────────────
     const inDays = (d: number) => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString(); };
     const nowIso = new Date().toISOString();
@@ -136,6 +192,7 @@ export async function GET(request: NextRequest) {
       },
       avt,
       shrinkage,
+      shrinkage_pattern,
       freshness: { expiring, batches_total: (batchRes.data ?? []).length },
     });
   } catch (e: any) {

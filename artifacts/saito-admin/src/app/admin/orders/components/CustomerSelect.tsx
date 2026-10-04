@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, Plus, Phone, User, Loader2, Check } from '@/components/ui/saito-icons';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface Customer {
@@ -36,13 +36,15 @@ export function CustomerSelect({ selectedId, onSelect, onClose }: CustomerSelect
     loadCustomers();
   }, []);
 
+  // 13d: service-role search — the browser could not read `customers` at all
+  // (RLS enabled, zero policies) → this picker was permanently empty.
   const loadCustomers = async (q?: string) => {
     setLoading(true);
     try {
-      let query = supabase.from('customers').select('*').order('total_visits', { ascending: false }).limit(20);
-      if (q) query = query.or(`name.ilike.%${q}%,phone.ilike.%${q}%`);
-      const { data } = await query;
-      setCustomers((data || []) as Customer[]);
+      const url = q ? `/api/customers?q=${encodeURIComponent(q)}&limit=20` : '/api/customers?limit=20';
+      const res = await fetch(url);
+      const data = res.ok ? await res.json() : [];
+      setCustomers((Array.isArray(data) ? data : []) as Customer[]);
     } finally {
       setLoading(false);
     }
@@ -53,17 +55,24 @@ export function CustomerSelect({ selectedId, onSelect, onClose }: CustomerSelect
     loadCustomers(val || undefined);
   };
 
+  // 13d: service-role create (browser INSERT was RLS-blocked → silent no-op)
   const handleCreate = async () => {
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      const { data } = await supabase.from('customers').insert({
-        name: newName.trim(),
-        phone: newPhone.trim() || null,
-      }).select().single();
-      if (data) {
-        onSelect(data.id);
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim(), phone: newPhone.trim() || undefined }),
+      });
+      const data = res.ok ? await res.json() : {};
+      if (data.customer?.id) {
+        onSelect(data.customer.id);
+        setNewName(''); setNewPhone('');
+        loadCustomers();
         onClose();
+      } else {
+        toast.error(data.error || 'Müşəri yaradılmadı');
       }
     } finally {
       setCreating(false);

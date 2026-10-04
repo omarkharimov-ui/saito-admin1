@@ -143,13 +143,12 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
     if (items.length === 0) return;
     setSubmitting(true);
     try {
-      const { data: activeOrders } = await supabase
-        .from('orders')
-        .select('id, total_amount')
-        .eq('table_number', tableNum)
-        .in('status', ['new', 'confirmed'])
-        .order('created_at', { ascending: false })
-        .limit(1);
+      // 13d: service-role lookup — the browser read of `orders` was RLS-blocked
+      // (always []), so this "add to existing order" guard never fired and a
+      // SECOND order was created for a table that already had one.
+      const taRes = await fetch(`/api/orders/table-active?table_number=${tableNum}`);
+      const taData = taRes.ok ? await taRes.json() : {};
+      const activeOrders = taData.order ? [taData.order] : [];
       const newItems = items.map(i => ({
         product_id: i.product.id,
         variant_id: i.variant?.id || null,
@@ -163,20 +162,27 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
       let createdOrderId: string | undefined;
       if (activeOrders && activeOrders.length > 0) {
         const existing = activeOrders[0];
-        // Add items via RPC
-        const { error: rpcErr } = await supabase.rpc('add_order_items', {
-          p_order_id: existing.id,
-          p_items: JSON.stringify(newItems.map(i => ({
-            product_id: i.product_id,
-            product_name: i.product_name,
-            quantity: i.quantity,
-            unit_price: i.unit_price,
-            total_price: i.total_price,
-            modifiers: '[]',
-            special_notes: i.note || null,
-          }))),
+        // 13d-A2: adding a manual order's items to the table's active order
+        // via the PROVEN /api/orders addItems action (service-role insert).
+        // The old path called the add_order_items RPC from the browser: 401
+        // (no anon EXECUTE) AND the RPC is dead at plan time (text-typed
+        // `v_item->>'modifiers'` into the jsonb column — E2E r28d).
+        const addRes = await fetch('/api/orders', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'addItems',
+            id: existing.id,
+            items: newItems.map(i => ({
+              product_id: i.product_id,
+              product_name: i.product_name,
+              quantity: i.quantity,
+              unit_price: i.unit_price,
+              course: 'main',
+              special_notes: i.note || '',
+            })),
+          }),
         });
-        if (rpcErr) throw rpcErr;
+        if (!addRes.ok) throw new Error((await addRes.json().catch(() => ({}))).error || 'Məhsullar əlavə olunmadı');
         // Update order via API
         const updRes = await fetch('/api/orders', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },

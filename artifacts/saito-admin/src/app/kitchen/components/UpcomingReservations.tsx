@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Users, ChefHat, ShoppingBag, ChevronDown, ChevronUp } from '@/components/ui/saito-icons';
-import { supabase } from '@/lib/supabase';
 
 interface PreOrderItem {
   product_name: string;
@@ -36,19 +35,14 @@ export function UpcomingReservations() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
 
+  // 13d: service-role feed — the browser read of `reservations` was RLS-blocked
+  // (app.current_role not set for user sessions) → this panel was always empty.
   const fetchReservations = useCallback(async () => {
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data, error } = await supabase
-        .from('reservations')
-        .select('*')
-        .eq('status', 'confirmed')
-        .gte('date', today)
-        .order('date', { ascending: true })
-        .order('time', { ascending: true });
-
-      if (!error && data) {
-        setReservations(data as Reservation[]);
+      const res = await fetch('/api/kitchen/reservations', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) setReservations(data as Reservation[]);
       }
     } catch {
     } finally {

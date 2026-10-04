@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import OrderGuideSection from './OrderGuideSection';
 import {
   Upload, FileText, CheckCircle, AlertTriangle, X, RefreshCw,
   Package, Image, Scale, PackageCheck, DollarSign, TrendingDown,
@@ -14,7 +15,8 @@ import { StockStatusBadge } from '@/components/StockStatusBadge';
 import { toast } from '@/lib/toast';
 import type { DiscrepancyAlert, Supplier, CreateSupplierPayload } from '@/types/inventory';
 
-type ProcTab = 'receive' | 'anomalies' | 'suppliers';
+// 13c: + 'order-guide' (Toast par-based order guide parity).
+type ProcTab = 'receive' | 'anomalies' | 'suppliers' | 'order-guide';
 type Step = 'upload' | 'review' | 'confirm';
 
 interface LineItem {
@@ -66,7 +68,7 @@ export default function ProcurementTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          {(['receive', 'anomalies', 'suppliers'] as const).map(t => (
+          {(['receive', 'anomalies', 'suppliers', 'order-guide'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className="relative px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-colors"
               style={{ color: tab === t ? '#ffffff' : 'rgba(255,255,255,0.3)' }}>
@@ -78,7 +80,7 @@ export default function ProcurementTab() {
                   style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
                 />
               )}
-              <span className="relative z-10">{t === 'receive' ? 'Faktura' : t === 'anomalies' ? 'Anomaliyalar' : 'Tədarükçülər'}</span>
+              <span className="relative z-10">{t === 'receive' ? 'Faktura' : t === 'anomalies' ? 'Anomaliyalar' : t === 'suppliers' ? 'Tədarükçülər' : 'Order Guide'}</span>
             </button>
           ))}
         </div>
@@ -116,6 +118,7 @@ export default function ProcurementTab() {
       {tab === 'receive' && <InvoiceUploadSection />}
       {tab === 'anomalies' && <AnomaliesSection />}
       {tab === 'suppliers' && <SuppliersSection />}
+      {tab === 'order-guide' && <OrderGuideSection />}
     </div>
   );
 }
@@ -513,6 +516,54 @@ function SuppliersSection() {
 
   const [form, setForm] = useState<CreateSupplierPayload>({ name: '', contact_person: '', phone: '', email: '', address: '', tax_id: '', notes: '', auto_order_template: '' });
 
+  // 13c: supplier item catalog — Toast "centralized vendor product catalog"
+  // parity. This price list pre-fills Order Guide suggested line prices and
+  // anchors the invoice matcher.
+  const [catalog, setCatalog] = useState<any[]>([]);
+  const [catLoading, setCatLoading] = useState(false);
+  const [catForm, setCatForm] = useState({ name: '', unit: 'gram', unit_price: '' });
+  const [catEditing, setCatEditing] = useState<string | null>(null);
+  const [catEdit, setCatEdit] = useState({ name: '', unit: 'gram', unit_price: '' });
+
+  const loadCatalog = async (supplierId: string) => {
+    setCatLoading(true);
+    try {
+      const r = await fetch(`/api/suppliers/items?supplier_id=${supplierId}`);
+      if (r.ok) setCatalog(await r.json());
+    } catch {}
+    setCatLoading(false);
+  };
+
+  const openDetail = (s: Supplier) => {
+    setDetailSupplier(s);
+    setCatEditing(null);
+    setCatForm({ name: '', unit: 'gram', unit_price: '' });
+    loadCatalog(s.id);
+  };
+
+  const saveCatalogItem = async (item?: any) => {
+    if (!detailSupplier) return;
+    const src = item ? catEdit : catForm;
+    if (!src.name.trim()) return toast('Ad tələb olunur');
+    const payload: any = { name: src.name.trim(), unit: src.unit || null, unit_price: src.unit_price === '' ? null : Number(src.unit_price) };
+    if (!item) payload.supplier_id = detailSupplier.id;
+    const url = item ? `/api/suppliers/items/${item.id}` : '/api/suppliers/items';
+    const res = await fetch(url, { method: item ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); return toast(d.error || 'Xəta baş verdi'); }
+    toast(item ? 'Yeniləndi' : 'Kataloğa əlavə edildi');
+    setCatForm({ name: '', unit: 'gram', unit_price: '' });
+    setCatEditing(null);
+    loadCatalog(detailSupplier.id);
+  };
+
+  const removeCatalogItem = async (id: string) => {
+    if (!detailSupplier) return;
+    const res = await fetch(`/api/suppliers/items/${id}`, { method: 'DELETE' });
+    if (!res.ok) return toast('Silinmədi');
+    toast('Silindi');
+    loadCatalog(detailSupplier.id);
+  };
+
   useEffect(() => { load(); }, []);
 
   const load = async () => {
@@ -575,7 +626,7 @@ function SuppliersSection() {
         <div className="grid gap-2 sm:grid-cols-2">
           {filtered.map(s => (
             <motion.div key={s.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-              onClick={() => setDetailSupplier(s)}
+               onClick={() => openDetail(s)}
               className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-colors cursor-pointer"
             >
               <div className="flex items-start justify-between gap-2">
@@ -693,6 +744,57 @@ function SuppliersSection() {
               {(detailSupplier as any).auto_order_template && <div className="mt-2 p-2 rounded-lg bg-white/[0.03] text-white/50">{(detailSupplier as any).auto_order_template}</div>}
               {detailSupplier.notes && !(detailSupplier as any).auto_order_template && <div className="mt-2 p-2 rounded-lg bg-white/[0.03] text-white/50">{detailSupplier.notes}</div>}
             </div>
+
+            {/* 13c: Məhsul kataloğu — vendor price list (Order Guide prefill + invoice anchor). */}
+            <div className="mt-5 pt-4 border-t border-white/[0.07]">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] text-white/35 uppercase tracking-[0.2em] font-bold">Məhsul Kataloqu</p>
+                <span className="text-[10px] text-white/25 tabular-nums">{catalog.length} məhsul</span>
+              </div>
+              {catLoading ? (
+                <p className="text-xs text-white/25 py-2">Yüklenir...</p>
+              ) : (
+                <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                  {catalog.length === 0 && <p className="text-[11px] text-white/20 py-1">Kataloq boşdur — aşağıdan məhsul əlavə edin.</p>}
+                  {catalog.map((it) => (
+                    <div key={it.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.05]">
+                      {catEditing === it.id ? (
+                        <>
+                          <input value={catEdit.name} onChange={e => setCatEdit(p => ({ ...p, name: e.target.value }))}
+                            className="flex-1 min-w-0 bg-white/[0.05] border border-white/10 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-[#D4AF37]/40" />
+                          <input value={catEdit.unit} onChange={e => setCatEdit(p => ({ ...p, unit: e.target.value }))}
+                            className="w-14 bg-white/[0.05] border border-white/10 rounded-md px-2 py-1 text-xs text-white outline-none" />
+                          <input type="number" value={catEdit.unit_price} onChange={e => setCatEdit(p => ({ ...p, unit_price: e.target.value }))}
+                            className="w-16 bg-white/[0.05] border border-white/10 rounded-md px-2 py-1 text-xs text-white outline-none" />
+                          <button onClick={() => saveCatalogItem(it)} className="p-1 text-emerald-400 hover:text-emerald-300"><CheckCircle size={13} /></button>
+                          <button onClick={() => setCatEditing(null)} className="p-1 text-white/30 hover:text-white/60"><X size={13} /></button>
+                        </>
+                      ) : (
+                        <>
+                          <span className={`flex-1 min-w-0 truncate text-xs ${it.active === false ? 'text-white/25 line-through' : 'text-white/80'}`}>{it.name}</span>
+                          <span className="text-[10px] text-white/30">{it.unit || '—'}</span>
+                          <span className="text-xs font-semibold text-white/60 tabular-nums">{it.unit_price != null ? `₼${Number(it.unit_price).toFixed(2)}` : '—'}</span>
+                          <button onClick={() => { setCatEditing(it.id); setCatEdit({ name: it.name, unit: it.unit || 'gram', unit_price: it.unit_price != null ? String(it.unit_price) : '' }); }}
+                            className="p-1 rounded text-white/25 hover:text-white/70 transition-colors"><Pencil size={12} /></button>
+                          <button onClick={() => removeCatalogItem(it.id)} className="p-1 rounded text-red-400/40 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-1.5 mt-2">
+                <input value={catForm.name} onChange={e => setCatForm(p => ({ ...p, name: e.target.value }))} placeholder="Məhsul adı"
+                  className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder:text-white/20 outline-none focus:border-[#D4AF37]/40" />
+                <input value={catForm.unit} onChange={e => setCatForm(p => ({ ...p, unit: e.target.value }))} placeholder="Birim"
+                  className="w-14 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder:text-white/20 outline-none" />
+                <input type="number" value={catForm.unit_price} onChange={e => setCatForm(p => ({ ...p, unit_price: e.target.value }))} placeholder="₼/birim"
+                  className="w-16 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder:text-white/20 outline-none" />
+                <button onClick={() => saveCatalogItem()} disabled={!catForm.name.trim()} title="Kataloğa əlavə et"
+                  className="p-1.5 rounded-lg bg-[#D4AF37]/15 text-[#D4AF37] hover:bg-[#D4AF37]/25 disabled:opacity-30 transition-all"><Plus size={14} /></button>
+              </div>
+            </div>
+
             <div className="flex gap-2 mt-5 justify-end">
               {(detailSupplier as any).whatsapp_number && (
                 <button

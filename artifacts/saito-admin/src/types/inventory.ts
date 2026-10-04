@@ -242,6 +242,8 @@ export interface PurchaseOrder {
   supplier_id: string;
   order_number: string;
   status: PurchaseOrderStatus;
+  /** 13c: recurring weekly flag (Monday 09:00 cron drafts a copy). */
+  recurring_weekly?: boolean;
   total_amount: number;
   notes: string | null;
   ordered_at: string;
@@ -266,6 +268,9 @@ export interface PurchaseOrderItem {
 export interface CreatePurchaseOrderPayload {
   supplier_id: string;
   notes?: string;
+  /** 13c: Toast recurring-orders parity — every Monday 09:00 (Baku) a DRAFT
+   *  PO copies this order's lines; the human still sends it (no auto-send). */
+  recurring_weekly?: boolean;
   items: {
     ingredient_id?: string | null;
     product_name: string;
@@ -517,6 +522,8 @@ export interface StockCount {
   count_number: string;
   status: 'draft' | 'in_progress' | 'completed' | 'cancelled';
   counted_by: string | null;
+  /** 13c: Toast staff-assignment parity — who physically runs the count. */
+  assigned_to?: string | null;
   notes: string | null;
   total_variance: number;
   counted_at: string | null;

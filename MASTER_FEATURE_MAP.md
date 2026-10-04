@@ -453,14 +453,17 @@ Products/ingredients/units/recipes/recipe costing; stock (current/min/max/reorde
 | Ingredients + units + stock levels | ✅ | `ingredients`, `stock_transactions`, `inventory_logs` | `/api/stock*` (11 route), `admin/stock` |
 | Recipe-based consumption **on READY** (kitchen tick, order anında YOX — 13b verify: 66/66 ≥ ready_at) + reverse on refund | ✅ FROZEN | `consume_stock_for_item` (caller-lar: `mark_item_ready_atomic`/`mark_order_ready`/`mark_ready_atomic`), `_inventory_reverse_item_qty`, `reverse_stock_for_items`, `return_to_stock` | — |
 | Waste + waste standards + spoilage | ✅ | `waste_standards`, `record_item_waste`, `waste_order_item_atomic` | `admin/waste-standards` |
-| Stocktake + apply count + variance | ✅ | `stock_counts`, `stock_count_items`, `apply_stock_count` | `admin/stock/counts` |
-| Purchase orders (draft→sent→received) | ✅ | `purchase_orders`, `purchase_order_items`, `atomic_receive_goods` | `admin/purchase-orders`, `/api/procurement/receive` |
-| Suppliers + supplier returns | ✅ | `suppliers`, `supplier_returns`, `process_supplier_return` | `/api/suppliers*` |
-| Invoices + atomic apply + OCR | ✅ | `invoices`, `invoice_items`, `atomic_apply_invoice`, `/api/invoice-ocr` | `/api/invoices*` |
+| Stocktake + apply count + variance | ✅ | `stock_counts` (+`assigned_to` 13c), `stock_count_items`, `apply_stock_count` | `admin/stock/counts` (+ offline buffer 13c) |
+| Purchase orders (draft→sent→received) | ✅ | `purchase_orders` (+`recurring_weekly` 13c), `purchase_order_items`, `atomic_receive_goods` | `admin/purchase-orders`, `/api/procurement/receive` |
+| Suppliers + supplier returns + **catalog** | ✅ | `suppliers`, `supplier_returns`, `supplier_items` (13c), `process_supplier_return` | `/api/suppliers*` (+ `/api/suppliers/items` 13c) |
+| Invoices + atomic apply + OCR + **→DRAFT PO** | ✅ | `invoices`, `invoice_items`, `atomic_apply_invoice`, `/api/invoice-ocr`, `/api/procurement/from-invoice` (13c) | `/api/invoices*` |
 | Auto 86 on depletion / low-stock alerts | ✅ | `check_stock_thresholds` (cron) | `stock/ai-insights`, `stock/suggestions` |
-| Batch / expiry tracking | ⚪ | cədvəldə sahə yoxdur | Addım 2 |
-| Multi-location inventory transfers | ❌ | — | Addım 3 |
-| Auto reorder (PO auto-təklifi) | 🟡 | `stock/suggestions` var | Auto-PO generation yox |
+| **Batch / expiry tracking** | ✅ (13c) | `stock_batches` (FEFO, supplementary — frozen consumption-a toxunulmayıb) | `/api/stock/batches` + InspectorPanel "PARTİYALAR·FEFO" + row chips |
+| Multi-location inventory transfers | ❌ | — | Addım 3 (biznes qərarı) |
+| **Par-based order guide → DRAFT PO** | ✅ (13c) | `GET /api/stock/order-guide` | ProcurementTab "Order Guide" pill |
+| **Recurring orders (DRAFT, human sends)** | ✅ (13c) | `recurring_weekly` + cron `recurring-draft-pos` (Dü 09:00) + `create_recurring_draft_pos()` | PO list "Həftəlik" badge |
+| **COGS / AvT / shrinkage report** | ✅ (13c) | `GET /api/inventory/reports` (30g rollup) | Stock page "Report" view (ReportsTab) |
+| **LLM inventory advisor** | ✅ (13c) | `GET /api/inventory/advisor` (deterministic 30g stats + LLM narrative) | Stock page AdvisorCard |
 
 > **13a (2026-10-04, E2E r26):** modul = **DEAD-ZONE REVIVAL** — browser client
 > anon idi (RLS: `app.current_role` user JWT-də set olunmur) → audit page/stok
@@ -473,14 +476,22 @@ Products/ingredients/units/recipes/recipe costing; stock (current/min/max/reorde
  > ilə, 4 reseptsiz məhsul (Filadelfiya Classic!), `avakado`/`Qızardılmış soğan`
  > şübhəli dəyərlər, orphan resept. → `HANDOFF_13A.md`.
 
-> **13b (2026-10-05):** BOM owner-approved qeydə alındı — **Filadelfiya Classic +
-> Kaliforniya Gold** (14 sətir, `has_active_recipe=true`) → 13/14 active məhsul
-> reseptli (Coca-Cola = qəsdən reseptsiz — hazır qablaşdırma). Təmizlik: orphan
-> resept (5 sətir) silindi, P8_PROD deaktiv. **Yeni §1d INVENTORY MÜQAYİSƏSİ**
-> (comparison doc): 15 meyar × 4 sistem; üstün = consumption-on-READY + LLM-AI loop
-> + ₼0; zəiflər = invoice→PO, par-order-guide, COGS ledger, offline stocktake,
-> batch/expiry, multi-location, qiymət avtomatlaşması, shrinkage report.
-> Gözləyir: owner sayımı (8 mənfi/şübhəli maddə) + test-order consumption verify.
+ > **13b (2026-10-05):** BOM owner-approved qeydə alındı — **Filadelfiya Classic +
+ > Kaliforniya Gold** (14 sətir, `has_active_recipe=true`) → 13/14 active məhsul
+ > reseptli (Coca-Cola = qəsdən reseptsiz — hazır qablaşdırma). Təmizlik: orphan
+ > resept (5 sətir) silindi, P8_PROD deaktiv. **Yeni §1d INVENTORY MÜQAYİSƏSİ**
+ > (comparison doc): 15 meyar × 4 sistem; üstün = consumption-on-READY + LLM-AI loop
+ > + ₼0; zəiflər = invoice→PO, par-order-guide, COGS ledger, offline stocktake,
+ > batch/expiry, multi-location, qiymət avtomatlaşması, shrinkage report.
+ > Gözləyir: owner sayımı (8 mənfi/şübhəli maddə) + test-order consumption verify.
+ >
+ > **13c (2026-10-04, E2E r27, console 0, dark+light):** §1d-in **6 zəifi bağlandı** —
+ > batch/expiry (`stock_batches` + FEFO chips + InspectorPanel), supplier catalog
+ > (`supplier_items`), par-based **Order Guide → DRAFT PO**, invoice → **DRAFT PO**
+ > (Toast flagship), **COGS/AvT/shrinkage Report** view + **LLM AdvisorCard**,
+ > **recurring weekly PO** (cron DRAFT — human sends), **offline stocktake buffer** +
+ > staff assignment, **LLM recipe calibration** (propose-only → atomic save). Qalan:
+ > multi-location (biznes) + weekly shrinkage pattern report. → `HANDOFF_13C.md`.
 
 ### 17. PURCHASING / SUPPLIERS (ayrı baxış)
 Supplier profile/products/pricing; PO lifecycle; receiving (qty/cost/batch/expiry/variance); invoices (upload/OCR/matching/approval/accounting).
@@ -497,6 +508,7 @@ Recipe (ingredients/qty/unit/cost), modifier consumption, yield/portion, food co
 |---|---|---|
 | Recipe engine + versions + margin analysis + waste analysis | ✅ | `admin/recipes`, `recipes/versions`, `recipes/margin-analysis`, `recipes/waste-analysis` |
 | AI recipe/ingredient suggest + cookbook parse | ✅ | `recipes/ai-suggest*`, `/api/parse-cookbook`, `/api/parse-recipe` |
+| **LLM BOM calibration (13c):** 30g theoretical vs FAKTİKİ per-item consumption → propose-only delta → atomic apply | ✅ | `GET /api/recipes/calibrate` + "KALİBRASİYA (AI)" modal |
 | Modifier → ingredient consumption fərqliliyi | ⚪ | Addım 2 |
 
 ---
@@ -841,6 +853,50 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-10-04 (ROUND 13c: INVENTORY + RECIPES TAMAM — Toast parity 6/8 bağlandı + AI gücləndi)
+
+Owner mandat: *"qərər artıq sənə keçir — toastdaki hər şey + onlardan daha yaxşı;
+calibration-ı gücləndir; inventory+recipes TAM backend+frontend, Apple fəlsəfəsi +
+premium, dayanmadan; tam bitəndən sonra report."*
+
+**DB (13c-A, service-role-only RLS):** `stock_batches` (FEFO; frozen consumption-a
+toxunulmayıb — supplementary layer), `supplier_items` (vendor catalog),
+`stock_counts.assigned_to`, `purchase_orders.recurring_weekly`; cron
+`recurring-draft-pos` (`0 6 * * 1`, active) + `create_recurring_draft_pos()` = DRAFT
+yalnız (human göndərir).
+
+**Backend (13c-B):** `GET /api/stock/order-guide` (par altı + 7g tələb + catalog
+qiymət prefill), `POST /api/procurement/from-invoice` (**Toast flagship: invoice →
+DRAFT PO**), `GET /api/inventory/reports` (valuation/COGS/AvT/shrinkage/FEFO 30g),
+`/api/stock/batches*` CRUD, `/api/suppliers/items*` CRUD, PO + recurring_weekly.
+WAC (qiymət avtomatlaşması) = mövcud frozen trigger — toxunulmayıb.
+
+**AI (13c-C):** `GET /api/recipes/calibrate` = **YENİ engine** (30g BOM×satış =
+theoretical vs per-item FAKTİKİ consumption → LLM BOM delta, propose-only; waste
+fərqi reseptə əlavə ETMİR; apply = atomik `/api/recipes/save`); `GET
+/api/inventory/advisor` = 30g deterministic stats + LLM narrative (AdvisorCard).
+
+**Frontend (13c-D):** Stock: Report view (ReportsTab) + AdvisorCard + row freshness
+chips + InspectorPanel PARTİYALAR·FEFO (CRUD). Procurement: **Order Guide** pill
+(select → DRAFT PO Yarat + "Həftəlik təkrar") + Tədarükçü modal içində MƏHSUL
+KATALOGU (CRUD). Counts: "Sayımı edən" assignment + **offline buffer**
+(`useCountOfflineQueue` — 12u KDS pattern: localStorage FIFO, online-replay, 4xx-drop/
+5xx-keep, banner). Recipes: KALİBRASİYA (AI) modal (cədvəl + təklif + Tətbiq).
+PO list: Həftəlik/RECUR- badges. E2E-də tapılan DRAFT PO button "occluded" = z-10 +
+shrink-0 + type=button fix.
+
+**E2E r27 (0-dan, dark+light, console 0, 12 shot):** S1 stock+advisor ✓ · S2 batch
+chips (5 gün / Müddəti keçib + row chip) ✓ clean · S3 catalog add/edit/delete ✓ clean
+· S4 order guide → DRAFT PO `bd469146…` ₼1150 → cancelled (200) ✓ (supplier mapping
+bridge reversible) · S5 REPORT (228,209 ₼ valuation, COGS, AvT, FEFO) ✓ · S6 counts
+assignment + item + cancel + DELETE (200) ✓ · S7 Filadelfiya kalibrasiya (7 sətir +
+"uyğundur") ✓ (apply YOX — qərar owner-in) · light ✓.
+
+**psql (son):** supplier_items=0, stock_batches=0, stock_counts=0, guide-POs=0,
+RECUR-POs=0, mənfi=5 (owner sayımı gözləyir), cron ×2 active. §1d: 6/8 zəif bağlandı
+(qalan: multi-location = biznes qərarı, weekly shrinkage pattern report = 13d).
+→ `HANDOFF_13C.md`.
 
 ### Jurnal sətiri — 2026-10-05 (ROUND 13b: BOM qeydiyyatı + təmizlik + INVENTORY MÜQAYİSƏSİ)
 

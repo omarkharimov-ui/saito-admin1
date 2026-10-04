@@ -364,7 +364,16 @@ export default function PurchaseOrdersPage() {
                     style={{ gridTemplateColumns: '1fr 1fr 100px 110px 140px 140px 100px' }}
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate">{order.order_number}</p>
+                      <p className="text-sm font-semibold truncate flex items-center gap-2">
+                        {order.order_number}
+                        {/* 13c: recurring weekly flag (Monday 09:00 cron drafts a copy). */}
+                        {order.recurring_weekly && (
+                          <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-400 text-[9px] font-black uppercase tracking-wider">Həftəlik</span>
+                        )}
+                        {order.order_number?.startsWith('RECUR-') && (
+                          <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/15 text-white/50 text-[9px] font-black uppercase tracking-wider">cron</span>
+                        )}
+                      </p>
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm text-[var(--theme-text-secondary)] truncate">{supplierName}</p>

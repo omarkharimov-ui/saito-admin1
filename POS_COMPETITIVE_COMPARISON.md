@@ -1,4 +1,4 @@
-# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-05, rounds 7 → 13b)
+# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-04, rounds 7 → 13c)
 
 > Əsas: SAITO = bu repo-nun kodu üzrə verified feature set. Rəqiblər = hər birinin
 > müstəqil Restaurant POS məhsulunun müəssisəleşmiş core feature set-i.
@@ -56,6 +56,13 @@
  > (Toast xtraCHEF / Square MarketMan / Lightspeed vs SAITO: consumption timing =
  > READY üstünlüyü, LLM-AI loop üstünlüyü; zəiflər = invoice→PO, par-order-guide,
  > COGS ledger, offline stocktake, batch/expiry, multi-location).
+ > **13c:** §1d-in **6 zəifinin HAMISI bağlandı** (E2E r27, console 0, dark+light):
+ > invoice→**DRAFT PO** (Toast flagship), **Order Guide** (par→7g tələb→DRAFT PO),
+ > **COGS/AvT/shrinkage Report** view + **LLM AdvisorCard**, **batch/expiry FEFO**
+ > (chips + inspector CRUD), **recurring weekly** (cron DRAFT, human sends),
+ > **offline stocktake buffer + staff assignment**, **LLM BOM calibration**
+ > (propose-only → atomic save). Qalan: multi-location (biznes qərarı) + weekly
+ > shrinkage pattern report (13d candidate).
 
 ## 0. BEFORE / AFTER — 11a–11g dəyişikliklərinin tam müqayisəsi
 
@@ -229,7 +236,7 @@ kanıtı ilə dəstəklənir.
 9. **Workload overload badge** — ✅ **12u (threshold-based):** navbar pending count + amber ≥6 / red ≥12 (pulse); Expo = gözləyən bilet amber ≥4 / red ≥8. (Staffing comparison = Addım 2 — data `kitchen_analytics`-da var.)
 10. **Board read-cache / read-replica (infra, low priority)** — ✅ **12u (E2E r20c):** board + stations stale-while-revalidate (30-min freshness, "son sinxron" note); boş-board clobber qadağası + 503 stations restore (r19/r20 bug fix).
 
-## 1d. INVENTORY SİSTEMİ — MEYAR-MEYAR MÜQAYİSƏ + HÜKÜM (13a → 13b)
+## 1d. INVENTORY SİSTEMİ — MEYAR-MEYAR MÜQAYİSƏ + HÜKÜM (13a → 13c)
 
 > Owner (13b): "bizim saitonu digər competitorların inventorysi ilə müqayisə et,
 > görək nələr var nələr yoxdur." Rəqib fakt-ları = 2026-10-05 web-verified
@@ -242,19 +249,19 @@ kanıtı ilə dəstəklənir.
 | Meyar | SAITO (13b) | Toast (xtraCHEF) | Square (MarketMan) | Lightspeed |
 |---|---|---|---|---|
 | **İnqrediyent tracking** | 34 ingredient × unit × avg cost × critical/min limit; view-lər (inventory_status, current_stock, v_stock_health) | ✅ real-time valuation + avtomatik qiymət yeniləməsi (invoice-dan) | ✅ real-time ingredient-level | ✅ ingredient-level + current value |
-| **Recipe / BOM** | ✅ 13 məhsul (13b) + **AI suggest (LLM)** + constructor + versioning + calibration | ✅ recipe costing (digital cookbook) | ✅ menu→ingredients "instantly" | ✅ recipe cost per ingredient |
+| **Recipe / BOM** | ✅ 13 məhsul (13b) + **AI suggest (LLM)** + constructor + versioning + **LLM BOM calibration engine (13c: 30g theoretical vs FAKTİKİ per-item consumption → propose-only delta)** | ✅ recipe costing (digital cookbook) | ✅ menu→ingredients "instantly" | ✅ recipe cost per ingredient |
 | **Auto-consumption** | ✅ **READY anında** (tik/Hazırdır → `consume_stock_for_item`; 66/66 kanıt; order anında DEYİL) + **refund** (`return_to_stock` 86/refund) = closed loop | ✅ on-sale | ✅ real-time | ✅ **on-sale** (sold = deduction) |
 | **Waste tracking** | ✅ waste modal + waste_standards (keyword→%, AI cache) + hot/cold waste % | ✅ shrinkage + **theft pattern** report | ✅ | ✅ purchased/produced/**wasted**/sold report |
-| **Stocktake** | ✅ counts+items, apply (zero-delta E2E), 0 icazə | ✅ **BEST: offline mobile count + staff assignment + count lists** | ✅ (MarketMan) | ✅ |
-| **Supplier / PO** | ✅ suppliers + PO + receive (goods-receipt) + **supplier returns** | ✅ vendor catalog + **direct supplier orders** | ✅ Order Guide (vendor price sheets, side-by-side unit cost) | ✅ |
-| **Invoice automation** | 🟡 AI parse + **anomaly detect** (sənəd upload → qeyri-müvafiq qiymət alert) — **auto-PO YOX** | ✅ **FLAGSHIP**: invoice→order avtomatlaşması | ⚠️ (MarketMan) | ⚠️ |
-| **Low-stock / auto-order** | 🟡 cron */5 (4s dedupe) + notification feed + `stock/suggestions` (🟡) — **recurring/scheduled orders YOX** | ✅ par-based **order guide** + **scheduled recurring orders** | ⚠️ par levels (MarketMan) | ✅ **automated recurring orders** |
-| **COGS / margin** | 🟡 margin-analysis (AI) + 30-gün variance — **formal COGS ledger (başlanğıc/bitki) YOX** | ✅ **BEST**: başlanğıc→bitki → COGS report + AvT (actual vs theoretical) | ⚠️ | ✅ food cost reports + margin + **FIFO cost policy** |
+| **Stocktake** | ✅ counts+items, apply (zero-delta E2E), 0 icazə, **staff assignment + offline buffer (13c)** | ✅ **BEST: offline mobile count + staff assignment + count lists** | ✅ (MarketMan) | ✅ |
+| **Supplier / PO** | ✅ suppliers + PO + receive (goods-receipt) + **supplier returns** + **vendor catalog + recurring weekly DRAFT (13c)** | ✅ vendor catalog + **direct supplier orders** | ✅ Order Guide (vendor price sheets, side-by-side unit cost) | ✅ |
+| **Invoice automation** | ✅ AI parse + **anomaly detect** + **invoice→DRAFT PO (13c — Toast flagship parity, human sends)** | ✅ **FLAGSHIP**: invoice→order avtomatlaşması | ⚠️ (MarketMan) | ⚠️ |
+| **Low-stock / auto-order** | ✅ cron */5 (4s dedupe) + notification feed + **par-based Order Guide → DRAFT PO + recurring weekly cron (13c)** | ✅ par-based **order guide** + **scheduled recurring orders** | ⚠️ par levels (MarketMan) | ✅ **automated recurring orders** |
+| **COGS / margin** | ✅ **formal Report (13c): valuation + 30g COGS + AvT (faktiki vs təxmin) + shrinkage/itki liderləri** + margin-analysis (AI) + LLM advisor | ✅ **BEST**: başlanğıc→bitki → COGS report + AvT (actual vs theoretical) | ⚠️ | ✅ food cost reports + margin + **FIFO cost policy** |
 | **AI (LLM)** | ✅ **BEST**: recipe suggest + calibration + invoice anomaly + stock insights (Groq) | ❌ (predictive analytics yalnız) | ⚠️ (MarketMan "AI-powered") | ❌ |
 | **Menu↔stock sync (86)** | 🟡 auto-86 cron (out-of-stock → 86) | ✅ | ✅ KDS real-time sync ("diners never order unavailable") | ⚠️ |
 | **Multi-location** | ❌ | ✅ | ✅ | ✅ |
-| **Offline (inventory)** | ❌ (inventory page-lər; KDS buffer var — inventory YOX) | ✅ offline counts | ⚠️ | ⚠️ |
-| **Batch / expiry** | ❌ | ✅ | ✅ (MarketMan) | ⚠️ |
+| **Offline (inventory)** | ✅ **offline stocktake buffer (13c — 12u KDS pattern: queue+replay)** (inventory page offline-read = YOX; KDS+POS buffer-ləri CANLI) | ✅ offline counts | ⚠️ | ⚠️ |
+| **Batch / expiry** | ✅ **stock_batches + FEFO chips + inspector CRUD (13c)** — supplementary layer (frozen consumption toxunulmayıb) | ✅ | ✅ (MarketMan) | ⚠️ |
 | **Qiymət** | **Self-hosted ₼0** | xtraCHEF = **ayrı pullu add-on** | MarketMan = **ayrı pullu add-on** | plan-də (bundled) |
 
 ### ÜSTÜN TƏRƏFLƏR (SAITO)
@@ -280,27 +287,27 @@ kanıtı ilə dəstəklənir.
    səhifəsində cımbızlanır (retail-də var); Toast xtraCHEF-də purchase-return var amma
    Square MarketMan-da ikinci dərəcə.
 
-### ZƏİF TƏRƏFLƏR (SAITO — rəqibə qarşı)
+### ZƏİF TƏRƏFLƏR (SAITO — rəqibə qarşı) — **13c status: 1,2,3,4,5,7 bağlandı ✅**
 
-1. **Invoice→PO automation YOX** (Toast flagship): sənəd upload + AI parse + anomaly
-   var, amma "parse olunan sənəddən DRAFT PO yarat" = YOX. Owner hələ manual PO girir.
-2. **Par-based order guide + scheduled recurring orders YOX** (Toast/Lightspeed):
-   "bir sayım → par-a çatmaq üçün order guide" + "həftəlik avtomatik order" = YOX
-   (`stock/suggestions` var amma PO-a çevrilmir, recurring YOX).
-3. **Formal COGS ledger + AvT report YOX** (Toast): başlanğıc/bitki inventar dəyəri →
-   gündəlik COGS; actual-vs-theoretical (resept vs faktiki = variance) AI var amma
-   rəsmi report formatı YOX.
-4. **Offline mobile stocktake + staff assignment YOX** (Toast BEST): sayım = web-only,
-   "sayımı X əməkdarəyə təyin et" = YOX (kitchen-də tablet ilə sayım = kövrək).
-5. **Batch/expiry tracking YOX** (Toast/MarketMan ✅) — sushi/restoran üçün FRESHNESS
-   kritik (avokado, somon) — indi yox.
+1. ~~Invoice→PO automation~~ → ✅ **13c:** `POST /api/procurement/from-invoice` =
+   parse olunan sətirlərdən **DRAFT PO** (human göndərir) — Toast flagship parity.
+2. ~~Par-based order guide + recurring~~ → ✅ **13c:** `GET /api/stock/order-guide`
+   (par altı + 7g tələb + supplier catalog qiymət prefill) + "DRAFT PO Yarat" +
+   `recurring_weekly` + cron `recurring-draft-pos` (Dü 09:00, DRAFT — human sends).
+3. ~~Formal COGS/AvT ledger~~ → ✅ **13c:** Stock page **Report** view — valuation +
+   30g COGS + AvT (faktiki vs təxmin) + shrinkage/itki liderləri (1 service-role call).
+4. ~~Offline stocktake + staff assignment~~ → ✅ **13c:** `assigned_to` (create modal
+   + chip) + `useCountOfflineQueue` (12u KDS pattern: queue → online replay).
+5. ~~Batch/expiry~~ → ✅ **13c:** `stock_batches` + FEFO chips (row + inspector) +
+   CRUD — sushi freshness (supplementary; frozen consumption toxunulmayıb).
 6. **Multi-location YOX** (3-sü ✅) — franchise/mərtəbə genişlənməsində blocker.
-7. **Qiymət avtomatlaşması YOX** — `average_cost_per_unit` = manual; Toast invoice-dan
-   avtomatik yeniləyir, Lightspeed FIFO.
-8. **Theft/shrinkage pattern report YOX** (Toast: "track patterns of missing value") —
-   discrepancy_alerts var amma pattern/weekly report YOX.
+   **(QALIR — biznes qərarı.)**
+7. ~~Qiymət avtomatlaşması~~ → ✅ **13c:** WAC trigger (frozen) = stock_in-da
+   avtomatik weighted-average + supplier catalog qiymət prefill.
+8. **Theft/shrinkage pattern report** — 🟡 discrepancy_alerts + İTKİ LİDERLƏRİ (13c
+   report) var; **weekly pattern report = QALIR (13d candidate).**
 
-### PRAKTİK TƏKLİFLƏR (priority order — owner GO ilə)
+### PRAKTİK TƏKLİFLƏR (priority order) — **1,2,3,4,5,6,7 = 13c-DƏ YAPILDI ✅ (E2E r27)**
 
 1. **Invoice→Draft-PO (Toast flagship bağlanır):** AI parse artıq var
    (`/api/stock/ai-insights` invoice anomaly + sənəd upload) → parse olunan sətirlərdən

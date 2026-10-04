@@ -48,6 +48,9 @@ export async function POST(request: NextRequest) {
         total_amount: totalAmount,
         notes: body.notes || null,
         ordered_at: new Date().toISOString(),
+        // 13c: recurring flag → the Monday cron (create_recurring_draft_pos)
+        // drafts a copy; the order itself is a normal draft.
+        recurring_weekly: body.recurring_weekly === true,
       })
       .select()
       .single();

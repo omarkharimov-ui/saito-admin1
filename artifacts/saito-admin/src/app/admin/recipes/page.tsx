@@ -54,6 +54,13 @@ export default function RecipesPage() {
   const [constructorOpen, setConstructorOpen] = useState(false);
   const [editConstructorProductId, setEditConstructorProductId] = useState<string | undefined>(undefined);
 
+  // ── 13c: AI calibration (propose-only; apply goes through the atomic
+  //      /api/recipes/save — the human always approves the BOM delta) ──
+  const [calibratingFor, setCalibratingFor] = useState<string | null>(null);
+  const [calibration, setCalibration] = useState<any | null>(null);
+  const [calLoading, setCalLoading] = useState(false);
+  const [calApplying, setCalApplying] = useState<string | null>(null);
+
   // ── Cookbook state ──
   const [cookbookLoading, setCookbookLoading] = useState(false);
   const [cookbookResults, setCookbookResults] = useState<CookbookRecipe[]>([]);
@@ -336,6 +343,53 @@ export default function RecipesPage() {
       fetchData();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
+  };
+
+  // ── 13c: AI calibration handlers ──
+  const openCalibration = async (productId: string) => {
+    setCalibratingFor(productId);
+    setCalLoading(true);
+    try {
+      const res = await fetch(`/api/recipes/calibrate?product_id=${productId}`);
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+      setCalibration(data);
+    } catch (e: any) {
+      toast.error('Kalibrasiya xətası: ' + e.message);
+    } finally {
+      setCalLoading(false);
+    }
+  };
+
+  const applyCalibrationSuggestion = async (s: any) => {
+    if (!calibratingFor || !calibration) return;
+    setCalApplying(s.ingredient_id);
+    try {
+      // Rebuild the full MANUAL BOM with the suggested qty swapped in, then
+      // persist through the atomic save (one service-role call, is_ai_suggested
+      // rows untouched).
+      const rows = calibration.rows
+        .filter((r: any) => !r.ai_suggested)
+        .map((r: any) => ({
+          ingredient_id: r.ingredient_id,
+          quantity_required: r.ingredient_id === s.ingredient_id ? s.suggested_qty : r.bom_qty,
+        }));
+      const res = await fetch('/api/recipes/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ menu_item_id: calibratingFor, rows }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+      toast.success(`${s.name}: ${s.current_qty} → ${s.suggested_qty}`);
+      setCalibration((prev: any | null) => prev
+        ? { ...prev, suggestions: prev.suggestions.filter((x: any) => x.ingredient_id !== s.ingredient_id) }
+        : prev);
+      fetchData();
+    } catch (e: any) {
+      toast.error('Tətbiq edilmədi: ' + e.message);
+    } finally {
+      setCalApplying(null);
+    }
   };
 
   // AI reseptləri olan product-ları tap
@@ -671,8 +725,24 @@ export default function RecipesPage() {
                        </div>
                      )}
 
-                     <div className="mt-3 pt-3 border-t border-white/[0.05]">
-                       {addingFor === product.id ? (
+                      {/* 13c: AI calibration entry point (BOM vs 30-day actuals) */}
+                      {recs.length > 0 && (
+                        <div className="mt-3">
+                          <button
+                            onClick={() => openCalibration(product.id)}
+                            disabled={calLoading}
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-bold hover:bg-purple-500/20 transition-all disabled:opacity-40"
+                          >
+                            {calLoading && calibratingFor === product.id
+                              ? <Loader2 size={13} className="animate-spin" />
+                              : <BrainCircuit size={13} />}
+                            Kalibrasiya (AI) — 30 gündə BOM vs faktiki sərf
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="mt-3 pt-3 border-t border-white/[0.05]">
+                        {addingFor === product.id ? (
                          <div className="flex items-center gap-2">
                            <select
                              value={newIngredientId}
@@ -726,6 +796,104 @@ export default function RecipesPage() {
         </div>
       )}
       </div>
+
+      {/* 13c: AI Calibration modal — propose-only, human applies */}
+      <MobileModal open={!!calibration} onClose={() => { setCalibration(null); setCalibratingFor(null); }}>
+        {calibration && (
+          <div className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <BrainCircuit size={16} className="text-purple-400" /> Kalibrasiya — {calibration.product_name}
+                </h3>
+                <p className="text-xs text-white/40 mt-1">
+                  30 gün: {calibration.sales_30d} ədəd satılıb · BOM vs faktiki sərfiyyat
+                </p>
+              </div>
+              <button onClick={() => { setCalibration(null); setCalibratingFor(null); }} className="p-1.5 rounded-lg text-white/30 hover:text-white transition-colors shrink-0">
+                <X size={16} />
+              </button>
+            </div>
+
+            {calibration.ai === 'no_recipe' && (
+              <p className="text-sm text-white/40">Bu məhsulun resepti yoxdur — əvvəlcə BOM daxil edin.</p>
+            )}
+            {calibration.ai === 'no_sales' && (
+              <p className="text-sm text-amber-400/80">Son 30 gündə satış yoxdur — LLM təklif üçün data çatmır. Aşağıdakı cədvəl yalnız BOM-un özüdür.</p>
+            )}
+
+            {calibration.rows.length > 0 && (
+              <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-white/30 uppercase text-[10px] tracking-wider" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                      <th className="px-3 py-2 font-bold">Xəmmal</th>
+                      <th className="px-3 py-2 text-right font-bold">BOM</th>
+                      <th className="px-3 py-2 text-right font-bold">Təxmin 30g</th>
+                      <th className="px-3 py-2 text-right font-bold">Faktiki</th>
+                      <th className="px-3 py-2 text-right font-bold">Fərq</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {calibration.rows.map((r: any) => (
+                      <tr key={r.ingredient_id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td className="px-3 py-2 text-white/80">{r.name}{r.ai_suggested && <span className="ml-1.5 text-[9px] text-purple-400/60">AI</span>}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-white/60">{r.bom_qty}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-white/40">{r.theoretical}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-white/60">{r.actual}</td>
+                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${r.variance_pct == null ? 'text-white/20' : Math.abs(r.variance_pct) > 10 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          {r.variance_pct == null ? '—' : `${r.variance_pct > 0 ? '+' : ''}${r.variance_pct}%`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {calibration.ai !== 'no_recipe' && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/30 mb-2 flex items-center gap-1.5">
+                  <BrainCircuit size={12} className="text-purple-400" /> AI təklifləri
+                </p>
+                {calibration.suggestions.length === 0 ? (
+                  <p className="text-xs text-white/30">BOM faktiki sərfiyyata uyğundur — düzəliş təklif olunmur.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {calibration.suggestions.map((s: any) => (
+                      <div key={s.ingredient_id} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl"
+                        style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.15)' }}>
+                        <div className="min-w-0">
+                          <p className="text-sm text-white font-medium">{s.name}</p>
+                          <p className="text-[11px] text-white/40 truncate">{s.reason}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs tabular-nums text-white/50">
+                            {s.current_qty} <span className="text-white/25">→</span> <span className="text-purple-300 font-bold">{s.suggested_qty}</span>
+                          </span>
+                          <button
+                            onClick={() => applyCalibrationSuggestion(s)}
+                            disabled={calApplying === s.ingredient_id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-40"
+                            style={{ background: 'rgba(168,85,247,0.2)', border: '1px solid rgba(168,85,247,0.3)', color: '#d8b4fe' }}
+                          >
+                            {calApplying === s.ingredient_id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                            Tətbiq et
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <p className="text-[10px] text-white/25">
+              Tətbiq = BOM-un atomik yenidən yazılması (yalnız manuel sətirlər). AI yalnız təklif verir — qərar sizindir.
+            </p>
+          </div>
+        )}
+      </MobileModal>
 
       {/* Recipe Constructor Modal */}
       <RecipeConstructorModal

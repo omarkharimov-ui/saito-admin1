@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Package, TrendingUp, TrendingDown, AlertTriangle, History, Trash2, ClipboardCheck, Pencil, Save, Trash, ChevronRight, Loader2 } from '@/components/ui/saito-icons';
 import type { InventoryStatusRow, InventoryLog, Supplier } from '@/types/inventory';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { StockStatusBar } from '@/components/StockStatusBadge';
 import { toast } from '@/lib/toast';
 
@@ -30,6 +30,22 @@ export function InspectorPanel({ row, onClose, UNIT_LABELS, onStockIn, onWaste, 
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', critical_limit: 0, purchase_price: 0, cold_waste_percentage: 0 });
 
+  // 13c: batch/expiry layer — FEFO attention list (supplementary; never
+  // gates the frozen aggregate consumption engine).
+  const [batches, setBatches] = useState<any[]>([]);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [showBatchForm, setShowBatchForm] = useState(false);
+  const [batchForm, setBatchForm] = useState({ qty: '', expiry_date: '', source: '' });
+
+  const loadBatches = useCallback(async (ingredientId: string) => {
+    setBatchLoading(true);
+    try {
+      const r = await fetch(`/api/stock/batches?ingredient_id=${ingredientId}`);
+      if (r.ok) setBatches(await r.json());
+    } catch {}
+    setBatchLoading(false);
+  }, []);
+
   useEffect(() => {
     if (row) {
       setEditForm({
@@ -39,10 +55,55 @@ export function InspectorPanel({ row, onClose, UNIT_LABELS, onStockIn, onWaste, 
         cold_waste_percentage: row.cold_waste_percentage || 0
       });
       setIsEditing(false);
+      setShowBatchForm(false);
+      setBatchForm({ qty: '', expiry_date: '', source: '' });
+      loadBatches(row.id);
     }
-  }, [row]);
+  }, [row, loadBatches]);
 
   const meta = row ? statusMeta[row.status] : null;
+
+  const batchFreshness = (expiry: string | null) => {
+    if (!expiry) return { label: 'Müddət yoxdur', cls: 'text-white/30 border-white/[0.08] bg-white/[0.03]' };
+    const days = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
+    if (days < 0) return { label: 'Müddəti keçib', cls: 'text-red-400 border-red-500/25 bg-red-500/10' };
+    if (days === 0) return { label: 'Bu gün bitir', cls: 'text-red-400 border-red-500/25 bg-red-500/10' };
+    if (days <= 3) return { label: `${days} gün qalıb`, cls: 'text-amber-400 border-amber-500/25 bg-amber-500/10' };
+    return { label: `${days} gün qalıb`, cls: 'text-emerald-400 border-emerald-500/25 bg-emerald-500/10' };
+  };
+
+  const sortedBatches = useMemo(() => {
+    return [...batches].sort((a, b) => {
+      const ta = a.expiry_date ? new Date(a.expiry_date).getTime() : Infinity;
+      const tb = b.expiry_date ? new Date(b.expiry_date).getTime() : Infinity;
+      return ta - tb; // FEFO: earliest expiry first
+    });
+  }, [batches]);
+
+  const addBatch = async () => {
+    if (!row) return;
+    const qty = parseFloat(batchForm.qty);
+    if (isNaN(qty) || qty <= 0) { toast.error('Miqdar 0-dan böyük olmalıdır'); return; }
+    const r = await fetch('/api/stock/batches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredient_id: row.id, qty, expiry_date: batchForm.expiry_date || null, source: batchForm.source || null }),
+    });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d.error || 'Partiya əlavə edilmədi'); return; }
+    toast.success('Partiya əlavə edildi');
+    setBatchForm({ qty: '', expiry_date: '', source: '' });
+    setShowBatchForm(false);
+    loadBatches(row.id);
+    onUpdate();
+  };
+
+  const deleteBatch = async (id: string) => {
+    const r = await fetch(`/api/stock/batches/${id}`, { method: 'DELETE' });
+    if (!r.ok) { toast.error('Partiya silinmədi'); return; }
+    toast.success('Partiya silindi');
+    if (row) loadBatches(row.id);
+    onUpdate();
+  };
 
   const handleSave = async () => {
     if (!row) return;
@@ -173,9 +234,61 @@ export function InspectorPanel({ row, onClose, UNIT_LABELS, onStockIn, onWaste, 
                  )}
               </div>
 
-              {/* Main Actions */}
-              <div className="space-y-4 pt-4">
-                <h3 className="text-[11px] font-black text-white/20 uppercase tracking-[0.3em]">Əməliyyatlar</h3>
+               {/* 13c: Partiyalar (batch/expiry) — FEFO attention list */}
+               <div className="space-y-4 pt-4">
+                 <div className="flex items-center justify-between">
+                   <h3 className="text-[11px] font-black text-white/20 uppercase tracking-[0.3em]">Partiyalar · FEFO</h3>
+                   <button onClick={() => setShowBatchForm(v => !v)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-white/[0.04] border border-white/[0.07] text-white/50 hover:text-white transition-all">
+                     {showBatchForm ? <X size={12} /> : <Package size={12} />} {showBatchForm ? 'Bağla' : 'Partiya əlavə et'}
+                   </button>
+                 </div>
+                 {showBatchForm && (
+                   <div className="grid grid-cols-2 gap-2.5">
+                     <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                       <label className="text-[10px] text-white/30 uppercase tracking-widest ml-1">Miqdar ({UNIT_LABELS[row.unit]})</label>
+                       <input type="number" min="0" step="0.001" value={batchForm.qty} onChange={e => setBatchForm(p => ({ ...p, qty: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-emerald-400/60" />
+                     </div>
+                     <div className="space-y-1.5">
+                       <label className="text-[10px] text-white/30 uppercase tracking-widest ml-1">Döymə tarixi</label>
+                       <input type="date" value={batchForm.expiry_date} onChange={e => setBatchForm(p => ({ ...p, expiry_date: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-emerald-400/60" />
+                     </div>
+                     <div className="space-y-1.5">
+                       <label className="text-[10px] text-white/30 uppercase tracking-widest ml-1">Mənbə</label>
+                       <input value={batchForm.source} onChange={e => setBatchForm(p => ({ ...p, source: e.target.value }))} placeholder="Tədarükçü / PO" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-emerald-400/60" />
+                     </div>
+                     <button onClick={addBatch} className="col-span-2 sm:col-span-1 self-end flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.1] text-[11px] font-bold uppercase tracking-wider text-white/80 hover:text-white transition-all">
+                       <Save size={13} /> Saxla
+                     </button>
+                   </div>
+                 )}
+                 {batchLoading ? (
+                   <p className="text-xs text-white/25">Yüklenir...</p>
+                 ) : sortedBatches.length === 0 ? (
+                   <p className="text-xs text-white/25">Partiya qeydi yoxdur — tədarükçü gəlində batch qeyd edin (tazəlik izi).</p>
+                 ) : (
+                   <div className="space-y-1.5">
+                     {sortedBatches.map((b) => {
+                       const f = batchFreshness(b.expiry_date);
+                       return (
+                         <div key={b.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+                           <div className="min-w-0">
+                             <p className="text-sm font-semibold text-white/90 tabular-nums">{b.qty} {UNIT_LABELS[row.unit]}</p>
+                             <p className="text-[10px] text-white/30 truncate">{b.source || 'Mənbə yoxdur'}{b.note ? ` · ${b.note}` : ''}</p>
+                           </div>
+                           <div className="flex items-center gap-2 shrink-0">
+                             <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${f.cls}`}>{f.label}</span>
+                             <button onClick={() => deleteBatch(b.id)} className="p-1.5 rounded-lg text-white/20 hover:text-red-400 transition-colors"><Trash2 size={14} /></button>
+                           </div>
+                         </div>
+                       );
+                     })}
+                   </div>
+                 )}
+               </div>
+
+               {/* Main Actions */}
+               <div className="space-y-4 pt-4">
+                 <h3 className="text-[11px] font-black text-white/20 uppercase tracking-[0.3em]">Əməliyyatlar</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <QuickAction icon={<Package size={18} />} label="Stok Girişi" onClick={() => onStockIn(row)} color="bg-emerald-500/10 text-emerald-400" />
                   <QuickAction icon={<TrendingDown size={18} />} label="İtki Qeydi" onClick={() => onWaste(row)} color="bg-rose-500/10 text-rose-400" />

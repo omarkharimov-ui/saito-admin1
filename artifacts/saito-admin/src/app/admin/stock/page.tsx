@@ -22,6 +22,8 @@ import {
 } from '@/types/inventory';
 import { getStatusMeta, StockStatusBar } from '@/components/StockStatusBadge';
 import ProcurementTab from './components/ProcurementTab';
+import ReportsTab from './components/ReportsTab';
+import AdvisorCard from './components/AdvisorCard';
 import IntelligenceTabComponent from './components/IntelligenceTab';
 import { CalibrationSuggestionsPanel, CalibrationSuggestion } from './components/CalibrationSuggestionsPanel';
 import { InventoryHealthCard } from './components/InventoryHealthCard';
@@ -61,7 +63,8 @@ export default function StockPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'critical' | 'out_of_stock'>(searchParams.get('filter') === 'critical' || searchParams.get('filter') === 'out_of_stock' ? searchParams.get('filter') as any : 'all');
-  const [viewMode, setViewMode] = useState<'stock' | 'intelligence' | 'suppliers' | 'procurement'>('stock');
+  // 13c: + 'report' (COGS/AvT/shrinkage/freshness — Toast parity).
+  const [viewMode, setViewMode] = useState<'stock' | 'intelligence' | 'suppliers' | 'procurement' | 'report'>('stock');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [history, setHistory] = useState<Array<Pick<InventoryLog, 'id' | 'type' | 'quantity' | 'cost_per_unit' | 'reason' | 'created_at'>> | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -69,6 +72,10 @@ export default function StockPage() {
   const [showNewIngredient, setShowNewIngredient] = useState(false);
   const [quickStockSearch, setQuickStockSearch] = useState('');
   const [quickStockQty, setQuickStockQty] = useState('');
+
+  // 13c: batch/expiry freshness — chips on rows whose nearest batch is
+  // expired or ≤3 days out (FEFO attention, non-blocking).
+  const [batches, setBatches] = useState<any[]>([]);
 
   const [newIngredient, setNewIngredient] = useState({ name: '', unit: 'gram', current_stock: 0, critical_limit: 0, average_cost_per_unit: 0, purchase_price: 0, supplier_id: '' });
 
@@ -79,9 +86,10 @@ export default function StockPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [invRes, supRes] = await Promise.all([
+      const [invRes, supRes, batchRes] = await Promise.all([
         fetch('/api/inventory'),
-        fetch('/api/suppliers')
+        fetch('/api/suppliers'),
+        fetch('/api/stock/batches').catch(() => null),
       ]);
       if (invRes.ok) {
         setData(await invRes.json());
@@ -94,6 +102,9 @@ export default function StockPage() {
       } else {
         const err = await supRes.json().catch(() => ({ error: 'Suppliers load failed' }));
         toast.error(err.error || 'Tədarükçü məlumatları yüklənərkən xəta', { id: 'action-toast' });
+      }
+      if (batchRes && batchRes.ok) {
+        setBatches(await batchRes.json());
       }
     } catch (error) {
       console.error("Fetch error:", error);
@@ -144,6 +155,18 @@ export default function StockPage() {
     const normal = Math.max(0, total - critical - out_of_stock);
     return { ...data.stats, normal };
   }, [data?.stats]);
+
+  // 13c: nearest-batch freshness per ingredient (expired OR ≤3 days → chip).
+  const freshnessByIngredient = useMemo(() => {
+    const m: Record<string, { days: number; expired: boolean }> = {};
+    for (const b of batches) {
+      if (!b.expiry_date) continue;
+      const days = Math.ceil((new Date(b.expiry_date).getTime() - Date.now()) / 86400000);
+      const prev = m[b.ingredient_id];
+      if (!prev || days < prev.days) m[b.ingredient_id] = { days, expired: days < 0 };
+    }
+    return m;
+  }, [batches]);
 
   const handleAction = async (type: 'stock_in' | 'waste' | 'adjustment' | 'audit') => {
     if (!selectedRow || !qtyInput) return;
@@ -250,6 +273,7 @@ export default function StockPage() {
                   <button onClick={() => setViewMode('intelligence')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'intelligence' ? 'bg-gold text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Ağıllı Analiz</button>
                   <button onClick={() => setViewMode('suppliers')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'suppliers' ? 'bg-blue-500 text-white' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Tədarükçülər</button>
                   <button onClick={() => setViewMode('procurement')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'procurement' ? 'bg-gold text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Tədarük</button>
+                  <button onClick={() => setViewMode('report')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'report' ? 'bg-blue-500 text-white' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Report</button>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -268,6 +292,9 @@ export default function StockPage() {
               </div>
             </div>
           </section>
+
+          {/* 13c: AI advisor — narrative over the 30-day deterministic stats. */}
+          {viewMode === 'stock' && <AdvisorCard />}
 
           {viewMode === 'stock' && (
             <div className="grid grid-cols-1 gap-6 items-start">
@@ -311,7 +338,20 @@ export default function StockPage() {
                               </div>
                               <div>
                                 <p className="text-sm font-semibold text-[var(--theme-text)]">{row.name}</p>
-                                <p className="text-[10px] text-[var(--theme-text-muted)] font-medium uppercase tracking-wider mt-0.5">{UNIT_LABELS[row.unit]}</p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-[10px] text-[var(--theme-text-muted)] font-medium uppercase tracking-wider mt-0.5">{UNIT_LABELS[row.unit]}</p>
+                                  {(() => {
+                                    const f = freshnessByIngredient[row.id];
+                                    if (!f) return null;
+                                    if (f.expired) {
+                                      return <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-red-500/15 border border-red-500/30 text-red-400">Müddət keçib</span>;
+                                    }
+                                    if (f.days <= 3) {
+                                      return <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-400">Döymə: {f.days} gün</span>;
+                                    }
+                                    return null;
+                                  })()}
+                                </div>
                               </div>
                             </div>
                             <div className="col-span-2 text-center hidden md:block">
@@ -371,6 +411,10 @@ export default function StockPage() {
 
           {viewMode === 'procurement' && (
             <ProcurementTab />
+          )}
+
+          {viewMode === 'report' && (
+            <ReportsTab />
           )}
 
         </div>

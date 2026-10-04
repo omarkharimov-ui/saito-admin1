@@ -10,6 +10,7 @@ import { toast } from '@/lib/toast';
 import type { StockCount, StockCountItem } from '@/types/inventory';
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
+import { useCountOfflineQueue } from './useCountOfflineQueue';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -75,6 +76,12 @@ export default function StockCountsPage() {
   // Create form
   const [formCountNumber, setFormCountNumber] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  // 13c: staff assignment (Toast parity) — who physically runs the count.
+  const [formAssignedTo, setFormAssignedTo] = useState('');
+
+  // 13c: offline stocktake buffer — entries recorded offline are replayed
+  // on reconnect (KDS offline-queue pattern, 12u).
+  const { queued, replaying, enqueue, replay } = useCountOfflineQueue();
 
   // Add-item form (inside detail)
   const [addIngredientId, setAddIngredientId] = useState('');
@@ -163,19 +170,21 @@ export default function StockCountsPage() {
     if (!formCountNumber.trim()) { toast.error('Sayım nömrəsi daxil edin'); return; }
     setSaving(true);
     try {
-      const res = await fetch('/api/stock/counts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          count_number: formCountNumber.trim(),
-          notes: formNotes.trim() || undefined,
-        }),
-      });
+       const res = await fetch('/api/stock/counts', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           count_number: formCountNumber.trim(),
+           notes: formNotes.trim() || undefined,
+           assigned_to: formAssignedTo.trim() || undefined,
+         }),
+       });
       if (!res.ok) throw new Error((await res.json()).error);
       toast.success('Sayım yaradıldı');
       setShowCreate(false);
       setFormCountNumber('');
       setFormNotes('');
+      setFormAssignedTo('');
       fetchCounts();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');
@@ -225,6 +234,9 @@ export default function StockCountsPage() {
   };
 
   // ── Add Item ─────────────────────────────────────────────────────────────
+  // 13c: network failure (fetch throws / device offline) → the entry is
+  // buffered in the offline queue instead of being lost. A server-level
+  // rejection (4xx) is still surfaced as an error.
   const handleAddItem = async () => {
     if (!expandedId || !addIngredientId) { toast.error('İnqrediyent seçin'); return; }
     const qty = parseFloat(addActualQty);
@@ -239,13 +251,21 @@ export default function StockCountsPage() {
           actual_qty: qty,
         }),
       });
-      if (!res.ok) throw new Error((await res.json()).error);
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
       toast.success('Məhsul əlavə edildi');
       setAddIngredientId('');
       setAddActualQty('');
       fetchDetail(expandedId);
     } catch (e: any) {
-      toast.error(e.message || 'Xəta baş verdi');
+      const offline = e instanceof TypeError || navigator.onLine === false;
+      if (offline) {
+        enqueue(expandedId, addIngredientId, qty);
+        toast.success('Offline: sayım lokal yadda saxlanıldı — bağlantı qayıdanda avtomatik göndərıləcək');
+        setAddIngredientId('');
+        setAddActualQty('');
+      } else {
+        toast.error(e.message || 'Xəta baş verdi');
+      }
     } finally {
       setAddingItem(false);
     }
@@ -300,6 +320,24 @@ export default function StockCountsPage() {
             className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-white/[0.04] border border-white/[0.08] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[#D4AF37]/30 transition-colors"
           />
         </div>
+
+        {/* 13c: offline stocktake queue banner */}
+        {queued.length > 0 && (
+          <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl"
+            style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}>
+            <p className="text-xs font-medium text-amber-400/90">
+              {queued.length} sayım elementi çəkdən gözləyir (offline)
+            </p>
+            <button
+              onClick={() => void replay()}
+              disabled={replaying}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-amber-300 border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-all disabled:opacity-40"
+            >
+              {replaying ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+              İndi göndər
+            </button>
+          </div>
+        )}
 
         {/* ── List ── */}
         {loading ? (
@@ -365,6 +403,11 @@ export default function StockCountsPage() {
                           className={`text-[var(--theme-text-muted)] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                         />
                         <p className="text-sm font-semibold truncate">{count.count_number}</p>
+                        {count.assigned_to && (
+                          <span className="shrink-0 px-2 py-0.5 rounded-md text-[10px] font-bold text-sky-400/80 bg-sky-500/10 border border-sky-500/25">
+                            Təyin: {count.assigned_to}
+                          </span>
+                        )}
                       </div>
                       <div>
                         <StatusBadge status={count.status} />
@@ -397,6 +440,11 @@ export default function StockCountsPage() {
                             className={`text-[var(--theme-text-muted)] transition-transform duration-200 flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
                           />
                           <p className="text-sm font-semibold">{count.count_number}</p>
+                          {count.assigned_to && (
+                            <span className="shrink-0 px-2 py-0.5 rounded-md text-[10px] font-bold text-sky-400/80 bg-sky-500/10 border border-sky-500/25">
+                              Təyin: {count.assigned_to}
+                            </span>
+                          )}
                         </div>
                         <StatusBadge status={count.status} />
                       </div>
@@ -675,6 +723,19 @@ export default function StockCountsPage() {
                     value={formCountNumber}
                     onChange={e => setFormCountNumber(e.target.value)}
                     placeholder="Məs: SAY-2026-001"
+                    className="w-full px-4 py-3.5 rounded-xl text-sm text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors"
+                  />
+                </div>
+
+                {/* 13c: staff assignment */}
+                <div>
+                  <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                    Sayımı edən <span className="text-white/20">— istəyə görə</span>
+                  </label>
+                  <input
+                    value={formAssignedTo}
+                    onChange={e => setFormAssignedTo(e.target.value)}
+                    placeholder="Məs: Nigar"
                     className="w-full px-4 py-3.5 rounded-xl text-sm text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors"
                   />
                 </div>

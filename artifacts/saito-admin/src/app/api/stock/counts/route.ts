@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     if (!auth.authenticated) return auth;
     const supabase = await createAuthClient();
 
-    const { count_number, notes, counted_by } = await request.json();
+    const { count_number, notes, counted_by, assigned_to } = await request.json();
     if (!count_number) {
       return NextResponse.json({ error: 'count_number is required' }, { status: 400 });
     }
@@ -36,6 +36,8 @@ export async function POST(request: NextRequest) {
         count_number,
         notes,
         counted_by: counted_by || auth.user?.id,
+        // 13c: staff assignment (Toast parity) — the person physically counting.
+        assigned_to: assigned_to || null,
         status: 'draft',
       })
       .select()

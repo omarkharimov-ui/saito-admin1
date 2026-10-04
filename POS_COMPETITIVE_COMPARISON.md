@@ -34,6 +34,14 @@
 > Station board = **HAZIRLANIR + HAZIRDİR zone split** (ticket payı bitəndə zone-keçid).
 > Order-level qeyd kartdan bölündü (yalnız modal/POS/çap) + dine-in modal-note kök düzəldildi.
 > Səs routing E2E verified (bar-only order KDS-də səssiz).
+> **12w:** qeyd = **SMART ROUTING** — order qeydi vergüllə segmentlərə bölünür, məhsul
+> adları ilə token-match (hamming ≤1: "tee"≈"tea") → hər station kartı YALNIZ öz
+> məhsuluna aid qeydi görür (match YOX = ümumi, hamıda); Expo/modal = tam qeyd; kartda
+> qeyd geri (scoped). HAZIRLANIR/HAZIRDİR zona → **sub-tab** (count, pill).
+> **12x:** routing = **MULTILINGUAL DƏRİN** (`note-routing.ts`): kiril→latın translit +
+> ~40 concept sözlüyü (AZ/EN/RU: "çay"≈"tea"≈"чай") + light stem — qeyd AZ, EN və RU
+> (kiril) yazılsa da düzgün stansiya-ya yönlənir; yeni proper-noun məhsullar 3 dildə
+> tanınır (E2E r23: RU kiril order verbatim verified).
 
 ## 0. BEFORE / AFTER — 11a–11g dəyişikliklərinin tam müqayisəsi
 

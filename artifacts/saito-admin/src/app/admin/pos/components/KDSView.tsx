@@ -21,6 +21,7 @@ import { printKitchenTicket, printReceipt, getReceiptSettings } from '@/lib/prin
 import { useCrossTableRefresh } from '@/hooks/useCrossTableRefresh';
 import { useKdsOfflineQueue } from '@/hooks/useKdsOfflineQueue';
 import { isOffline } from '@/lib/offline/monitor';
+import { routeNoteSegments, scopedNoteFor as scopedNoteForSegs } from '@/lib/note-routing';
 import { PinGuard } from './PinGuard';
 
 /** 2026-10-02 (12e, owner KDS review K1): the board had NO time window — a
@@ -337,56 +338,24 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   );
   const isExpoStation = (stId: string | null | undefined) => !!stId && expoStationIds.has(stId);
 
-  // ── 12w (owner): SMART NOTE ROUTING ─────────────────────────────────────
+  // ── 12w → 12x (owner): SMART NOTE ROUTING ───────────────────────────────
   // POS-da iki qeyd növü var: "Məhsul qeydi" (special_notes — item-səviyyəli,
-  // artıq stansiya-ya aid) və "Sifariş qeydi" (customer_note — order-səviyyəli,
-  // əvvəl "birbasa" BÜTÜN station kartlarına düşürdü). Indiki qayda: order
-  // qeydi vergül ilə segmentlərə bölünür; hər segment order-un məhsul adları
-  // (+ modifikatorlar) ilə token-matching-ə düşür (ağır/aksentsiz, hamming ≤1:
-  // "tee"≈"tea", "filadelfiya" prefix). Match oldu → segment YALNIZ həmin
-  // stansiya-nın kartında; match olmadı (və ya bütün stansiya-ların məhsulu)
-  // → ÜMUMİ (hamıda — cədvəl/order haqqında qeyd).
-  const normTok = (s: string) =>
-    s.toLocaleLowerCase('tr').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-  const hamming1 = (a: string, b: string) => {
-    if (a === b) return true;
-    if (Math.abs(a.length - b.length) > 1) return false;
-    let d = 0;
-    const n = Math.max(a.length, b.length);
-    for (let i = 0; i < n; i++) { if (a[i] !== b[i] && ++d > 1) return false; }
-    return true;
-  };
-  const routeNoteSegments = useCallback((o: KDSOrder): { stId: string | null; text: string }[] => {
-    const raw = (o.customer_note || '').trim();
-    if (!raw) return [];
-    const segs = raw.split(/[,;•]/).map(s => s.trim()).filter(Boolean);
-    const itemToks = o.items
+  // artıq stansiya-ya aid) və "Sifariş qeydi" (customer_note — order-
+  // səviyyəli). 12x: matching ENGINE `src/lib/note-routing.ts`-də —
+  // MULTILINGUAL dərin: AZ/EN/RU + kiril→latın translit + ~40 concept
+  // sözlüyü ("çay"≈"tea"≈"чай") + light stem + hamming ≤1 ("tee"≈"tea") +
+  // prefix — yeni məhsul adları (propre nouns) translit/token ilə də tanınır.
+  // Qayda: order qeydi vergüllə segmentlərə bölünür; hər segment order-un
+  // məhsul adları (+ modifikatorlar) ilə match olunur → YALNIZ həmin
+  // stansiya-nın kartı; match YOX (və ya BÜTÜN stansiya-lar) → ÜMUMİ (hamıda).
+  const routeOrderNote = useCallback((o: KDSOrder) =>
+    routeNoteSegments(o.customer_note, o.items
       .filter(i => (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status))
-      .map(i => {
-        const toks = new Set<string>();
-        (i.name || '').split(/\s+/).forEach(w => { const n = normTok(w); if (n.length >= 3) toks.add(n); });
-        (i.modifiers || []).forEach(m => { const n = normTok(m.name || ''); if (n.length >= 3) toks.add(n); });
-        return { st: itemStation(i) || '', toks: Array.from(toks) };
-      });
-    const allStations = new Set(itemToks.map(x => x.st));
-    return segs.map(text => {
-      const noteToks = text.split(/\s+/).map(normTok).filter(n => n.length >= 3);
-      const matched = new Set<string>();
-      for (const it of itemToks) {
-        const hit = noteToks.some(nt => it.toks.some(
-          t => t === nt || hamming1(nt, t) || (nt.length >= 4 && (t.startsWith(nt) || nt.startsWith(t))),
-        ));
-        if (hit) matched.add(it.st);
-      }
-      // matched nothing (or matched items of EVERY station on the order)
-      // → general note → shown on all station cards (stId null).
-      if (matched.size === 0 || matched.size >= allStations.size) return { stId: null, text };
-      return { stId: [...matched][0], text };
-    });
-  }, [stations]);
+      .map(i => ({ stationId: itemStation(i) || '', name: i.name, modifiers: i.modifiers }))),
+    [stations]);
   const scopedNoteFor = useCallback((o: KDSOrder, stId: string): string =>
-    routeNoteSegments(o).filter(s => s.stId === null || s.stId === stId).map(s => s.text).join(' · '),
-  [routeNoteSegments]);
+    scopedNoteForSegs(routeOrderNote(o), stId),
+  [routeOrderNote]);
   // 12s (owner): "bir mətbəx digər mətbəxin sifarişlərini YALNIZ İZLƏYƏ
   // bilsin, idarə etməsin" — restricted terminals (BDS) get a WATCH tab for
   // the sibling kitchen family. navStations = own family + sibling kitchen

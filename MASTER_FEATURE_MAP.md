@@ -439,7 +439,7 @@ Tickets, stations (kitchen/grill/fry/dessert/bar/expo), routing, queue, priority
 | Prep-time + station analytics | ✅ | `kitchen_analytics`, `log_kitchen_analytics`, `get_kitchen_stats` | `admin/kitchen-analytics` |
 | Kitchen schedule (reservation pre-fire) | ✅ | `kitchen_schedule`, `process_due_kitchen_schedules` (cron) | — |
 | **EXPO station — "SERVING QAPISI" (12u → 12v VIEW-ONLY):** bütün stansiya ready olmadan order Expo-ya düşmür (all-ready invariant, FIFO `kitchen_ready_at`); **12v (owner: "servis POS-dan verilir"): KDS-də servis button/text YOX** — pass = read-only gözləmə board; servis = POS "SERVISƏ VER" (`mark_order_served_atomic`, 12i); overload (amber ≥4/red ≥8); DB: `stations` + Expo (`service`, sort 3 — CHECK icazə verir, migration YOX) | ✅ **12u → 12v** | `stations` ('service'), `mark_order_served_atomic` (frozen, POS-dan), `/api/orders/serve` (12i) | KDS navbar 4. tab (BDS-də YOX); `expoTickets` gate; sükut timestamps footer; E2E r20/r21 view-only verified |
-| **HAZIRLANIR/HAZIRDİR = SUB-TAB (12v zona → 12w tab) + SMART NOTE ROUTING (12w):** station board = iki pill sub-tab (count; default HAZIRLANİR; station-də reset; Expo-da YOX) — pay bitəndə ticket sub-tab-ına keçir. Order `customer_note` = vergüllə segmentlər → məhsul ad/modifikator token-matching (exact/hamming≤1/prefix) → **yalnız həmin stansiya-nın kartı**; match YOX = ümumi (hamıda); Expo kart + modal = TAM qeyd; dine-in modal-note kök (müşəri-section gate) 12v-də düzəldilib | ✅ **12v → 12w** | — (UI; routing = client, DB dəyişiklik YOX) | `routeNoteSegments`/`scopedNoteFor`, `readyTab`; i18n `kds_zone_*`/`kds_all_in_ready`; E2E r21/r22 (scoped verbatim verified) |
+| **HAZIRLANIR/HAZIRDİR = SUB-TAB (12v zona → 12w tab) + SMART NOTE ROUTING (12w → 12x MULTILINGUAL):** station board = iki pill sub-tab (count; default HAZIRLANİR; station-də reset; Expo-da YOX). Order `customer_note` = vergüllə segmentlər → **`src/lib/note-routing.ts`**: normalize + **kiril→latın translit** + **~40 concept sözlüyü (AZ/EN/RU: çay≈tea≈чай)** + light stem + hamming≤1 + prefix → **yalnız həmin stansiya-nın kartı**; match YOX = ümumi (hamıda); Expo kart + modal = TAM qeyd; yeni proper-noun məhsullar 3 dildə tanınır (menyu-ya əlavə olanda ekstradan heç nə lazımdır); dine-in modal-note kök 12v-də düzəldilib | ✅ **12v → 12w → 12x** | — (UI; routing = saf client modul, DB dəyişiklik YOX) | `note-routing.ts` (tokensMatch/routeNoteSegments), KDSView adapter `routeOrderNote`; i18n `kds_zone_*`/`kds_all_in_ready`; E2E r22 (AZ) + r23 (RU kiril, verbatim ✓) |
 | **§1c sweep (12u):** bump bar (tək-press Hazırdır rail, xl+; Expo = SERVİSƏ VER tile) · offline buffer (tick/ready/86/serve → localStorage queue + healthy-poll replay; offline reload = cached board+stations + "son sinxron" note; boş-board clobber qadağası; 503 stations restore) · per-ticket ETA (Ø HAZIRLANMA "≈N dəq", overrun amber) · watch timestamps (Qəbul/Hazır HH:MM) · 86 = modal-da səbəb+PIN (X görünüşü YOX; kds/bds `VirtualKeyboardProvider` crash fix) · per-stansiya səs routinqi (yalnız own family) · light contrast (modifier zinc-600) · overload badge (amber ≥6/red ≥12 pulse) · board read-cache (SWR, 30-min) · watch = dairə YOX (kart+modal) · sliding pill + board cross-fade (LEVEL.navigation, parallel = one state-machine motion) · GÜN cancelled-ghost fix | ✅ **12u** | — (hamısı UI; serve/void/ready = frozen RPC) | `KDSView.tsx`, `useKdsOfflineQueue.ts` (yeni), `kds/bds page`, `api/kitchen/daily`, locales ×3; E2E r17/r19/r20/r20b/r20c console 0 |
 | Printer routing (kitchen/bar printers) | ✅ **pr v1 (09-20)** | `print_jobs`, `print_devices`, `/api/print/*`, `/api/settings/printer` | Gate 35/35 + E2E R20-R28; LAN agent (tools/print-agent) |
 | Realtime ticket push | ✅ FROZEN (P0-3) | `supabase_realtime` (kitchen_tickets daxil) | — |
@@ -820,6 +820,22 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-10-04 (ROUND 12x: NOTE ROUTING = MULTILINGUAL DƏRİN (AZ/EN/RU + KIRİL))
+
+Owner: "sistem özəmənn hər 3 dilini tanıdıqda derinən, yeni məhsulu da tanısın". 12w-in
+token engine-i **saf modula** köçdü + 4 qat dərinlik əlavə olundu: `src/lib/note-routing.ts`
+(normTok → **kiril→latın translit** → **~40 concept sözlüyü** AZ/EN/RU ["çay"≈"tea"≈"чай",
+"soğan"≈"garlic"≈"лук"] → **light stem** → **hamming ≤ 1** + prefix). Yeni proper-noun
+məhsullar (Filadelfiya/Boston Lobster…) translit+token ilə 3 dildə tanınır; adət sözləri
+concept sözlüyü ilə; tapılmayan = ÜMUMİ (yanlış stansiya heç vaxt — mübahisəvax). Route
+qaydası (segment→stansiya/ümumi) 12w-dən dəyişməz; KDSView = yalnız adapter
+(`routeOrderNote` itemStation resolve). **Verifikasiya:** node unit-test 10/10 + 8/8;
+E2E r23 CANLI: AZ order `çay soyuq olsun, filadelfiya soğansız, təşəkkür` → Kitchen
+"filadelfiya soğansız · təşəkkür" / Bar "çay soyuq olsun · təşəkkür" (verbatim ✓);
+RU order (kiril) `чай холодный, филадельфия без крема, спасибо` → Kitchen "филадельфия
+без крема · спасибо" / Bar "чай холодный · спасибо" (verbatim ✓); Masa 2 real data ✓;
+console 0; cleanup tam (ORD-2966/2967 cancel+dismiss → Masa 3 BOŞ).
 
 ### Jurnal sətiri — 2026-10-04 (ROUND 12w: SMART NOTE ROUTING (ORDER QEYDİ → STANSİYA) + HAZIRLANIR/HAZIRDİR = SUB-TAB)
 

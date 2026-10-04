@@ -1,4 +1,4 @@
-# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-04, rounds 7 → 12u)
+# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-04, rounds 7 → 12y)
 
 > Əsas: SAITO = bu repo-nun kodu üzrə verified feature set. Rəqiblər = hər birinin
 > müstəqil Restaurant POS məhsulunun müəssisəleşmiş core feature set-i.
@@ -40,8 +40,15 @@
 > qeyd geri (scoped). HAZIRLANIR/HAZIRDİR zona → **sub-tab** (count, pill).
 > **12x:** routing = **MULTILINGUAL DƏRİN** (`note-routing.ts`): kiril→latın translit +
 > ~40 concept sözlüyü (AZ/EN/RU: "çay"≈"tea"≈"чай") + light stem — qeyd AZ, EN və RU
-> (kiril) yazılsa da düzgün stansiya-ya yönlənir; yeni proper-noun məhsullar 3 dildə
-> tanınır (E2E r23: RU kiril order verbatim verified).
+ > (kiril) yazılsa da düzgün stansiya-ya yönlənir; yeni proper-noun məhsullar 3 dildə
+ > tanınır (E2E r23: RU kiril order verbatim verified).
+ > **12y (owner qərarları + deep verify):** "Servis POS-dan edir" = **TAM** (modal CTA-nın
+ > son render yolu da silindi; i18n key 0 usage → silindi; ready/serving modal footer = BOŞ).
+ > "İzləmə" chip = **TAM** (navbar = bare Eye icon; footer = yalnız timestamps). **2s flicker
+ > kök-fix**: RUSH/86/course-fire optimistik qeydiyyatı + stale-snapshot merge-protection
+ > (EU pooler 2-3s kökü). E2E r24 = 0-dan deep (KDS+BDS+POS, dark+light, console 0):
+ > flicker 4 əməliyyatda 21–28s sampler = **heç vaxt revert YOX**; backend psql consistent.
+ > Növbəti modul = **INVENTORY**.
 
 ## 0. BEFORE / AFTER — 11a–11g dəyişikliklərinin tam müqayisəsi
 

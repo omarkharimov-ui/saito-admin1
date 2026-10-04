@@ -619,10 +619,18 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     orderReadyAt: number | null;
     orderAcceptedAt: number | null;
     prepared: Record<string, number>;
+    // 12y (owner: "her əməliyyat 2s sonra geri qayıdır, sanki icra olunmayıb"):
+    // the EU pooler round-trip is ~2-3 s — a poll that STARTED before the
+    // click resolves AFTER it and used to demote every action that wasn't
+    // registered here (RUSH flag, 86 void, course-fire). NOW every confirmed
+    // local action is protected until the DB confirms it in a snapshot.
+    rush: boolean | null;
+    voidedItems: string[];
+    firedItems: string[];
   }>>(new Map());
   const getOptimistic = (orderId: string) => {
     let o = optimisticRef.current.get(orderId);
-    if (!o) { o = { at: Date.now(), readyItems: [], orderReadyAt: null, orderAcceptedAt: null, prepared: {} }; optimisticRef.current.set(orderId, o); }
+    if (!o) { o = { at: Date.now(), readyItems: [], orderReadyAt: null, orderAcceptedAt: null, prepared: {}, rush: null, voidedItems: [], firedItems: [] }; optimisticRef.current.set(orderId, o); }
     o.at = Date.now();
     return o;
   };
@@ -735,8 +743,18 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             if (readySet.has(i.id) && preReady) { protectedNow = true; return { ...i, kitchen_status: 'ready' as const }; }
             const pq = opt.prepared[i.id];
             if (pq !== undefined && i.prepared_quantity !== pq) { protectedNow = true; return { ...i, prepared_quantity: pq }; }
+            // 12y: a 86-voided row stays voided — a stale snapshot must never
+            // RESURRECT it for ~2 s (the exact "yenidən gəlir" flicker).
+            if (opt.voidedItems.includes(i.id) && i.kitchen_status !== 'voided') { protectedNow = true; return { ...i, kitchen_status: 'voided' as const }; }
+            // 12y: a course-fired item stays 'preparing' (fire flips
+            // pending/accepted → preparing; a stale snapshot must not demote).
+            if (opt.firedItems.includes(i.id) && ['pending', 'accepted'].includes(i.kitchen_status)) { protectedNow = true; return { ...i, kitchen_status: 'preparing' as const }; }
             return i;
           });
+          // 12y: the RUSH flag we just confirmed keeps its value until the
+          // DB echoes it (a stale snapshot used to strip the red border for
+          // ~2 s, then restore it).
+          if (opt.rush !== null && Boolean(o.is_rush) !== opt.rush) { protectedNow = true; o.is_rush = opt.rush; }
           if (opt.orderReadyAt && ['pending', 'accepted', 'sent', 'preparing', 'partially_ready'].includes(o.kitchen_status)) {
             o.kitchen_status = 'ready';
             o.kitchen_ready_at = new Date(opt.orderReadyAt).toISOString();
@@ -752,7 +770,11 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             o.items.some(i => readySet.has(i.id) && ['pending', 'accepted', 'sent', 'preparing', 'recalled'].includes(i.kitchen_status))
             || (opt.orderReadyAt != null && ['pending', 'accepted', 'sent', 'preparing', 'partially_ready'].includes(o.kitchen_status))
             || (opt.orderAcceptedAt != null && o.kitchen_status === 'pending')
-            || Object.keys(opt.prepared).some(id => { const it = o.items.find(x => x.id === id); return it && it.prepared_quantity !== opt.prepared[id]; });
+            || Object.keys(opt.prepared).some(id => { const it = o.items.find(x => x.id === id); return it && it.prepared_quantity !== opt.prepared[id]; })
+            // 12y: release each protection as soon as the DB echoes it.
+            || (opt.rush !== null && Boolean(o.is_rush) !== opt.rush)
+            || opt.voidedItems.some(id => { const it = o.items.find(x => x.id === id); return it && it.kitchen_status !== 'voided'; })
+            || opt.firedItems.some(id => { const it = o.items.find(x => x.id === id); return it && ['pending', 'accepted'].includes(it.kitchen_status); });
           if (!protectedNow && !stillNeed) optimisticRef.current.delete(o.id);
         }
         // 12u (r20 fix): an EMPTY board is only believed while ONLINE
@@ -1070,6 +1092,9 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     if (!before) return;
     const next = !before.is_rush;
     patchOrder(orderId, () => ({ is_rush: next }));
+    // 12y: protect the just-confirmed flag from a stale in-flight snapshot
+    // (the ~2 s "red border vanishes, then returns" flicker).
+    getOptimistic(orderId).rush = next;
     try {
       const res = await apiFetch('/api/kitchen/rush', {
         method: 'POST',
@@ -1078,12 +1103,17 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok || d?.success === false) {
+        // 12y: the flag was NOT changed server-side → release the protection
+        // so the DB (the old value) is source of truth again.
+        const opt = optimisticRef.current.get(orderId); if (opt) opt.rush = null;
         patchOrder(orderId, () => ({ is_rush: Boolean(before.is_rush) }));
         toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
       } else if (d?.data?.is_rush !== undefined) {
+        const opt = optimisticRef.current.get(orderId); if (opt) opt.rush = Boolean(d.data.is_rush);
         patchOrder(orderId, () => ({ is_rush: Boolean(d.data.is_rush) }));
       }
     } catch {
+      const opt = optimisticRef.current.get(orderId); if (opt) opt.rush = null;
       patchOrder(orderId, () => ({ is_rush: Boolean(before.is_rush) }));
       toast.error(t('status_update_error'), { id: 'kds-toast' });
     }
@@ -1094,6 +1124,15 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // course NULL is treated as 'main'). Lets the kitchen hold later courses
   // (main/drink) while the first one is plated.
   const handleFireCourse = async (orderId: string, course: string) => {
+    // 12y: remember WHICH items we fired — a stale snapshot must not demote
+    // them back to pending/accepted for ~2 s.
+    const firedIds = (orders.find(o => o.id === orderId)?.items || []).filter(
+      i => (i.quantity ?? 0) > 0 && (i.course || 'main') === course && ['pending', 'accepted'].includes(i.kitchen_status),
+    ).map(i => i.id);
+    if (firedIds.length > 0) {
+      const opt = getOptimistic(orderId);
+      firedIds.forEach(id => { if (!opt.firedItems.includes(id)) opt.firedItems.push(id); });
+    }
     patchOrder(orderId, o => ({
       items: o.items.map(i =>
         (i.quantity ?? 0) > 0 && (i.course || 'main') === course && ['pending', 'accepted'].includes(i.kitchen_status)
@@ -1107,10 +1146,12 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok || d?.success === false) {
+        const opt = optimisticRef.current.get(orderId); if (opt) opt.firedItems = [];
         fetchKDSRef.current(); // resync from the truth
         toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
       }
     } catch {
+      const opt = optimisticRef.current.get(orderId); if (opt) opt.firedItems = [];
       fetchKDSRef.current();
       toast.error(t('status_update_error'), { id: 'kds-toast' });
     }
@@ -1167,6 +1208,9 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
         ...o,
         items: o.items.map(i => i.id === item.id ? { ...i, kitchen_status: 'voided' } : i),
       } : o));
+      // 12y: protect the void — a stale snapshot must never resurrect the row
+      // for ~2 s ("sanki icra olunmayıb" → "yenidən gəlir" → "yox olur").
+      { const opt = getOptimistic(orderId); if (!opt.voidedItems.includes(item.id)) opt.voidedItems.push(item.id); }
       toast(`86: ${item.name}`, { id: 'kds-toast' });
       setVoid86(null);
       setVoid86Pin(false);
@@ -1474,28 +1518,13 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 </p>
               ) : null;
             })()}
-            {/* CTA — 12o: ready section = QUIET TEXT, not a button (owner:
-                "servis posdan edilir adlı button ləğv elə olmasın orada") —
-                the ticket is read-only there; SERVE is the POS floor action
-                (12i), so the kitchen side shows a small emerald caption only.
-                In-progress = the station-scoped "Hazırdır" main bar (12j
-                persistent, no-blink). */}
-            {/* 12s: watch tab — no CTA, quiet "İzləmə" caption only */}
-            {watchMode ? (
-              <div className="mt-3 px-0.5">
-                <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                  <Eye size={12} />
-                  {t('kds_watch')}
-                </span>
-              </div>
-            ) : inReadyTab ? (
-              <div className="mt-3 px-0.5">
-                <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${lightMode ? 'text-emerald-700/80' : 'text-emerald-400/70'}`}>
-                  <CheckCircle2 size={12} />
-                  {t('kds_serving_hint')}
-                </span>
-              </div>
-            ) : (
+            {/* CTA — 12y (owner, NƏÇƏ DƏFƏ: "posdan verilir buttonu ləğv et,
+                lazımsızdır" + "İzləmə adlı chip ləğv et"): watch tab = YOX
+                (heç bir caption/chip); station share done (ready tab) = YOX
+                ("Servis POS-dan edilir" phrase HEÇ YERDƏ — the HAZIRDİR
+                sub-tab already says the state). Only in-progress tickets get
+                the station-scoped "Hazırdır" main bar. */}
+            {!watchMode && !inReadyTab ? (
               (() => {
                 const pendingIds = stationPendingItemIds(order, stId);
                 const active = pendingIds.length > 0;
@@ -1509,15 +1538,15 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                         ? (lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90')
                         : (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/30')
                     }`}
-                  >
-                    {t('kds_ready_btn')}
-                  </button>
-                );
-              })()
-            )}
-          </motion.div>
-        )}
-      </Fragment>
+                   >
+                     {t('kds_ready_btn')}
+                   </button>
+                 );
+               })()
+             ) : null}
+           </motion.div>
+         )}
+       </Fragment>
     );
   };
 
@@ -1783,13 +1812,14 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                    {overload && (
                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${overload === 'crit' ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`} />
                    )}
-                   {stIsWatch && (
-                     <span className={`inline-flex items-center gap-0.5 h-[16px] px-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${navActive
-                       ? (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-white/15 text-white/50')
-                       : (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.06] text-white/30')}`}>
-                       <Eye size={9} /> {t('kds_watch')}
-                     </span>
-                   )}
+                    {/* 12y (owner: "İzləmə adlı chip ləğv et") — the TEXT
+                        chip is gone; a bare Eye icon still marks the watch
+                        tab (icon ≠ chip). */}
+                    {stIsWatch && (
+                      <span className={`inline-flex items-center ${navActive ? (lightMode ? 'text-zinc-500' : 'text-white/40') : (lightMode ? 'text-zinc-400' : 'text-white/25')}`}>
+                        <Eye size={11} />
+                      </span>
+                    )}
                  </span>
                </button>
              );
@@ -2357,13 +2387,12 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                           small RUSH marker when the ticket is urgent.
                           "heç bir klik, seçim, tick və ya digər əməliyyat
                           düyməsi olmasın". */}
-                       {watchMode ? (
-                         <div className="flex items-center gap-3 flex-wrap">
-                           <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                             <Eye size={12} />
-                             {t('kds_watch')}
-                           </span>
-                           {/* 12u (owner, §1c #5): WATCH DEEPENED — the
+                        {watchMode ? (
+                          <div className="flex items-center gap-3 flex-wrap">
+                            {/* 12y (owner: "İzləmə adlı chip ləğv et") — the
+                                "İzləmə" chip is GONE; the workflow timestamps
+                                stay (12u watch deepening — the useful part). */}
+                            {/* 12u (owner, §1c #5): WATCH DEEPENED — the
                                other kitchen's workflow stamps (already in the
                                DB: kitchen_accepted_at / kitchen_ready_at) —
                                "Bar hazırladı 11:32" without any control. */}
@@ -2419,62 +2448,68 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                          ))}
                        </div>
                      )}
-                     <div className="flex items-center gap-2.5">
-                       {/* 12q: RUSH toggle — Toast/Square/Lightspeed parity
-                           (the urgent ticket). Active = solid red — per the
-                           visual direction, red is reserved for critical
-                           states (overdue / rush). Hidden once the order is
-                           ready/serving (kitchen work is done). */}
-                         {(wf === 'pending' || wf === 'preparing') && (
-                           <button
-                             type="button"
-                             onClick={() => handleRush(o.id)}
-                             title={o.is_rush ? t('kds_rush_toggle_off') : t('kds_rush_toggle_on')}
-                             className={`shrink-0 inline-flex items-center gap-1.5 h-12 px-4 rounded-2xl border text-xs font-bold uppercase tracking-wider transition-all duration-200 active:scale-[0.97] ${
-                               o.is_rush
-                                 ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-zinc-950')
-                                 : (lightMode ? 'bg-white border-zinc-300 text-zinc-500 hover:border-red-400 hover:text-red-500' : 'bg-transparent border-white/20 text-white/40 hover:border-red-400/70 hover:text-red-400')
-                             }`}
-                           >
-                             <Zap size={13} />{t('kds_rush')}
-                           </button>
-                         )}
-                        {(() => {
-                          let label = t('kds_ready_btn');
-                          let active = true;
-                          let emerald = false;
-                            // 12r: STATION-SCOPED CTA (was whole-order) — one
-                            // kitchen must never ready another kitchen's items.
-                            // The order reaches 'ready' naturally when the LAST
-                            // station finishes its share (rollup truth).
-                            const scopeIds = items
-                              .filter(i => inScope(i) && !stationDone(i))
-                              .map(i => i.id);
-                            let act: (() => void) = () =>
-                              handleMakeReady(o.id, scopeIds.length > 0 ? scopeIds : undefined);
-                            // 12p: the pending branch ("Qəbul et" modal button)
-                            // is GONE — auto-accept is silent; a GÖZLƏYİR order
-                            // offers the same "Hazırdır" declaration (it works
-                            // from pending too).
-                            if (wf === 'ready' || wf === 'serving') { label = t('kds_serving_hint'); active = false; emerald = true; }
-                          else if (wf === 'served') { label = `✓ ${t('kds_served')}`; active = false; emerald = true; }
-                          else if (scopeIds.length === 0) { label = t('kds_serving_hint'); active = false; emerald = true; }
-                          return (
-                           <button
-                             onClick={() => { if (!active) return; act(); }}
-                             disabled={!active}
-                             aria-disabled={!active}
-                             className={`flex-1 h-12 rounded-2xl text-sm font-semibold transition-all duration-300 active:scale-[0.99] ${
-                               emerald
-                                 ? (lightMode ? 'bg-emerald-600/90 text-white' : 'bg-emerald-500/85 text-zinc-950')
-                                 : (lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90')
-                             }`}
-                           >
-                              {label}
-                            </button>
-                          );
-                        })()}
-                      </div>
+                      {/* 12y (owner, 3rd ask — "posdan verilir buttonu ləğv
+                          et, lazımsızdır"): the emerald "Servis POS-dan edilir"
+                          CTA is GONE for good — no button, no servis text once
+                          the ticket is ready/serving (serving is a POS action;
+                          the kitchen ends at Hazırdır). Footer = RUSH +
+                          actionable "Hazırdır" while the station still has
+                          work, the ✓ served confirmation otherwise. The row
+                          hides itself when nothing is actionable. */}
+                      {(() => {
+                        // 12r: STATION-SCOPED CTA (was whole-order) — one
+                        // kitchen must never ready another kitchen's items.
+                        // The order reaches 'ready' naturally when the LAST
+                        // station finishes its share (rollup truth).
+                        const scopeIds = items
+                          .filter(i => inScope(i) && !stationDone(i))
+                          .map(i => i.id);
+                        const showRush = wf === 'pending' || wf === 'preparing';
+                        const ctaActive = showRush && scopeIds.length > 0;
+                        const showServed = wf === 'served';
+                        if (!showRush && !ctaActive && !showServed) return null;
+                        return (
+                          <div className="flex items-center gap-2.5">
+                            {/* 12q: RUSH toggle — Toast/Square/Lightspeed
+                                parity (the urgent ticket). Active = solid red
+                                — red is reserved for critical states. */}
+                            {showRush && (
+                              <button
+                                type="button"
+                                onClick={() => handleRush(o.id)}
+                                title={o.is_rush ? t('kds_rush_toggle_off') : t('kds_rush_toggle_on')}
+                                className={`shrink-0 inline-flex items-center gap-1.5 h-12 px-4 rounded-2xl border text-xs font-bold uppercase tracking-wider transition-all duration-200 active:scale-[0.97] ${
+                                  o.is_rush
+                                    ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-zinc-950')
+                                    : (lightMode ? 'bg-white border-zinc-300 text-zinc-500 hover:border-red-400 hover:text-red-500' : 'bg-transparent border-white/20 text-white/40 hover:border-red-400/70 hover:text-red-400')
+                                }`}
+                              >
+                                <Zap size={13} />{t('kds_rush')}
+                              </button>
+                            )}
+                            {ctaActive && (
+                              <button
+                                type="button"
+                                onClick={() => handleMakeReady(o.id, scopeIds)}
+                                className={`flex-1 h-12 rounded-2xl text-sm font-semibold transition-all duration-300 active:scale-[0.99] ${
+                                  lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-zinc-950 hover:bg-white/90'
+                                }`}
+                              >
+                                {t('kds_ready_btn')}
+                              </button>
+                            )}
+                            {showServed && (
+                              <button
+                                type="button"
+                                disabled
+                                className="flex-1 h-12 rounded-2xl text-sm font-semibold bg-emerald-600/90 text-white"
+                              >
+                                ✓ {t('kds_served')}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
                       </>
                       )}
                     </div>

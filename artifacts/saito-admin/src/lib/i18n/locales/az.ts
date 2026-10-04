@@ -2038,7 +2038,6 @@ export const az = {
   complete_order: 'Sifarişi Tamamla',
   kds_customer: 'Müştəri',
   kds_stations: 'Stansiyalar',
-  kds_watch: 'İzləmə',
   kds_watch_accepted: 'Qəbul',
   kds_watch_ready: 'Hazır',
   kds_bump: 'Bump',
@@ -2121,8 +2120,6 @@ export const az = {
   kds_item_86: '86 — məhsul yoxdur',
   kds_86_toast: 'Məhsul 86-landı',
   kds_accepted_toast: 'Qəbul olundu — hazırlanır',
-  // 12i: SERVE is a FLOOR/POS action — the kitchen ends at Hazırdır.
-  kds_serving_hint: 'Servis POS-dan edilir',
   kds_not_ready_toast: 'Mətbəx hələ hazırlanır — əvvəl "Hazırdır" basılmalıdır',
   mark_served_toast: 'Servisə verildi',
   // 12j: POS floor chip + tick + GÜN (All Day) view.

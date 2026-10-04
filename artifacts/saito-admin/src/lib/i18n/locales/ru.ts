@@ -2029,7 +2029,6 @@ export const ru: TranslationMap = {
   complete_order: 'Завершить заказ',
   kds_customer: 'Клиент',
   kds_stations: 'Станции',
-  kds_watch: 'Наблюдение',
   kds_watch_accepted: 'Принят',
   kds_watch_ready: 'Готов',
   kds_bump: 'Bump',
@@ -2120,8 +2119,6 @@ export const ru: TranslationMap = {
   kds_item_86: '86 — нет в наличии',
   kds_86_toast: 'Позиция снята (86)',
   kds_accepted_toast: 'Принято — готовится',
-  // 12i: ВЫДАЧА — действие зала/POS, кухня заканчивается на «Готово».
-  kds_serving_hint: 'Выдача с POS',
   kds_not_ready_toast: 'Кухня ещё готовит — сначала отметьте «Готово»',
   mark_served_toast: 'Сервировано',
   // 12j: POS floor chip + tick + ДЕНЬ (All Day) view.

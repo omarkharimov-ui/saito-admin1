@@ -2028,7 +2028,6 @@ export const en: TranslationMap = {
   complete_order: 'Complete Order',
   kds_customer: 'Customer',
   kds_stations: 'Stations',
-  kds_watch: 'Watch',
   kds_watch_accepted: 'Accepted',
   kds_watch_ready: 'Ready',
   kds_bump: 'Bump',
@@ -2119,8 +2118,6 @@ export const en: TranslationMap = {
   kds_item_86: '86 — out of stock',
   kds_86_toast: 'Item 86\'d',
   kds_accepted_toast: 'Accepted — preparing',
-  // 12i: SERVE is a FLOOR/POS action — the kitchen ends at Ready.
-  kds_serving_hint: 'Serve from the POS',
   kds_not_ready_toast: 'The kitchen is still preparing — mark it ready first',
   mark_served_toast: 'Served',
   // 12j: POS floor chip + tick + DAY (All Day) view.

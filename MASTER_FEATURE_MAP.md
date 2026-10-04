@@ -441,6 +441,7 @@ Tickets, stations (kitchen/grill/fry/dessert/bar/expo), routing, queue, priority
 | **EXPO station — "SERVING QAPISI" (12u → 12v VIEW-ONLY):** bütün stansiya ready olmadan order Expo-ya düşmür (all-ready invariant, FIFO `kitchen_ready_at`); **12v (owner: "servis POS-dan verilir"): KDS-də servis button/text YOX** — pass = read-only gözləmə board; servis = POS "SERVISƏ VER" (`mark_order_served_atomic`, 12i); overload (amber ≥4/red ≥8); DB: `stations` + Expo (`service`, sort 3 — CHECK icazə verir, migration YOX) | ✅ **12u → 12v** | `stations` ('service'), `mark_order_served_atomic` (frozen, POS-dan), `/api/orders/serve` (12i) | KDS navbar 4. tab (BDS-də YOX); `expoTickets` gate; sükut timestamps footer; E2E r20/r21 view-only verified |
 | **HAZIRLANIR/HAZIRDİR = SUB-TAB (12v zona → 12w tab) + SMART NOTE ROUTING (12w → 12x MULTILINGUAL):** station board = iki pill sub-tab (count; default HAZIRLANİR; station-də reset; Expo-da YOX). Order `customer_note` = vergüllə segmentlər → **`src/lib/note-routing.ts`**: normalize + **kiril→latın translit** + **~40 concept sözlüyü (AZ/EN/RU: çay≈tea≈чай)** + light stem + hamming≤1 + prefix → **yalnız həmin stansiya-nın kartı**; match YOX = ümumi (hamıda); Expo kart + modal = TAM qeyd; yeni proper-noun məhsullar 3 dildə tanınır (menyu-ya əlavə olanda ekstradan heç nə lazımdır); dine-in modal-note kök 12v-də düzəldilib | ✅ **12v → 12w → 12x** | — (UI; routing = saf client modul, DB dəyişiklik YOX) | `note-routing.ts` (tokensMatch/routeNoteSegments), KDSView adapter `routeOrderNote`; i18n `kds_zone_*`/`kds_all_in_ready`; E2E r22 (AZ) + r23 (RU kiril, verbatim ✓) |
 | **§1c sweep (12u):** bump bar (tək-press Hazırdır rail, xl+; Expo = SERVİSƏ VER tile) · offline buffer (tick/ready/86/serve → localStorage queue + healthy-poll replay; offline reload = cached board+stations + "son sinxron" note; boş-board clobber qadağası; 503 stations restore) · per-ticket ETA (Ø HAZIRLANMA "≈N dəq", overrun amber) · watch timestamps (Qəbul/Hazır HH:MM) · 86 = modal-da səbəb+PIN (X görünüşü YOX; kds/bds `VirtualKeyboardProvider` crash fix) · per-stansiya səs routinqi (yalnız own family) · light contrast (modifier zinc-600) · overload badge (amber ≥6/red ≥12 pulse) · board read-cache (SWR, 30-min) · watch = dairə YOX (kart+modal) · sliding pill + board cross-fade (LEVEL.navigation, parallel = one state-machine motion) · GÜN cancelled-ghost fix | ✅ **12u** | — (hamısı UI; serve/void/ready = frozen RPC) | `KDSView.tsx`, `useKdsOfflineQueue.ts` (yeni), `kds/bds page`, `api/kitchen/daily`, locales ×3; E2E r17/r19/r20/r20b/r20c console 0 |
+ | **SERVİS-TEXT TAM SİLİNMƏ + İZLƏMƏ CHIP YOX + 2s FLICKER KÖK-FIX (12y):** modal footer = `showRush/ctaActive/showServed` — ready/serving → **heç nə** (emerald "Servis POS-dan edilir" button = son render yolu silindi; `kds_serving_hint`+`kds_watch` key-lər 0 usage → i18n-dən silindi); navbar watch = bare `<Eye/>`, watch footer = yalnız timestamps. **Flicker kök:** 12q window-u yalnız tick/ready qoruydu — RUSH/86/fire = qeydsiz optimistik əməliyyat → in-flight köhnə snapshot 2-3s "geri" yazırdı → `optimisticRef` + 3 protection sahə (`rush:boolean|null`, `voidedItems[]`, `firedItems[]`) + `stillNeed` release | ✅ **12y** | frozen RPC-lərə toxunulmayıb (UI state-protection) | `KDSView.tsx` (optimisticRef + merge block + handleRush/handleFireCourse/handleVoid86 + modal footer); locales ×3; E2E **r24** 0-dan deep (KDS+BDS+POS, dark+light, console 0): flicker sampler tick 27.5s / ready 25.5s / RUSH 21.2s / 86 24.9s = **HEÇ VAXT revert YOX**; forbidden-text scan 0/0; note routing verbatim ✓; Expo→POS serve→board clear ~5s ✓; backend psql = consistent (voided qorunur, operation_logs tam zəncir) |
 | Printer routing (kitchen/bar printers) | ✅ **pr v1 (09-20)** | `print_jobs`, `print_devices`, `/api/print/*`, `/api/settings/printer` | Gate 35/35 + E2E R20-R28; LAN agent (tools/print-agent) |
 | Realtime ticket push | ✅ FROZEN (P0-3) | `supabase_realtime` (kitchen_tickets daxil) | — |
 
@@ -820,6 +821,39 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-10-04 (ROUND 12y: SERVİS-TEXT TAM SİLİNMƏ + İZLƏMƏ CHIP YOX + 2s FLICKER KÖK-FIX)
+
+Owner (3-cü tələb: "sənə neçə dəfə dedim... posdan verilir buttonu ləğv et, lazımsızdır;
+İzləmə chip ləğv et") + **2s flicker** ("hər əməliyyat 1 dəfə icra olunur, 2 saniyə sonra
+yenidən gəlir sanki icra olunmayıb, sonra yox olur") + 0-dan KITCHEN+BAR deep verify +
+backend tam verify. Hər şey yaşandısa → **növbəti modul = INVENTORY**.
+
+**1. "Servis POS-dan edilir" = TAM (son yol):** 12o (kart text) + 12v (modal button)
+silinmişdi, amma modal CTA IIFE-inin inactive branch-i yenə emerald button render edirdi.
+İndi modal footer: `showRush = pending|preparing`; `ctaActive = showRush && scopeIds>0`;
+`showServed = served`. Ready/serving → **heç nə** (return null, sətir gizlənir).
+`kds_serving_hint` + `kds_watch` i18n key-ləri = az/en/ru-dan silindi (0 usage).
+**2. "İzləmə" = TAM:** navbar = bare `<Eye/>`; watch card/modal footer = yalnız
+Qəbul/Hazır timestamps (+RUSH marker). Qalıq hit = yalnız comments + `/track` səhifələri
+(müştəri tracking — ayrı feature).
+**3. FLICKER kök:** 12q window-u yalnız tick/ready qoruydu; **RUSH/86/fire = qeydsiz**
+optimistik əməliyyat idi → in-flight köhnə snapshot 2-3s "geri" yazırdı. Fix =
+`optimisticRef` + 3 protection sahə: `rush:boolean|null` (klik anında qeyd; 4xx→null),
+`voidedItems[]` (merge-də qəsbən 'voided'), `firedItems[]` (merge-də qəsbən 'preparing')
++ `stillNeed` release şərtləri. EU pooler 2-3s-in səbəb olduğu stale-snapshot demotion
+hamı bağlandı.
+**E2E r24 (0-dan, KDS+BDS+POS, dark+light, console 0):** S1–S16 PASS (`r24-findings.md`,
+22 shot). Flicker sampler: tick 27.5s×56, ready-move 25.5s×52, RUSH 21.2s×54, 86 24.9s×26
+= **HEÇ VAXT revert YOX**. Forbidden-text: ready modal footer = BOŞ; body-scan "Servis
+Pos"=0/"İzləmə"=0 (KDS+BDS). Note routing verbatim ✓. Expo view-only ✓ → POS "SERVİSƏ
+VER" → "SERVİS EDİLDİ" chip → KDS ~5s clean ✓. Light theme ✓. Cleanup: ORD-2968/2969/2970
+cancel+dismiss → t3/t401 BOŞ; Masa 2/4/5 toxunulmadı.
+**Backend (psql):** orders cancelled consistent; 86 item = `voided` (cancel overwrite
+ETMİR); `kitchen_ready_at` = item `ready_at` bit-tibi; `table_order_contract` t3/t401 =
+empty; `operation_logs` tam zəncir (place→accept→void(reason "Tükəndi")→cancel→dismiss);
+Masa 2 (ORD-2959) = confirmed/ready unchanged. Orphan state YOX.
+**Qalıq:** cold-start 1-frame false-empty flash (info); INVENTORY = növbəti.
 
 ### Jurnal sətiri — 2026-10-04 (ROUND 12x: NOTE ROUTING = MULTILINGUAL DƏRİN (AZ/EN/RU + KIRİL))
 

@@ -2052,6 +2052,7 @@ export const en: TranslationMap = {
   kds_zone_preparing: 'PREPARING',
   kds_zone_ready: 'READY',
   kds_zone_ready_empty: 'No ready tickets',
+  kds_all_in_ready: 'All tickets are in the READY tab',
   kds_items: 'Items',
   kds_check_items: 'Mark items ready with ✓',
   kds_all_stations: 'ALL',

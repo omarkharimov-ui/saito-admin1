@@ -439,7 +439,7 @@ Tickets, stations (kitchen/grill/fry/dessert/bar/expo), routing, queue, priority
 | Prep-time + station analytics | ✅ | `kitchen_analytics`, `log_kitchen_analytics`, `get_kitchen_stats` | `admin/kitchen-analytics` |
 | Kitchen schedule (reservation pre-fire) | ✅ | `kitchen_schedule`, `process_due_kitchen_schedules` (cron) | — |
 | **EXPO station — "SERVING QAPISI" (12u → 12v VIEW-ONLY):** bütün stansiya ready olmadan order Expo-ya düşmür (all-ready invariant, FIFO `kitchen_ready_at`); **12v (owner: "servis POS-dan verilir"): KDS-də servis button/text YOX** — pass = read-only gözləmə board; servis = POS "SERVISƏ VER" (`mark_order_served_atomic`, 12i); overload (amber ≥4/red ≥8); DB: `stations` + Expo (`service`, sort 3 — CHECK icazə verir, migration YOX) | ✅ **12u → 12v** | `stations` ('service'), `mark_order_served_atomic` (frozen, POS-dan), `/api/orders/serve` (12i) | KDS navbar 4. tab (BDS-də YOX); `expoTickets` gate; sükut timestamps footer; E2E r20/r21 view-only verified |
-| **HAZIRLANIR/HAZIRDİR ZONE SPLIT + order-note bölünməsi (12v):** station board = HAZIRLANIR (grid) + HAZIRDİR (sağ emerald zone, count) — ticket payı bitəndə zone-keçid (r21 S6); Expo-da YOX. Order-level `customer_note` kartdan silindi → modal+POS+çap; **dine-in modal-note kök** (müşəri-section gate) düzəldildi (r21 S2) | ✅ **12v** | — (UI) | `zoneReady`/`zonePrep`; i18n `kds_zone_*` (pre-uppercased az); E2E r21/r21b/r21c |
+| **HAZIRLANIR/HAZIRDİR = SUB-TAB (12v zona → 12w tab) + SMART NOTE ROUTING (12w):** station board = iki pill sub-tab (count; default HAZIRLANİR; station-də reset; Expo-da YOX) — pay bitəndə ticket sub-tab-ına keçir. Order `customer_note` = vergüllə segmentlər → məhsul ad/modifikator token-matching (exact/hamming≤1/prefix) → **yalnız həmin stansiya-nın kartı**; match YOX = ümumi (hamıda); Expo kart + modal = TAM qeyd; dine-in modal-note kök (müşəri-section gate) 12v-də düzəldilib | ✅ **12v → 12w** | — (UI; routing = client, DB dəyişiklik YOX) | `routeNoteSegments`/`scopedNoteFor`, `readyTab`; i18n `kds_zone_*`/`kds_all_in_ready`; E2E r21/r22 (scoped verbatim verified) |
 | **§1c sweep (12u):** bump bar (tək-press Hazırdır rail, xl+; Expo = SERVİSƏ VER tile) · offline buffer (tick/ready/86/serve → localStorage queue + healthy-poll replay; offline reload = cached board+stations + "son sinxron" note; boş-board clobber qadağası; 503 stations restore) · per-ticket ETA (Ø HAZIRLANMA "≈N dəq", overrun amber) · watch timestamps (Qəbul/Hazır HH:MM) · 86 = modal-da səbəb+PIN (X görünüşü YOX; kds/bds `VirtualKeyboardProvider` crash fix) · per-stansiya səs routinqi (yalnız own family) · light contrast (modifier zinc-600) · overload badge (amber ≥6/red ≥12 pulse) · board read-cache (SWR, 30-min) · watch = dairə YOX (kart+modal) · sliding pill + board cross-fade (LEVEL.navigation, parallel = one state-machine motion) · GÜN cancelled-ghost fix | ✅ **12u** | — (hamısı UI; serve/void/ready = frozen RPC) | `KDSView.tsx`, `useKdsOfflineQueue.ts` (yeni), `kds/bds page`, `api/kitchen/daily`, locales ×3; E2E r17/r19/r20/r20b/r20c console 0 |
 | Printer routing (kitchen/bar printers) | ✅ **pr v1 (09-20)** | `print_jobs`, `print_devices`, `/api/print/*`, `/api/settings/printer` | Gate 35/35 + E2E R20-R28; LAN agent (tools/print-agent) |
 | Realtime ticket push | ✅ FROZEN (P0-3) | `supabase_realtime` (kitchen_tickets daxil) | — |
@@ -820,6 +820,34 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-10-04 (ROUND 12w: SMART NOTE ROUTING (ORDER QEYDİ → STANSİYA) + HAZIRLANIR/HAZIRDİR = SUB-TAB)
+
+Owner (12v-dən sonra): "qeydlər niyə yalnız modalda? modal girmədən görünsün — lakin POS-da iki
+qeyd növü var (Sifariş qeydi + Məhsul qeydi); umumi not birbasa hər iki station-a düşür —
+station-lara ayır, sistem anlasın hansına getməlidir" + "HAZIRLANIR/HAZIRDİR zona olmasın, tab
+şəklində olsun".
+
+**1. SMART NOTE ROUTING:** order-level `customer_note` kartlarda **GERİ** (12v silən) — amma
+SCOPED: qeyd vergüllə segmentlərə bölünür; hər segment order-un aktiv məhsul ad token-ləri +
+modifikator adları ilə match olunur (normalize tr-lowercase + accent-strip; exact, **hamming ≤ 1**
+"tee"≈"tea", prefix len ≥4). Match → segment YALNIZ həmin stansiya-nın kartında; match YOX
+(vəya bütün stansiya-lara) → ÜMUMİ = hamıda (dürüst fallback). Expo kart = TAM qeyd (pass-da
+ikiliq yoxdur); modal = TAM qeyd (12v dine-in fix qorunur); məhsul `special_notes` dəyişməz
+(item-səviyyəli). DB/API dəyişiklik YOX (saf client). `kitchen_notes` kolonu type-only —
+toxunulmadı. E2E r22: `green tea extra buz, filadelfiya kremli, təşəkkür` → Kitchen kart
+"filadelfiya kremli · təşəkkür", Bar kart "green tea extra buz · təşəkkür", Expo tam; Masa 2-in
+"green tee soyuq olsn" = yalnız Bar (Kitchen kartda YOX).
+
+**2. SUB-TAB (zona yox):** 12v-in yan-yan HAZIRDİR aside **silindi**; indi aktiv station üstündə
+iki pill sub-tab: `HAZİRLANİR · N` / `HAZIRDİR · N` (default HAZIRLANİR; station dəyişəndə reset;
+Expo-da YOX). Pay bitəndə ticket sub-tab-ına keçir (count + AnimatePresence; r22 N5: 1→0/1→2).
+Empty state: "Hazır bilet yoxdur" / "Bütün ticket HAZIRDİR tab-da" (`kds_all_in_ready` az/en/ru).
+Bump rail (xl+) qorunur.
+
+**E2E r22+r22b:** console 0 fresh tab, dark+light; cleanup: ORD-2965 canonical cancel+dismiss →
+**Masa 3 BOŞ** (Masa 3 = VIP floor); Masa 2 untouched. Info: POS "SERVİSƏ VER" = masa context
+menyu-sunda (ƏSAS ƏMƏLIYYATLAR), order panel-də YOX.
 
 ### Jurnal sətiri — 2026-10-04 (ROUND 12v: EXPO = VIEW-ONLY (SERVİS = POS) + HAZIRLANIR/HAZIRDİR ZONE SPLIT + ORDER-NOTE BÖLÜNƏSİ)
 

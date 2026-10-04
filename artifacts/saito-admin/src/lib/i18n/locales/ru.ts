@@ -2053,6 +2053,7 @@ export const ru: TranslationMap = {
   kds_zone_preparing: 'ПРИГОТОВЛЕНИЕ',
   kds_zone_ready: 'ГОТОВО',
   kds_zone_ready_empty: 'Нет готовых',
+  kds_all_in_ready: 'Все билеты во вкладке ГОТОВО',
   kds_items: 'Позиции',
   kds_check_items: 'Отмечайте позиции ✓',
   kds_all_stations: 'ВСЕ',

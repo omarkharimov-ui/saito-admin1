@@ -2064,6 +2064,7 @@ export const az = {
   kds_zone_preparing: 'HAZİRLANİR',
   kds_zone_ready: 'HAZIRDİR',
   kds_zone_ready_empty: 'Hazır bilet yoxdur',
+  kds_all_in_ready: 'Bütün ticket HAZIRDİR tab-da',
   kds_items: 'Məhsullar',
   kds_check_items: 'Məhsulları ✓ ilə qeyd et',
   kds_all_stations: 'HAMISI',

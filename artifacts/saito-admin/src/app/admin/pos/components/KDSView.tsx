@@ -336,6 +336,57 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
     stations.filter(s => (s.station_type || 'kitchen') === 'service').map(s => s.id),
   );
   const isExpoStation = (stId: string | null | undefined) => !!stId && expoStationIds.has(stId);
+
+  // ── 12w (owner): SMART NOTE ROUTING ─────────────────────────────────────
+  // POS-da iki qeyd növü var: "Məhsul qeydi" (special_notes — item-səviyyəli,
+  // artıq stansiya-ya aid) və "Sifariş qeydi" (customer_note — order-səviyyəli,
+  // əvvəl "birbasa" BÜTÜN station kartlarına düşürdü). Indiki qayda: order
+  // qeydi vergül ilə segmentlərə bölünür; hər segment order-un məhsul adları
+  // (+ modifikatorlar) ilə token-matching-ə düşür (ağır/aksentsiz, hamming ≤1:
+  // "tee"≈"tea", "filadelfiya" prefix). Match oldu → segment YALNIZ həmin
+  // stansiya-nın kartında; match olmadı (və ya bütün stansiya-ların məhsulu)
+  // → ÜMUMİ (hamıda — cədvəl/order haqqında qeyd).
+  const normTok = (s: string) =>
+    s.toLocaleLowerCase('tr').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  const hamming1 = (a: string, b: string) => {
+    if (a === b) return true;
+    if (Math.abs(a.length - b.length) > 1) return false;
+    let d = 0;
+    const n = Math.max(a.length, b.length);
+    for (let i = 0; i < n; i++) { if (a[i] !== b[i] && ++d > 1) return false; }
+    return true;
+  };
+  const routeNoteSegments = useCallback((o: KDSOrder): { stId: string | null; text: string }[] => {
+    const raw = (o.customer_note || '').trim();
+    if (!raw) return [];
+    const segs = raw.split(/[,;•]/).map(s => s.trim()).filter(Boolean);
+    const itemToks = o.items
+      .filter(i => (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status))
+      .map(i => {
+        const toks = new Set<string>();
+        (i.name || '').split(/\s+/).forEach(w => { const n = normTok(w); if (n.length >= 3) toks.add(n); });
+        (i.modifiers || []).forEach(m => { const n = normTok(m.name || ''); if (n.length >= 3) toks.add(n); });
+        return { st: itemStation(i) || '', toks: Array.from(toks) };
+      });
+    const allStations = new Set(itemToks.map(x => x.st));
+    return segs.map(text => {
+      const noteToks = text.split(/\s+/).map(normTok).filter(n => n.length >= 3);
+      const matched = new Set<string>();
+      for (const it of itemToks) {
+        const hit = noteToks.some(nt => it.toks.some(
+          t => t === nt || hamming1(nt, t) || (nt.length >= 4 && (t.startsWith(nt) || nt.startsWith(t))),
+        ));
+        if (hit) matched.add(it.st);
+      }
+      // matched nothing (or matched items of EVERY station on the order)
+      // → general note → shown on all station cards (stId null).
+      if (matched.size === 0 || matched.size >= allStations.size) return { stId: null, text };
+      return { stId: [...matched][0], text };
+    });
+  }, [stations]);
+  const scopedNoteFor = useCallback((o: KDSOrder, stId: string): string =>
+    routeNoteSegments(o).filter(s => s.stId === null || s.stId === stId).map(s => s.text).join(' · '),
+  [routeNoteSegments]);
   // 12s (owner): "bir mətbəx digər mətbəxin sifarişlərini YALNIZ İZLƏYƏ
   // bilsin, idarə etməsin" — restricted terminals (BDS) get a WATCH tab for
   // the sibling kitchen family. navStations = own family + sibling kitchen
@@ -1441,10 +1492,19 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
               })}
             </div>
             {/* Customer note — "Qeyd: xxx" (12m: label separate) */}
-            {/* 12v (owner: "böl"): order-level customer_note is NOT on the
-                station CARD anymore (it is order info, not this station's
-                product — a Bar note used to confuse the Kitchen board).
-                It stays in the ticket MODAL (order detail) + POS + print. */}
+            {/* 12w (owner: "modal girmədən görünsün, amma station-lara
+                bölünsün — sistem anlasın hansına getməlidir"): the order
+                note is BACK on the card — but SMART-SCOPED: only the
+                segments matched to THIS station's products (plus general
+                segments). A Bar note no longer confuses the Kitchen card. */}
+            {(() => {
+              const scoped = scopedNoteFor(order, stId);
+              return scoped ? (
+                <p className={`mt-2.5 text-[11px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
+                  <span className="font-bold">{t('kds_note_label')}:</span> {scoped}
+                </p>
+              ) : null;
+            })()}
             {/* CTA — 12o: ready section = QUIET TEXT, not a button (owner:
                 "servis posdan edilir adlı button ləğv elə olmasın orada") —
                 the ticket is read-only there; SERVE is the POS floor action
@@ -1575,6 +1635,13 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 </div>
               ))}
             </div>
+            {/* 12w: the pass card shows the FULL order note — at the pass
+                there is no station ambiguity (every plate goes out together). */}
+            {order.customer_note && (
+              <p className={`mt-2.5 text-[11px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
+                <span className="font-bold">{t('kds_note_label')}:</span> {order.customer_note}
+              </p>
+            )}
           </motion.div>
         )}
       </Fragment>
@@ -1614,6 +1681,12 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // the ready zone; no split there).
   const zoneReady = !activeStation || isExpoActive ? [] : activeTickets.filter(o => stationAllDone(o, activeStation!.id));
   const zonePrep = !activeStation || isExpoActive ? activeTickets : activeTickets.filter(o => !stationAllDone(o, activeStation!.id));
+  // 12w (owner: "zona olmasın, tab şəklində olsun"): HAZIRLANIR / HAZIRDİR
+  // are SUB-TABS of the active station (replaces the 12v side-by-side
+  // zones). Default = HAZIRLANIR (the chef works the prep); resets on every
+  // station switch. Expo has no sub-tabs (its whole board is "ready").
+  const [readyTab, setReadyTab] = useState<'prep' | 'ready'>('prep');
+  useEffect(() => { setReadyTab('prep'); }, [activeStation?.id, dayView]);
   // 12u (owner: "transition möhtəşəm olsun bir tabdan digərə") — the navbar
   // active pill is a SINGLE sliding element: its x/width are measured from
   // the active button and SPRING-animate between tabs (deterministic iOS-tab
@@ -1930,41 +2003,52 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                className="h-full"
              >
                 <div className="flex gap-3 items-start">
-                   {/* 12v: HAZIRLANIR — the in-progress main grid (ready
-                       tickets moved out to the HAZIRDİR zone). */}
                    <div className="min-w-0 flex-1">
+                     {/* 12w: SUB-TABS (owner: "tab şəklində olsun") — the
+                         station's in-progress tickets (HAZIRLANIR) and its
+                         share-done tickets (HAZIRDİR) live in separate
+                         views, not side-by-side zones. */}
                      {!isExpoActive && (
-                       <p className={`px-1 text-[10px] font-bold uppercase tracking-[0.14em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                         {t('kds_zone_preparing')}{zonePrep.length > 0 && <span className={`tabular-nums ${lightMode ? 'text-zinc-300' : 'text-white/20'}`}> · {zonePrep.length}</span>}
-                       </p>
+                       <div className="flex items-center gap-1.5 mb-3">
+                         {(['prep', 'ready'] as const).map(k => {
+                           const active = readyTab === k;
+                           const n = k === 'prep' ? zonePrep.length : zoneReady.length;
+                           return (
+                             <button
+                               key={k}
+                               type="button"
+                               onClick={() => setReadyTab(k)}
+                               className={`px-3 h-8 rounded-full text-[11px] font-bold uppercase tracking-wider transition-colors duration-200 ${active
+                                 ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950')
+                                 : (lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-white/[0.05] text-white/50 hover:bg-white/[0.1]')}`}
+                             >
+                               {k === 'prep' ? t('kds_zone_preparing') : t('kds_zone_ready')}
+                               <span className={`ml-1.5 tabular-nums ${active ? 'opacity-70' : 'opacity-50'}`}>· {n}</span>
+                             </button>
+                           );
+                         })}
+                       </div>
                      )}
-                     <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                       <AnimatePresence>
-                         {zonePrep.map(order => (isExpoActive ? renderExpoTicket(order) : renderTicket(order, activeStation!.id)))}
-                       </AnimatePresence>
-                     </div>
+                     {(isExpoActive ? activeTickets.length : (readyTab === 'ready' ? zoneReady.length : zonePrep.length)) === 0 ? (
+                       /* 12w: sub-tab empty states (the station HAS tickets,
+                          just not in this sub-tab). */
+                       <div className={`flex flex-col items-center justify-center min-h-[200px] ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>
+                         {(!isExpoActive && readyTab === 'ready') ? (
+                           <><CheckCircle2 size={24} className="mb-2 opacity-50" /><p className="text-sm">{t('kds_zone_ready_empty')}</p></>
+                         ) : (!isExpoActive && zoneReady.length > 0) ? (
+                           <><CheckCircle2 size={22} className="mb-2 opacity-50" /><p className="text-sm">{t('kds_all_in_ready')}</p></>
+                         ) : (
+                           <><Clock size={26} className="mb-2 opacity-50" /><p className="text-sm">{t('kds_station_empty')}</p></>
+                         )}
+                       </div>
+                     ) : (
+                       <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                         <AnimatePresence>
+                           {(isExpoActive ? activeTickets : (readyTab === 'ready' ? zoneReady : zonePrep)).map(order => (isExpoActive ? renderExpoTicket(order) : renderTicket(order, activeStation!.id)))}
+                         </AnimatePresence>
+                       </div>
+                     )}
                    </div>
-                  {/* 12v (owner): HAZIRDİR — the station's share-done tickets
-                      wait in their own zone, separated from the prep grid
-                      ("hazırlanır + hazırdır bir yerdə mane olurdu"). Watch
-                      tabs render it read-only (same cards, no actions). */}
-                  {!isExpoActive && (
-                    <aside className="hidden lg:flex flex-col w-72 shrink-0 gap-2 sticky top-0">
-                      <p className={`flex items-center gap-1.5 px-1 text-[10px] font-bold uppercase tracking-[0.14em] ${lightMode ? 'text-emerald-700' : 'text-emerald-400/80'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${lightMode ? 'bg-emerald-500' : 'bg-emerald-400'}`} />
-                        {t('kds_zone_ready')}{zoneReady.length > 0 && <span className={`tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}> · {zoneReady.length}</span>}
-                      </p>
-                      {zoneReady.length === 0 ? (
-                        <p className={`px-1 text-xs ${lightMode ? 'text-zinc-400' : 'text-white/25'}`}>{t('kds_zone_ready_empty')}</p>
-                      ) : (
-                        <div className="flex flex-col gap-3 max-h-full overflow-y-auto">
-                          <AnimatePresence initial={false}>
-                            {zoneReady.map(order => renderTicket(order, activeStation!.id))}
-                          </AnimatePresence>
-                        </div>
-                      )}
-                    </aside>
-                  )}
                   {/* 12u (owner, §1c #1): BUMP BAR — Toast's most-used kitchen
                       interaction: a one-press "nəvi" rail for the ACTIVE
                       station's own tickets. Press = station-scoped Hazırdır

@@ -451,7 +451,7 @@ Products/ingredients/units/recipes/recipe costing; stock (current/min/max/reorde
 | Feature | Saito | DB | API/UI |
 |---|---|---|---|
 | Ingredients + units + stock levels | ✅ | `ingredients`, `stock_transactions`, `inventory_logs` | `/api/stock*` (11 route), `admin/stock` |
-| Recipe-based consumption on sale + reverse on refund | ✅ FROZEN | `consume_stock_for_item`, `_inventory_reverse_item_qty`, `reverse_stock_for_items` | — |
+| Recipe-based consumption **on READY** (kitchen tick, order anında YOX — 13b verify: 66/66 ≥ ready_at) + reverse on refund | ✅ FROZEN | `consume_stock_for_item` (caller-lar: `mark_item_ready_atomic`/`mark_order_ready`/`mark_ready_atomic`), `_inventory_reverse_item_qty`, `reverse_stock_for_items`, `return_to_stock` | — |
 | Waste + waste standards + spoilage | ✅ | `waste_standards`, `record_item_waste`, `waste_order_item_atomic` | `admin/waste-standards` |
 | Stocktake + apply count + variance | ✅ | `stock_counts`, `stock_count_items`, `apply_stock_count` | `admin/stock/counts` |
 | Purchase orders (draft→sent→received) | ✅ | `purchase_orders`, `purchase_order_items`, `atomic_receive_goods` | `admin/purchase-orders`, `/api/procurement/receive` |
@@ -469,9 +469,18 @@ Products/ingredients/units/recipes/recipe costing; stock (current/min/max/reorde
 > `/api/notifications` yox idi. Fix = service-role API (`/api/inventory/logs`,
 > `/api/recipes*`, `/api/notifications`) + nav wiring + guards. E2E r26: audit
 > 83 sətir CANLI, recipes 11 məhsul CANLI, constructor load ✓, 409 guard ✓,
-> procurement feed CANLI, dark+light console 0. Owner qərarı: 5 mənfi stok sayım
-> ilə, 4 reseptsiz məhsul (Filadelfiya Classic!), `avakado`/`Qızardılmış soğan`
-> şübhəli dəyərlər, orphan resept. → `HANDOFF_13A.md`.
+ > procurement feed CANLI, dark+light console 0. Owner qərarı: 5 mənfi stok sayım
+ > ilə, 4 reseptsiz məhsul (Filadelfiya Classic!), `avakado`/`Qızardılmış soğan`
+ > şübhəli dəyərlər, orphan resept. → `HANDOFF_13A.md`.
+
+> **13b (2026-10-05):** BOM owner-approved qeydə alındı — **Filadelfiya Classic +
+> Kaliforniya Gold** (14 sətir, `has_active_recipe=true`) → 13/14 active məhsul
+> reseptli (Coca-Cola = qəsdən reseptsiz — hazır qablaşdırma). Təmizlik: orphan
+> resept (5 sətir) silindi, P8_PROD deaktiv. **Yeni §1d INVENTORY MÜQAYİSƏSİ**
+> (comparison doc): 15 meyar × 4 sistem; üstün = consumption-on-READY + LLM-AI loop
+> + ₼0; zəiflər = invoice→PO, par-order-guide, COGS ledger, offline stocktake,
+> batch/expiry, multi-location, qiymət avtomatlaşması, shrinkage report.
+> Gözləyir: owner sayımı (8 mənfi/şübhəli maddə) + test-order consumption verify.
 
 ### 17. PURCHASING / SUPPLIERS (ayrı baxış)
 Supplier profile/products/pricing; PO lifecycle; receiving (qty/cost/batch/expiry/variance); invoices (upload/OCR/matching/approval/accounting).
@@ -832,6 +841,39 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-10-05 (ROUND 13b: BOM qeydiyyatı + təmizlik + INVENTORY MÜQAYİSƏSİ)
+
+Owner (13b): BOM draft-a "doğrudur" ("özün daxil et") + "Saito-nu competitorların
+inventorysi ilə müqayisə et, nələri var nələri yoxdur".
+
+**1. BOM (owner-approved, DB):** Filadelfiya Classic (150g düyü sushi + 1 nori + 80g
+filadelfiya pendiri + 100g somon file + 50g avokado + 30g xiyar + 5g sesam) +
+Kaliforniya Gold (150g düyü + 1 nori + 100g dəniz güləkləri + 50g avokado + 30g xiyar
++ 5g sesam + 20ml balsamik) = 14 sətir, `has_active_recipe=true` ×2 → **13/14 active
+məhsul reseptli** (Coca-Cola = qəsdən reseptsiz — hazır qablaşdırma, owner qərarı).
+İndi bu 2 roll-un ready tick-i → auto-consumption işləyir (frozen engine).
+**2. Təmizlik (owner "hamısı"):** orphan resept `a1b2c3d4-0001…` = 5 sətir silindi
+(0 qalıq) · P8_PROD = `is_active=false` (3 keçmiş order tarixçəsi saxlanıldı —
+DELETE yox, deaktiv).
+**3. Auto-consumption timing verify (owner sualı "hazır olandan sonra çıxsaydı
+daha safe?"):** sistem ARTIQ elədir — `consume_stock_for_item`-ı çağıranlar =
+`mark_item_ready_atomic`/`mark_order_ready`/`mark_ready_atomic` (READY anında,
+order anında DEYİL) + refund = `return_to_stock`. DB kanıt: 66/66 item-linked
+consumption ≥ `ready_at`, `item_never_ready=0`. 5 mənfi stok = timing YOX,
+stock-in qeyri-mövcud (phantom) → sayım düzəltdir (owner gözləyir).
+**4. INVENTORY MÜQAYİSƏSİ** (`POS_COMPETITIVE_COMPARISON.md` **yeni §1d**):
+Toast **xtraCHEF** / Square **MarketMan** / Lightspeed (hamısı 2026-10-05
+web-verified). 15 meyar × 4 sistem. **Üstün (6):** consumption = READY (real
+cooking, refund closed loop — rəqiblər on-sale), **LLM AI inventory loop**
+(resept/invoice/insights — rəqiblərdə YOXDU), ₼0 (2-si pullu add-on), audit spine,
+frozen atomic, supplier returns. **Zəif (8):** invoice→PO automation (Toast
+flagship), par-based order guide + recurring orders, formal COGS/AvT ledger,
+offline mobile stocktake + staff assignment, batch/expiry (sushi freshness!),
+multi-location, qiymət avtomatlaşması (manual avg cost), shrinkage pattern report.
+**8 praktik təklif** priority order (§1d).
+**Gözləyir:** owner sayımı (8 mənfi/şübhəli maddə) + test order consumption verify
+(owner "hele etməyə" dedi — hold).
 
 ### Jurnal sətiri — 2026-10-04 (ROUND 13a: INVENTORY — audit + dead-module revival)
 

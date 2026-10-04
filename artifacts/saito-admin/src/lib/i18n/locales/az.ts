@@ -2034,6 +2034,7 @@ export const az = {
   kds_screen: 'Mətbəx Ekranı',
   active_orders_short: 'aktiv sifariş',
   all_orders_ready: 'Bütün sifarişlər hazırdır',
+  kds_loading: 'Yüklenir…',
   complete_order: 'Sifarişi Tamamla',
   kds_customer: 'Müştəri',
   kds_stations: 'Stansiyalar',

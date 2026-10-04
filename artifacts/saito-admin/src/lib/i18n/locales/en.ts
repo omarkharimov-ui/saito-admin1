@@ -2024,6 +2024,7 @@ export const en: TranslationMap = {
   kds_screen: 'Kitchen Display',
   active_orders_short: 'active orders',
   all_orders_ready: 'All orders ready',
+  kds_loading: 'Loading…',
   complete_order: 'Complete Order',
   kds_customer: 'Customer',
   kds_stations: 'Stations',

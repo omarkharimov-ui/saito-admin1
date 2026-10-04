@@ -2025,6 +2025,7 @@ export const ru: TranslationMap = {
   kds_screen: 'Экран кухни',
   active_orders_short: 'активных заказов',
   all_orders_ready: 'Все заказы готовы',
+  kds_loading: 'Загрузка…',
   complete_order: 'Завершить заказ',
   kds_customer: 'Клиент',
   kds_stations: 'Станции',

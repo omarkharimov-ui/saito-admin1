@@ -74,11 +74,26 @@ export async function POST(req: NextRequest) {
       row.meta = meta;
       onConflict = 'location_id,device_id';
     }
-    const { data: upserted, error } = await supabase
+    let { data: upserted, error } = await supabase
       .from('device_heartbeats')
       .upsert(row, { onConflict, count: 'exact' })
       .select('blocked')
       .limit(1);
+    // 12r: two terminals (e.g. owner's Chrome + built-in browser profile)
+    // share device_name but carry DIFFERENT device_ids. The (location_id,
+    // device_name) unique constraint then fires (23505) on the device_id
+    // upsert → the heartbeat 500'd every 30s. Last-writer-wins by name:
+    // retry the upsert against the real constraint.
+    if (error && String(error.code || '') === '23505') {
+      const retry = await supabase
+        .from('device_heartbeats')
+        .upsert(row, { onConflict: 'location_id,device_name', count: 'exact' })
+        .select('blocked')
+        .limit(1);
+      if (retry.error) throw retry.error;
+      upserted = retry.data;
+      error = null;
+    }
     if (error) throw error;
     const upsertedRow: any = upserted;
     const blocked = !!(upsertedRow ? (Array.isArray(upsertedRow) ? upsertedRow[0]?.blocked : upsertedRow.blocked) : false);

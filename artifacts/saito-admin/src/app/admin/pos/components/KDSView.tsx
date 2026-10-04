@@ -235,13 +235,34 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // reflow.
   const cardEls = useRef<Record<string, HTMLElement | null>>({});
   const [placeholderH, setPlaceholderH] = useState<Record<string, number>>({});
+  // 12r: stations must NEVER die permanently. A failed/empty one-shot fetch
+  // used to leave boardStations=[] for the whole session → the board showed
+  // "Bütün sifarişlər hazırdır" (false!) while /api/orders had live tickets
+  // (owner: "qeribe seyler olur"). Retry transient failures, then settle.
+  const [stationsLoaded, setStationsLoaded] = useState(false);
   useEffect(() => {
-    // kind=kitchen: kitchen-family stations only — delivery/pickup (BDS)
-    // stations are a separate family and must never appear as kitchen boards.
-    fetch('/api/stations?kind=kitchen', { cache: 'no-store' })
-      .then(r => (r.ok ? r.json() : []))
-      .then((d: any) => setStations(Array.isArray(d) ? d : []))
-      .catch(() => setStations([]));
+    let stopped = false;
+    let tries = 0;
+    const load = () => {
+      fetch('/api/stations?kind=kitchen', { cache: 'no-store' })
+        .then(r => (r.ok ? r.json() : null))
+        .then((d: any) => {
+          if (stopped) return;
+          const list = Array.isArray(d) ? d : [];
+          setStations(list);
+          // transient empty/error → retry a few times before accepting
+          if (list.length === 0 && tries < 3) { tries += 1; setTimeout(load, 800); return; }
+          setStationsLoaded(true);
+        })
+        .catch(() => {
+          if (stopped) return;
+          if (tries < 3) { tries += 1; setTimeout(load, 800); return; }
+          setStations([]);
+          setStationsLoaded(true);
+        });
+    };
+    load();
+    return () => { stopped = true; };
   }, []);
   // 2026-09-24 (BDS bar display): when restricted to a station family, the
   // board shows only that family's stations; the kitchen fallback is
@@ -939,9 +960,9 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   //    (one ticket, one place — owner 12m); SERVE is the POS floor action
   //    (12i), no kitchen serve button;
   //  - source (İçəridə/Çatdırılma/Gel-Al) = Apple chip w/ icon; course +
-  //    allergens = chips; modifiers = price-less chips; notes = "Qeyd: xxx"
-  //    (the word "Qeyd" as a separate bold label); NO prices anywhere
-  //    (owner 12m);
+  //    allergens = chips; modifiers = quiet TEXT (12r, was chips); notes =
+  //    "Qeyd: xxx" (the word "Qeyd" as a separate bold label); NO prices
+  //    anywhere (owner 12m);
   //  - click = measure the card's REAL height → the modal placeholder gets
   //    it exactly → the grid behind NEVER reflows (owner 12m: the
   //    "collapse behind" bug — the old placeholder was an estimate).
@@ -1082,7 +1103,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 })}
               </p>
             )}
-            {/* Items — 12m spec: course chip + modifier chips (NO price) +
+            {/* Items — course chip + modifier TEXT (12r, was chips; NO price) +
                 "Qeyd: xxx" + allergen chips (all Apple-style, light-safe) */}
             <div className={`mt-2.5 divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.05]'}`}>
               {visibleItems.map(item => {
@@ -1110,15 +1131,14 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                           <span className={`inline-flex items-center h-[16px] px-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider shrink-0 ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/[0.07] text-white/40'}`}>{item.course}</span>
                         )}
                       </div>
-                      {item.modifiers && item.modifiers.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {item.modifiers.map((m, mi) => (
-                            <span key={m.id || mi} className={`inline-flex items-center h-[18px] px-1.5 rounded-md border text-[10px] font-medium ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/[0.05] border-white/10 text-white/55'}`}>
-                              {m.quantity && m.quantity > 1 ? `${m.name} ×${m.quantity}` : m.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                       {/* 12r (owner): modifiers = quiet TEXT, not chips
+                           (quantities matter: "Əlavə Losos ×3" — chips hid
+                           the count per modifier in a dense ticket row). */}
+                       {item.modifiers && item.modifiers.length > 0 && (
+                         <p className={`mt-0.5 text-[11px] leading-snug ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>
+                           {item.modifiers.map(m => `${m.name}${m.quantity && m.quantity > 1 ? ` ×${m.quantity}` : ''}`).join(' · ')}
+                         </p>
+                       )}
                       {item.special_notes && (
                         <p className={`mt-1 text-[11px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
                           <span className="font-bold">{t('kds_note_label')}:</span> {item.special_notes}
@@ -1391,6 +1411,14 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
               </>
             )}
           </div>
+        ) : loading || !stationsLoaded ? (
+          /* 12r: initial load (or stations still resolving) — show a quiet
+             spinner, NEVER the false "Bütün sifarişlər hazırdır" claim while
+             data is in flight (owner saw it flash on every load/remount). */
+          <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+            <div className={`w-5 h-5 rounded-full border-2 border-t-transparent animate-spin mb-3 ${lightMode ? 'border-zinc-300' : 'border-white/25'}`} />
+            <p className="text-xs font-medium tracking-wide">{t('kds_loading')}</p>
+          </div>
         ) : boardOrderIds.size === 0 ? (
           /* 2026-09-23 sweep fix: dark-mode empty state was unreadable
              (white/15 + 30% icon). Bumped to white/45 + 60% icon. */
@@ -1434,11 +1462,21 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
            // 12q: fireable courses (Lightspeed "course-based firing" parity) —
            // courses that still have pending/accepted items. NULL course =
            // 'main' (fire_course_atomic treats it the same way).
-           const fireableCourses = Array.from(new Set(
-             o.items
-               .filter(i => (i.quantity ?? 0) > 0 && ['pending', 'accepted'].includes(i.kitchen_status))
-               .map(i => i.course || 'main'),
-           ));
+            // 12r (owner: "bir metbexin sifarisi digerine dusmesin"): the
+            // terminal's ACTION SCOPE — unified board = the ACTIVE station
+            // (navbar selection); BDS = the board family (itemInBoard).
+            // Modal CTA + course firing touch ONLY this scope; the old
+            // whole-order call let the Bar chef ready Main Kitchen's food
+            // (E2E r13v STEP 4.1: Bar CTA → both stations 1/1).
+            const scopeStId = stationType ? null : (activeStation ? activeStation.id : null);
+            const inScope = (i: KDSItem) =>
+              itemInBoard(i) && (scopeStId ? itemStation(i) === scopeStId : true);
+            const fireableCourses = Array.from(new Set(
+              o.items
+                .filter(i => (i.quantity ?? 0) > 0 && ['pending', 'accepted'].includes(i.kitchen_status))
+                .filter(i => inScope(i))
+                .map(i => i.course || 'main'),
+            ));
           const wfMeta = wfMetaFor(wf, lightMode);
           const stationMap = new Map<string, { name: string; qty: number; ready: number }>();
           for (const it of items) {
@@ -1531,7 +1569,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                         // quantities only (the old ` · ₼X.XX` suffix is gone).
                         const modText = (item.modifiers ?? []).map(m =>
                           `${m.name}${(m.quantity && m.quantity > 1) ? ` ×${m.quantity}` : ''}`
-                        ).join(', ');
+                        ).join(' · ');
                        const alLabels = parseAllergens(item.allergens).map((a: any) =>
                          resolveAllergenEntry(a)?.label ||
                          (a && typeof a === 'object' ? (a.name || a.code || '') : String(a))
@@ -1547,13 +1585,11 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                                  {/* 12m: course = Apple chip (same as the card) */}
                                  {item.course && <span className={`inline-flex items-center h-[18px] px-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/[0.07] text-white/40'}`}>{item.course}</span>}
                                </div>
-                               {modText && (
-                                 <div className="flex flex-wrap gap-1 mt-1">
-                                   {modText.split(', ').map((mt, mi) => (
-                                     <span key={mi} className={`inline-flex items-center h-[18px] px-1.5 rounded-md border text-[10px] font-medium ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/[0.05] border-white/10 text-white/55'}`}>{mt}</span>
-                                   ))}
-                                 </div>
-                               )}
+                                {/* 12r (owner): modifiers = quiet TEXT (was
+                                    chips) — "Standart · Əlavə Losos ×3 · ...". */}
+                                {modText && (
+                                  <p className={`mt-1 text-xs leading-snug ${lightMode ? 'text-zinc-500' : 'text-white/45'}`}>{modText}</p>
+                                )}
                                {item.special_notes && (
                                  <p className={`mt-1 text-xs font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
                                    <span className="font-bold">{t('kds_note_label')}:</span> {item.special_notes}
@@ -1710,18 +1746,27 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                            <Zap size={13} />{t('kds_rush')}
                          </button>
                        )}
-                       {(() => {
-                         let label = t('kds_ready_btn');
-                         let active = true;
-                         let emerald = false;
-                           let act: (() => void) = () => handleMakeReady(o.id);
-                           // 12p: the pending branch ("Qəbul et" modal button)
-                           // is GONE — auto-accept is silent; a GÖZLƏYİR order
-                           // offers the same "Hazırdır" declaration (it works
-                           // from pending too).
-                           if (wf === 'ready' || wf === 'serving') { label = t('kds_serving_hint'); active = false; emerald = true; }
-                         else if (wf === 'served') { label = `✓ ${t('kds_served')}`; active = false; emerald = true; }
-                         return (
+                        {(() => {
+                          let label = t('kds_ready_btn');
+                          let active = true;
+                          let emerald = false;
+                            // 12r: STATION-SCOPED CTA (was whole-order) — one
+                            // kitchen must never ready another kitchen's items.
+                            // The order reaches 'ready' naturally when the LAST
+                            // station finishes its share (rollup truth).
+                            const scopeIds = items
+                              .filter(i => inScope(i) && !stationDone(i))
+                              .map(i => i.id);
+                            let act: (() => void) = () =>
+                              handleMakeReady(o.id, scopeIds.length > 0 ? scopeIds : undefined);
+                            // 12p: the pending branch ("Qəbul et" modal button)
+                            // is GONE — auto-accept is silent; a GÖZLƏYİR order
+                            // offers the same "Hazırdır" declaration (it works
+                            // from pending too).
+                            if (wf === 'ready' || wf === 'serving') { label = t('kds_serving_hint'); active = false; emerald = true; }
+                          else if (wf === 'served') { label = `✓ ${t('kds_served')}`; active = false; emerald = true; }
+                          else if (scopeIds.length === 0) { label = t('kds_serving_hint'); active = false; emerald = true; }
+                          return (
                            <button
                              onClick={() => { if (!active) return; act(); }}
                              disabled={!active}

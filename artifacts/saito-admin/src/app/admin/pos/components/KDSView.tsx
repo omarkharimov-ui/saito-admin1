@@ -1034,54 +1034,11 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
      }
    };
 
-  // 12u (owner, §1c #3): EXPO SERVE — the "serving qapısı" press. The ticket
-  // is on the pass ONLY because every station is ready (all-ready
-  // invariant); one press sends it to the floor via mark_order_served_atomic
-  // (frozen; the exact edge POS "Servisə Ver" calls — ready items → served,
-  // order rollup → 'served', boards read SERVİS EDİLDİ). Optimistic flip
-  // (the card exits the board in place — the 12i "never leaves on its own"
-  // rule holds: it leaves on OUR press, then the DB confirms or rolls
-  // back). 4xx = business fail (409 ORDER_NOT_FULLY_READY, 403 floor.manage
-  // — rollback + error); 5xx / network = offline queue (re-serving an
-  // already-served order is a server no-op — replay-safe).
-  const handleServe = async (orderId: string) => {
-    const before = orders.find(o => o.id === orderId); // rollback snapshot
-    if (!before) return;
-    const bTitle = before.order_source === 'dine_in'
-      ? `Masa ${before.table_number ?? '?'}`
-      : before.customer_name || (before.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'));
-    patchOrder(orderId, o => ({
-      items: o.items.map(i =>
-        (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status)
-          ? { ...i, kitchen_status: 'served' as const } : i),
-      kitchen_status: 'served' as const,
-    }));
-    try {
-      const res = await apiFetch('/api/orders/serve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId }),
-      });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok && res.status >= 500) {
-        enqueue({ id: `serve:${orderId}`, kind: 'serve', api: '/api/orders/serve', body: { order_id: orderId }, ts: Date.now() });
-        toast(t('kds_offline_queued'), { id: 'kds-toast' });
-        return;
-      }
-      if (!res.ok || d?.success === false) {
-        setOrders(prev => prev.map(o => (o.id === orderId ? before : o)));
-        toast.error(
-          d?.error === 'ORDER_NOT_FULLY_READY' ? t('kds_expo_not_ready') : (d?.error || t('status_update_error')),
-          { id: 'kds-toast' },
-        );
-        return;
-      }
-      toast.success(`${t('kds_st_served')} · ${bTitle}`, { id: 'kds-toast' });
-    } catch {
-      enqueue({ id: `serve:${orderId}`, kind: 'serve', api: '/api/orders/serve', body: { order_id: orderId }, ts: Date.now() });
-      toast(t('kds_offline_queued'), { id: 'kds-toast' });
-    }
-  };
+  // 12v (owner): the Expo pass is VIEW-ONLY — "servis POS-dan verilir".
+  // No serve button, no servis text anywhere on the KDS: the pass shows the
+  // ready queue (all-ready gate, FIFO) and the floor serves from POS
+  // ("Servisə Ver" → mark_order_served_atomic). The 12u KDS-side handleServe
+  // was removed; /api/orders/serve itself stays (POS owns it).
 
   // 12q — KITCHEN GAP SWEEP (competitor parity, DB machinery pre-existed):
   //
@@ -1484,11 +1441,10 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
               })}
             </div>
             {/* Customer note — "Qeyd: xxx" (12m: label separate) */}
-            {order.customer_note && (
-              <p className={`mt-2.5 text-[11px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
-                <span className="font-bold">{t('kds_note_label')}:</span> {order.customer_note}
-              </p>
-            )}
+            {/* 12v (owner: "böl"): order-level customer_note is NOT on the
+                station CARD anymore (it is order info, not this station's
+                product — a Bar note used to confuse the Kitchen board).
+                It stays in the ticket MODAL (order detail) + POS + print. */}
             {/* CTA — 12o: ready section = QUIET TEXT, not a button (owner:
                 "servis posdan edilir adlı button ləğv elə olmasın orada") —
                 the ticket is read-only there; SERVE is the POS floor action
@@ -1619,22 +1575,6 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 </div>
               ))}
             </div>
-            {order.customer_note && (
-              <p className={`mt-2.5 text-[11px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
-                <span className="font-bold">{t('kds_note_label')}:</span> {order.customer_note}
-              </p>
-            )}
-            {/* The pass's ONE action — one press, whole order */}
-            <motion.button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); handleServe(order.id); }}
-              whileTap={reduceMotion ? undefined : { scale: 0.97, transition: SPRING.press }}
-              className={`mt-3 w-full h-11 rounded-2xl text-[13px] font-bold tracking-wide transition-colors duration-300 ${order.is_rush
-                ? (lightMode ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-red-500 text-zinc-950 hover:bg-red-400')
-                : (lightMode ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400')}`}
-            >
-              {t('kds_expo_serve')}
-            </motion.button>
           </motion.div>
         )}
       </Fragment>
@@ -1667,6 +1607,13 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
           return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         })
     : [];
+  // 12v (owner: "hazırlanır + hazırdır bir yerdə mane olurdu"): the station
+  // board is SPLIT — in-progress tickets (HAZIRLANIR, main grid) and the
+  // station's share-done tickets (HAZIRDİR, dedicated right zone). Expo =
+  // single list (its tickets are ready BY DEFINITION — the whole board IS
+  // the ready zone; no split there).
+  const zoneReady = !activeStation || isExpoActive ? [] : activeTickets.filter(o => stationAllDone(o, activeStation!.id));
+  const zonePrep = !activeStation || isExpoActive ? activeTickets : activeTickets.filter(o => !stationAllDone(o, activeStation!.id));
   // 12u (owner: "transition möhtəşəm olsun bir tabdan digərə") — the navbar
   // active pill is a SINGLE sliding element: its x/width are measured from
   // the active button and SPRING-animate between tabs (deterministic iOS-tab
@@ -1982,50 +1929,55 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                transition={reduceMotion ? { duration: 0 } : { duration: T.standard, ease: EASE.morph }}
                className="h-full"
              >
-               <div className="flex gap-3 items-start">
-                  <div className="grid flex-1 min-w-0 gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                    <AnimatePresence>
-                      {activeTickets.map(order => (isExpoActive ? renderExpoTicket(order) : renderTicket(order, activeStation!.id)))}
-                    </AnimatePresence>
-                  </div>
-                 {/* 12u (owner, §1c #1): BUMP BAR — Toast's most-used kitchen
-                     interaction: a one-press "nəvi" rail for the ACTIVE
-                     station's own tickets. Press = station-scoped Hazırdır
-                     (the same handleMakeReady path the card CTA uses).
-                     Own-station tabs only — a WATCH tab has no actions. */}
-                 {!watchMode && activeTickets.length > 0 && (
-                   <aside className="hidden xl:flex flex-col w-44 shrink-0 gap-2 sticky top-0 pt-0.5">
-                     <p className={`px-1 text-[10px] font-bold uppercase tracking-[0.14em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_bump')}</p>
-                     <AnimatePresence initial={false}>
-                        {activeTickets.map(order => {
-                          const bTitle = order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'));
-                          if (isExpoActive) {
-                            // 12u: the pass bump = Toast's expo one-press — the
-                            // whole order goes to the floor (SERVİSƏ VER).
-                            return (
-                              <motion.div
-                                key={order.id}
-                                layout
-                                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: T.quick } }}
-                                transition={reduceMotion ? { duration: 0 } : SPRING.soft}
-                              >
-                                <motion.button
-                                  type="button"
-                                  onClick={() => { pulseTick(order.id); handleServe(order.id); }}
-                                  whileTap={reduceMotion ? undefined : { scale: 0.95, transition: SPRING.press }}
-                                  className={`w-full h-14 rounded-2xl flex flex-col items-center justify-center gap-0.5 ${order.is_rush
-                                    ? (lightMode ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-red-500 text-zinc-950 hover:bg-red-400')
-                                    : (lightMode ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400')}`}
-                                >
-                                  <span className="text-[12px] font-semibold leading-none max-w-full truncate px-2">{bTitle}</span>
-                                  <span className={`text-[9px] font-bold uppercase tracking-wider ${order.is_rush ? 'text-white/80' : (lightMode ? 'text-white/80' : 'text-zinc-950/70')}`}>{t('kds_expo_serve')}</span>
-                                </motion.button>
-                              </motion.div>
-                            );
-                          }
-                          const stDone = stationAllDone(order, activeStation!.id);
+                <div className="flex gap-3 items-start">
+                   {/* 12v: HAZIRLANIR — the in-progress main grid (ready
+                       tickets moved out to the HAZIRDİR zone). */}
+                   <div className="min-w-0 flex-1">
+                     {!isExpoActive && (
+                       <p className={`px-1 text-[10px] font-bold uppercase tracking-[0.14em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                         {t('kds_zone_preparing')}{zonePrep.length > 0 && <span className={`tabular-nums ${lightMode ? 'text-zinc-300' : 'text-white/20'}`}> · {zonePrep.length}</span>}
+                       </p>
+                     )}
+                     <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                       <AnimatePresence>
+                         {zonePrep.map(order => (isExpoActive ? renderExpoTicket(order) : renderTicket(order, activeStation!.id)))}
+                       </AnimatePresence>
+                     </div>
+                   </div>
+                  {/* 12v (owner): HAZIRDİR — the station's share-done tickets
+                      wait in their own zone, separated from the prep grid
+                      ("hazırlanır + hazırdır bir yerdə mane olurdu"). Watch
+                      tabs render it read-only (same cards, no actions). */}
+                  {!isExpoActive && (
+                    <aside className="hidden lg:flex flex-col w-72 shrink-0 gap-2 sticky top-0">
+                      <p className={`flex items-center gap-1.5 px-1 text-[10px] font-bold uppercase tracking-[0.14em] ${lightMode ? 'text-emerald-700' : 'text-emerald-400/80'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${lightMode ? 'bg-emerald-500' : 'bg-emerald-400'}`} />
+                        {t('kds_zone_ready')}{zoneReady.length > 0 && <span className={`tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}> · {zoneReady.length}</span>}
+                      </p>
+                      {zoneReady.length === 0 ? (
+                        <p className={`px-1 text-xs ${lightMode ? 'text-zinc-400' : 'text-white/25'}`}>{t('kds_zone_ready_empty')}</p>
+                      ) : (
+                        <div className="flex flex-col gap-3 max-h-full overflow-y-auto">
+                          <AnimatePresence initial={false}>
+                            {zoneReady.map(order => renderTicket(order, activeStation!.id))}
+                          </AnimatePresence>
+                        </div>
+                      )}
+                    </aside>
+                  )}
+                  {/* 12u (owner, §1c #1): BUMP BAR — Toast's most-used kitchen
+                      interaction: a one-press "nəvi" rail for the ACTIVE
+                      station's own tickets. Press = station-scoped Hazırdır
+                      (the same handleMakeReady path the card CTA uses).
+                      Own-station tabs only — a WATCH tab has no actions.
+                      12v: the Expo pass is view-only (servis = POS) → no rail. */}
+                  {!watchMode && !isExpoActive && activeTickets.length > 0 && (
+                    <aside className="hidden xl:flex flex-col w-44 shrink-0 gap-2 sticky top-0 pt-0.5">
+                      <p className={`px-1 text-[10px] font-bold uppercase tracking-[0.14em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_bump')}</p>
+                      <AnimatePresence initial={false}>
+                         {activeTickets.map(order => {
+                           const bTitle = order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'));
+                           const stDone = stationAllDone(order, activeStation!.id);
                           const left = stDone ? 0 : stationPendingItemIds(order, activeStation!.id).length;
                           return (
                            <motion.div
@@ -2303,20 +2255,24 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                    {o.order_source !== 'dine_in' && (
                      <section className="mt-5">
                        <p className={`text-[11px] font-semibold uppercase tracking-[0.12em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_customer')}</p>
-                       <div className="flex items-center justify-between gap-3">
-                         <span className={`text-sm font-semibold truncate ${lightMode ? 'text-zinc-800' : 'text-white/80'}`}>{o.customer_name || '—'}</span>
-                         {o.customer_phone && (
-                           <a href={`tel:${o.customer_phone}`} className={`text-sm font-medium tabular-nums shrink-0 ${lightMode ? 'text-blue-600' : 'text-blue-400'}`}>{o.customer_phone}</a>
-                         )}
-                       </div>
-                        {o.customer_note && (
-                          /* 12m: "Qeyd:" as a separate bold label (owner) */
-                          <p className={`mt-2 text-[13px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
-                            <span className="font-bold">{t('kds_note_label')}:</span> {o.customer_note}
-                          </p>
-                        )}
-                     </section>
-                   )}
+                        <div className="flex items-center justify-between gap-3">
+                          <span className={`text-sm font-semibold truncate ${lightMode ? 'text-zinc-800' : 'text-white/80'}`}>{o.customer_name || '—'}</span>
+                          {o.customer_phone && (
+                            <a href={`tel:${o.customer_phone}`} className={`text-sm font-medium tabular-nums shrink-0 ${lightMode ? 'text-blue-600' : 'text-blue-400'}`}>{o.customer_phone}</a>
+                          )}
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 12v (r21 fix): the ORDER note lives OUTSIDE the
+                        customer section — dine-in orders have no name/phone,
+                        so the section (and its nested note) never rendered
+                        and the note was lost from the modal. */}
+                    {o.customer_note && (
+                      <p className={`mt-4 text-[13px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
+                        <span className="font-bold">{t('kds_note_label')}:</span> {o.customer_note}
+                      </p>
+                    )}
 
                     {/* 12s: the flat STANSIYALAR count section is gone —
                         items are now grouped under their own station headers
@@ -2371,28 +2327,26 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                               </span>
                             )}
                           </div>
-                        ) : isExpoActive ? (
-                          /* 12u (§1c #3): the pass modal's ONE action — send
-                              the WHOLE order to the floor (one press, same
-                              frozen edge as POS "Servisə Ver"). RUSH = a
-                              marker only (the pass doesn't prep anything). */
-                          <div className="flex items-center gap-2.5">
-                            {o.is_rush && (
-                              <span className={`inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider shrink-0 ${lightMode ? 'text-red-500' : 'text-red-400'}`}>
-                                <Zap size={12} />{t('kds_rush')}
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => { handleServe(o.id); }}
-                              className={`flex-1 h-12 rounded-2xl text-sm font-bold tracking-wide transition-all duration-300 active:scale-[0.99] ${o.is_rush
-                                ? (lightMode ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-red-500 text-zinc-950 hover:bg-red-400')
-                                : (lightMode ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400')}`}
-                            >
-                              {t('kds_expo_serve')}
-                            </button>
-                          </div>
-                        ) : (
+                         ) : isExpoActive ? (
+                           /* 12v (owner: "servis POS-dan verilir — buttonu və
+                               texti sil, heç vaxt elə bir şey yazılmasin"):
+                               the pass modal is READ-ONLY — no button, no
+                               servis text. Workflow timestamps + RUSH marker
+                               only (honesty, same data as the watch footer). */
+                           <div className={`flex items-center gap-3 ${lightMode ? 'text-zinc-400' : 'text-white/25'}`}>
+                             {(o.kitchen_accepted_at || o.kitchen_ready_at) && (
+                               <span className="text-[11px] font-medium tabular-nums">
+                                 {o.kitchen_accepted_at && <>{t('kds_watch_accepted')} {new Date(o.kitchen_accepted_at).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}{o.kitchen_ready_at && ' · '}</>}
+                                 {o.kitchen_ready_at && <>{t('kds_watch_ready')} {new Date(o.kitchen_ready_at).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}</>}
+                               </span>
+                             )}
+                             {o.is_rush && (
+                               <span className={`inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider ${lightMode ? 'text-red-500' : 'text-red-400'}`}>
+                                 <Zap size={11} />{t('kds_rush')}
+                               </span>
+                             )}
+                           </div>
+                         ) : (
                        <>
                       {/* 12q: course firing — Lightspeed parity. Each button
                           sends that course's pending/accepted items to

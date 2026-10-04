@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/api-fetch';
 
-export type KdsQueueKind = 'prepared' | 'recall' | 'ready' | 'void' | 'serve';
+export type KdsQueueKind = 'prepared' | 'recall' | 'ready' | 'void';
 
 export interface KdsQueueEntry {
   /** dedupe key — same logical action never queues twice */
@@ -48,8 +48,7 @@ function persist(q: KdsQueueEntry[]) {
  *   • recall    — ready→pending (state-guarded edge; no-op if not ready)
  *   • ready     — mark_item_ready_atomic (state-guarded; no-op if ready)
  *   • void      — item_kitchen_terminal (terminal guard; no-op if voided)
- *   • serve     — mark_order_served_atomic (12u expo pass; re-serving an
- *                 already-served order is a server no-op)
+ * (12v: the expo 'serve' kind was removed — the pass is view-only, servis = POS)
  * NOT queued (documented): rush (a TOGGLE — replay would flip twice) and
  * course-fire (multi-item stateful) — they fail with an error toast and
  * the chef presses again.
@@ -154,19 +153,6 @@ export function useKdsOfflineQueue(opts: {
       const it = itemId ? find(itemId) : null;
       if (!it) return 'stale';
       if (['voided', 'cancelled', 'completed'].includes(it.kitchen_status)) return 'stale';
-      return 'do';
-    }
-    if (e.kind === 'serve') {
-      // 12u (§1c #3): expo pass press (mark_order_served_atomic). The board
-      // is already served (floor served it / another terminal) → stale.
-      // Not-fully-ready replay → server 409s → `failed` flag (human retry),
-      // which is the honest outcome for a pass press made too early.
-      const o = orders.find((x: any) => x.id === body.order_id);
-      if (!o) return 'stale';
-      if (o.kitchen_status === 'served') return 'stale';
-      const act = (o.items || []).filter((i: any) =>
-        (i.quantity ?? 0) > 0 && !['completed', 'cancelled', 'voided'].includes(i.kitchen_status));
-      if (act.length > 0 && act.every((i: any) => ['served', 'completed'].includes(i.kitchen_status))) return 'stale';
       return 'do';
     }
     return 'do';

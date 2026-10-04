@@ -29,6 +29,11 @@
 > watch timestamps, 86 = səbəb+PIN (X görünüşü YOX), per-stansiya səs, light contrast,
 > overload badge, read-cache; + sliding-pill tab transition + cross-fade; GÜN ghost fix.
 > Zəiflər #1–#4 (offline/expo/bump/ETA) artıq bağlanıb (aşağıda ✅).
+> **12v (owner qərarları):** Expo = **tam VIEW-ONLY** ("servis POS-dan verilir — buttonu və
+> texti sil"): KDS-də servis action/text YOX; servis = POS "SERVİSƏ VER" (frozen edge qorunur).
+> Station board = **HAZIRLANIR + HAZIRDİR zone split** (ticket payı bitəndə zone-keçid).
+> Order-level qeyd kartdan bölündü (yalnız modal/POS/çap) + dine-in modal-note kök düzəldildi.
+> Səs routing E2E verified (bar-only order KDS-də səssiz).
 
 ## 0. BEFORE / AFTER — 11a–11g dəyişikliklərinin tam müqayisəsi
 
@@ -181,7 +186,7 @@ kanıtı ilə dəstəklənir.
 ### ZƏİF TƏRƏFLƏR (SAITO — rəqibə qarşı)
 
 1. ~~**Offline KDS YOXDU**~~ — **✅ BİTTİ (12u):** KDS offline buffer — tick/ready/86/serve lokal queue (localStorage, reload-dan qorunur) + healthy-poll auto-replay (5xx keep / 4xx failed-flag + manual retry / stale-drop reconciliation); offline reload = cached board + cached stations + "son sinxron" note (r19/r20 bug-ları bağlandı: 503 stations restore, boş-board clobber qadağası). E2E r19/r20c.
-2. ~~**Expo station YOXDU**~~ — **✅ BİTTİ (12u):** Expo "serving qapısı" — bütün stansiya ready olmadan order Expo-ya düşmür (all-ready invariant, FIFO `kitchen_ready_at`); tək-press SERVİSƏ VER = `mark_order_served_atomic` (POS eyni edge; floor.manage server enforced). E2E r20 (gate + serve + POS chip).
+2. ~~**Expo station YOXDU**~~ — **✅ BİTTİ (12u → 12v):** Expo "serving qapısı" — bütün stansiya ready olmadan order Expo-ya düşmür (all-ready invariant, FIFO `kitchen_ready_at`). **12v (owner): KDS Expo = VIEW-ONLY** (servis button/text YOX — "servis POS-dan verilir"); servis = POS "SERVİSƏ VER" (`mark_order_served_atomic`). E2E r20 + r21 (view-only + POS serve → chip).
 3. ~~**Bump bar YOXDU**~~ — **✅ BİTTİ (12u):** xl+ rail (w-44) — aktiv stansiya ticket-ləri tək-press (station-scoped Hazırdır), "N qalıb · ≈M dəq", ready = sükut emerald tile; Expo tab-da = SERVİSƏ VER tile-lər. E2E r17/r20.
 4. ~~**Per-ticket kitchen ETA YOXDU**~~ — **✅ BİTTİ (12u):** kart + bump chip "≈ N dəq" — N = bugünkü Ø HAZIRLANMA (`/api/kitchen/daily` avgReadyMin, 5-min refresh); elapsed > N → amber (GEÇİKME qırmızı güclü qalır); watch tab-da YOX. E2E r18 (live ≈1→≈4 dəq data-driven).
 5. **Aggregator routing YOXDU** — DoorDash/Uber Eats order-lar KDS-a birbaş gəlmir (AZ marketi üçün low risk; kurye öz web-app-da 12a).

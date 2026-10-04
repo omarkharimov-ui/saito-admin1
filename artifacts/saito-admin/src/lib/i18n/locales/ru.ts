@@ -2029,6 +2029,7 @@ export const ru: TranslationMap = {
   complete_order: 'Завершить заказ',
   kds_customer: 'Клиент',
   kds_stations: 'Станции',
+  kds_watch: 'Наблюдение',
   kds_items: 'Позиции',
   kds_check_items: 'Отмечайте позиции ✓',
   kds_all_stations: 'ВСЕ',

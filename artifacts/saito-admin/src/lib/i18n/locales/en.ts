@@ -2028,6 +2028,7 @@ export const en: TranslationMap = {
   complete_order: 'Complete Order',
   kds_customer: 'Customer',
   kds_stations: 'Stations',
+  kds_watch: 'Watch',
   kds_items: 'Items',
   kds_check_items: 'Mark items ready with ✓',
   kds_all_stations: 'ALL',

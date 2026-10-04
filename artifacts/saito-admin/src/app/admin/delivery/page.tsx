@@ -236,8 +236,8 @@ export default function BDSPage() {
   useCrossTableRefresh('bds-board', ['orders', 'order_items'], fetchBds, 1500);
 
   const stationName = (sid: string | null | undefined) => {
-    const fallback = stations.find(s => s.name === 'Main Kitchen')?.id || stations[0]?.id;
-    return stations.find(s => s.id === (sid || fallback))?.name || 'Main Kitchen';
+    const fallback = stations.find(s => s.name === 'Kitchen')?.id || stations[0]?.id;
+    return stations.find(s => s.id === (sid || fallback))?.name || 'Kitchen';
   };
 
   const isActiveByType: Record<string, (o: BdOrder) => boolean> = {

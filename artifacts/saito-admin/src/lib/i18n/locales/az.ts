@@ -2038,6 +2038,7 @@ export const az = {
   complete_order: 'Sifarişi Tamamla',
   kds_customer: 'Müştəri',
   kds_stations: 'Stansiyalar',
+  kds_watch: 'İzləmə',
   kds_items: 'Məhsullar',
   kds_check_items: 'Məhsulları ✓ ilə qeyd et',
   kds_all_stations: 'HAMISI',

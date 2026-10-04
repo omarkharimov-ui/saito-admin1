@@ -4,7 +4,7 @@ import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Clock, ChefHat, CheckCircle2, AlertTriangle, Volume2, VolumeX,
-  Package, Truck, Utensils, Flame, Timer, Bell, Printer, Coffee, Phone, X, Zap, XCircle
+  Package, Truck, Utensils, Flame, Timer, Bell, Printer, Coffee, Phone, X, Zap, Eye
 } from '@/components/ui/saito-icons';
 import { appleBackdrop } from '@/lib/modal-transitions';
 import { toast } from '@/lib/toast';
@@ -272,13 +272,20 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // Items with no station snapshot (legacy locked lines / manual lines)
   // display at the Main Kitchen default board (matches the backfill rule).
   const fallbackStationId = !stationType
-    ? (stations.find(s => s.name === 'Main Kitchen')?.id || stations[0]?.id || null)
+    ? (stations.find(s => s.name === 'Kitchen')?.id || stations[0]?.id || null)
     : null;
   const itemStation = (i: KDSItem) => i.station_id || (stationType ? null : fallbackStationId);
   const itemInBoard = (i: KDSItem) => {
     const st = itemStation(i);
     return st ? boardStationIds.has(st) : !stationType;
   };
+  // 12s (owner): "bir mətbəx digər mətbəxin sifarişlərini YALNIZ İZLƏYƏ
+  // bilsin, idarə etməsin" — restricted terminals (BDS) get a WATCH tab for
+  // the sibling kitchen family. navStations = own family + sibling kitchen
+  // family (BDS: Bar + Kitchen; KDS unified: Kitchen + Bar, as before).
+  const navStations = stationType
+    ? [...boardStations, ...stations.filter(s => s.station_type !== stationType && s.station_type === 'kitchen')]
+    : boardStations;
   const isItemReady = (i: KDSItem) => i.kitchen_status === 'ready' || i.kitchen_status === 'completed';
   const stationPendingCount = (stId: string) =>
     orders.reduce((sum, o) => sum + o.items.filter(i => itemStation(i) === stId && !isItemReady(i)).length, 0);
@@ -314,9 +321,10 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // MODAL only — the one-tap whole-order surface.
   const stationPendingItemIds = (o: KDSOrder, stId: string) =>
     stationItems(o, stId).filter(i => !stationDone(i)).map(i => i.id);
-  // 12m: the header count = unique orders visible across ALL panels.
+  // 12m: the header count = unique orders visible across ALL panels
+  // (12s: including the watch panel on restricted terminals).
   const boardOrderIds = new Set<string>();
-  boardStations.forEach(st => stationTickets(st.id).forEach(o => boardOrderIds.add(o.id)));
+  navStations.forEach(st => stationTickets(st.id).forEach(o => boardOrderIds.add(o.id)));
 
   // pr v1 — this KDS terminal is a browser print terminal too: claims
   // kitchen (and receipt) jobs routed to browser devices of the location.
@@ -910,29 +918,11 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // 86 / ITEM VOID (Toast parity): an item that can't be made is voided from
   // the ticket — canonical /api/kitchen/void-comp-waste (session + shiftGate
   // + order.void). The row leaves the ticket (voided is terminal).
-  const handleVoidItem = async (orderId: string, item: KDSItem) => {
-    try {
-      // 12q: origin='kds' — 86 is a kitchen-availability action; the route
-      // exempts it from the cash-shift gate (kitchen terminals run when the
-      // register is closed; POS comp/void keep the gate).
-      const res = await apiFetch('/api/kitchen/void-comp-waste', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'void', order_item_id: item.id, reason: 'kds_86', origin: 'kds' }),
-      });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok || d?.success === false) {
-        toast.error(d?.error || t('status_update_error'), { id: 'kds-toast' });
-        return;
-      }
-      patchOrder(orderId, o => ({
-        items: o.items.map(i => (i.id === item.id ? { ...i, kitchen_status: 'voided' } : i)),
-      }));
-      toast.success(t('kds_86_toast'), { id: 'kds-toast' });
-    } catch {
-      toast.error(t('status_update_error'), { id: 'kds-toast' });
-    }
-  };
+  // 12s (owner): the KDS 86/void button is REMOVED from the UI (it sat next
+  // to the tick and mis-taps voided items → "məhsul yox olur, yenidən gəlir").
+  // The API (/api/kitchen/void-comp-waste, origin='kds') + DB edge stay for
+  // a future explicit flow; item removal is a POS/register operation (comp/
+  // void with PinGuard).
 
   // NOTE 12i (owner): the SERVE ("Sərvil") press is a FLOOR/POS action, not a
   // kitchen one — see /api/orders/serve, wired to the POS "Servisə Ver". The
@@ -984,7 +974,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
       for (const it of order.items) {
         if ((it.quantity ?? 0) <= 0) continue;
         const st = itemStation(it);
-        const nm = st ? (stations.find(x => x.id === st)?.name || 'Main Kitchen') : (stationType ? null : 'Main Kitchen');
+        const nm = st ? (stations.find(x => x.id === st)?.name || 'Kitchen') : (stationType ? null : 'Kitchen');
         if (!nm) continue;
         const e = m.get(nm) || { name: nm, qty: 0, ready: 0 };
         e.qty += it.quantity;
@@ -1007,9 +997,10 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
               ? (lightMode ? 'border-red-300 bg-white shadow-card' : 'border-red-500/35 bg-white/[0.02] shadow-card')
               : (lightMode ? 'border-zinc-200 bg-white shadow-card' : 'border-white/[0.08] bg-white/[0.02] shadow-card')
     }`;
+    // 12s (owner): no ORD-XXXX on the card either — dine-in keeps meta clean.
     const metaRest = order.order_source !== 'dine_in'
       ? (order.customer_phone || '')
-      : (order.order_number || '');
+      : '';
     // 12n: label = the ORDER-level workflow (SERVİSƏ HAZIRDİR etc.); but
     // when THIS station is done while other stations still cook
     // (wf='preparing'), the card still reports HAZIRDIR for its own share.
@@ -1131,14 +1122,17 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                           <span className={`inline-flex items-center h-[16px] px-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider shrink-0 ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/[0.07] text-white/40'}`}>{item.course}</span>
                         )}
                       </div>
-                       {/* 12r (owner): modifiers = quiet TEXT, not chips
-                           (quantities matter: "Əlavə Losos ×3" — chips hid
-                           the count per modifier in a dense ticket row). */}
-                       {item.modifiers && item.modifiers.length > 0 && (
-                         <p className={`mt-0.5 text-[11px] leading-snug ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>
-                           {item.modifiers.map(m => `${m.name}${m.quantity && m.quantity > 1 ? ` ×${m.quantity}` : ''}`).join(' · ')}
-                         </p>
-                       )}
+                        {/* 12r (owner): modifiers = quiet TEXT, not chips
+                            (quantities matter: "Əlavə Losos ×3" — chips hid
+                            the count per modifier in a dense ticket row).
+                            12s (owner): ALWAYS show the count — even ×1 — so
+                            the kitchen never guesses ("yalnız 1 ədəd" was
+                            invisible; every modifier carries its quantity). */}
+                        {item.modifiers && item.modifiers.length > 0 && (
+                          <p className={`mt-0.5 text-[11px] leading-snug ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>
+                            {item.modifiers.map(m => `${m.name} ×${m.quantity || 1}`).join(' · ')}
+                          </p>
+                        )}
                       {item.special_notes && (
                         <p className={`mt-1 text-[11px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
                           <span className="font-bold">{t('kds_note_label')}:</span> {item.special_notes}
@@ -1156,29 +1150,42 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0">
                       <span className={`text-[13px] font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
-                      {/* 12j POS-pattern ✓ (unchanged: persistent + bounce + pop) */}
-                      <motion.button
-                        onClick={(e) => { if (!itemServed) { e.stopPropagation(); handleItemToggle(order.id, item); } }}
-                        title={itemServed ? undefined : (itemTicked ? t('kds_uncheck') : t('kds_tick_add'))}
-                        animate={tickPulse[item.id] ? { scale: [1, 1.18, 1.04, 1] } : { scale: 1 }}
-                        transition={{ duration: 0.45, ease: 'easeOut' }}
-                        whileTap={itemServed ? undefined : { scale: 0.86 }}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center border select-none transition-all duration-200 ${
+                      {/* 12s: watch tab (BDS→Kitchen) — read-only status circle */}
+                      {watchMode ? (
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border select-none ${
                           itemServed
-                            ? (lightMode ? 'bg-emerald-600/50 border-emerald-600/50 text-white/70' : 'bg-emerald-500/40 border-emerald-400/40 text-zinc-950/70')
+                            ? (lightMode ? 'bg-emerald-600/25 border-emerald-600/25 text-emerald-800/50' : 'bg-emerald-500/15 border-emerald-400/15 text-emerald-300/50')
                             : itemTicked
-                              ? (lightMode ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-500 border-emerald-500 text-zinc-950')
-                              : (lightMode ? 'bg-white border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'bg-transparent border-white/25 text-white/45 hover:border-emerald-400 hover:text-emerald-400')
-                        }`}
-                      >
-                        <motion.span
-                          key={itemTicked || itemServed ? 'on' : 'off'}
-                          initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 26 }}
-                          className="text-base font-bold leading-none"
-                        >✓</motion.span>
-                      </motion.button>
+                              ? (lightMode ? 'bg-emerald-600/40 border-emerald-600/40 text-white/70' : 'bg-emerald-500/20 border-emerald-400/20 text-emerald-300/70')
+                              : (lightMode ? 'bg-white border-zinc-200 text-zinc-300' : 'bg-transparent border-white/15 text-white/20')
+                        }`}>
+                          {(itemTicked || itemServed) && <span className="text-base font-bold leading-none">✓</span>}
+                        </div>
+                       ) : (
+                         /* 12j POS-pattern ✓ (unchanged: persistent + bounce + pop) */
+                         <motion.button
+                           onClick={(e) => { if (!itemServed) { e.stopPropagation(); handleItemToggle(order.id, item); } }}
+                          title={itemServed ? undefined : (itemTicked ? t('kds_uncheck') : t('kds_tick_add'))}
+                          animate={tickPulse[item.id] ? { scale: [1, 1.18, 1.04, 1] } : { scale: 1 }}
+                          transition={{ duration: 0.45, ease: 'easeOut' }}
+                          whileTap={itemServed ? undefined : { scale: 0.86 }}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center border select-none transition-all duration-200 ${
+                            itemServed
+                              ? (lightMode ? 'bg-emerald-600/50 border-emerald-600/50 text-white/70' : 'bg-emerald-500/40 border-emerald-400/40 text-zinc-950/70')
+                              : itemTicked
+                                ? (lightMode ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-500 border-emerald-500 text-zinc-950')
+                                : (lightMode ? 'bg-white border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'bg-transparent border-white/25 text-white/45 hover:border-emerald-400 hover:text-emerald-400')
+                          }`}
+                        >
+                          <motion.span
+                            key={itemTicked || itemServed ? 'on' : 'off'}
+                            initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 26 }}
+                            className="text-base font-bold leading-none"
+                          >✓</motion.span>
+                        </motion.button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1196,7 +1203,15 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                 (12i), so the kitchen side shows a small emerald caption only.
                 In-progress = the station-scoped "Hazırdır" main bar (12j
                 persistent, no-blink). */}
-            {inReadyTab ? (
+            {/* 12s: watch tab — no CTA, quiet "İzləmə" caption only */}
+            {watchMode ? (
+              <div className="mt-3 px-0.5">
+                <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                  <Eye size={12} />
+                  {t('kds_watch')}
+                </span>
+              </div>
+            ) : inReadyTab ? (
               <div className="mt-3 px-0.5">
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${lightMode ? 'text-emerald-700/80' : 'text-emerald-400/70'}`}>
                   <CheckCircle2 size={12} />
@@ -1234,10 +1249,13 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
   // whose WHOLE share for this station is done sit at the TOP (emerald
   // border), then in-progress oldest-first (most delayed on top — 12e).
   const activeStation =
-    boardStations.find(s => s.id === activeStationId) ||
-    boardStations.find(s => s.name === 'Main Kitchen') ||
+    navStations.find(s => s.id === activeStationId) ||
+    boardStations.find(s => s.name === 'Kitchen') ||
     boardStations[0] ||
     null;
+  // 12s: the active station is a SIBLING family (BDS watching Kitchen) →
+  // READ-ONLY board (status/accept visible, no controls).
+  const watchMode = !!stationType && !!activeStation && (activeStation.station_type || 'kitchen') !== stationType;
   const activeTickets = activeStation
     ? stationTickets(activeStation.id).slice().sort((a, b) => {
         const ra = stationAllDone(a, activeStation.id) ? 0 : 1;
@@ -1264,10 +1282,10 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             <p className={`text-xs font-medium mt-0.5 ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>{boardOrderIds.size} {t('active_orders_short')}</p>
           </div>
          <div className="flex items-center gap-2">
-            {/* 12n: GÜN moved to the STATION NAVBAR for multi-station
-                (/admin/kds); this quiet ghost button stays only where there
-                is no navbar — the BDS single-station bar display. */}
-            {boardStations.length <= 1 && (
+            {/* 12n/12s: GÜN lives in the STATION NAVBAR when one renders
+                (multi-station KDS AND the BDS with its watch tab); this quiet
+                ghost button stays only where there is no navbar at all. */}
+            {navStations.length <= 1 && (
               <button
                 type="button"
                 onClick={() => setDayView(v => !v)}
@@ -1295,22 +1313,31 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
           per 12m). One unified board below for the selected station.
           Multi-station only: the BDS bar display (single station) keeps the
           quiet GÜN button in the header instead. */}
-      {boardStations.length > 1 && (
+      {navStations.length > 1 && (
         <nav className={`flex items-center gap-1 flex-shrink-0 px-1 pb-2.5 border-b ${lightMode ? 'border-zinc-200' : 'border-white/[0.06]'}`}>
-          {boardStations.map(st => {
+          {navStations.map(st => {
             const navActive = !dayView && activeStation?.id === st.id;
             const n = stationTickets(st.id).length;
+            // 12s: a restricted terminal's sibling station = WATCH tab.
+            const stIsWatch = !!stationType && (st.station_type || 'kitchen') !== stationType;
             return (
               <button
                 key={st.id}
                 type="button"
                 onClick={() => { setDayView(false); setActiveStationId(st.id); setExpandedId(null); }}
-                className={`h-9 px-4 rounded-full text-[13px] font-semibold tracking-tight transition-colors ${navActive
+                className={`h-9 px-4 rounded-full text-[13px] font-semibold tracking-tight transition-colors flex items-center gap-1.5 ${navActive
                   ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-950')
                   : (lightMode ? 'text-zinc-500 hover:text-zinc-900' : 'text-white/50 hover:text-white/90')}`}
               >
                 {st.name}
                 <span className={`tabular-nums ${navActive ? (lightMode ? 'text-white/60' : 'text-zinc-400') : (lightMode ? 'text-zinc-400' : 'text-white/25')}`}> {n}</span>
+                {stIsWatch && (
+                  <span className={`inline-flex items-center gap-0.5 h-[16px] px-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${navActive
+                    ? (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-white/15 text-white/50')
+                    : (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.06] text-white/30')}`}>
+                    <Eye size={9} /> {t('kds_watch')}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -1469,8 +1496,9 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
             // whole-order call let the Bar chef ready Main Kitchen's food
             // (E2E r13v STEP 4.1: Bar CTA → both stations 1/1).
             const scopeStId = stationType ? null : (activeStation ? activeStation.id : null);
+            // watchMode (BDS watching Kitchen) → EVERYTHING is read-only.
             const inScope = (i: KDSItem) =>
-              itemInBoard(i) && (scopeStId ? itemStation(i) === scopeStId : true);
+              !watchMode && itemInBoard(i) && (scopeStId ? itemStation(i) === scopeStId : true);
             const fireableCourses = Array.from(new Set(
               o.items
                 .filter(i => (i.quantity ?? 0) > 0 && ['pending', 'accepted'].includes(i.kitchen_status))
@@ -1481,7 +1509,7 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
           const stationMap = new Map<string, { name: string; qty: number; ready: number }>();
           for (const it of items) {
             const st = itemStation(it);
-            const nm = st ? (stations.find(s => s.id === st)?.name || 'Main Kitchen') : 'Main Kitchen';
+            const nm = st ? (stations.find(s => s.id === st)?.name || 'Kitchen') : 'Kitchen';
             const e = stationMap.get(nm) || { name: nm, qty: 0, ready: 0 };
             e.qty += it.quantity;
             // 12i: served = done (the station's share is finished).
@@ -1514,15 +1542,12 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                        <PartnerLogo source={o.partner_source} height={18} lightMode={lightMode} />
                      </div>
                       <div className="flex items-center gap-2.5 mt-1.5 min-w-0">
-                        {/* 12i: ORDER TYPE bold (eye-catching) — dine-in shows
-                            the order number. */}
-                        <span className={`text-xs ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
-                          {o.order_source !== 'dine_in' ? (
-                            <span className={`font-bold ${lightMode ? 'text-zinc-600' : 'text-white/65'}`}>{o.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short')}</span>
-                          ) : (
-                            <span>{o.order_number || ''}</span>
-                          )}
-                        </span>
+                        {/* 12s (owner): no "ORD-XXXX" codes in the UI — the
+                            order type label (GEL-AL / ÇATDIRILMA) stays bold;
+                            dine-in shows nothing here. */}
+                        {o.order_source !== 'dine_in' && (
+                          <span className={`text-xs font-bold ${lightMode ? 'text-zinc-600' : 'text-white/65'}`}>{o.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short')}</span>
+                        )}
                         {o.customer_phone && (
                           <a href={`tel:${o.customer_phone}`} className={`text-xs font-semibold tabular-nums ${lightMode ? 'text-zinc-500' : 'text-white/45'}`}>{o.customer_phone}</a>
                         )}
@@ -1560,15 +1585,48 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                      inside boxes. The full spec stays (modifiers + ₼,
                      allergens, notes) — now as quiet typography. */}
                  <div className="p-5 flex-1 min-h-0 overflow-y-auto">
-                   {/* Məhsullar — flat rows, 48px ✓ targets */}
-                   <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.06]'}`}>
-                      {items.map(item => {
-                        // 12o: circle lit = declared-ready OR ticked (prepared progress).
-                        const itemReady = isItemTicked(item);
+                    {/* Məhsullar — 12s (owner): grouped PER STATION. Each
+                        kitchen's items are action-able; OTHER stations'
+                        items stay visible READ-ONLY (status + accept —
+                        "yalnız izləyə bilsin, idarə edə bilməsin"). The
+                        old flat list + separate STANSIYALAR counts made
+                        item→station ownership ambiguous (owner: "Filadelfiya
+                        niyə Bar bölməsində görünür?"). */}
+                    {(() => {
+                      const groups: { name: string; items: KDSItem[] }[] = [];
+                      for (const gi of items) {
+                        const gst = itemStation(gi);
+                        const gnm = gst ? (stations.find(x => x.id === gst)?.name || 'Kitchen') : (stationType ? null : 'Kitchen');
+                        if (!gnm) continue;
+                        let g = groups.find(x => x.name === gnm);
+                        if (!g) { g = { name: gnm, items: [] }; groups.push(g); }
+                        g.items.push(gi);
+                      }
+                      return groups.map(g => {
+                        const gStat = stationMap.get(g.name);
+                        const gDone = gStat ? gStat.ready >= gStat.qty : false;
+                        const gOwn = g.items.every(i => inScope(i));
+                        return (
+                          <section key={g.name} className="mt-5 first:mt-0">
+                            <div className="flex items-center justify-between pb-1.5">
+                              <span className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                {g.name}
+                                {!gOwn && <span className={`ml-1.5 normal-case tracking-normal font-medium ${lightMode ? 'text-zinc-300' : 'text-white/20'}`}>· {t('kds_watch')}</span>}
+                              </span>
+                              {gStat && (
+                                <span className={`text-[11px] font-semibold tabular-nums ${gDone ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-400' : 'text-white/40')}`}>{gStat.ready}/{gStat.qty}</span>
+                              )}
+                            </div>
+                            <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.06]'}`}>
+                            {g.items.map(item => {
+                         // 12o: circle lit = declared-ready OR ticked (prepared progress).
+                         const itemReady = isItemTicked(item);
                         // 12m (owner): NO prices in KDS/BDS — modifier names +
                         // quantities only (the old ` · ₼X.XX` suffix is gone).
+                        // 12s (owner): ALWAYS show the count — even ×1 — every
+                        // modifier carries its quantity (no "1 ədəd" guesswork).
                         const modText = (item.modifiers ?? []).map(m =>
-                          `${m.name}${(m.quantity && m.quantity > 1) ? ` ×${m.quantity}` : ''}`
+                          `${m.name} ×${m.quantity || 1}`
                         ).join(' · ');
                        const alLabels = parseAllergens(item.allergens).map((a: any) =>
                          resolveAllergenEntry(a)?.label ||
@@ -1607,52 +1665,62 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                             </div>
                              <div className="flex items-center gap-3 shrink-0 pt-0.5">
                                <span className={`text-sm font-bold tabular-nums ${dim ? (lightMode ? 'text-zinc-300' : 'text-white/25') : (lightMode ? 'text-zinc-700' : 'text-white/70')}`}>×{item.quantity}</span>
-                               {/* 12q: 86 (məhsul yoxdur) — Toast parity. Ghost,
-                                   red on hover; the canonical void route
-                                   (session + shiftGate + order.void). Served
-                                   rows are final — no 86. */}
-                               {!itemServed && (
-                                 <button
-                                   type="button"
-                                   onClick={() => handleVoidItem(o.id, item)}
-                                   title={t('kds_item_86')}
-                                   aria-label={t('kds_item_86')}
-                                   className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${lightMode ? 'text-zinc-300 hover:bg-red-50 hover:text-red-500' : 'text-white/20 hover:bg-red-500/10 hover:text-red-400'}`}
-                                 >
-                                   <XCircle size={15} />
-                                 </button>
-                               )}
-                                {/* 12j: POS cart-badge tick pattern (48px) —
-                                    persistent control + tap bounce + glyph pop. */}
-                                <motion.button
-                                 onClick={() => { if (!itemServed) handleItemToggle(o.id, item); }}
-                                 title={itemServed ? undefined : (itemReady ? t('kds_uncheck') : t('kds_tick_add'))}
-                                 animate={tickPulse[item.id] ? { scale: [1, 1.18, 1.04, 1] } : { scale: 1 }}
-                                 transition={{ duration: 0.45, ease: 'easeOut' }}
-                                 whileTap={itemServed ? undefined : { scale: 0.86 }}
-                                 className={`w-12 h-12 rounded-full flex items-center justify-center border select-none transition-all duration-200 ${
-                                   itemServed
-                                     ? (lightMode ? 'bg-emerald-600/50 border-emerald-600/50 text-white/70' : 'bg-emerald-500/40 border-emerald-400/40 text-zinc-950/70')
-                                     : itemReady
-                                       ? (lightMode ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-500 border-emerald-500 text-zinc-950')
-                                       : (lightMode ? 'bg-white border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'bg-transparent border-white/25 text-white/45 hover:border-emerald-400 hover:text-emerald-400')
-                                 }`}
-                               >
-                                 <motion.span
-                                   key={itemReady || itemServed ? 'on' : 'off'}
-                                   initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
-                                   animate={{ scale: 1, opacity: 1 }}
-                                   transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 26 }}
-                                   className="text-lg font-bold leading-none"
-                                 >✓</motion.span>
-                               </motion.button>
+                                {/* 12s (owner): the 86/X button is GONE from
+                                    the modal — it sat next to the 48px tick
+                                    and mis-taps voided the item (row vanished,
+                                    rolled back → "məhsul yox olur, yenidən
+                                    gəlir"). Item removal stays a POS/register
+                                    operation (comp/void with PinGuard). */}
+                                {inScope(item) ? (
+                                  /* 12j: POS cart-badge tick pattern (48px) —
+                                     persistent control + tap bounce + glyph pop. */
+                                  <motion.button
+                                    onClick={() => { if (!itemServed) handleItemToggle(o.id, item); }}
+                                    title={itemServed ? undefined : (itemReady ? t('kds_uncheck') : t('kds_tick_add'))}
+                                    animate={tickPulse[item.id] ? { scale: [1, 1.18, 1.04, 1] } : { scale: 1 }}
+                                    transition={{ duration: 0.45, ease: 'easeOut' }}
+                                    whileTap={itemServed ? undefined : { scale: 0.86 }}
+                                    className={`w-12 h-12 rounded-full flex items-center justify-center border select-none transition-all duration-200 ${
+                                      itemServed
+                                        ? (lightMode ? 'bg-emerald-600/50 border-emerald-600/50 text-white/70' : 'bg-emerald-500/40 border-emerald-400/40 text-zinc-950/70')
+                                        : itemReady
+                                          ? (lightMode ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-500 border-emerald-500 text-zinc-950')
+                                          : (lightMode ? 'bg-white border-zinc-300 text-zinc-400 hover:border-emerald-500 hover:text-emerald-600' : 'bg-transparent border-white/25 text-white/45 hover:border-emerald-400 hover:text-emerald-400')
+                                    }`}
+                                  >
+                                    <motion.span
+                                      key={itemReady || itemServed ? 'on' : 'off'}
+                                      initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
+                                      animate={{ scale: 1, opacity: 1 }}
+                                      transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 26 }}
+                                      className="text-lg font-bold leading-none"
+                                    >✓</motion.span>
+                                  </motion.button>
+                                ) : (
+                                  /* 12s: another kitchen's item — READ-ONLY
+                                     status circle (✓ when their ready), no
+                                     control. Owner: "yalnız izləyə bilsin". */
+                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center border select-none ${
+                                    itemServed
+                                      ? (lightMode ? 'bg-emerald-600/25 border-emerald-600/25 text-emerald-800/50' : 'bg-emerald-500/15 border-emerald-400/15 text-emerald-300/50')
+                                      : itemReady
+                                        ? (lightMode ? 'bg-emerald-600/40 border-emerald-600/40 text-white/70' : 'bg-emerald-500/20 border-emerald-400/20 text-emerald-300/70')
+                                        : (lightMode ? 'bg-white border-zinc-200 text-zinc-300' : 'bg-transparent border-white/15 text-white/20')
+                                  }`}>
+                                    {(itemReady || itemServed) && <span className="text-lg font-bold leading-none">✓</span>}
+                                  </div>
+                                )}
+                             </div>
+                           </div>
+                         );
+                         })}
                             </div>
-                          </div>
+                          </section>
                         );
-                     })}
-                   </div>
+                      });
+                    })()}
 
-                   {/* Müştəri — flat section */}
+                    {/* Müştəri — flat section */}
                    {o.order_source !== 'dine_in' && (
                      <section className="mt-5">
                        <p className={`text-[11px] font-semibold uppercase tracking-[0.12em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_customer')}</p>
@@ -1671,23 +1739,9 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                      </section>
                    )}
 
-                   {/* Stansiyalar — whole-order progress, flat rows */}
-                   {stationMap.size > 0 && (
-                     <section className="mt-5">
-                       <p className={`text-[11px] font-semibold uppercase tracking-[0.12em] mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('kds_stations')}</p>
-                       <div className={`divide-y ${lightMode ? 'divide-zinc-100' : 'divide-white/[0.06]'}`}>
-                         {Array.from(stationMap.values()).map(g => {
-                           const done = g.ready >= g.qty;
-                           return (
-                             <div key={g.name} className="flex items-center justify-between py-2.5">
-                               <span className={`text-[13px] font-medium ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>{g.name}</span>
-                               <span className={`text-[13px] font-semibold tabular-nums ${done ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-zinc-400' : 'text-white/40')}`}>{g.ready}/{g.qty}</span>
-                             </div>
-                           );
-                         })}
-                       </div>
-                     </section>
-                   )}
+                    {/* 12s: the flat STANSIYALAR count section is gone —
+                        items are now grouped under their own station headers
+                        (with ready/qty per station), which is unambiguous. */}
 
                    {/* ETA — plain line, red once overdue */}
                    {o.estimated_delivery_time && (() => {
@@ -1702,11 +1756,12 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                    })()}
                  </div>
 
-                  {/* Sticky footer — 12j: ONE PERSISTENT action surface (no
-                      blink — same element, text+color morph via CSS). The
-                      modal is the whole-order surface: "Hazırdır" here
-                      finalizes ALL stations (intended one-tap); SERVE stays
-                      the POS floor action (12i). */}
+                   {/* Sticky footer — 12j: ONE PERSISTENT action surface (no
+                       blink — same element, text+color morph via CSS). 12r/12s:
+                       "Hazırdır" here is STATION-SCOPED (the terminal's own
+                       share only) — the order goes 'ready' via rollup when the
+                       LAST station finishes; SERVE stays the POS floor action
+                       (12i). */}
                    <div className="p-5 pt-0 flex-shrink-0">
                      {/* 12q: course firing — Lightspeed parity. Each button
                          sends that course's pending/accepted items to
@@ -1732,20 +1787,32 @@ export function KDSView({ onBack, stationType }: { onBack: () => void; stationTy
                            visual direction, red is reserved for critical
                            states (overdue / rush). Hidden once the order is
                            ready/serving (kitchen work is done). */}
-                       {(wf === 'pending' || wf === 'preparing') && (
-                         <button
-                           type="button"
-                           onClick={() => handleRush(o.id)}
-                           title={o.is_rush ? t('kds_rush_toggle_off') : t('kds_rush_toggle_on')}
-                           className={`shrink-0 inline-flex items-center gap-1.5 h-12 px-4 rounded-2xl border text-xs font-bold uppercase tracking-wider transition-all duration-200 active:scale-[0.97] ${
-                             o.is_rush
-                               ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-zinc-950')
-                               : (lightMode ? 'bg-white border-zinc-300 text-zinc-500 hover:border-red-400 hover:text-red-500' : 'bg-transparent border-white/20 text-white/40 hover:border-red-400/70 hover:text-red-400')
-                           }`}
-                         >
-                           <Zap size={13} />{t('kds_rush')}
-                         </button>
-                       )}
+                        {(wf === 'pending' || wf === 'preparing') && (
+                          watchMode ? (
+                            /* 12s: watch tab — RUSH is a status indicator only
+                               (visible, not togglable). */
+                            <span className={`shrink-0 inline-flex items-center gap-1.5 h-12 px-4 rounded-2xl border text-xs font-bold uppercase tracking-wider ${
+                              o.is_rush
+                                ? (lightMode ? 'bg-red-600/60 border-red-600/60 text-white' : 'bg-red-500/50 border-red-500/50 text-zinc-950')
+                                : (lightMode ? 'bg-white border-zinc-200 text-zinc-400' : 'bg-transparent border-white/10 text-white/25')
+                            }`}>
+                              <Zap size={13} />{t('kds_rush')}
+                            </span>
+                          ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleRush(o.id)}
+                            title={o.is_rush ? t('kds_rush_toggle_off') : t('kds_rush_toggle_on')}
+                            className={`shrink-0 inline-flex items-center gap-1.5 h-12 px-4 rounded-2xl border text-xs font-bold uppercase tracking-wider transition-all duration-200 active:scale-[0.97] ${
+                              o.is_rush
+                                ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-zinc-950')
+                                : (lightMode ? 'bg-white border-zinc-300 text-zinc-500 hover:border-red-400 hover:text-red-500' : 'bg-transparent border-white/20 text-white/40 hover:border-red-400/70 hover:text-red-400')
+                            }`}
+                          >
+                            <Zap size={13} />{t('kds_rush')}
+                          </button>
+                          )
+                        )}
                         {(() => {
                           let label = t('kds_ready_btn');
                           let active = true;

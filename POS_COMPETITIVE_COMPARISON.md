@@ -1,4 +1,4 @@
-# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-03, rounds 7 → 12r)
+# SAITO POS vs Toast · Lightspeed · Square — Feature Audit (2026-10-04, rounds 7 → 12s)
 
 > Əsas: SAITO = bu repo-nun kodu üzrə verified feature set. Rəqiblər = hər birinin
 > müstəqil Restaurant POS məhsulunun müəssisəleşmiş core feature set-i.
@@ -17,6 +17,10 @@
 > **12r:** METBƏX SWEEP — station-scoped ready (bir stansiya digərinin item-lərini
 > ready edə bilmir — Toast bump-parity), false-empty board aralandı (loading gate +
 > stations retry), modifier chip → text (×N), device heartbeat 23505 fallback.
+> **12s:** METBƏX MODAL + BDS WATCH — modal-da station qrupları (hər mətbəx yalnız
+> öz item-ləri), digər mətbəx = read-only **WATCH** (status/ready/count, idarə YOX),
+> X (86) düyməsi + ORD-kod SİLİNDİ (owner), modifier HƏMİŞƏ ×N, "Main Kitchen"→"Kitchen".
+> Yeni: §1c meyar-meyar müqayisə + üstün/zəif + praktik təkliflər.
 
 ## 0. BEFORE / AFTER — 11a–11g dəyişikliklərinin tam müqayisəsi
 
@@ -94,7 +98,7 @@ kanıtı ilə dəstəklənir.
 | Reservations + waitlist + pre-order | ✅ | ✅ | ✅ | ✅ |
 | Delivery (courier, zones, fee, status) + Takeaway | ✅ | ✅ | ✅ | ✅ (Square Delivery) |
 | Delivery courier tracking + courier-side app + **customer live tracking** | ✅ **daha dərin**: live GPS dispatch map + kurye PIN web-app (0 install) + Google Maps nav + **12c: Supabase Realtime + smooth interpolated marker + camera follow + PUBLIK `/track` customer live map** (road-route + canlı ETA + timeline) — **100% keyless/₼0** | ✅ Toast Delivery Services (driver app + route optimization + **customer tracking link**) — **US-only**, add-on, hardware lock-in ($799+, 24–36 ay) | ⚠️ **native driver app YOX** — aggregator (Uber Eats/DoorDash/Grubhub) + üçüncü tərəf (Relay) / manual | ⚠️ **native self-delivery driver app YOX** — Square Online + aggregator-ə köklənir; öz kurye-lərdə tracking yox |
-| Kitchen (KDS) + per-item status (cooking/ready/served) | ✅ + station boards + per-item ✓ (atomic, **40px touch**) + **12e: 24h service window** + BDS newest-first + **12f: premium chime** + **12g: POS tick transition — tap = morph-to-centered-modal (customer/stations/ETA/full mods/notes) + red delay state** + **12h: full Apple visual reset (0 çip/0 pill, state = border + text color, flat hairline lists) + station SSOT = hot line + Bar** + **12i: kanonik workflow (qəbul → hazırlanır → hazırdır → +3s sərvise → servis edildi; KDS = qəbul+hazırdır, SERVE = POS floor action) + ✓ TOGGLE (un-tick) + per-instance spec visibility (modifier/note/allergen) + cross-station progress + 4 bug fix** + **12j: GÜN = All Day View + İSTİHSAL (production counts) + Ø QƏBUL/Ø HAZIRLANMA (kitchen productivity) — Toast-ın qalan 3 edge-inin HAMISI; ✓ tick = POS badge pattern (persistent, [1→1.18→1]); CTA = persistent button (0 blink, measured)** + **12n: UMUMİ BOARD + stansiya navbar (Main Kitchen·Bar·GÜN) — dual panel + HAZIRLANIR\|HAZIRDİR sub-tabs silindi (Toast modeli); ready-first sort (emerald yuxarıda), station-scoped "Hazırdır" + priceless Apple-chip ticket qorunur** + **12o: tick = hazırlıq progress (prepared_quantity) — auto-accept/auto-ready YOX (order GÖZLƏYİR qalır); HAZIRDIR bəyanı = yalnız "Hazırdır" CTA; "Servis POS-dan edir" = quiet text (button yox)** + **12p: "Qəbul et" TAM LƏĞV — KDS auto-accept (bir dəfə, səssiz), sifariş gələndə birbaşa HAZIRLANIR, kitchen_accepted_at stamp** + **12q: REVERT + LATENCY fix (optimistic-first 23ms + seq guard + accept item-alignment) + GAP SWEEP: RUSH UI (toggle + red kart + GÜN ⚡) + COURSE FIRING UI (modal Flame pill-lər) + 86 UI (modal ✕, smena bağlı olanda da — origin='kds')** + **12r: STATION-SCOPED READY (modal CTA + course firing — bir stansiya digərinin item-lərini ready edƏMƏZ; Toast bump-parity) + false-empty board aralandı (loading gate + stations retry) + modifier spec = text (×N)** — Toast kitchen-parity YALNIZ All Day View idi → **CAPALI** (detal: "KITCHEN DETALI MÜQAYİSƏ (12q)" bölümü) | ✅ | ✅ | ✅ |
+| Kitchen (KDS) + per-item status (cooking/ready/served) | ✅ + station boards + per-item ✓ (atomic, **40px touch**) + **12e: 24h service window** + BDS newest-first + **12f: premium chime** + **12g: POS tick transition — tap = morph-to-centered-modal (customer/stations/ETA/full mods/notes) + red delay state** + **12h: full Apple visual reset (0 çip/0 pill, state = border + text color, flat hairline lists) + station SSOT = hot line + Bar** + **12i: kanonik workflow (qəbul → hazırlanır → hazırdır → +3s sərvise → servis edildi; KDS = qəbul+hazırdır, SERVE = POS floor action) + ✓ TOGGLE (un-tick) + per-instance spec visibility (modifier/note/allergen) + cross-station progress + 4 bug fix** + **12j: GÜN = All Day View + İSTİHSAL (production counts) + Ø QƏBUL/Ø HAZIRLANMA (kitchen productivity) — Toast-ın qalan 3 edge-inin HAMISI; ✓ tick = POS badge pattern (persistent, [1→1.18→1]); CTA = persistent button (0 blink, measured)** + **12n: UMUMİ BOARD + stansiya navbar (Main Kitchen·Bar·GÜN) — dual panel + HAZIRLANIR\|HAZIRDİR sub-tabs silindi (Toast modeli); ready-first sort (emerald yuxarıda), station-scoped "Hazırdır" + priceless Apple-chip ticket qorunur** + **12o: tick = hazırlıq progress (prepared_quantity) — auto-accept/auto-ready YOX (order GÖZLƏYİR qalır); HAZIRDIR bəyanı = yalnız "Hazırdır" CTA; "Servis POS-dan edir" = quiet text (button yox)** + **12p: "Qəbul et" TAM LƏĞV — KDS auto-accept (bir dəfə, səssiz), sifariş gələndə birbaşa HAZIRLANIR, kitchen_accepted_at stamp** + **12q: REVERT + LATENCY fix (optimistic-first 23ms + seq guard + accept item-alignment) + GAP SWEEP: RUSH UI (toggle + red kart + GÜN ⚡) + COURSE FIRING UI (modal Flame pill-lər) + 86 UI (modal ✕, smena bağlı olanda da — origin='kds')** + **12r: STATION-SCOPED READY (modal CTA + course firing — bir stansiya digərinin item-lərini ready edƏMƏZ; Toast bump-parity) + false-empty board aralandı (loading gate + stations retry) + modifier spec = text (×N)** + **12s: modal = station qrupları (hər mətbəx öz item-ləri; digər = read-only İZLƏMƏ) + BDS WATCH tab (Bar terminal-da Kitchen read-only) + X/86 düyməsi SİLİNDİ (owner — 86 = POS-only) + ORD-kod YOX + modifier HƏMİŞƏ ×N** — Toast kitchen-parity YALNIZ All Day View idi → **CAPALI** (detal: §1b + **§1c meyar-meyar müqayisə + təkliflər**) | ✅ | ✅ | ✅ |
 | Campaigns/coupons (server-validated, min-order, dining window) | ✅ | ✅ | ✅ | ✅ |
 | Loyalty (points spine, redeem at payment, reverse on refund) | ✅ | ✅ | ✅ | ✅ |
 | CRM customers (shared source, phone, linking) | ✅ | ✅ | ✅ | ✅ |
@@ -102,7 +106,7 @@ kanıtı ilə dəstəklənir.
 | Multi-location, i18n (az/en/ru), light/dark, reduced-motion | ✅ | ⚠️ | ✅ | ⚠️ |
 | Device pairing/heartbeat/remote commands | ✅ (Phase 0–1) | ✅ (Toast hardware) | ✅ | ✅ (Terminal) |
 
-## 1b. KITCHEN DETALI MÜQAYİSƏ (12q) — SAITO vs Toast vs Square vs Lightspeed
+## 1b. KITCHEN DETALI MÜQAYİSƏ (12q → 12s) — SAITO vs Toast vs Square vs Lightspeed
 
 > Rəqib data = web-verified 2026-10 (HANDOFF_12Q §3): **Toast** = overall best KDS
 > (stations, bump/recall, timers, expo, analytics, offline); **Square** = KDS $20/mo
@@ -112,15 +116,15 @@ kanıtı ilə dəstəklənir.
 
 | Sahə | SAITO (12q, repo-verified) | Toast | Square | Lightspeed |
 |---|---|---|---|---|
-| **Stations & routing** | Tək ümumi board + station navbar (Main Kitchen · Bar · GÜN); per-item station routing; cross-station progress (12i) | Ən çox station + item routing (best-in-class) | Stations + routing (basic) | **Ən yaxşı** sophisticated routing + müstəqil stansiya ekranı |
+| **Stations & routing** | Tək ümumi board + station navbar (Kitchen · Bar · GÜN); per-item station routing; cross-station progress (12i); **12s: modal station qrupları + WATCH tab (digər mətbəx read-only)** | Ən çox station + item routing (best-in-class) | Stations + routing (basic) | **Ən yaxşı** sophisticated routing + müstəqil stansiya ekranı |
 | **Auto-accept** | Səssiz auto-accept, bir dəfə (12p) — GÖZLƏYİR = transient ~1-8s | Auto-accept (default) | Manual accept | Manual/auto (config) |
 | **Bump / recall** | Un-tick READY item = RECALL (ready→pending, frozen registry edge); ayrıca bump bar YOX | Bump bar (tək-press) + recall | Bump bar (ayrı) | Bump + recall |
 | **Timers / delay** | Per-ticket timer (acceptance-based) + GEÇİKME = solid red (12g) + 24h service window (12e) | Timer + delay highlight (best) | Rəng kodlu ticket-lər (10") | Timer + course timing |
 | **Priority / RUSH** | RUSH toggle (12q): modal red pill + kart red border + ⚡RUSH + GÜN marker; DB `is_rush` | RUSH + priority queue | Priority flag | Priority |
 | **Course firing** | Course pill-ləri (12q): `fire_course_atomic` → preparing; yalnız pending/accepted course-lər — 2026 trend parity | Course firing rules | Basic | **Ən yaxşı** course management |
 | **Expo** | 🟡 YOXDU (Addım 2 — MFM §15) | Expo station | Expo | Expo + müstəqil ekrani |
-| **86 / item void** | Modal ✕ (12q): `item_kitchen_terminal('voided')`, smena bağlı olanda da işləyir (`origin:'kds'`) | 86 (chef) | 86 | 86 |
-| **Notes / allergens** | Per-item: modifier zinc + amber Qeyd + ⚠ allergen chip (red bold) — KDS ticket-da tam spec | Per-line notes + allergens | Notes + allergens | Notes + allergens |
+| **86 / item void** | **12s: modal ✕ SİLİNDİ (owner)** — 86 = POS-only (comp/waste + PIN); state machine `item_kitchen_terminal('voided')` + `origin:'kds'` exemption DB-də qorunur | 86 (chef) | 86 | 86 |
+| **Notes / allergens** | Per-item: modifier text **HƏMİŞƏ ×N (12s)** + amber Qeyd + ⚠ allergen chip (red bold) — KDS ticket-da tam spec | Per-line notes + allergens | Notes + allergens | Notes + allergens |
 | **Auto-print** | ✅ print queue + LAN agent (pr v1 09-20) + per-station printer routing | ✅ auto-print + fallback | ✅ | ✅ |
 | **Realtime / latency** | Supabase Realtime + 5s poll fallback + **optimistic UI — ölçülən cavab 23ms** (12q) | Realtime (native) | Realtime | Realtime |
 | **All-day analytics** | GÜN tab (12j): SİFARİŞ/MƏHSUL/İSTİHSAL/Ø QƏBUL/Ø HAZIRLANMA + top-30 + bütün tickets (+RUSH marker 12q) — 1 endpoint | All Day View + analytics (best) | Basic | Analytics |
@@ -130,6 +134,65 @@ kanıtı ilə dəstəklənir.
 | **Third-party routing** | YOXDU (kurye = öz web-app 12a — aggregator yox) | ✅ (DoorDash/Uber Eats) | ✅ (aggregator) | ✅ (aggregator) |
 | **Hardware** | Web KDS — istənilən tablet/PC (₼0 hardware) | Toast Station + stand ($799+, 24–36 ay lock-in, US) | KDS = **$20/mo add-on**/terminal, 10" | 15" kitchen screen |
 | **Pricing** | Öz məhsul — self-hosted, ₼0 | Plan + hardware (US-only) | Plan + $20/mo | Plan (bundled) |
+
+## 1c. METBƏX SİSTEMİ — MEYAR-MEYAR MÜQAYİSƏ + HÜKÜM (12s)
+
+> Owner (12s): "Saito-nu Toast, Lightspeed və Square mətbəx sistemləri ilə müqayisə et:
+> istifadə rahatlığı, sifariş idarəetməsi, mətbəx ayrımı, status izləmə, modifikatorlar,
+> performans və digər əsas meyarlar üzrə üstün və zəif tərəfləri müəyyən et. Sonda
+> əlavə praktik təkliflər ver." Rəqib fakt-ları = 12q-də web-verified (2026-10); SAITO =
+> repo + live DB + E2E r14/r15 verified (12s).
+
+### Meyar-meyar
+
+| Meyar | SAITO (12s) | Toast | Square | Lightspeed |
+|---|---|---|---|---|
+| **İstifadə rahatlığı** | Tək ümumi board + station navbar (Kitchen · Bar · GÜN); **səssiz auto-accept** (chef "qəbul et" basmır); **23ms optimistic cavab**; 40px touch; 2 tema; Apple motion | Ən pürüzsüz workflow, amma daha çox ekran/cihaz; US-first terminologiya | Ən sadə (tək grid) — öyrənmə ~5 dəq | Ən dərin (course + stansiya ekranı) — öyrənmə əyisi dik |
+| **Sifariş idarəetməsi** | Per-item FROZEN state machine (atomic RPC + rollup); tick = progress (`prepared_quantity`, auto-ready YOX); course firing; RUSH; 24h service window; 86 = POS-only (12s) | bump/recall/86/expo full; per-item status | Bump bar + basic item status | Course-based routing + item status |
+| **Mətbəx ayrımı** | Per-item station routing + **station-scoped ready (12r)** + **WATCH mode (12s)** — digər mətbəx eyni terminal-da read-only (status/ready/count, idarə YOX) + modal station qrupları | Ən çox station + item routing; ayrılıq = ARAZI stansiya cihazları | Basic stations | Ən yaxşı routing + müstəqil stansiya ekranı |
+| **Status izləmə** | Kanonik workflow (qəbul→hazırlanır→hazırdır→+3s servisə→servis edildi); `kitchen_accepted_at`/`kitchen_ready_at` stamps; per-ticket timer + KRİTİK/GEÇİKME; GÜN = Ø qəbul / Ø hazırlanma / istehsal | Timer + delay highlight (best-in-class) + All Day View | Rəng kodlu ticket-lər (basic) | Timer + course timing |
+| **Modifikatorlar** | **Per-instance model** (2 eyni məhsul fərqli spec — line-level isolation); KDS-də **HƏMİŞƏ ×N miqdar (12s)**; qiymətsiz; notes + allergen | Ticket-da modifier görünür | Basic modifier text | İyi course/modifier |
+| **Performans** | Web KDS — istənilən tablet/PC (₼0 hardware); UI cavab 23ms (optimistic); RPC round-trip ≈2-3s (EU pooler→Baku); realtime + 5s poll | Dedikasiya hardware (Toast Station) — ən sürətli + offline | 10" KDS cihazı | 15" kitchen screen |
+| **Offline (kitchen)** | ❌ YOXDU (POS offline intake = 11e p1; KDS özü offline-də kördür) | ✅ BEST (offline KDS) | ⚠️ | ⚠️ |
+| **Expo (serving qapısı)** | 🟡 YOXDU (Addım 2) | ✅ | ✅ | ✅ + müstəqil ekrani |
+| **Per-ticket kitchen ETA** | YOXDU (delivery ETA var — OSRM; 2026 trend) | ⚠️ | YOX | ⚠️ |
+| **Aggregator routing** | YOXDU (kurye = öz web-app 12a — AZ marketi aggregator-a az asılıdır) | ✅ DoorDash/Uber Eats | ✅ aggregator | ✅ aggregator |
+| **Qiymət** | Self-hosted, ₼0 (öz infrastruktur) | Plan + $799+ hardware (24-36 ay lock-in, US-only) | Plan + $20/mo KDS add-on/terminal | Plan (bundled) |
+
+### ÜSTÜN TƏRƏFLƏR (SAITO)
+
+1. **WATCH mode — read-only cross-kitchen (rəqiblərdə YOXDU eyni terminal-da).** Toast/Square/Lightspeed hər stansiya üçün ARAZI cihaz satır (Toast Station $799+, Square 10" $20/mo, Lightspeed 15"); SAITO-da 1 tablet = öz mətbəx + digər mətbəxin live izləməsi + GÜN. Owner tələbi "idarə etməsin, izləsin" = rəqiblərin hardware-ı ilə həll etdiyi ayrılığı SAITO scope/permission ilə həll edir.
+2. **Station-scoped ready (12r)** — bir stansiya digərinin item-lərini ready EDƏMƏZ; cross-station "ready leak" DB/UI scope ilə qarşısı alınır (Toast-dakı bump-parity).
+3. **Per-instance modifier model + HƏMİŞƏ ×N (12s)** — rəqiblərdə eyni məhsulun 2 sətiri modifier-ləri "merged" görünsə belə, SAITO-da hər sətir öz spec-ini daşıyır + miqdar heç vaxt gizlənmir ("Əlavə Losos ×3" / "Standart ×1").
+4. **23ms optimistic cavab** — web KDS üçün ölçülən ən sürətli interaksiya; dedikasiya hardware lazımsız, istənilən qədim tablet-də eyni UX.
+5. **GÜN (All Day View, 12j)** — Toast-ın qalan 3 edge-inin HAMISI: production count, Ø qəbul, Ø hazırlanma (+ RUSH marker 12q).
+6. **FROZEN state machine + audit spine** — hər transition registry + atomic RPC + operation_logs; "status geri qayıtdı" sinfi bug 12q-da kökündən aralandı (seq guard + optimistic merge window + accept item-alignment).
+7. **24h service window (12e)** — bağlanmamış ticket board-da həftələrlə qalmır (rəqiblərdə manuel cleanup).
+8. **AZ yerelliği** — az/en/ru + AZN + lokal terminologiya; Toast US-only, Square/Lightspeed US-first.
+
+### ZƏİF TƏRƏFLƏR (SAITO — rəqibə qarşı)
+
+1. **Offline KDS YOXDU** — Toast offline = ən böyük rəqib edge (internet/kəsilmə = kitchen işləməyə davam edir). SAITO KDS terminal offline-də kördür (POS intake 11e p1 ilə ayrı məsələdir).
+2. **Expo station YOXDU** — 3 rəqib də expo var (serving qapısı: bütün stansiya hazır olmadan order alına bilməz); SAITO Addım 2-də.
+3. **Bump bar YOXDU** — Toast-ın ən çox işlənən interaksiyası (tək-press "next ready"); SAITO-da ready-first sort + CTA var, amma dedikasiya bump zone yoxdur.
+4. **Per-ticket kitchen ETA YOXDU** — 2026 trend (rəqiblərdə peyda olur); delivery ETA var (OSRM), kitchen ticket ETA yoxdur.
+5. **Aggregator routing YOXDU** — DoorDash/Uber Eats order-lar KDS-a birbaş gəlmir (AZ marketi üçün low risk; kurye öz web-app-da 12a).
+6. **Dedikasiya hardware YOXDU** — web = şəbəkə asılı: RPC round-trip EU pooler ≈2-3s (optimistic UI örtür, offline kövrək edir — zəif #1 ilə eyni kök).
+7. **86 = POS-only (12s trade-off)** — owner X-ı sildikdən sonra chef-dən "bu məhsulu hazırlaya bilmirik" escape-i POS-a köçdü (PIN + comp/waste); rəqiblərdə chef birbaşa 86 edir.
+8. **Chime ear-check pending (12f) + per-stansiya səs routinqi YOXDU** — Bar order-u Kitchen terminal-da da çınlayır (rəqiblərdə səs = stansiya-sının).
+
+### PRAKTİK TƏKLİFLƏR (priority order — owner GO ilə)
+
+1. **Bump bar** — ready ticket-lər üçün tək-press "nəvi" zonası (hazır ready-first sort + CTA üzərindən kiçik səth); GÜN-də bump count = service-speed KPI. Toast-parity, minimum səth.
+2. **Kitchen offline buffer (11e phase 2 — kitchen hissəsi)** — tick/ready/RUSH lokal queue + idempotency replay → Toast offline-parity. Internet kəsilişi = restaurant operation riski; bu, zəif #1 + #6-nı birgə bağlayır.
+3. **Expo station (Addım 2)** — "serving qapısı": bütün stansiya ready olmadan order SERVİSƏ-ya düşmür; 12i kanonik workflow-da POS serve axını ilə bağlanır.
+4. **Per-ticket kitchen ETA** — `kitchen_analytics` Ø HAZIRLANMA data-sı artıq var → aktiv ticket üçün "≈ N dəq" (qalan item × Ø + course offset); GEÇİKME state ilə birgə = chef öncəliyi.
+5. **WATCH mode dərinləşdirmə** — hazırda status+count; əlavə = son təşəbbüs vaxtları ("Bar hazırladı 11:32", "Kitchen qəbul etdi 11:09" — `kitchen_ready_at`/`kitchen_accepted_at` stamps artıq DB-də var) → digər mətbəxin operativliyi read-only görünür.
+6. **Kitchen 86 variantı (owner qərarı)** — (a) POS-only status-quo; (b) modal footer-da "86" səbəb dialogu + PIN (rəqib parity; state machine + permission DB-də hazırdır — yalnız UI geri gəlir, amma AYRI "86" label ilə, 12s-də silinən "X" görünüşü ilə YOX).
+7. **Per-stansiya səs routinqi (12f ear-check ilə)** — chime YALNIZ öz stansiya-sının yeni order-u çınlat (Bar terminal-da Kitchen order səsi yox).
+8. **Light-mode modifier kontrastı** — zinc-500 → zinc-600 bump (12r qalıq, 1 dəqiqə).
+9. **Workload overload badge** — navbar pending count (var) + shift staffing ilə müqayisə → "3× normal" amber (staff data-sı `kitchen_analytics`-da var).
+10. **Board read-cache / read-replica (infra, low priority)** — board read-mostly; optimistic UI artıq UX-i qoruyur, 2-3s round-trip yalnız fail-over fallback-idir.
 
 ## 2. ÇATISMIYAN (missing — prioritized)
 

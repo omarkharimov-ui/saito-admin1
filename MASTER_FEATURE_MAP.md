@@ -428,9 +428,12 @@ Tickets, stations (kitchen/grill/fry/dessert/bar/expo), routing, queue, priority
 | Courses (fire per course, hold) | ✅ | `fire_course_atomic`, `order_courses` | — |
 | Course firing UI (modal Flame pills — yalnız pending/accepted course-lər) | ✅ **12q** | `fire_course_atomic` (frozen) | `/api/kitchen/fire-course`, KDS modal pill-ləri |
 | RUSH UI (modal toggle + kart red border + ⚡RUSH marker + GÜN) | ✅ **12q** | `orders.is_rush`, `toggle_rush` (frozen) | `/api/kitchen/rush`, KDS modal ghost pill (active = solid red) |
-| 86 / item void UI (modal ✕; smena bağlı olanda da — `origin:'kds'` exemption) | ✅ **12q** | `item_kitchen_terminal('voided')` (frozen) | `/api/kitchen/void-comp-waste` (`origin:'kds'`, `reason:'kds_86'`); kitchen role + `order.void` (live DB) |
+| 86 / item void UI — **12s: modal ✕ SİLİNDİ (owner)**; 86 = POS-only (comp/waste + PIN); DB mexanizmi qorunur | ✅ **12q → 12s** | `item_kitchen_terminal('voided')` (frozen) | POS `/api/kitchen/void-comp-waste` (`origin:'kds'` exemption + kitchen/`order.void` qüvvədə); KDS modal-da X button YOX |
 | Station-scoped ready (modal CTA + course firing — bir stansiya digərinin item-lərini ready EDƏMƏZ) | ✅ **12r** | `mark_item_ready_atomic` (frozen; rollup təbii 'ready') | `KDSView` `scopeStId`/`inScope`: unified = navbar stansiya, BDS = family; scope bitəndə CTA = sükut hint |
-| Modifier spec = sükut text (chip YOXDUR; ×N miqdarla: "Əlavə Losos ×3") | ✅ **12r** | — | kart 11px + modal 12px, ` · ` join (KDS/BDS eyni komponent) |
+| **WATCH mode — read-only cross-kitchen (12s):** BDS + unified — digər mətbəx family-sı eyni terminal-da yalnız İZLƏNİR (status/ready/count/qəbul; idarə YOX) | ✅ **12s** | — | `navStations` (öz family + digər kitchen) + `watchMode`: statik circle (button YOX), CTA = sükut "İzləmə" caption, RUSH non-clickable, `inScope()`=false; navbar Eye badge; i18n `kds_watch` |
+| **Modal = stansiya qrupları (12s):** hər stansiya `<section>` (ad + ready/qty); item-lər `station_id` ilə qruplaşır — "Filadelfiya Bar-da görünür" aralandı | ✅ **12s** | — | modal IIFE `groups[]`; read-only qrupda `· İzləmə` marker; flat STANSIYALAR counter bloku YOX |
+| Modifier spec = sükut text, **HƏMİŞƏ ×N (12s)**: "Standart ×1 · Əlavə Losos ×3" — miqdar heç vaxt gizli | ✅ **12r → 12s** | — | kart 11px + modal 12px, ` · ` join (KDS/BDS eyni komponent) |
+| Ticket kimliyi: "Masa 2" / customer_phone — **ORD-kod YOX (12s)**; "Main Kitchen"→"Kitchen" (12s: DB `stations` + literal-lər) | ✅ **12s** | `stations` (live rename) | modal header + kart `metaRest` + `delivery/page.tsx` |
 | Board loading gate + stations retry (yalan "Bütün sifarişlər hazırdır" aralandı) | ✅ **12r** | — | spinner + `kds_loading` (az/en/ru); stations 3× 800ms retry + `stationsLoaded` |
 | Device heartbeat upsert (23505 fallback — multi-profile collision) | ✅ **12r** | — | `/api/devices`: real constraint `(location_id,device_name)` üzərindən retry |
 | Prep-time + station analytics | ✅ | `kitchen_analytics`, `log_kitchen_analytics`, `get_kitchen_stats` | `admin/kitchen-analytics` |
@@ -815,6 +818,28 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Bu fayl = **master plan**. HANDOVER.md-də status (§5), Notion-də checkbox-lar — hamısı bu fayl üzərindən gedir.
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
+
+### Jurnal sətiri — 2026-10-04 (ROUND 12s: MODAL STANSIYA QUPRULARI + BDS WATCH MODE + X/ORD KOD SİLİNDİ + MODIFIER HƏMİŞƏ ×N)
+
+Owner (Şəkil 1 modal + Şəkil 2 BDS navbar): "Bar bölməsində KDS məhsulu (Filadelfiya) niyə görünür? Hər mətbəx yalnız öz sifarişlərini və məhsullarını göstərməlidir · modal-da 'X' düyməsi niyə var — tik kliklədikdə məhsulun yox olması + yenidən gəlməsi bug-ı aradan qaldır · modifikator yalnız '1 ədəd' kimi göstərilir — bütün modifikatorların və miqdarları düzgün göstərsin · 'ORD-2959' kimi kodlar göstərilməsin · eyni funksionallıq BDS tabında da — 'Main Kitchen' əvəzinə 'Bar'/'Kitchen'/'Gün' · bir mətbəx digərini YALNIZ İZLƏYƏ bilsin (hazırlanıb-hazırlanmadı, qəbul vaxtı, status), idarə etməsin · Saito vs Toast/Lightspeed/Square mətbəx müqayisəsi + praktik təkliflər."
+
+**Diaqnostika (live DB — "supabase yoxla" qaydası):** ORD-2959 (Masa 2, `c151767b…`) 3 item ilə gəlmişdi: Green Tea (Bar) + Filadelfiya **Standart** (Kitchen, active) + Filadelfiya **4-modifier** (Kitchen, `voided` 07:10:04). Audit (`operation_logs`): `place_order` 07:09:31 (3 item, ₼39) → `accept_kitchen_ticket` 07:09:35 → `order_item.voided` 07:10:04 (hər ikisi owner super-admin `c814879d…`). **"Filadelfiya Bar-da görünür" = modal-da item-lər stansiya qruplaşması OLMADIĞI üçün flat siyahı idi (STANSIYALAR bloku = yalnız 0/1 counter); "yalnız 1 ədəd" = 4-modifier item owner-in öz X (86) klik-i ilə 21s əvvəl void olunmuşdu (DB düz, UI voided düzgün gizlədir); "X + tik-disappear" = 12q 86-düyməsi (void → sətir yox olur = gözlənilən davranış, amma owner bunu "yox olur, geri gəlir" kimi oxuyurdu) → 12s-da UI silindi (DB mexanizmi qorunur, 86 = POS-only).**
+
+**FIX-ler (frontend, `KDSView.tsx` + locales + DB):**
+1. **Modal = stansiya qrupları:** flat item siyahısı + STANSIYALAR counter bloku → hər stansiya üçün `<section>` (header = stansiya adı + ready/qty; item-lər `station_id` ilə qruplaşdırılır). Filadelfiya indi YALNIZ KITCHEN qrupunda, Green Tea YALNIZ BAR qrupunda.
+2. **WATCH mode (BDS + unified):** restricted terminal (BDS `stationType='bar'`) → `navStations` = öz family + digər kitchen family; digər family tab-ı = **read-only** (navbar-da Eye "İzləmə" badge): statik read-only circle (button YOX), CTA = sükut "İzləmə" caption (Hazırdır YOX), RUSH = non-clickable status span, `inScope()` = false (heç bir action scope-ə keçmir). Unified KDS-də eyni mexanizm Bar tab-ı üçün.
+3. **X (86) düyməsi SİLİNDİ:** `handleVoidItem` + XCircle button + modal footer — owner tələbi ilə. Void sətirin "yox olub geri gəlməsi" = 86 → sətir drop + re-poll'da voided filter; indi sətirdə yalnız ✓ tick var (12o progress semantics — tick sətri heç vaxt drop etmir). DB: `item_kitchen_terminal('voided')` + `origin:'kds'` exemption + kitchen/`order.void` permission **qorunur** (POS comp/waste path).
+4. **ORD-kod YOX:** modal header (`Masa 2` only; takeaway/delivery `customer_phone` qalır) + kart `metaRest` (dine_in üçün boş).
+5. **Modifier HƏMİŞƏ ×N (kart + modal):** `Standart` → `Standart ×1`, `Əlavə Losos ×3` — miqdar heç vaxt gizli (owner "yalnız 1 ədəd" şikayətinin kökü = ×1-in görünməməsi).
+6. **"Main Kitchen" → "KITCHEN":** DB `stations.name` UPDATE (1 sətir) + `delivery/page.tsx` + KDS literal-ləri. Navbar indi Kitchen · Bar · GÜN.
+
+**E2E:** r14 (unified KDS + BDS, dark+light): navbar ✓, modal qrupları (BAR · İzləmə → Green Tea; KITCHEN → Filadelfiya) ✓, X YOX ✓, ORD-kod YOX ✓, read-only Bar qrupu (statik circle + İzləmə marker) ✓, tick = sətir qalır (disappear YOX) ✓, BDS watch tab tam read-only ✓, console 0. **r15 (modifier ×N):** Masa 2 kart + modal (dark+light) = "Standart ×1" ✓, console 0. Screenshot-lar: `e2e-shots/r14-*` + `r15-*`.
+
+**Müqayisə (owner tələbi):** `POS_COMPETITIVE_COMPARISON.md` §1c — meyar-meyar cədvəl (rahatlıq/idarəetmə/ayrım/status/modifikator/performans/offline/expo/ETA/aggregator/qiymət) + SAITO üstün (WATCH mode, station-scoped ready, per-instance modifier, 23ms, GÜN, frozen state machine, 24h window, AZ yerelliği) + zəif (offline KDS, expo, bump bar, kitchen ETA, aggregator, hardware, 86=POS-only, per-stansiya səs) + 10 praktik təklif (priority order).
+
+**Fayllar:** `KDSView.tsx` (modal qruplaşma IIFE, `navStations`/`watchMode`, X/86 UI silindi, ORD-kod, modifier ×N, navbar badge, RUSH/CTA/tick watch variantları), `delivery/page.tsx`, `locales/{az,en,ru}.ts` (`kds_watch`), DB `stations` rename, `POS_COMPETITIVE_COMPARISON.md` (§1b yenilənmə + §1c), `e2e-shots/r14-*`+`r15-*`, `HANDOFF_12S.md`.
+
+**Qalan (owner GO gözləyir):** §1c təklifləri (bump bar · kitchen offline buffer · expo · kitchen ETA · watch timestamps · kitchen 86 variantı · per-stansiya səs · light-mode kontrast · overload badge · read-cache). 12q OPEN-ləri: POS 115× duplicate-key burst (monitorinq — 12s-də repro YOX), ShiftGate 86 browser re-test (smena bağlı — indi UI silindiyi üçün yalnız POS path).
 
 ### Jurnal sətiri — 2026-10-03 (ROUND 12r: METBƏX SWEEP — STATION-SCOPED READY + FALSE-EMPTY BOARD + MODIFIER TEXT + HEARTBEAT 500)
 

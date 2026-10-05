@@ -854,6 +854,33 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-05 (ROUND 13e: BACKEND FULLY HAZIR — from-invoice supplier resolution + unit NOT NULL + compensation)
+
+Owner: *"backend fully hazir etdeee davay baslaa"*. Focused sweep of the invoice→stock
+procurement path (the feature the owner asked "necə işləyir"). **Tap + fix:**
+- `from-invoice` **supplier mis-attribution**: old code fell back to the alphabetically-FIRST
+  supplier (coca cola baku) when the OCR supplier name didn't match → a sushi-ingredient
+  invoice silently tagged to the wrong supplier (polluted score/total_orders). Fix: resolve
+  supplier_id → **name match (exact > prefix > contains, in JS so commas can't break a
+  PostgREST `.or()`)** → **find-or-create canonical "Naməlum Tədarükçü"** fallback.
+- `from-invoice` **unit NOT NULL 500 + orphan PO**: `unit: item.unit || null` 500'd on any
+  OCR line without a unit AND the PO header was already committed (no rollback) → orphan
+  draft POs. Fix: `unit: item.unit || 'gram'` (receive convention) + **compensation** (delete
+  PO + items if the line-insert fails).
+- `POST /api/purchase-orders` **no supplier guard** → added clean 400 (NOT NULL defense-in-
+  depth; order-guide UI already skips supplier-less lines).
+- **UI wiring**: `from-invoice` backend existed but NO button called it (bare invoice → DRAFT
+  PO was unreachable). Added `supplierName` capture from OCR + "DRAFT PO yarat (stok daxil
+  etmir · auto-send YOX)" secondary button in the review step (only when NO open PO).
+- **Verified NOT bugs** (re-checked, didn't assume): `receive` stock_in IS applied via
+  `trg_z_inventory_log_effect` trigger (route's unused `newQty` is a leftover, no bug);
+  `customers` POST is robust (phone guard + find-or-create + all NOT NULL covered).
+
+E2E r29 + recheck (browser session fetch, console 0): match "Coca Cola"→coca cola baku;
+no-match→Naməlum Tədarükçü (auto-created); unit-less payload→**201** (was 500). DB net-zero
+(7 test DRAFT POs + items + fallback supplier deleted; suppliers back to 1). → `HANDOFF_13E`
+(giriş 13e-A/B task-ları; merged-group payment = design decision, hələ).
+
 ### Jurnal sətiri — 2026-10-05 (ROUND 13d: CLIENT-AUTH AUDIT TAMAM — table RLS + RPC EXECUTE qatı + İtki Pattern report)
 
 Owner auto-mandat: *"2-3 run: yarımçıq qalıbsan davam et, bitirmisəns digər səhifələrə keç —

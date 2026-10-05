@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Handbag, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight, Lock, Bike } from '@/components/ui/saito-icons';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Handbag, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, Trash2, Check, Sparkles, Plus, AlertTriangle, ChevronRight, Lock, Bike, Hourglass } from '@/components/ui/saito-icons';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -1619,22 +1619,40 @@ export function CartPanel({
                  </AnimatePresence>
                  <div className="flex items-center gap-2.5">
                     <div className="flex-1 min-w-0">
-                       <p className="text-sm font-semibold truncate text-[var(--theme-text)] flex items-center gap-1.5">
-                         {group.product_name}
-                         {/* 2026-09-28 (owner, REJECTED the "SƏRV" badge): the
-                             served-state chip stays REMOVED. The served state is
-                             still expressed by the read-only course chip + the
-                             details-panel "Geri qaytar" action (anyReturnable
-                             above keeps working for the void-mode hint). */}
-                       </p>
-                       <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                          {/* 2026-09-29 (owner, figure 4: "hər şey yazılıb —
-                              bir cümlə olsun"): the UNION modifier chip LIST
-                              (Kremli ×2 · Acılı Mayonez ×2 · …) is replaced
-                              by ONE compact summary chip "⚙ N əlavə" — the
-                              full list stays in the hover tooltip, and WHICH
-                              instance carries WHAT lives in the editor's pill
-                              tabs. Row stays one line, no chip sprawl. */}
+                        <p className="text-sm font-semibold truncate text-[var(--theme-text)] flex items-center gap-1.5">
+                          {group.product_name}
+                          {/* 2026-09-28 (owner, REJECTED the "SƏRV" badge): the
+                              served-state chip stays REMOVED. The served state is
+                              still expressed by the read-only course chip + the
+                              details-panel "Geri qaytar" action (anyReturnable
+                              above keeps working for the void-mode hint). */}
+                        </p>
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                           {/* 13f (owner sualı: "2 dənə sifariş edib kimi
+                               görünməsin"): MIXED state (həm göndərilmiş, həm
+                               gözləyən hissə var) — the total stepper alone
+                               ("×2") reads like 2 ordered. The amber chip makes
+                               the PENDING portion explicit: only the sent part
+                               is in the kitchen; the rest waits for the next
+                               send. Pure-draft rows (nothing sent yet) stay
+                               chip-free — that is the normal pre-send state.
+                               E2E r30-D: the chip lives in THIS flex-wrap row,
+                               not the truncate name row (long names clipped it). */}
+                           {group.draftQty > 0 && group.totalQty - group.draftQty > 0 && (
+                             <span
+                               title={`${group.totalQty - group.draftQty} mətbəxdə · ${group.draftQty} hələ gözləyir`}
+                               className={`inline-flex items-center gap-1 whitespace-nowrap px-1.5 py-0.5 rounded-md border text-[10px] font-bold tracking-normal flex-shrink-0 ${lightMode ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-amber-500/10 border-amber-500/25 text-amber-400'}`}
+                             >
+                               <Hourglass size={9} strokeWidth={2.5} />{group.draftQty} gözləyir
+                             </span>
+                           )}
+                           {/* 2026-09-29 (owner, figure 4: "hər şey yazılıb —
+                               bir cümlə olsun"): the UNION modifier chip LIST
+                               (Kremli ×2 · Acılı Mayonez ×2 · …) is replaced
+                               by ONE compact summary chip "⚙ N əlavə" — the
+                               full list stays in the hover tooltip, and WHICH
+                               instance carries WHAT lives in the editor's pill
+                               tabs. Row stays one line, no chip sprawl. */}
                           {group.modChips.length > 0 && (
                             <span
                               title={group.modChips.map((c: any) => `${c.name}${c.count > 1 ? ` ×${c.count}` : ''}`).join(' · ')}
@@ -1964,9 +1982,17 @@ export function CartPanel({
                 const icon = voidMode
                   ? (voidLoading ? <Loader2 size={20} className="animate-spin" /> : voidSelectedCount > 0 ? <Check size={18} /> : <Ban size={16} />)
                   : (seatBusy || orderButtonStatus === 'loading' ? <Loader2 size={20} className="animate-spin" /> : hasCartItems && canSeat ? <Send size={16} /> : canSeat ? <Armchair size={18} /> : showActions ? <MoreHorizontal size={18} /> : <Send size={16} />);
-                const counter = voidMode && voidSelectedCount > 0
-                  ? <span key="void-count" className="inline-flex items-center justify-center min-w-[30px] h-[30px] rounded-full px-2 text-xs font-black tabular-nums bg-black/15 text-current">{voidSelectedCount}</span>
-                  : null;
+                 const counter = voidMode && voidSelectedCount > 0
+                   ? <span key="void-count" className="inline-flex items-center justify-center min-w-[30px] h-[30px] rounded-full px-2 text-xs font-black tabular-nums bg-black/15 text-current">{voidSelectedCount}</span>
+                    : (btnAction === 'send' && !voidMode && (() => {
+                        // 13f: the send CTA states the PENDING count — on a
+                        // re-opened table with a restored unsent delta the
+                        // operator sees "GÖNDƏR +1" instead of guessing.
+                        const totalDraft = cart.items.reduce((s: number, i: any) => s + Math.max(0, (i.quantity ?? 0) - (i.sentQuantity ?? 0)), 0);
+                        return totalDraft > 0
+                          ? <span key="draft-count" className="inline-flex items-center justify-center min-w-[30px] h-[30px] rounded-full px-2 text-xs font-black tabular-nums bg-black/15 text-current">+{totalDraft}</span>
+                          : null;
+                      })());
                 return (
                   <AnimatePresence mode="popLayout" initial={false}>
                     <motion.span

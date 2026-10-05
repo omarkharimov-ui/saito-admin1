@@ -854,6 +854,44 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-05 (ROUND 13l: SCROLL-JUMP BUG FIX + FULL PANEL + STACKED SECTIONS, `b23f42f`)
+
+Owner: *"coş berbat bir bug — taba keçirsən səhifə oynuyur · xammal modal açılışı səhifəni 2/10
+kimi açılmasın, tam şəkildə açılsın (bax hədiyyə kartları səhifəsi) · tab çoxdur — meselən
+Sayım/İtki tab yerində alt-alta məlumatlar header ilə olsa daha mənalı olmazmı?"*
+
+**1. SCROLL-JUMP BUG (kök səbəb + fix):** desktop shell `contentRef` (`overflow-y-auto`) =
+real scroll container idi; tab switch-da `scrollTop` saxlanırdı + tab hündürlükləri 2-4×
+fərqli → səhifə "oynuyurdu". Fix `stock/page.tsx`: scroll root DOM-da axtarılır (birinci
+`overflowY auto/scroll` ancestor, bir dəfə cache) + **hər tab switch-də `scrollTo({top:0})`**.
+İlk run SKİP edilir — deep-link mount-da child anchor effect (section scroll) parent reset-dən
+əvvəl işləyir və reset onu öldürməlidir YOX (r35 catch → r35b fix). E2E: scrollTop 900 → tab →
+**0** (light+dark ✓), `scrollLeft = 0` (horizontal jump YOX).
+
+**2. FULL MAIN-AREA PANEL (gift-cards pattern):** yeni `FullPanel` @ `stock-ui.tsx` —
+`createPortal(document.body)` + **`LayoutContext.mainEdge/mainBottom`** (left = app-sidebar
+kənarı 290, top = header altı 58 — shell state, polling-siz) + `absolute inset-0` (TAM main
+area, iOS-push) + ease `[0.32,0.72,0,1]` 0.28s. `Drawer` = FullPanel + header/footer (API
+eyni; `wide` deprecated — panel tam en). StockTab: lokal `ModalShell` ✂ → 4 xammal modalı
+(QuickIn / StockAction / NewIngredient / **History** — 13k-da History centered modal qalmışdı,
+indi o da tam panel) — formlar `max-w-xl mx-auto` (oxunulabilirlik), siyahılar tam en.
+InspectorPanel = FullPanel (custom edit header qorunub; content `max-w-3xl`). SuppliersSection
+Drawers = avtomatik tam panel. Mobil: context default 0/0 → full viewport. E2E geometry:
+left 290 / top 58 / right 1470 (=vw) / bottom 923 (=vh) ✓.
+
+**3. SUB-TAB-LAR ✂ → STACKED SECTIONS + HEADERS:** 3 hub-da (Tədarük / Sayım&İtki / Analiz)
+sub-pill sətirləri + `AnimatePresence` sub-switch ✂ → bütün sectionlar **alt-alta** render,
+hər biri `<section id="sec-{id}" class="scroll-mt-6">` + `SectionHead` (overline = tab adı,
+title = section). Tədarük: Nə Alım (13k 2 sütun QORUNUR) → Faktura → Sifarişlər (elev) →
+Tədarükçülər. Sayım&İtki: Sayım → İtki → Qaytarış → Anomaliyalar. Analiz: Hesabat → Trend →
+Audit. **`sub` = indi scroll ANCHOR** (tab deyil): `scrollToSection()` @ ViewFrame — re-anchor
+400/900/1600ms (async skeleton→table genişlənməsi viewport-u hədəfdən itirməsin). Deep link
+`?view=po` → Tədarük + avto-scroll Sifarişlər (E2E: heading top=233 ✓). Main 4 intent tab
+QALIR (13i owner qərarı).
+
+E2E: r35 7/8 + r35b 2/2 (PARTIAL #8 = deep-link → fix-dən sonra PASS), console 0, dark+light,
+17 shot `e2e-shots/r35*`. tsc clean. 8 files, +233/−266.
+
 ### Jurnal sətiri — 2026-10-05 (ROUND 13k: OWNER UX PASS — 6 DÜZƏLİŞ, HAMISI BAĞLANDI, `53eff96`)
 
 Owner (screenshot ilə 6 nöqtə): *navbar kvadratdır → pill · "Yeni Xammal"+"Xammal Girişi"

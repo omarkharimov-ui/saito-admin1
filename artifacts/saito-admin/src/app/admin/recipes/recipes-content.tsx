@@ -11,6 +11,10 @@ import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RecipeConstructorModal } from './components/RecipeConstructorModal';
 import IntelligenceTab from './components/IntelligenceTab';
+// 13i: the global BOM calibration panel moved here from the stock hub
+// (the old "Ağıllı Analiz" tab no longer exists — calibration belongs with
+// recipes, where the user is already looking at the BOM).
+import { CalibrationSuggestionsPanel, type CalibrationSuggestion } from '../stock/components/CalibrationSuggestionsPanel';
 
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
@@ -88,6 +92,16 @@ export default function RecipesPage() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // 13i: global calibration suggestions (propose-only; human approves).
+  const [globalCal, setGlobalCal] = useState<CalibrationSuggestion[]>([]);
+  const fetchGlobalCal = useCallback(async () => {
+    try {
+      const r = await fetch('/api/inventory/calibration');
+      if (r.ok) setGlobalCal(await r.json());
+    } catch {}
+  }, []);
+  useEffect(() => { fetchGlobalCal(); }, [fetchGlobalCal]);
 
   // Real-time subscription — products, ingredients, recipes dəyişikliklərini izlə
   useEffect(() => {
@@ -453,6 +467,16 @@ export default function RecipesPage() {
           </div>
         </div>
       </GlassCard>
+
+      {/* 13i: global BOM calibration — appears only when the AI has deltas */}
+      {globalCal.length > 0 && (
+        <div className="mb-6">
+          <CalibrationSuggestionsPanel
+            suggestions={globalCal}
+            onApplied={() => { fetchGlobalCal(); fetchData(); }}
+          />
+        </div>
+      )}
 
       {viewMode === 'intelligence' && (
         <IntelligenceTab />

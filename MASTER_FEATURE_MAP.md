@@ -854,6 +854,47 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-05 (ROUND 13i: STOK HUB 0-DAN REWRITE — 4 NİYYƏT TAB + STATE MACHINE + 3 SANİYƏ QAYDASI)
+
+Owner: *"4 edirik... ui yeniden yaz... 0 dan yenidən daha qəşəng et, micro-interactions,
+state machine transitions, user anlasında 3 saniyədə ne etmelidir"* (audit-dən sonra:
+"bu stok səhifəsi çox bettdir — 10 tab, duplicate Tədarükçülər, tab-daxili tab,
+AI səthi ×3, ölü 'Sifariş et' linki, boş panellər, şişkin stok dəyəri").
+
+**13i (commit 0947fef; E2E r33 dark 10/10 + r33b light 4/4, console 0):**
+- **10 chip → 4 niyyət tab** (page.tsx 0-dan, 191 sətir): **Stok** (default) · **Tədarük**
+  (Nə Alım/Faktura/Sifarişlər/Tədarükçülər) · **Sayım & İtki** (Sayım/İtki/Qaytarış/Anomaliyalar) ·
+  **Analiz** (Hesabat/Trend/Audit). Sub-pill maksimum 1 səviyyə — tab-daxili tab YOX.
+- **3 SANİYƏ QAYDASI (TabHero, yeni komponent):** hər tab = data-dan HESABLANAN bir cümlə
+  + bir CTA. Stok: "7 xammal tədarük tələb edir → Nə Alım" / mənfi varsa "N mənfi stok →
+  Sayım et" / hamı normal "Hamı normaldır". Tədarük: "N xammal sifariş olunmalı • ₼M".
+  Sayım: "N kritik anomaliya açıqdır" / "Hamı uyğundur". Critical = pulsing dot.
+- **STATE MACHINE (owner tələbi):** `useAsyncView` hook (loading/error/ready,
+  stale-while-revalidate, seq-guard) + `ViewFrame` primitives (ViewSkeleton shimmer,
+  ViewError+retry, ViewEmpty CTA, ViewContent entrance, LiveNumber pulse).
+- **Micro-interactions:** sliding pill (main+sub, layoutId+SPRING), tab content
+  AnimatePresence fade/slide, KPI dəyər dəyişəndə spring pulse, anbar row hover →
+  action reveal, button active:scale, trend bar-ları scaleY spring, modal spring.
+- **Duplicate-lar silindi:** Tədarükçülər yalın hub tab ✂ (tam CRUD = Tədarük-də YALNIZ) ·
+  Ağıllı Analiz tab ✂ (Təkliflər→Nə Alım, İnsaytlar→Advisor, Trend→Analiz, **Kalibrasiya→
+  Reseptlər səhifəsi** — global panel, təklif varsa görünür) · InventoryHealthCard ✂.
+- **Ölü link FIX (13h regression):** "Sifariş et" `?tab=procurement` (hub oxumurdu) →
+  indi suggestion kartı "Order Guide" CTA = Order Guide-da o maddənin checkbox-ı
+  AUTO-SEÇİLİR + scroll (autoSelectId prop; E2E r33 #3 PASS).
+- **KPI düzgün:** "Aşağı Stok" = hard-0 idi (`status==='low'` belə status YOXDUR —
+  InventoryStatus = normal/critical/out_of_stock) → indi normal && ratio<50; "Mənfi Qeyd"
+  = real count (5).
+- **Light-mode sweep (kök: OrderGuideSection tam hardcoded white idi):** InvoiceUpload,
+  SuppliersSection (`bg-[#0C0C0E]` modal → theme vars), Anomalies, Trends, Order Guide
+  cədvəl — hamısı theme-var (E2E r33b: Order Guide DARK-on-light verified).
+- **BUG TAPINTI + FIX (r33→r33b):** `useAdminAuth().role` = `null` (undefined DƏYİL) →
+  ilk render-də role-gate superadmin-in `?view=po` sub-un YEDİB (URL rewrite). Fix =
+  `authChecked`-ə bağlanmış optimistik gate (`elevatedVisible = !authChecked || isElevated`)
+  + auth-sonrası drop effect. "2-ci click lazım" simtomu da eyni kökdən idi → r33b:
+  single-click PASS ×3.
+- **URL:** `?view=stock|procurement|operations|analytics&sub=...` + legacy mapping
+  (13f/13h-in 10 ?view= dəyəri + `?view=recipes` → /admin/recipes). Bookmarks canlı.
+
 ### Jurnal sətiri — 2026-10-05 (ROUND 13h: STOK HUB UI REWRITE — Apple minimal frame + nested-hero strip + light-mode contrast)
 
 Owner: *"basla"* (mandat 13g: inventory UI = TAM REWRITE — Apple felsefəsi + minimalliq +

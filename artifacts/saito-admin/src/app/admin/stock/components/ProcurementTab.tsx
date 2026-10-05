@@ -84,7 +84,7 @@ export default function ProcurementTab() {
             </button>
           ))}
         </div>
-        <button onClick={loadNotifications} disabled={loadingNotifs} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all border border-white/10">
+        <button onClick={loadNotifications} disabled={loadingNotifs} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[var(--theme-panel)] hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all border border-[var(--theme-border)]">
           <RefreshCw size={14} className={loadingNotifs ? 'animate-spin' : ''} /> Yenilə
         </button>
       </div>
@@ -95,18 +95,18 @@ export default function ProcurementTab() {
           {notifications.map((n: any) => (
             <div key={n.id} className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-emerald-500/[0.04] border border-emerald-500/20">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-white">{n.title}</p>
-                <p className="text-[11px] text-white/50 mt-1">{n.body}</p>
+                <p className="text-sm font-bold text-[var(--theme-text)]">{n.title}</p>
+                <p className="text-[11px] text-[var(--theme-text-muted)] mt-1">{n.body}</p>
                 {n.data?.items?.length > 0 && (
                   <div className="mt-2 space-y-1">
                     {n.data.items.map((item: any, idx: number) => (
-                      <p key={idx} className="text-[11px] text-white/40">• {item.name}: {item.current_stock} {item.unit} (min: {item.min_stock_level || 0})</p>
+                      <p key={idx} className="text-[11px] text-[var(--theme-text-muted)]">• {item.name}: {item.current_stock} {item.unit} (min: {item.min_stock_level || 0})</p>
                     ))}
                   </div>
                 )}
               </div>
               {n.data?.whatsapp_url && (
-                <a href={n.data.whatsapp_url} target="_blank" rel="noopener noreferrer" className="shrink-0 px-4 py-2 rounded-xl bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all">
+                <a href={n.data.whatsapp_url} target="_blank" rel="noopener noreferrer" className="shrink-0 px-4 py-2 rounded-xl bg-emerald-500 text-[var(--theme-text)] text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all">
                   WhatsApp
                 </a>
               )}
@@ -249,18 +249,18 @@ function InvoiceUploadSection() {
   if (step === 'upload') {
     return (
       <div className="space-y-4">
-        <div onClick={() => fileRef.current?.click()} className="rounded-2xl border-2 border-dashed p-12 text-center cursor-pointer hover:bg-white/[0.01] transition-all" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+        <div onClick={() => fileRef.current?.click()} className="rounded-2xl border-2 border-dashed p-12 text-center cursor-pointer hover:bg-[var(--theme-surface-soft)] transition-all" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
           {ocrLoading ? (
             <div className="space-y-3">
               <RefreshCw size={32} className="mx-auto text-[#D4AF37] animate-spin" />
-              <p className="text-sm text-white/50">Faktura oxunur...</p>
+              <p className="text-sm text-[var(--theme-text-muted)]">Faktura oxunur...</p>
             </div>
           ) : (
             <div className="space-y-3">
-              <Image size={32} className="mx-auto text-white/20" />
-              <p className="text-sm text-white/50">Faktura şəklini yükləyin</p>
-              <p className="text-xs text-white/20">AI OCR avtomatik məhsul adlarını, miqdarları və qiymətləri çıxaracaq</p>
+              <Image size={32} className="mx-auto text-[var(--theme-text-muted)]" />
+              <p className="text-sm text-[var(--theme-text-muted)]">Faktura şəklini yükləyin</p>
+              <p className="text-xs text-[var(--theme-text-muted)]">AI OCR avtomatik məhsul adlarını, miqdarları və qiymətləri çıxaracaq</p>
             </div>
           )}
           {invoiceImage && <img src={invoiceImage} alt="Invoice" className="mt-4 max-h-48 mx-auto rounded-xl object-contain" />}
@@ -269,31 +269,31 @@ function InvoiceUploadSection() {
         {pos.length > 0 && (
           <>
             <div className="border-t pt-4" style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
-              <p className="text-xs text-white/30 mb-3">Bu faktura hansı sifarişə aiddir? (köməkçi)</p>
+              <p className="text-xs text-[var(--theme-text-muted)] mb-3">Bu faktura hansı sifarişə aiddir? (köməkçi)</p>
               <div className="grid gap-2 md:grid-cols-2">
                 {pos.map((po, i) => {
                   const selected = selectedPoId === po.id;
                   return (
                     <div key={po.id}
                       onClick={() => setSelectedPoId(selected ? null : po.id)}
-                      className="rounded-2xl border p-4 cursor-pointer hover:bg-white/[0.018] transition-all"
+                      className="rounded-2xl border p-4 cursor-pointer hover:bg-[var(--theme-surface-soft)] transition-all"
                       style={{
                         borderColor: selected ? 'rgba(212,175,55,0.5)' : 'var(--theme-border, rgba(255,255,255,0.06))',
                         background: selected ? 'rgba(212,175,55,0.06)' : undefined,
                       }}>
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                          <h3 className="text-sm font-semibold text-[var(--theme-text)] flex items-center gap-2">
                             {po.order_number}
                             {selected && <CheckCircle size={14} className="text-[#D4AF37]" />}
                           </h3>
-                          <p className="text-xs text-white/40 mt-0.5">{po.supplier?.name || '—'}</p>
+                          <p className="text-xs text-[var(--theme-text-muted)] mt-0.5">{po.supplier?.name || '—'}</p>
                         </div>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${po.status === 'sent' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'bg-orange-500/15 text-orange-400 border border-orange-500/20'}`}>
                           {po.status === 'sent' ? 'Göndərilib' : 'Qismən'}
                         </span>
                       </div>
-                      <div className="text-xs text-white/30">{po.total_amount?.toFixed(2)} ₼ • {new Date(po.ordered_at).toLocaleDateString('az')}</div>
+                      <div className="text-xs text-[var(--theme-text-muted)]">{po.total_amount?.toFixed(2)} ₼ • {new Date(po.ordered_at).toLocaleDateString('az')}</div>
                     </div>
                   );
                 })}
@@ -304,11 +304,11 @@ function InvoiceUploadSection() {
 
         {pendingReviewItems.length > 0 && (
           <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
-            <p className="text-sm font-semibold text-white mb-3">{pendingReviewItems.length} review gözləyir</p>
+            <p className="text-sm font-semibold text-[var(--theme-text)] mb-3">{pendingReviewItems.length} review gözləyir</p>
             <div className="space-y-2">
               {pendingReviewItems.slice(0, 5).map((r: any) => (
                 <div key={r.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                  <span className="text-xs text-white/80">{r.product_name}</span>
+                  <span className="text-xs text-[var(--theme-text-secondary)]">{r.product_name}</span>
                   <div className="flex gap-2">
                     <button onClick={() => approveReview(r.id, r.suggested_ingredient_id)} className="text-[10px] text-emerald-400 font-bold">Təsdiq</button>
                     <button onClick={() => rejectReview(r.id)} className="text-[10px] text-red-400 font-bold">Rədd</button>
@@ -324,7 +324,7 @@ function InvoiceUploadSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 text-xs text-white/30 mb-2">
+      <div className="flex items-center gap-3 text-xs text-[var(--theme-text-muted)] mb-2">
         <span className="text-[#D4AF37] font-bold">1. Faktura Yüklə</span>
         <span>→</span>
         <span className={step === 'review' ? 'text-[#D4AF37] font-bold' : ''}>2. Xətləri Yoxla</span>
@@ -332,13 +332,13 @@ function InvoiceUploadSection() {
         <span className={step === 'confirm' ? 'text-[#D4AF37] font-bold' : ''}>3. Təsdiq Et</span>
       </div>
 
-      <button onClick={() => { setStep('upload'); setLineItems([]); setResult(null); }} className="text-xs text-white/30 hover:text-white transition-colors">← Geri</button>
+      <button onClick={() => { setStep('upload'); setLineItems([]); setResult(null); }} className="text-xs text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors">← Geri</button>
 
       {step === 'review' && (
         <>
           <div className="flex items-center gap-3 flex-wrap">
-            <p className="text-xs text-white/40">{lineItems.length} xətt tapıldı</p>
-            <span className="text-xs text-white/20">|</span>
+            <p className="text-xs text-[var(--theme-text-muted)]">{lineItems.length} xətt tapıldı</p>
+            <span className="text-xs text-[var(--theme-text-muted)]">|</span>
             <p className="text-xs text-emerald-400">{matchedCount} match</p>
             <button onClick={matchAll} disabled={matching}
               className="ml-auto px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-40 flex items-center gap-1"
@@ -352,7 +352,7 @@ function InvoiceUploadSection() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${item.status === 'extra' ? 'bg-orange-400' : 'bg-emerald-400'}`} />
-                    <span className="text-sm font-medium text-white">{item.product_name}</span>
+                    <span className="text-sm font-medium text-[var(--theme-text)]">{item.product_name}</span>
                   </div>
                   {item.matched_ingredient && (
                     <span className="text-[10px] text-emerald-400">{item.matched_ingredient.name} ({(item.matched_ingredient.confidence * 100).toFixed(0)}%)</span>
@@ -360,9 +360,9 @@ function InvoiceUploadSection() {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div className="p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                    <p className="text-white/30 mb-0.5">Faktura</p>
-                    <span className="text-white font-semibold">{item.quantity} {item.unit}</span>
-                    <span className="ml-1 text-white/40">× {item.unit_cost.toFixed(2)} ₼</span>
+                    <p className="text-[var(--theme-text-muted)] mb-0.5">Faktura</p>
+                    <span className="text-[var(--theme-text)] font-semibold">{item.quantity} {item.unit}</span>
+                    <span className="ml-1 text-[var(--theme-text-muted)]">× {item.unit_cost.toFixed(2)} ₼</span>
                   </div>
                 </div>
               </div>
@@ -389,20 +389,20 @@ function InvoiceUploadSection() {
           <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto">
             <CheckCircle size={32} className="text-emerald-400" />
           </div>
-          <h2 className="text-lg font-bold text-white">Stok yeniləndi</h2>
-          <p className="text-sm text-white/50">{result.auto_matched}/{result.total_items} maddə uğurla match edildi</p>
+          <h2 className="text-lg font-bold text-[var(--theme-text)]">Stok yeniləndi</h2>
+          <p className="text-sm text-[var(--theme-text-muted)]">{result.auto_matched}/{result.total_items} maddə uğurla match edildi</p>
           <div className="grid grid-cols-3 gap-4 max-w-sm mx-auto text-xs">
             <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
               <p className="text-emerald-400 font-bold text-lg">{result.auto_matched}</p>
-              <p className="text-white/30">Match</p>
+              <p className="text-[var(--theme-text-muted)]">Match</p>
             </div>
             <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
               <p className="text-yellow-400 font-bold text-lg">{result.review_items}</p>
-              <p className="text-white/30">Review</p>
+              <p className="text-[var(--theme-text-muted)]">Review</p>
             </div>
             <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
-              <p className="text-white font-bold text-lg capitalize">{result.po_status}</p>
-              <p className="text-white/30">Status</p>
+              <p className="text-[var(--theme-text)] font-bold text-lg capitalize">{result.po_status}</p>
+              <p className="text-[var(--theme-text-muted)]">Status</p>
             </div>
           </div>
           <button onClick={() => { setStep('upload'); setLineItems([]); setResult(null); setInvoiceImage(null); }}
@@ -454,10 +454,10 @@ function AnomaliesSection() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <SummaryCards items={[
-          { key: 'open', icon: <AlertTriangle size={16} className="text-white/60" />, label: 'Açıq Alert', value: openAlerts },
+          { key: 'open', icon: <AlertTriangle size={16} className="text-[var(--theme-text-muted)]" />, label: 'Açıq Alert', value: openAlerts },
           { key: 'critical', icon: <AlertTriangle size={16} className="text-red-400" />, label: 'Kritik', value: criticalAlerts, accent: criticalAlerts > 0 ? 'text-red-400/70' : 'text-emerald-400' },
-          { key: 'ack', icon: <CheckCircle size={16} className="text-white/60" />, label: 'Təsdiqlənmiş', value: alerts.filter(a => a.status === 'acknowledged').length },
-          { key: 'resolved', icon: <CheckCircle size={16} className="text-white/60" />, label: 'Həll Edilmiş', value: alerts.filter(a => a.status === 'resolved').length },
+          { key: 'ack', icon: <CheckCircle size={16} className="text-[var(--theme-text-muted)]" />, label: 'Təsdiqlənmiş', value: alerts.filter(a => a.status === 'acknowledged').length },
+          { key: 'resolved', icon: <CheckCircle size={16} className="text-[var(--theme-text-muted)]" />, label: 'Həll Edilmiş', value: alerts.filter(a => a.status === 'resolved').length },
         ]} />
         <button onClick={runCheck} disabled={running}
           className="px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-40 flex items-center gap-2"
@@ -487,31 +487,31 @@ function AnomaliesSection() {
                 }}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.severity === 'critical' ? 'bg-red-500/15' : a.severity === 'high' ? 'bg-orange-500/15' : 'bg-white/[0.04]'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.severity === 'critical' ? 'bg-red-500/15' : a.severity === 'high' ? 'bg-orange-500/15' : 'bg-[var(--theme-panel)]'}`}>
                       <Icon size={18} className={cfg.color} />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-white">{a.title}</h3>
+                        <h3 className="text-sm font-semibold text-[var(--theme-text)]">{a.title}</h3>
                         <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
                       </div>
-                      <p className="text-xs text-white/40 mt-0.5">{alertTypeLabels[a.type] || a.type}{a.source_table && ` • ${a.source_table}`}</p>
+                      <p className="text-xs text-[var(--theme-text-muted)] mt-0.5">{alertTypeLabels[a.type] || a.type}{a.source_table && ` • ${a.source_table}`}</p>
                     </div>
                   </div>
                   <p className={`text-lg font-bold ${a.variance_pct > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{a.variance_pct > 0 ? '+' : ''}{a.variance_pct}%</p>
                 </div>
-                {a.description && <p className="text-xs text-white/50 mb-3">{a.description}</p>}
+                {a.description && <p className="text-xs text-[var(--theme-text-muted)] mb-3">{a.description}</p>}
                 <div className="grid grid-cols-3 gap-3 text-xs mb-3">
                   <div className="p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                    <p className="text-white/30">Faktiki</p>
-                    <p className="text-white font-semibold">{a.value?.toFixed(2)}</p>
+                    <p className="text-[var(--theme-text-muted)]">Faktiki</p>
+                    <p className="text-[var(--theme-text)] font-semibold">{a.value?.toFixed(2)}</p>
                   </div>
                   <div className="p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                    <p className="text-white/30">Gözlənilən</p>
-                    <p className="text-white font-semibold">{a.expected_value?.toFixed(2)}</p>
+                    <p className="text-[var(--theme-text-muted)]">Gözlənilən</p>
+                    <p className="text-[var(--theme-text)] font-semibold">{a.expected_value?.toFixed(2)}</p>
                   </div>
                   <div className="p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                    <p className="text-white/30">Fərq</p>
+                    <p className="text-[var(--theme-text-muted)]">Fərq</p>
                     <p className={`font-semibold ${a.variance_pct > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{a.variance_pct > 0 ? '+' : ''}{a.variance_pct}%</p>
                   </div>
                 </div>
@@ -645,32 +645,32 @@ function SuppliersSection() {
         <div className="flex-1 max-w-sm">
           <TableActionBar search={search} onSearchChange={setSearch} searchPlaceholder="Tədarükçü axtar..." />
         </div>
-        <button onClick={openCreate} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all border border-white/10">
+        <button onClick={openCreate} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[var(--theme-panel)] hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all border border-[var(--theme-border)]">
           <Plus size={14} /> Yeni
         </button>
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={<Truck size={32} className="text-white/30" />} title="Tədarükçü tapılmadı" description="Hələ heç bir tədarükçü əlavə edilməyib" />
+        <EmptyState icon={<Truck size={32} className="text-[var(--theme-text-muted)]" />} title="Tədarükçü tapılmadı" description="Hələ heç bir tədarükçü əlavə edilməyib" />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
           {filtered.map(s => (
             <motion.div key={s.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                onClick={() => openDetail(s)}
-              className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-colors cursor-pointer"
+              className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-panel)] p-4 hover:bg-[var(--theme-surface-soft)] transition-colors cursor-pointer"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-white/90 truncate">{s.name}</div>
-                  <div className="mt-1 text-[11px] text-white/30 space-y-0.5">
+                  <div className="text-sm font-semibold text-[var(--theme-text)] truncate">{s.name}</div>
+                  <div className="mt-1 text-[11px] text-[var(--theme-text-muted)] space-y-0.5">
                     {s.contact_person && <div> {s.contact_person}</div>}
                     {s.phone && <div> {s.phone}</div>}
                     {s.email && <div> {s.email}</div>}
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/70 transition-colors"><Pencil size={13} /></button>
-                  <button onClick={() => setConfirmDelete(s.id)} className="p-1.5 rounded-lg hover:bg-white/10 text-red-400/50 hover:text-red-400 transition-colors"><Trash2 size={13} /></button>
+                  <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-muted)] transition-colors"><Pencil size={13} /></button>
+                  <button onClick={() => setConfirmDelete(s.id)} className="p-1.5 rounded-lg hover:bg-[var(--theme-surface-soft)] text-red-400/50 hover:text-red-400 transition-colors"><Trash2 size={13} /></button>
                 </div>
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -679,10 +679,10 @@ function SuppliersSection() {
                     {s.score}/100
                   </span>
                 )}
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${s.status === 'active' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-white/30 border-white/[0.07] bg-white/[0.03]'}`}>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${s.status === 'active' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-[var(--theme-text-muted)] border-[var(--theme-border)] bg-[var(--theme-panel)]'}`}>
                   {s.status === 'active' ? 'Aktiv' : 'Deaktiv'}
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full text-white/30 border border-white/[0.07]">
+                <span className="text-[10px] px-2 py-0.5 rounded-full text-[var(--theme-text-muted)] border border-[var(--theme-border)]">
                   {s.total_orders} sifariş
                 </span>
               </div>
@@ -694,26 +694,26 @@ function SuppliersSection() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-lg mx-4 rounded-2xl border border-white/[0.08] bg-[#0C0C0E] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-white/90 mb-4">{editing ? 'Redaktə Et' : 'Yeni Tədarükçü'}</h3>
+            className="w-full max-w-lg mx-4 rounded-2xl border border-[var(--theme-border)] bg-[#0C0C0E] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-[var(--theme-text)] mb-4">{editing ? 'Redaktə Et' : 'Yeni Tədarükçü'}</h3>
             <div className="space-y-3">
               {(['name', 'contact_person', 'phone', 'whatsapp_number', 'email', 'address', 'tax_id', 'notes', 'auto_order_template'] as const).map(f => (
                 <div key={f}>
-                  <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1 block">
+                  <label className="text-[11px] text-[var(--theme-text-muted)] font-semibold uppercase tracking-wider mb-1 block">
                     {f === 'name' ? 'Ad' : f === 'contact_person' ? 'Əlaqə Şəxs' : f === 'phone' ? 'Telefon' : f === 'whatsapp_number' ? 'WhatsApp Nömrəsi' : f === 'email' ? 'Email' : f === 'address' ? 'Ünvan' : f === 'tax_id' ? 'VÖEN' : f === 'auto_order_template' ? 'Avto Sifariş Şablonu (AI)' : 'Qeyd'}
                   </label>
                   <textarea
                     value={form[f] || ''}
                     onChange={e => setForm(p => ({ ...p, [f]: e.target.value }))}
                     rows={f === 'auto_order_template' ? 3 : 1}
-                    className={`w-full px-4 py-2.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm ${f === 'auto_order_template' ? 'resize-none' : ''}`}
+                    className={`w-full px-4 py-2.5 rounded-xl text-[var(--theme-text)] bg-[var(--theme-panel)] border border-[var(--theme-border)] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm ${f === 'auto_order_template' ? 'resize-none' : ''}`}
                   />
                 </div>
               ))}
             </div>
             <div className="flex gap-2 mt-5 justify-end">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 rounded-xl text-xs font-bold text-white/50 hover:text-white/70 transition-colors">Ləğv Et</button>
-              <button onClick={save} className="px-5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all border border-white/10">{editing ? 'Yadda Saxla' : 'Əlavə Et'}</button>
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--theme-text-muted)] hover:text-[var(--theme-text-muted)] transition-colors">Ləğv Et</button>
+              <button onClick={save} className="px-5 py-2 rounded-xl text-xs font-bold bg-[var(--theme-panel)] hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all border border-[var(--theme-border)]">{editing ? 'Yadda Saxla' : 'Əlavə Et'}</button>
             </div>
           </motion.div>
         </div>
@@ -722,11 +722,11 @@ function SuppliersSection() {
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setConfirmDelete(null)}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-sm mx-4 rounded-2xl border border-white/[0.08] bg-[#0C0C0E] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-white/90 mb-2">Tədarükçünü Sil</h3>
-            <p className="text-sm text-white/50 mb-4">Bu tədarükçünü silmək istədiyinizə əminsiniz?</p>
+            className="w-full max-w-sm mx-4 rounded-2xl border border-[var(--theme-border)] bg-[#0C0C0E] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-[var(--theme-text)] mb-2">Tədarükçünü Sil</h3>
+            <p className="text-sm text-[var(--theme-text-muted)] mb-4">Bu tədarükçünü silmək istədiyinizə əminsiniz?</p>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 rounded-xl text-xs font-bold text-white/50 hover:text-white/70 transition-colors">İmtina</button>
+              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--theme-text-muted)] hover:text-[var(--theme-text-muted)] transition-colors">İmtina</button>
               <button onClick={remove} className="px-5 py-2 rounded-xl text-xs font-bold bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30">Sil</button>
             </div>
           </motion.div>
@@ -736,76 +736,76 @@ function SuppliersSection() {
       {detailSupplier && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDetailSupplier(null)}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-lg mx-4 rounded-2xl border border-white/[0.08] bg-[#0C0C0E] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            className="w-full max-w-lg mx-4 rounded-2xl border border-[var(--theme-border)] bg-[#0C0C0E] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-5">
               <div>
-                <h3 className="text-base font-semibold text-white/90">{detailSupplier.name}</h3>
-                <p className="text-xs text-white/30 mt-0.5">{detailSupplier.email || detailSupplier.phone || '—'}</p>
+                <h3 className="text-base font-semibold text-[var(--theme-text)]">{detailSupplier.name}</h3>
+                <p className="text-xs text-[var(--theme-text-muted)] mt-0.5">{detailSupplier.email || detailSupplier.phone || '—'}</p>
               </div>
-              <button onClick={() => setDetailSupplier(null)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/70 transition-colors"><X size={16} /></button>
+              <button onClick={() => setDetailSupplier(null)} className="p-1.5 rounded-lg hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-muted)] transition-colors"><X size={16} /></button>
             </div>
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[10px] text-white/30 uppercase tracking-wider font-semibold">Ümumi Bal</p>
+              <div className="p-3 rounded-xl bg-[var(--theme-panel)] border border-[var(--theme-border)]">
+                <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider font-semibold">Ümumi Bal</p>
                 <p className={`text-lg font-bold mt-1 ${detailSupplier.score !== null && detailSupplier.score >= 80 ? 'text-emerald-400' : detailSupplier.score !== null && detailSupplier.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
                   {detailSupplier.score !== null ? `${detailSupplier.score}/100` : 'Hesablanmayıb'}
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[10px] text-white/30 uppercase tracking-wider font-semibold">Vaxtında Təhvil</p>
-                <p className="text-lg font-bold mt-1 text-white">{detailSupplier.on_time_delivery_rate !== null ? `${detailSupplier.on_time_delivery_rate}%` : '—'}</p>
+              <div className="p-3 rounded-xl bg-[var(--theme-panel)] border border-[var(--theme-border)]">
+                <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider font-semibold">Vaxtında Təhvil</p>
+                <p className="text-lg font-bold mt-1 text-[var(--theme-text)]">{detailSupplier.on_time_delivery_rate !== null ? `${detailSupplier.on_time_delivery_rate}%` : '—'}</p>
               </div>
-              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[10px] text-white/30 uppercase tracking-wider font-semibold">Qiymət Stabililiyi</p>
-                <p className="text-lg font-bold mt-1 text-white">{detailSupplier.avg_price_stability !== null ? `${detailSupplier.avg_price_stability}%` : '—'}</p>
+              <div className="p-3 rounded-xl bg-[var(--theme-panel)] border border-[var(--theme-border)]">
+                <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider font-semibold">Qiymət Stabililiyi</p>
+                <p className="text-lg font-bold mt-1 text-[var(--theme-text)]">{detailSupplier.avg_price_stability !== null ? `${detailSupplier.avg_price_stability}%` : '—'}</p>
               </div>
-              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[10px] text-white/30 uppercase tracking-wider font-semibold">Sifariş Sayı</p>
-                <p className="text-lg font-bold mt-1 text-white">{detailSupplier.total_orders}</p>
+              <div className="p-3 rounded-xl bg-[var(--theme-panel)] border border-[var(--theme-border)]">
+                <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider font-semibold">Sifariş Sayı</p>
+                <p className="text-lg font-bold mt-1 text-[var(--theme-text)]">{detailSupplier.total_orders}</p>
               </div>
             </div>
-            <div className="space-y-1.5 text-xs text-white/40">
+            <div className="space-y-1.5 text-xs text-[var(--theme-text-muted)]">
               {detailSupplier.contact_person && <div>{detailSupplier.contact_person}</div>}
               {detailSupplier.phone && <div>{detailSupplier.phone}</div>}
               {(detailSupplier as any).whatsapp_number && <div>WhatsApp: {(detailSupplier as any).whatsapp_number}</div>}
               {detailSupplier.email && <div>{detailSupplier.email}</div>}
               {detailSupplier.address && <div>{detailSupplier.address}</div>}
               {detailSupplier.tax_id && <div>VÖEN: {detailSupplier.tax_id}</div>}
-              {(detailSupplier as any).auto_order_template && <div className="mt-2 p-2 rounded-lg bg-white/[0.03] text-white/50">{(detailSupplier as any).auto_order_template}</div>}
-              {detailSupplier.notes && !(detailSupplier as any).auto_order_template && <div className="mt-2 p-2 rounded-lg bg-white/[0.03] text-white/50">{detailSupplier.notes}</div>}
+              {(detailSupplier as any).auto_order_template && <div className="mt-2 p-2 rounded-lg bg-[var(--theme-panel)] text-[var(--theme-text-muted)]">{(detailSupplier as any).auto_order_template}</div>}
+              {detailSupplier.notes && !(detailSupplier as any).auto_order_template && <div className="mt-2 p-2 rounded-lg bg-[var(--theme-panel)] text-[var(--theme-text-muted)]">{detailSupplier.notes}</div>}
             </div>
 
             {/* 13c: Məhsul kataloğu — vendor price list (Order Guide prefill + invoice anchor). */}
-            <div className="mt-5 pt-4 border-t border-white/[0.07]">
+            <div className="mt-5 pt-4 border-t border-[var(--theme-border)]">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] text-white/35 uppercase tracking-[0.2em] font-bold">Məhsul Kataloqu</p>
-                <span className="text-[10px] text-white/25 tabular-nums">{catalog.length} məhsul</span>
+                <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-[0.2em] font-bold">Məhsul Kataloqu</p>
+                <span className="text-[10px] text-[var(--theme-text-muted)] tabular-nums">{catalog.length} məhsul</span>
               </div>
               {catLoading ? (
-                <p className="text-xs text-white/25 py-2">Yüklenir...</p>
+                <p className="text-xs text-[var(--theme-text-muted)] py-2">Yüklenir...</p>
               ) : (
                 <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
-                  {catalog.length === 0 && <p className="text-[11px] text-white/20 py-1">Kataloq boşdur — aşağıdan məhsul əlavə edin.</p>}
+                  {catalog.length === 0 && <p className="text-[11px] text-[var(--theme-text-muted)] py-1">Kataloq boşdur — aşağıdan məhsul əlavə edin.</p>}
                   {catalog.map((it) => (
-                    <div key={it.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.05]">
+                    <div key={it.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--theme-panel)] border border-[var(--theme-border)]">
                       {catEditing === it.id ? (
                         <>
                           <input value={catEdit.name} onChange={e => setCatEdit(p => ({ ...p, name: e.target.value }))}
-                            className="flex-1 min-w-0 bg-white/[0.05] border border-white/10 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-[#D4AF37]/40" />
+                            className="flex-1 min-w-0 bg-[var(--theme-panel)] border border-[var(--theme-border)] rounded-md px-2 py-1 text-xs text-[var(--theme-text)] outline-none focus:border-[#D4AF37]/40" />
                           <input value={catEdit.unit} onChange={e => setCatEdit(p => ({ ...p, unit: e.target.value }))}
-                            className="w-14 bg-white/[0.05] border border-white/10 rounded-md px-2 py-1 text-xs text-white outline-none" />
+                            className="w-14 bg-[var(--theme-panel)] border border-[var(--theme-border)] rounded-md px-2 py-1 text-xs text-[var(--theme-text)] outline-none" />
                           <input type="number" value={catEdit.unit_price} onChange={e => setCatEdit(p => ({ ...p, unit_price: e.target.value }))}
-                            className="w-16 bg-white/[0.05] border border-white/10 rounded-md px-2 py-1 text-xs text-white outline-none" />
+                            className="w-16 bg-[var(--theme-panel)] border border-[var(--theme-border)] rounded-md px-2 py-1 text-xs text-[var(--theme-text)] outline-none" />
                           <button onClick={() => saveCatalogItem(it)} className="p-1 text-emerald-400 hover:text-emerald-300"><CheckCircle size={13} /></button>
-                          <button onClick={() => setCatEditing(null)} className="p-1 text-white/30 hover:text-white/60"><X size={13} /></button>
+                          <button onClick={() => setCatEditing(null)} className="p-1 text-[var(--theme-text-muted)] hover:text-[var(--theme-text-muted)]"><X size={13} /></button>
                         </>
                       ) : (
                         <>
-                          <span className={`flex-1 min-w-0 truncate text-xs ${it.active === false ? 'text-white/25 line-through' : 'text-white/80'}`}>{it.name}</span>
-                          <span className="text-[10px] text-white/30">{it.unit || '—'}</span>
-                          <span className="text-xs font-semibold text-white/60 tabular-nums">{it.unit_price != null ? `₼${Number(it.unit_price).toFixed(2)}` : '—'}</span>
+                          <span className={`flex-1 min-w-0 truncate text-xs ${it.active === false ? 'text-[var(--theme-text-muted)] line-through' : 'text-[var(--theme-text-secondary)]'}`}>{it.name}</span>
+                          <span className="text-[10px] text-[var(--theme-text-muted)]">{it.unit || '—'}</span>
+                          <span className="text-xs font-semibold text-[var(--theme-text-muted)] tabular-nums">{it.unit_price != null ? `₼${Number(it.unit_price).toFixed(2)}` : '—'}</span>
                           <button onClick={() => { setCatEditing(it.id); setCatEdit({ name: it.name, unit: it.unit || 'gram', unit_price: it.unit_price != null ? String(it.unit_price) : '' }); }}
-                            className="p-1 rounded text-white/25 hover:text-white/70 transition-colors"><Pencil size={12} /></button>
+                            className="p-1 rounded text-[var(--theme-text-muted)] hover:text-[var(--theme-text-muted)] transition-colors"><Pencil size={12} /></button>
                           <button onClick={() => removeCatalogItem(it.id)} className="p-1 rounded text-red-400/40 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
                         </>
                       )}
@@ -815,11 +815,11 @@ function SuppliersSection() {
               )}
               <div className="flex items-center gap-1.5 mt-2">
                 <input value={catForm.name} onChange={e => setCatForm(p => ({ ...p, name: e.target.value }))} placeholder="Məhsul adı"
-                  className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder:text-white/20 outline-none focus:border-[#D4AF37]/40" />
+                  className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-[var(--theme-panel)] border border-[var(--theme-border)] text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[#D4AF37]/40" />
                 <input value={catForm.unit} onChange={e => setCatForm(p => ({ ...p, unit: e.target.value }))} placeholder="Birim"
-                  className="w-14 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder:text-white/20 outline-none" />
+                  className="w-14 px-2.5 py-1.5 rounded-lg bg-[var(--theme-panel)] border border-[var(--theme-border)] text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none" />
                 <input type="number" value={catForm.unit_price} onChange={e => setCatForm(p => ({ ...p, unit_price: e.target.value }))} placeholder="₼/birim"
-                  className="w-16 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder:text-white/20 outline-none" />
+                  className="w-16 px-2.5 py-1.5 rounded-lg bg-[var(--theme-panel)] border border-[var(--theme-border)] text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none" />
                 <button onClick={() => saveCatalogItem()} disabled={!catForm.name.trim()} title="Kataloğa əlavə et"
                   className="p-1.5 rounded-lg bg-[#D4AF37]/15 text-[#D4AF37] hover:bg-[#D4AF37]/25 disabled:opacity-30 transition-all"><Plus size={14} /></button>
               </div>
@@ -839,8 +839,8 @@ function SuppliersSection() {
                   WhatsApp
                 </button>
               )}
-              <button onClick={() => { setDetailSupplier(null); openEdit(detailSupplier); }} className="px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all border border-white/10">Redaktə Et</button>
-              <button onClick={() => setDetailSupplier(null)} className="px-4 py-2 rounded-xl text-xs font-bold text-white/50 hover:text-white/70 transition-colors">Bağla</button>
+              <button onClick={() => { setDetailSupplier(null); openEdit(detailSupplier); }} className="px-4 py-2 rounded-xl text-xs font-bold bg-[var(--theme-panel)] hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all border border-[var(--theme-border)]">Redaktə Et</button>
+              <button onClick={() => setDetailSupplier(null)} className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--theme-text-muted)] hover:text-[var(--theme-text-muted)] transition-colors">Bağla</button>
             </div>
           </motion.div>
         </div>

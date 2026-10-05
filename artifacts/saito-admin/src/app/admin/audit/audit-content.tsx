@@ -149,20 +149,19 @@ export default function AuditPage() {
 
   if (loading && entries.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="h-48 flex items-center justify-center">
         <Loader2 size={24} className="animate-spin text-[var(--theme-text-muted)]" />
       </div>
     );
   }
 
+  // 13h: hub frame provides page chrome — slim overline + Export toolbar.
   return (
-    <PageTransition className="min-h-screen p-4 sm:p-6 max-w-6xl mx-auto space-y-5">
+    <PageTransition className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <PageHeader
-          icon={<AlertTriangle size={18} className="text-rose-400" />}
-          title="Audit Trail"
-          subtitle="Stok dəyişikliklərinin tam tarixçəsi — hər sifariş, itki və tənzimləmə"
-        />
+        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">
+          Stok dəyişikliklərinin tam tarixçəsi
+        </p>
         <button
           onClick={exportToCSV}
           disabled={filtered.length === 0}
@@ -174,20 +173,20 @@ export default function AuditPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <GlassCard intensity="light" padding="md" className="border-blue-500/15">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400/60">Sifariş Sərfiyyatı</p>
-          <p className="text-lg font-black text-blue-400 tabular-nums mt-1">{summary.totalDeductions.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400/60 light:text-blue-700">Sifariş Sərfiyyatı</p>
+          <p className="text-lg font-black text-blue-400 light:text-blue-600 tabular-nums mt-1">{summary.totalDeductions.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
         </GlassCard>
         <GlassCard intensity="light" padding="md" className="border-red-500/15">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-red-400/60">İtki</p>
-          <p className="text-lg font-black text-red-400 tabular-nums mt-1">{summary.totalWaste.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-red-400/60 light:text-red-700">İtki</p>
+          <p className="text-lg font-black text-red-400 light:text-red-600 tabular-nums mt-1">{summary.totalWaste.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
         </GlassCard>
         <GlassCard intensity="light" padding="md" className="border-amber-500/15">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400/60">Tənzimləmə</p>
-          <p className="text-lg font-black text-amber-400 tabular-nums mt-1">{summary.totalAdjustments.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400/60 light:text-amber-700">Tənzimləmə</p>
+          <p className="text-lg font-black text-amber-400 light:text-amber-600 tabular-nums mt-1">{summary.totalAdjustments.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
         </GlassCard>
         <GlassCard intensity="light" padding="md" className="border-emerald-500/15">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/60">Stoka Giriş</p>
-          <p className="text-lg font-black text-emerald-400 tabular-nums mt-1">{summary.totalStockIn.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/60 light:text-emerald-700">Stoka Giriş</p>
+          <p className="text-lg font-black text-emerald-400 light:text-emerald-600 tabular-nums mt-1">{summary.totalStockIn.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
         </GlassCard>
       </div>
 

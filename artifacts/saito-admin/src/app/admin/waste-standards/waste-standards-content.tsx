@@ -156,26 +156,13 @@ export default function WasteStandardsPage() {
     }
   };
 
+  // 13h: hub frame provides page chrome — no hardcoded dark bg, no glow,
+  // no own hero. Slim toolbar only.
   return (
-    <div className="min-h-screen bg-[#080808] text-[var(--theme-text)] pb-20 relative">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-15%] right-[-10%] w-[50%] h-[50%] rounded-full opacity-[0.015]"
-          style={{ background: 'radial-gradient(circle, #D4AF37, transparent)' }} />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full opacity-[0.01]"
-          style={{ background: 'radial-gradient(circle, #ffffff, transparent)' }} />
-      </div>
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 space-y-6">
-        {/* ── Header ── */}
-        <div className="flex items-start justify-between">
-          <div>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2"
-              style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
-              <Percent size={10} /> İtki Standartları
-            </span>
-            <h1 className="text-xl sm:text-2xl font-bold">İtki Standartları</h1>
-            <p className="text-[11px] text-[var(--theme-text-muted)] mt-1">İnqrediyentlər üçün standart soyuq itki faizləri</p>
-          </div>
+    <div className="text-[var(--theme-text)]">
+      <div className="space-y-5">
+        {/* ── Toolbar ── */}
+        <div className="flex items-center justify-end">
           <button onClick={() => setModal({ mode: 'add', data: null })}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
             style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}>

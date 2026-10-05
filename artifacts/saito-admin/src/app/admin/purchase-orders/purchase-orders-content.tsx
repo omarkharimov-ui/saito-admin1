@@ -257,36 +257,17 @@ export default function PurchaseOrdersPage() {
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
+  // 13h (Apple minimalizm): the Stok hub frame provides the page chrome —
+  // no full-screen wrapper, no ambient glow, no own hero. Slim toolbar only.
   return (
-    <PageTransition className="min-h-screen bg-[var(--theme-bg)] text-[var(--theme-text)] pb-20">
-      {/* Ambient glow */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.04]"
-          style={{ background: 'radial-gradient(ellipse,#D4AF37,transparent 70%)' }} />
-      </div>
+    <PageTransition className="">
+      <div className="space-y-5">
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 space-y-6">
-
-        {/* ── Header ── */}
+        {/* ── Toolbar ── */}
         <motion.div
-          initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-end"
         >
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#1e1600,#140f00)', border: '1px solid rgba(212,175,55,0.2)' }}>
-              <ShoppingCart size={20} className="text-[#D4AF37]" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-serif font-bold tracking-tight leading-none">
-                Satınalma Sifarişləri
-              </h1>
-              <p className="text-[11px] text-[var(--theme-text-muted)] uppercase tracking-[0.2em] mt-1">
-                Purchase Orders
-              </p>
-            </div>
-          </div>
-
           <button
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"

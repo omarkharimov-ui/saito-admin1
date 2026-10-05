@@ -181,6 +181,11 @@ html[data-theme="light"] .stats-scope .recharts-legend-item-text span { color: v
 @import "../styles/animations.css";
 @import "../styles/mobile-premium.css";
 
+/* 13h: class-based `light:` variant — the app theme flips .light/.dark on <html>,
+   but Tailwind v4's built-in `dark:` is media-based (follows OS), so light-mode
+   overrides must key off the .light class. Additive — existing media `dark:` usages untouched. */
+@custom-variant light (&:where(.light, .light *));
+
 /* ── Tailwind theme tokens (must stay in globals.css — @theme is Tailwind v4 specific) ── */
 @theme inline {
   --color-background:  var(--background);

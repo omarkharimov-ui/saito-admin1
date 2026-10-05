@@ -48,17 +48,17 @@ export default function AdvisorCard() {
             <Sparkles size={14} className="text-emerald-400" />
           </span>
           <div>
-            <h3 className="text-[12px] font-black text-white">AI Inventory Advisor</h3>
-            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/30">30 günlük statistika üzrə · {new Date(data?.generated_at || Date.now()).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}</p>
+            <h3 className="text-[12px] font-black text-[var(--theme-text)]">AI Inventory Advisor</h3>
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--theme-text-muted)]">30 günlük statistika üzrə · {new Date(data?.generated_at || Date.now()).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}</p>
           </div>
         </div>
-        <button onClick={() => load(true)} disabled={loading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-white/10 hover:bg-white/15 text-white/70 transition-all border border-white/10">
+        <button onClick={() => load(true)} disabled={loading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[var(--theme-panel)] hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] transition-all border border-[var(--theme-border)]">
           <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> Yenilə
         </button>
       </div>
 
       {loading && !data ? (
-        <div className="flex items-center gap-2 text-[12px] text-white/40 py-4"><Loader2 size={14} className="animate-spin" /> Analiz edilir…</div>
+        <div className="flex items-center gap-2 text-[12px] text-[var(--theme-text-muted)] py-4"><Loader2 size={14} className="animate-spin" /> Analiz edilir…</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
           {(data?.cards || []).map((c, i) => {
@@ -73,15 +73,15 @@ export default function AdvisorCard() {
               >
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                  <span className="text-[9px] font-black uppercase tracking-[0.16em] text-white/40">{s.label}</span>
+                  <span className="text-[9px] font-black uppercase tracking-[0.16em] text-[var(--theme-text-muted)]">{s.label}</span>
                 </div>
-                <p className="text-[12px] font-bold text-white leading-snug">{c.title}</p>
-                <p className="text-[11px] text-white/50 leading-relaxed mt-1">{c.body}</p>
+                <p className="text-[12px] font-bold text-[var(--theme-text)] leading-snug">{c.title}</p>
+                <p className="text-[11px] text-[var(--theme-text-muted)] leading-relaxed mt-1">{c.body}</p>
               </motion.div>
             );
           })}
           {data && data.cards.length === 0 && (
-            <div className="col-span-full text-[12px] text-white/40 py-2">
+            <div className="col-span-full text-[12px] text-[var(--theme-text-muted)] py-2">
               AI kartı yoxdur — hamı normaldadır. Xam statistikalar Report tab-da.
             </div>
           )}

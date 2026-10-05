@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SPRING } from '@/lib/motion/system';
 import {
   Package, Plus, TrendingDown, TrendingUp,
   X, Loader2, RefreshCw,
@@ -313,50 +314,72 @@ export default function StockPage() {
     }
   };
 
+  const activeChip = HUB_CHIPS.find(c => c.id === viewMode);
+
   return (
     <PageTransition className="min-h-screen bg-[var(--theme-bg)] text-[var(--theme-text)] pb-24">
-      <div className="absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.06),transparent_42%)] pointer-events-none" />
-      
-      <div className="max-w-none mx-auto px-4 sm:px-6 pt-6 sm:pt-10 relative">
-        <div className="space-y-8">
-          
-          {/* Hero Section */}
-          <section className="relative overflow-hidden rounded-[32px] border border-[var(--theme-border)] bg-[var(--theme-surface)] px-6 sm:px-8 py-6 sm:py-8">
-            <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 rounded-full border border-gold/10 bg-gold/5 px-3 py-1 text-[10px] font-bold tracking-[0.2em] text-gold uppercase">
-                  <Sparkles size={12} /> PRO INVENTORY
-                </div>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-[var(--theme-text)]">Stok Paneli</h1>
-                {/* 13f: ALL inventory views in ONE page — one flex-wrap chip
-                    row (the six ex-sidebar routes joined the 13c views).
-                    Unified active state (theme-text pill) in both themes. */}
-                <div className="flex flex-wrap gap-2">
-                  {HUB_CHIPS.filter(c => !c.elevated || isElevated).map(c => (
-                    <button key={c.id} onClick={() => setViewMode(c.id)} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === c.id ? 'bg-[var(--theme-text)] text-[var(--theme-bg)]' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>{c.label}</button>
-                  ))}
-                </div>
-              </div>
-              {/* Stock-only quick actions — the other views are self-contained
-                  (each brings its own header + actions). */}
-              {viewMode === 'stock' && (
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setShowNewIngredient(true)}
-                    className="flex items-center gap-2 px-5 py-3 bg-[var(--theme-surface)] text-[var(--theme-text)] border border-[var(--theme-border)] rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-white transition-all"
-                  >
-                    <Plus size={16} /> Yeni Xammal
-                  </button>
-                  <button 
-                    onClick={() => setShowQuickStockIn(true)}
-                    className="flex items-center gap-2 px-5 py-3 bg-gold text-black rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-white transition-all shadow-lg"
-                  >
-                    <Plus size={16} /> Xammal Girişi
-                  </button>
-                </div>
-              )}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
+
+        {/* 13h (owner: "apple felsefesi + minimalliq + rahat olsun"): the
+            heavy "PRO INVENTORY" card hero is GONE. One quiet overline, the
+            ACTIVE VIEW's name as the page title, contextual actions right. */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--theme-text-muted)]">Stok</p>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight mt-1">{activeChip?.label || 'Anbar'}</h1>
+          </div>
+          {viewMode === 'stock' && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowNewIngredient(true)}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] text-[11px] font-black uppercase tracking-wider hover:text-[var(--theme-text)] transition-all"
+              >
+                <Plus size={14} /> Yeni Xammal
+              </button>
+              <button
+                onClick={() => setShowQuickStockIn(true)}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--theme-text)] text-[var(--theme-bg)] text-[11px] font-black uppercase tracking-wider hover:opacity-90 transition-all"
+              >
+                <Plus size={14} /> Xammal Girişi
+              </button>
             </div>
-          </section>
+          )}
+        </div>
+
+        {/* Segmented control (iOS language): one soft container, one sliding
+            pill (layoutId) — the 10 hub views, role-gated, ?view= synced. */}
+        <div className="mt-5 mb-7 flex flex-wrap gap-1 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] p-1">
+          {HUB_CHIPS.filter(c => !c.elevated || isElevated).map(c => (
+            <button key={c.id} onClick={() => setViewMode(c.id)} className={`relative px-3.5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-colors ${viewMode === c.id ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}>
+              {viewMode === c.id && (
+                <motion.span layoutId="hub-tab-pill" className="absolute inset-0 rounded-xl bg-[var(--theme-text)]" transition={SPRING} />
+              )}
+              <span className="relative z-10">{c.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-6">
+
+          {/* 13h: Anbar KPI strip — quiet Apple stat cards (hairline, tabular,
+              uppercase micro-label). Restored as part of the rewrite (the old
+              KPI block was lost to an uncommitted working-tree state). */}
+          {viewMode === 'stock' && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { label: 'Xammal', value: rows.length, sub: 'inqrediyent', cls: 'text-[var(--theme-text)]' },
+                { label: 'Aşağı Stok', value: rows.filter((r: any) => r.status === 'low').length, sub: 'limitə yaxın', cls: 'text-blue-400' },
+                { label: 'Kritik / Bitən', value: rows.filter((r: any) => r.status === 'critical' || r.status === 'out_of_stock').length, sub: 'tədarük lazımdır', cls: 'text-amber-400' },
+                { label: 'Tədarükçü', value: suppliers.length, sub: 'aktif', cls: 'text-[var(--theme-text)]' },
+              ].map(k => (
+                <div key={k.label} className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] px-4 py-3.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--theme-text-muted)]">{k.label}</p>
+                  <p className={`text-2xl font-black tabular-nums mt-1 ${k.cls}`}>{k.value}</p>
+                  <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5">{k.sub}</p>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* 13c: AI advisor — narrative over the 30-day deterministic stats. */}
           {viewMode === 'stock' && <AdvisorCard />}

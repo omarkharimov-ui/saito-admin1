@@ -67,11 +67,11 @@ export default function IntelligenceTab() {
       <div className="flex items-center gap-2">
         {(['suggestions', 'calibration', 'insights', 'trends'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${tab === t ? 'bg-white/10 text-white border border-white/15' : 'text-white/30 hover:text-white/60 border border-transparent'}`}>
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${tab === t ? 'bg-[var(--theme-panel)] text-[var(--theme-text)] border border-[var(--theme-border)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text-muted)] border border-transparent'}`}>
             {t === 'suggestions' ? 'Təkliflər' : t === 'calibration' ? 'Kalibrasiya' : t === 'insights' ? 'İnsaytlar' : 'Trendlər'}
           </button>
         ))}
-        <button onClick={fetchData} className="ml-auto p-2 rounded-xl hover:bg-white/5 text-white/30 hover:text-white/60 transition-all">
+        <button onClick={fetchData} className="ml-auto p-2 rounded-xl hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-muted)] transition-all">
           <RefreshCw size={14} />
         </button>
       </div>
@@ -79,10 +79,10 @@ export default function IntelligenceTab() {
       {tab === 'suggestions' && (
         <>
           <SummaryCards items={[
-            { key: 'total', icon: <Package size={16} className="text-white/60" />, label: 'Tövsiyələr', value: suggestions.length },
+            { key: 'total', icon: <Package size={16} className="text-[var(--theme-text-muted)]" />, label: 'Tövsiyələr', value: suggestions.length },
             { key: 'critical', icon: <AlertTriangle size={16} className="text-red-400" />, label: 'Kritik', value: suggestions.filter(s => s.urgency === 'critical').length, accent: 'text-red-400/70' },
             { key: 'high', icon: <AlertTriangle size={16} className="text-orange-400" />, label: 'Yüksək', value: suggestions.filter(s => s.urgency === 'high').length, accent: 'text-orange-400/70' },
-            { key: 'cost', icon: <DollarSign size={16} className="text-white/60" />, label: 'Təxmini Xərc', value: `₼${suggestions.reduce((a, s) => a + (s.suggested_reorder_qty * s.avg_cost_per_unit || 0), 0).toFixed(2)}`, accent: 'text-white/20' },
+            { key: 'cost', icon: <DollarSign size={16} className="text-[var(--theme-text-muted)]" />, label: 'Təxmini Xərc', value: `₼${suggestions.reduce((a, s) => a + (s.suggested_reorder_qty * s.avg_cost_per_unit || 0), 0).toFixed(2)}`, accent: 'text-[var(--theme-text-muted)]' },
           ]} />
 
           <TableActionBar search={search} onSearchChange={setSearch} searchPlaceholder="Xammal axtar..."
@@ -102,23 +102,23 @@ export default function IntelligenceTab() {
                   className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <h3 className="text-sm font-semibold text-white">{s.ingredient_name}</h3>
-                      <p className="text-xs text-white/30 mt-0.5">{s.current_stock} {s.unit} stokda • {s.daily_consumption_rate?.toFixed(2)}/gün</p>
+                      <h3 className="text-sm font-semibold text-[var(--theme-text)]">{s.ingredient_name}</h3>
+                      <p className="text-xs text-[var(--theme-text-muted)] mt-0.5">{s.current_stock} {s.unit} stokda • {s.daily_consumption_rate?.toFixed(2)}/gün</p>
                     </div>
                     <StockStatusBadge status={s.urgency} />
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div className="p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                      <p className="text-white/30">Tövsiyə</p>
-                      <p className="text-white font-semibold">{s.suggested_reorder_qty} {s.unit}</p>
+                      <p className="text-[var(--theme-text-muted)]">Tövsiyə</p>
+                      <p className="text-[var(--theme-text)] font-semibold">{s.suggested_reorder_qty} {s.unit}</p>
                     </div>
                     <div className="p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                      <p className="text-white/30">Qalan Gün</p>
-                      <p className="text-white font-semibold">{s.days_remaining?.toFixed(0) || '—'}</p>
+                      <p className="text-[var(--theme-text-muted)]">Qalan Gün</p>
+                      <p className="text-[var(--theme-text)] font-semibold">{s.days_remaining?.toFixed(0) || '—'}</p>
                     </div>
                     <div className="p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                      <p className="text-white/30">Xərc</p>
-                      <p className="text-white font-semibold">₼{(s.suggested_reorder_qty * s.avg_cost_per_unit || 0).toFixed(2)}</p>
+                      <p className="text-[var(--theme-text-muted)]">Xərc</p>
+                      <p className="text-[var(--theme-text)] font-semibold">₼{(s.suggested_reorder_qty * s.avg_cost_per_unit || 0).toFixed(2)}</p>
                     </div>
                   </div>
                   <div className="mt-3 flex items-center gap-2">
@@ -159,8 +159,8 @@ export default function IntelligenceTab() {
                       {typeIcon}
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-white">{insight.title}</h3>
-                      <p className="text-xs text-white/40 mt-1">{insight.description}</p>
+                      <h3 className="text-sm font-semibold text-[var(--theme-text)]">{insight.title}</h3>
+                      <p className="text-xs text-[var(--theme-text-muted)] mt-1">{insight.description}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -169,7 +169,7 @@ export default function IntelligenceTab() {
                     </span>
                     {insight.action_url && (
                       <button onClick={() => window.location.href = insight.action_url!}
-                        className="p-2 rounded-lg hover:bg-white/5 text-white/30 hover:text-white/60 transition-all">
+                        className="p-2 rounded-lg hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-muted)] transition-all">
                         <ExternalLink size={14} />
                       </button>
                     )}
@@ -186,8 +186,8 @@ export default function IntelligenceTab() {
           {trends.map(t => (
             <div key={t.ingredient_id} className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-white">{t.ingredient_name}</p>
-                <p className="text-xs text-white/30">{t.weekly_avg?.toFixed(1)}/həftə • {t.monthly_avg?.toFixed(1)}/ay</p>
+                <p className="text-sm font-semibold text-[var(--theme-text)]">{t.ingredient_name}</p>
+                <p className="text-xs text-[var(--theme-text-muted)]">{t.weekly_avg?.toFixed(1)}/həftə • {t.monthly_avg?.toFixed(1)}/ay</p>
               </div>
               <div className="flex items-end gap-1 h-8">
                 {(t.daily || []).slice(-14).map((d, i) => {

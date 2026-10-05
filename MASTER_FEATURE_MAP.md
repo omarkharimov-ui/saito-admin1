@@ -854,6 +854,42 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-05 (ROUND 13k: OWNER UX PASS — 6 DÜZƏLİŞ, HAMISI BAĞLANDI, `53eff96`)
+
+Owner (screenshot ilə 6 nöqtə): *navbar kvadratdır → pill · "Yeni Xammal"+"Xammal Girişi"
+ayrı buttonlar çox maneə · 4 template KPI kartı sil · xammal modalları en axıra qədər açılsın
+(gift-cards sidebar pattern) · 4 emeliyyat kartı sablon · Tədarük zəif UX — Nə Alım 2 sütun
+(sol=tekliflər, sağ=lazım olanlar/sifariş draft) + Sifarişlər/Tədarükçülər çirkindir +
+hər modal/şəhifə berbatdır + faktura atanda işləyirmi? · Sayım & Analiz eyni müalicə.*
+
+**13j (commit 6f6df4e — əvvəlki content-layer rewrite):** `stock-ui.tsx` design system
+(Btn/Chip/DataTable/Seg/Card/Stat/SearchInput/IconBtn/Field/Modal/SpinnerBlock) · 6 content
+page cədvəlləri → DataTable · 8 hardcoded-dark modal → themed Modal ·
+RecipeConstructorModal light-mode fix · `color-scheme` native controls. Owner: "hazırda içi
+yaxşıdır" — 13k UX düzəlişlərinə keçdi.
+
+**13k (commit 53eff96; E2E r34 9/10, console 0, dark+light, 19 shot `e2e-shots/r34-*`):**
+- **Pill:** main 4-tab bar + bütün sub-pills `rounded-full` + sliding pill (layoutId).
+- **CTA:** "Yeni Xammal" = ghost icon (+) · "Xammal Girişi" = yeganə solid button.
+- **4 KPI kartı ✂** → inline metrics strip (xammal/aşağı/kritik/mənfi/≤3g, colored dots;
+  kritik → filter, mənfi → Sayım et).
+- **Full-height drawer:** `ModalShell` (StockTab) + yeni `Drawer` (stock-ui) — gift-cards-
+  style, app-sidebar kənarına qədər, mobildə full-screen. Xammal modalları×4 + InspectorPanel
+  (#080808 floating card ✂, light-safe rewrite) + supplier detail/form.
+- **4 emeliyyat kartı ✂** → compact 2×2 h-11 icon+label row (InspectorPanel).
+- **Nə Alım = 2 SÜTUN:** sol Təkliflər (suggestions+auto-order notifs) | sağ "Lazım Olanlar
+  · Sifariş Taslağı" (OrderGuide, autoSelectId preselect qorunur). Tədarükçülər card grid →
+  DataTable + drawer (detail drawer-da Məhsul Kataloqu CRUD + WhatsApp/Redaktə footer).
+  Hesabat valuation hero → 1 `divide-x` stat bar. Valyuta AZN → ₼.
+- **E2E r34 FAIL (real backend bug, UI-də düzəldildi):** faktura OCR HTTP 500 **sükutla
+  keçirdi** — kök: `.env`-də **GROQ_API_KEY YOXDUR** (yalnız 2 SUPABASE key var) →
+  `/api/invoice-ocr` 500 + advisor `data_only`. Fix: OCR error toast + Advisor honest
+  fallback ("AI analizi aktiv deyil" + raw stats — "hamı normaldır" 5 mənfi varkən aldatıcı).
+- **Owner action: GROQ_API_KEY .env-ə əlavə edilməlidir** (invoice OCR + AI advisor +
+  recipe calibrate bloklanır).
+- Sayım & İtki / Analiz = eyni design system üzərindən keçdi (13j/13k: DataTable, pill,
+  theme vars, Drawer) — ayrıca pass tələb etmir.
+
 ### Jurnal sətiri — 2026-10-05 (ROUND 13i: STOK HUB 0-DAN REWRITE — 4 NİYYƏT TAB + STATE MACHINE + 3 SANİYƏ QAYDASI)
 
 Owner: *"4 edirik... ui yeniden yaz... 0 dan yenidən daha qəşəng et, micro-interactions,

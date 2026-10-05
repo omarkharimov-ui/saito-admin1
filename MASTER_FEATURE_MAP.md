@@ -854,6 +854,31 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-05 (ROUND 13h: STOK HUB UI REWRITE — Apple minimal frame + nested-hero strip + light-mode contrast)
+
+Owner: *"basla"* (mandat 13g: inventory UI = TAM REWRITE — Apple felsefəsi + minimalliq +
+"userin anlayacağı qədər rahat").
+
+**13h (commit 69209ff; E2E r32 13/13 + r32c/r32d, dark+light, console 0):**
+- **Hub shell rewrite** (`stock/page.tsx`): ağır "PRO INVENTORY" hero → minimal frame:
+  tiny uppercase overline "Stok" + **aktiv view-ə görə dəyişən** bold title (Anbar/Sayım/…) +
+  **segmented pill tab bar** (sliding pill `layoutId="hub-tab-pill"`, SPRING) — 10 chip eyni
+  sırada; Anbar-da yalnız header-də 2 action (Yeni Xammal ghost + Xammal Girişi solid) + 4 KPI
+  stat card strip (Xammal / Aşağı Stok / Kritik Bitən / Tədarükçü) + AdvisorCard + Anbar cədvəl.
+- **Nested view hero-strip** (6 content + 4 tab): icon chip + serif h1 + subtitle +
+  `min-h-screen`/glow/`max-w-7xl` wrapper-lar silindi → hər view yalnız incə `justify-end`
+  toolbar (Yeni Sifariş / Yeni Sayım / Yeni Qaytarma / Yeni Standart / Export) + content.
+  waste-standards `bg-[#080808]` hardcode = light-mode bug → silindi.
+- **Light-mode theme sweep:** 4 tab component + 6 content-də qalan hardcoded white → theme vars.
+- **Yeni `light:` Tailwind variant** (`globals.css`): Tailwind v4 `dark:` = **media-based** (OS-a
+  baxır — app theme-dən müstəqil!) → `@custom-variant light (&:where(.light, .light *))` additive
+  (mövcud `dark:` istifadələri toxunulmayıb). Audit KPI kartları: label 700-level light
+  (measure: 5.0–6.8:1, r32d 4/4 PASS) + value 600-level.
+- **E2E r32:** 10/10 view yeni frame-də (KPI/advisor/cədvəl, intelligence, procurement+Order Guide,
+  PO, report 228,209 AZN, suppliers, counts, returns, waste, audit), sidebar 2 giriş (Stok + Reseptlər,
+  duplicate yox), deep-link `?view=audit` ✓, `?view=recipes` → `/admin/recipes` redirect ✓,
+  13 shot `e2e-shots/r32-*` + r32c/r32d. Feature loss YOX (bütün action buttonlar canlı).
+
 ### Jurnal sətiri — 2026-10-05 (ROUND 13g: RESEPTLƏR = AYRI SƏHİFƏ YENİDƏ + pending clarity chip/counter)
 
 Owner: *"reseptler ayri sehife edek bu sehife ayri sidebarda olacaq evvelki kimi. amma

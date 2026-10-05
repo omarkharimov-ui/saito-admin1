@@ -140,16 +140,16 @@ function StockHubInner() {
           </div>
         </div>
 
-        {/* ── 4 intent tabs (sliding pill, icon + label) ── */}
-        <div className="mt-5 mb-6 flex flex-wrap gap-1 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] p-1">
+        {/* ── 4 intent tabs (13k: pill — owner: "kvadratdır, pill formasına sal") ── */}
+        <div className="mt-5 mb-6 flex flex-wrap gap-1 rounded-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] p-1 w-fit">
           {TABS.map(t => (
             <button
               key={t.id}
               onClick={() => switchTab(t.id)}
-              className={`relative flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black tracking-wide transition-colors ${tab === t.id ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}
+              className={`relative flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full text-xs font-black tracking-wide transition-colors ${tab === t.id ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}
             >
               {tab === t.id && (
-                <motion.span layoutId="stock-tab-pill" className="absolute inset-0 rounded-xl bg-[var(--theme-text)]" transition={SPRING} />
+                <motion.span layoutId="stock-tab-pill" className="absolute inset-0 rounded-full bg-[var(--theme-text)]" transition={SPRING} />
               )}
               <span className="relative z-10 flex items-center gap-2">
                 <t.icon size={15} />

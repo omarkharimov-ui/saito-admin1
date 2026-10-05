@@ -75,43 +75,43 @@ export default function ReportsTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">Son {report.days} gün · inventory analitiki</p>
-        <button onClick={load} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold bg-[var(--theme-panel)] hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] transition-all border border-[var(--theme-border)]">
+        <button onClick={load} className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[11px] font-bold bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-surface)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all border border-[var(--theme-border)]">
           <RefreshCw size={13} /> Yenilə
         </button>
       </div>
 
-      {/* valuation hero */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-3xl bg-gradient-to-br from-emerald-500/[0.12] to-emerald-500/[0.03] border border-emerald-500/25 p-6">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/80">Cari Stok Dəyəri</p>
-          <p className="text-4xl font-black text-[var(--theme-text)] tabular-nums mt-2">
-            {report.valuation.total_value.toLocaleString('az')} <span className="text-lg text-[var(--theme-text-muted)]">{report.valuation.currency}</span>
+      {/* 13k: valuation hero — 3 big template cards → one quiet stat bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[var(--theme-border)] rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)]">
+        <div className="px-5 py-4">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500 light:text-emerald-600">Cari Stok Dəyəri</p>
+          <p className="text-2xl font-black text-[var(--theme-text)] tabular-nums mt-1.5">
+            {report.valuation.total_value.toLocaleString('az')} <span className="text-sm text-[var(--theme-text-muted)]">₼</span>
           </p>
-          <p className="text-[11px] text-[var(--theme-text-muted)] mt-2 font-medium">{report.valuation.ingredient_count} maddə × orta qiymət</p>
+          <p className="text-[11px] text-[var(--theme-text-muted)] mt-1 font-medium">{report.valuation.ingredient_count} maddə × orta qiymət</p>
         </div>
-        <div className="rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-6">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">COGS (satış sərfiyyatı)</p>
-          <p className="text-3xl font-black text-[var(--theme-text)] tabular-nums mt-2">
-            {report.cogs.total_cogs.toLocaleString('az')} <span className="text-base text-[var(--theme-text-muted)]">₼</span>
+        <div className="px-5 py-4">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">COGS (satış sərfiyyatı)</p>
+          <p className="text-2xl font-black text-[var(--theme-text)] tabular-nums mt-1.5">
+            {report.cogs.total_cogs.toLocaleString('az')} <span className="text-sm text-[var(--theme-text-muted)]">₼</span>
           </p>
-          <p className="text-[11px] text-[var(--theme-text-muted)] mt-2 font-medium flex items-center gap-1">
-            <TrendingDown size={12} className="text-rose-400" /> itki: {report.cogs.total_waste.toLocaleString('az')} ₼
+          <p className="text-[11px] text-[var(--theme-text-muted)] mt-1 font-medium flex items-center gap-1">
+            <TrendingDown size={12} className="text-rose-500" /> itki: {report.cogs.total_waste.toLocaleString('az')} ₼
           </p>
         </div>
-        <div className={`rounded-3xl border p-6 ${report.valuation.negatives.length > 0 ? 'bg-rose-500/[0.06] border-rose-500/30' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">Nəfs Stok Borcu</p>
+        <div className="px-5 py-4">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">Nəfs Stok Borcu</p>
           {report.valuation.negatives.length > 0 ? (
             <>
-              <p className="text-3xl font-black text-rose-400 tabular-nums mt-2">{report.valuation.negatives.length}</p>
-              <div className="mt-2 space-y-1 max-h-16 overflow-y-auto">
-                {report.valuation.negatives.slice(0, 4).map(n => (
-                  <p key={n.id} className="text-[11px] font-bold text-rose-400/90 truncate">• {n.name}: {n.stock} {n.unit}</p>
+              <p className="text-2xl font-black text-rose-500 tabular-nums mt-1.5">{report.valuation.negatives.length}</p>
+              <div className="mt-1 space-y-0.5 max-h-12 overflow-y-auto">
+                {report.valuation.negatives.slice(0, 3).map(n => (
+                  <p key={n.id} className="text-[11px] font-bold text-rose-500/90 truncate">• {n.name}: {n.stock} {n.unit}</p>
                 ))}
-                {report.valuation.negatives.length > 4 && <p className="text-[10px] text-rose-400/50">+{report.valuation.negatives.length - 4} daha → sayım lazımdır</p>}
+                {report.valuation.negatives.length > 3 && <p className="text-[10px] text-rose-500/60">+{report.valuation.negatives.length - 3} daha → sayım lazımdır</p>}
               </div>
             </>
           ) : (
-            <p className="text-3xl font-black text-emerald-400 mt-2">0</p>
+            <p className="text-2xl font-black text-emerald-500 light:text-emerald-600 tabular-nums mt-1.5">0</p>
           )}
         </div>
       </div>

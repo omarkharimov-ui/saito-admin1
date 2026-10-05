@@ -88,11 +88,11 @@ export default function OperationsHub({ sub, onSubChange, isElevated, lightMode 
       <div className="space-y-5">
         <TabHero tone={hero.tone} title={hero.title} sub={hero.sub} cta={'cta' in hero ? hero.cta : undefined} lightMode={lightMode} />
 
-        <div className="flex flex-wrap gap-1 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] p-1 w-fit">
+        <div className="flex flex-wrap gap-1 rounded-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] p-1 w-fit">
           {pills.map(p => (
             <button key={p.id} onClick={() => onSubChange(p.id)}
-              className={`relative px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-colors ${sub === p.id ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}>
-              {sub === p.id && <motion.span layoutId="ops-sub-pill" className="absolute inset-0 rounded-xl bg-[var(--theme-text)]" transition={SPRING} />}
+              className={`relative px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition-colors ${sub === p.id ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}>
+              {sub === p.id && <motion.span layoutId="ops-sub-pill" className="absolute inset-0 rounded-full bg-[var(--theme-text)]" transition={SPRING} />}
               <span className="relative z-10">{p.label}</span>
             </button>
           ))}

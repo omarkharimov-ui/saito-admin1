@@ -1,20 +1,16 @@
 'use client';
 
-// 13i — the ONE suppliers surface (owner audit: the thin hub tab was a
-// duplicate and is gone). Extracted from the old ProcurementTab, restyled
-// theme-var based (was hardcoded #0C0C0E modals + gold focus — light-mode bug).
+// 13k — Tədarükçülər rewrite. Owner: "sifarişlər/tədarükçülər səhifəsi çirkindir,
+// her modal berbatdır" → one design system (stock-ui): DataTable + Chips,
+// detail & form = FULL-HEIGHT DRAWERS (up to the app-sidebar edge), no card grid.
 // 13c: Məhsul Kataloqu (vendor price list) — Order Guide prefill + invoice anchor.
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Pencil, Trash2, CheckCircle } from '@/components/ui/saito-icons';
-import { TableActionBar } from '@/components/TableActionBar';
-import { EmptyState, LoadingState } from '@/components/ProcurementEmptyState';
+import { AnimatePresence } from 'framer-motion';
+import { Plus, Pencil, Trash2, CheckCircle, MessageCircle } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import type { Supplier, CreateSupplierPayload } from '@/types/inventory';
-
-const solidBtn = 'bg-[var(--theme-text)] text-[var(--theme-bg)]';
-const fieldCls = 'w-full px-4 py-2.5 rounded-xl bg-[var(--theme-bg)] border border-[var(--theme-border)] text-[var(--theme-text)] text-sm outline-none focus:border-[var(--theme-text)]/40 transition-colors';
+import { Btn, Chip, DataTable, SearchInput, IconBtn, SpinnerBlock, Drawer, Modal, Field, fieldCls } from '../stock-ui';
 
 export default function SuppliersSection() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -90,6 +86,7 @@ export default function SuppliersSection() {
   };
 
   const openEdit = (s: Supplier) => {
+    setDetailSupplier(null);
     setEditing(s);
     setForm({ name: s.name, contact_person: s.contact_person || '', phone: s.phone || '', whatsapp_number: (s as any).whatsapp_number || '', email: s.email || '', address: s.address || '', tax_id: s.tax_id || '', notes: s.notes || '', auto_order_template: (s as any).auto_order_template || '' });
     setShowModal(true);
@@ -117,223 +114,257 @@ export default function SuppliersSection() {
 
   const filtered = suppliers.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
 
-  if (loading) return <LoadingState />;
+  if (loading) return <SpinnerBlock height={240} />;
+
+  const contactCls = 'flex items-center gap-2 text-xs text-[var(--theme-text-secondary)]';
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex-1 max-w-sm min-w-56">
-          <TableActionBar search={search} onSearchChange={setSearch} searchPlaceholder="Tədarükçü axtar..." />
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <SearchInput value={search} onChange={setSearch} placeholder="Tədarükçü axtar..." className="flex-1 max-w-sm" />
+        <div className="sm:ml-auto flex items-center justify-end">
+          <Btn variant="solid" icon={Plus} onClick={openCreate}>Yeni Tədarükçü</Btn>
         </div>
-        <button onClick={openCreate} className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all active:scale-[0.97] ${solidBtn}`}>
-          <Plus size={14} /> Yeni Tədarükçü
-        </button>
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState icon={<Plus size={32} className="text-[var(--theme-text-muted)]" />} title="Tədarükçü tapılmadı" description="Hələ heç bir tədarükçü əlavə edilməyib" />
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {filtered.map((s, i) => (
-            <motion.div key={s.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-              onClick={() => openDetail(s)}
-              className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-4 hover:border-[var(--theme-text)]/35 hover:bg-[var(--theme-surface-soft)] transition-all cursor-pointer active:scale-[0.99]">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-[var(--theme-text)] truncate">{s.name}</div>
-                  <div className="mt-1 text-[11px] text-[var(--theme-text-muted)] space-y-0.5">
-                    {s.contact_person && <div>{s.contact_person}</div>}
-                    {s.phone && <div>{s.phone}</div>}
-                    {s.email && <div className="truncate">{s.email}</div>}
-                  </div>
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  <button onClick={e => { e.stopPropagation(); openEdit(s); }} className="p-1.5 rounded-lg hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"><Pencil size={13} /></button>
-                  <button onClick={e => { e.stopPropagation(); setConfirmDelete(s.id); }} className="p-1.5 rounded-lg hover:bg-rose-500/10 text-[var(--theme-text-muted)]/50 hover:text-rose-500 transition-colors"><Trash2 size={13} /></button>
-                </div>
+      {/* Table (was a card grid — 13k: one row per supplier, quiet) */}
+      <DataTable
+        rows={filtered.map(s => ({
+          ...s,
+          __actions: (
+            <>
+              <IconBtn icon={Pencil} title="Redaktə" tone="blue" onClick={() => openEdit(s)} />
+              <IconBtn icon={Trash2} title="Sil" tone="rose" onClick={() => setConfirmDelete(s.id)} />
+            </>
+          ),
+        }))}
+        rowKey={r => r.id}
+        onRow={r => openDetail(r)}
+        actionsWidth={72}
+        cols={[
+          {
+            key: 'name', label: 'Tədarükçü', width: '1.6fr',
+            render: r => (
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-[var(--theme-text)] truncate">{r.name}</p>
+                <p className="text-[10px] text-[var(--theme-text-muted)] truncate">{r.contact_person || '—'}</p>
               </div>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {s.score !== null && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${s.score >= 80 ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10' : s.score >= 50 ? 'text-amber-500 border-amber-500/30 bg-amber-500/10' : 'text-rose-500 border-rose-500/30 bg-rose-500/10'}`}>
-                    {s.score}/100
-                  </span>
-                )}
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${s.status === 'active' ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10' : 'text-[var(--theme-text-muted)] border-[var(--theme-border)]'}`}>
-                  {s.status === 'active' ? 'Aktiv' : 'Deaktiv'}
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full text-[var(--theme-text-muted)] border border-[var(--theme-border)] tabular-nums">
-                  {s.total_orders} sifariş
-                </span>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
+            ),
+          },
+          { key: 'phone', label: 'Telefon', width: '1.1fr', hide: 'sm', render: r => <span className="text-xs text-[var(--theme-text-secondary)] tabular-nums">{r.phone || '—'}</span> },
+          {
+            key: 'status', label: 'Status', width: '100px',
+            render: r => <Chip tone={r.status === 'active' ? 'ok' : 'neutral'} dot={false}>{r.status === 'active' ? 'Aktiv' : 'Deaktiv'}</Chip>,
+          },
+          {
+            key: 'score', label: 'Bal', width: '80px', align: 'right', hide: 'md',
+            render: r => r.score !== null
+              ? <span className={`text-xs font-black tabular-nums ${r.score >= 80 ? 'text-emerald-500' : r.score >= 50 ? 'text-amber-500 light:text-amber-600' : 'text-rose-500'}`}>{r.score}</span>
+              : <span className="text-xs text-[var(--theme-text-muted)]">—</span>,
+          },
+          { key: 'orders', label: 'Sifariş', width: '80px', align: 'right', hide: 'md', render: r => <span className="text-xs text-[var(--theme-text-secondary)] tabular-nums">{r.total_orders}</span> },
+        ]}
+        empty={
+          <div className="py-12 text-center">
+            <Plus size={32} className="mx-auto mb-3 opacity-25 text-[var(--theme-text-muted)]" />
+            <p className="text-sm font-medium text-[var(--theme-text-secondary)]">Tədarükçü tapılmadı</p>
+            <p className="text-xs text-[var(--theme-text-muted)] mt-1">"Yeni Tədarükçü" düyməsi ilə ilk tədarükçünü əlavə edin</p>
+          </div>
+        }
+      />
 
-      {/* create/edit modal */}
+      {/* ── Detail (13k: full-height drawer, catalog inside) ── */}
+      <AnimatePresence>
+        {detailSupplier && (
+          <Drawer
+            wide
+            title={detailSupplier.name}
+            subtitle={detailSupplier.email || detailSupplier.phone || 'Tədarükçü profili'}
+            onClose={() => setDetailSupplier(null)}
+            footer={
+              <div className="flex gap-3">
+                {(detailSupplier as any).whatsapp_number && (
+                  <Btn
+                    variant="success"
+                    icon={MessageCircle}
+                    className="flex-1"
+                    onClick={() => {
+                      const template = (detailSupplier as any).auto_order_template || 'Salam, stok hazırlanması haqqında məlumat verərmi?';
+                      const text = encodeURIComponent(template);
+                      window.open(`https://wa.me/${(detailSupplier as any).whatsapp_number.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
+                    }}
+                  >
+                    WhatsApp
+                  </Btn>
+                )}
+                <Btn variant="ghost" className="flex-1" icon={Pencil} onClick={() => { setDetailSupplier(null); openEdit(detailSupplier); }}>
+                  Redaktə Et
+                </Btn>
+              </div>
+            }
+          >
+            <div className="space-y-5">
+              {/* metrics (slim, no big cards) */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Ümumi Bal', value: detailSupplier.score !== null ? `${detailSupplier.score}/100` : 'Hesablanmayıb', cls: detailSupplier.score !== null && detailSupplier.score >= 80 ? 'text-emerald-500' : detailSupplier.score !== null && detailSupplier.score >= 50 ? 'text-amber-500 light:text-amber-600' : 'text-rose-500' },
+                  { label: 'Vaxtında Təhvil', value: detailSupplier.on_time_delivery_rate !== null ? `${detailSupplier.on_time_delivery_rate}%` : '—', cls: 'text-[var(--theme-text)]' },
+                  { label: 'Qiymət Stabililiyi', value: detailSupplier.avg_price_stability !== null ? `${detailSupplier.avg_price_stability}%` : '—', cls: 'text-[var(--theme-text)]' },
+                  { label: 'Sifariş Sayı', value: String(detailSupplier.total_orders), cls: 'text-[var(--theme-text)]' },
+                ].map(c => (
+                  <div key={c.label} className="p-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                    <p className="text-[9px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.15em]">{c.label}</p>
+                    <p className={`text-base font-black mt-1 tabular-nums ${c.cls}`}>{c.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* contact */}
+              <div className="space-y-2">
+                <p className="text-[9px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em]">Əlaqə</p>
+                <div className="space-y-1.5">
+                  {detailSupplier.contact_person && <div className={contactCls}><span className="text-[var(--theme-text-muted)] w-20 shrink-0">Şəxs</span>{detailSupplier.contact_person}</div>}
+                  {detailSupplier.phone && <div className={contactCls}><span className="text-[var(--theme-text-muted)] w-20 shrink-0">Telefon</span><span className="tabular-nums">{detailSupplier.phone}</span></div>}
+                  {(detailSupplier as any).whatsapp_number && <div className={contactCls}><span className="text-[var(--theme-text-muted)] w-20 shrink-0">WhatsApp</span><span className="tabular-nums">{(detailSupplier as any).whatsapp_number}</span></div>}
+                  {detailSupplier.email && <div className={contactCls}><span className="text-[var(--theme-text-muted)] w-20 shrink-0">Email</span><span className="truncate">{detailSupplier.email}</span></div>}
+                  {detailSupplier.address && <div className={contactCls}><span className="text-[var(--theme-text-muted)] w-20 shrink-0">Ünvan</span><span className="truncate">{detailSupplier.address}</span></div>}
+                  {detailSupplier.tax_id && <div className={contactCls}><span className="text-[var(--theme-text-muted)] w-20 shrink-0">VÖEN</span><span className="tabular-nums">{detailSupplier.tax_id}</span></div>}
+                </div>
+                {(detailSupplier as any).auto_order_template && (
+                  <div className="p-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                    <p className="text-[9px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.15em] mb-1">Avto Sifariş Şablonu (AI)</p>
+                    <p className="text-xs text-[var(--theme-text-secondary)]">{(detailSupplier as any).auto_order_template}</p>
+                  </div>
+                )}
+                {detailSupplier.notes && !(detailSupplier as any).auto_order_template && (
+                  <div className="p-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                    <p className="text-[9px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.15em] mb-1">Qeyd</p>
+                    <p className="text-xs text-[var(--theme-text-secondary)]">{detailSupplier.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Məhsul kataloqu */}
+              <div className="space-y-3 pt-4 border-t border-[var(--theme-border)]">
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em]">Məhsul Kataloqu</p>
+                  <span className="text-[10px] text-[var(--theme-text-muted)] tabular-nums">{catalog.length} məhsul</span>
+                </div>
+                {catLoading ? (
+                  <p className="text-xs text-[var(--theme-text-muted)] py-2">Yüklənir...</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {catalog.length === 0 && <p className="text-[11px] text-[var(--theme-text-muted)] py-1">Kataloq boşdur — aşağıdan məhsul əlavə edin.</p>}
+                    {catalog.map((it) => (
+                      <div key={it.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                        {catEditing === it.id ? (
+                          <>
+                            <input value={catEdit.name} onChange={e => setCatEdit(p => ({ ...p, name: e.target.value }))}
+                              className="flex-1 min-w-0 bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-lg px-2 py-1 text-xs text-[var(--theme-text)] outline-none focus:border-[var(--theme-text)]/40" />
+                            <input value={catEdit.unit} onChange={e => setCatEdit(p => ({ ...p, unit: e.target.value }))}
+                              className="w-14 bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-lg px-2 py-1 text-xs text-[var(--theme-text)] outline-none" />
+                            <input type="number" value={catEdit.unit_price} onChange={e => setCatEdit(p => ({ ...p, unit_price: e.target.value }))}
+                              className="w-16 bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-lg px-2 py-1 text-xs text-[var(--theme-text)] outline-none" />
+                            <button onClick={() => saveCatalogItem(it)} className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors"><CheckCircle size={14} /></button>
+                            <button onClick={() => setCatEditing(null)} className="p-1.5 rounded-lg text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"><Pencil size={13} /></button>
+                          </>
+                        ) : (
+                          <>
+                            <span className={`flex-1 min-w-0 truncate text-xs ${it.active === false ? 'text-[var(--theme-text-muted)] line-through' : 'text-[var(--theme-text-secondary)]'}`}>{it.name}</span>
+                            <span className="text-[10px] text-[var(--theme-text-muted)] shrink-0">{it.unit || '—'}</span>
+                            <span className="text-xs font-semibold text-[var(--theme-text-secondary)] tabular-nums shrink-0">{it.unit_price != null ? `₼${Number(it.unit_price).toFixed(2)}` : '—'}</span>
+                            <button onClick={() => { setCatEditing(it.id); setCatEdit({ name: it.name, unit: it.unit || 'gram', unit_price: it.unit_price != null ? String(it.unit_price) : '' }); }}
+                              className="p-1.5 rounded-lg text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors" title="Redaktə et"><Pencil size={13} /></button>
+                            <button onClick={() => removeCatalogItem(it.id)} className="p-1.5 rounded-lg text-rose-500/40 hover:text-rose-500 hover:bg-rose-500/10 transition-colors" title="Sil"><Trash2 size={13} /></button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <input value={catForm.name} onChange={e => setCatForm(p => ({ ...p, name: e.target.value }))} placeholder="Məhsul adı"
+                    className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[var(--theme-text)]/40" />
+                  <input value={catForm.unit} onChange={e => setCatForm(p => ({ ...p, unit: e.target.value }))} placeholder="Birim"
+                    className="w-14 px-2.5 py-2 rounded-lg bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none" />
+                  <input type="number" value={catForm.unit_price} onChange={e => setCatForm(p => ({ ...p, unit_price: e.target.value }))} placeholder="₼/birim"
+                    className="w-16 px-2.5 py-2 rounded-lg bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none" />
+                  <Btn variant="soft" small icon={Plus} title="Kataloğa əlavə et" disabled={!catForm.name.trim()} onClick={() => saveCatalogItem()} className="px-2.5" />
+                </div>
+              </div>
+            </div>
+          </Drawer>
+        )}
+      </AnimatePresence>
+
+      {/* ── Create / Edit (13k: full-height drawer) ── */}
       <AnimatePresence>
         {showModal && (
-          <ModalShell key="supplier-modal" title={editing ? 'Redaktə Et' : 'Yeni Tədarükçü'} onClose={() => setShowModal(false)}>
-            <div className="space-y-3">
-              {(['name', 'contact_person', 'phone', 'whatsapp_number', 'email', 'address', 'tax_id', 'notes', 'auto_order_template'] as const).map(f => (
-                <div key={f}>
-                  <label className="text-[11px] text-[var(--theme-text-muted)] font-semibold uppercase tracking-wider mb-1 block">
-                    {f === 'name' ? 'Ad' : f === 'contact_person' ? 'Əlaqə Şəxs' : f === 'phone' ? 'Telefon' : f === 'whatsapp_number' ? 'WhatsApp Nömrəsi' : f === 'email' ? 'Email' : f === 'address' ? 'Ünvan' : f === 'tax_id' ? 'VÖEN' : f === 'auto_order_template' ? 'Avto Sifariş Şablonu (AI)' : 'Qeyd'}
-                  </label>
-                  <textarea
-                    value={(form as any)[f] || ''}
-                    onChange={e => setForm(p => ({ ...p, [f]: e.target.value }))}
-                    rows={f === 'auto_order_template' ? 3 : 1}
-                    className={`${fieldCls} ${f === 'auto_order_template' ? 'resize-none' : ''}`}
-                  />
-                </div>
-              ))}
+          <Drawer
+            title={editing ? 'Tədarükçünü Redaktə Et' : 'Yeni Tədarükçü'}
+            subtitle={editing ? editing.name : 'Təchizat informasiyası'}
+            onClose={() => setShowModal(false)}
+            footer={
+              <div className="flex gap-3">
+                <Btn variant="ghost" className="flex-1" onClick={() => setShowModal(false)}>Ləğv Et</Btn>
+                <Btn variant="solid" className="flex-1" onClick={save}>{editing ? 'Yadda Saxla' : 'Əlavə Et'}</Btn>
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              <Field label="Ad *">
+                <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Tədarükçü adı" className={fieldCls} autoFocus />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Əlaqə Şəxs">
+                  <input value={form.contact_person} onChange={e => setForm(p => ({ ...p, contact_person: e.target.value }))} placeholder="Ad" className={fieldCls} />
+                </Field>
+                <Field label="Telefon">
+                  <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+994 ..." className={fieldCls} />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="WhatsApp Nömrəsi">
+                  <input value={(form as any).whatsapp_number || ''} onChange={e => setForm(p => ({ ...p, whatsapp_number: e.target.value } as any))} placeholder="+994 ..." className={fieldCls} />
+                </Field>
+                <Field label="Email">
+                  <input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="email@..." className={fieldCls} />
+                </Field>
+              </div>
+              <Field label="Ünvan">
+                <input value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} className={fieldCls} />
+              </Field>
+              <Field label="VÖEN">
+                <input value={form.tax_id} onChange={e => setForm(p => ({ ...p, tax_id: e.target.value }))} className={fieldCls} />
+              </Field>
+              <Field label="Qeyd">
+                <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} rows={2} className={`${fieldCls} resize-none`} />
+              </Field>
+              <Field label="Avto Sifariş Şablonu (AI)">
+                <textarea value={form.auto_order_template} onChange={e => setForm(p => ({ ...p, auto_order_template: e.target.value }))} rows={3} placeholder="WhatsApp sifariş mesajı şablonu..." className={`${fieldCls} resize-none`} />
+              </Field>
             </div>
-            <div className="flex gap-2 mt-5 justify-end">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2.5 rounded-xl text-xs font-bold text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-colors">Ləğv Et</button>
-              <button onClick={save} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-[0.97] ${solidBtn}`}>{editing ? 'Yadda Saxla' : 'Əlavə Et'}</button>
-            </div>
-          </ModalShell>
+          </Drawer>
         )}
       </AnimatePresence>
 
       {/* delete confirm */}
       <AnimatePresence>
         {confirmDelete && (
-          <ModalShell key="supplier-delete" title="Tədarükçünü Sil" onClose={() => setConfirmDelete(null)} wide={false}>
-            <p className="text-sm text-[var(--theme-text-muted)]">Bu tədarükçünü silmək istədiyinizə əminsiniz?</p>
-            <div className="flex gap-2 mt-5 justify-end">
-              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2.5 rounded-xl text-xs font-bold text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-colors">İmtina</button>
-              <button onClick={remove} className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 border border-rose-500/30 transition-all active:scale-[0.97]">Sil</button>
-            </div>
-          </ModalShell>
-        )}
-      </AnimatePresence>
-
-      {/* detail + catalog modal */}
-      <AnimatePresence>
-        {detailSupplier && (
-          <ModalShell key="supplier-detail" title={detailSupplier.name} subtitle={detailSupplier.email || detailSupplier.phone || undefined} onClose={() => setDetailSupplier(null)} wide>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              {[
-                { label: 'Ümumi Bal', value: detailSupplier.score !== null ? `${detailSupplier.score}/100` : 'Hesablanmayıb', cls: detailSupplier.score !== null && detailSupplier.score >= 80 ? 'text-emerald-500' : detailSupplier.score !== null && detailSupplier.score >= 50 ? 'text-amber-500' : 'text-rose-500' },
-                { label: 'Vaxtında Təhvil', value: detailSupplier.on_time_delivery_rate !== null ? `${detailSupplier.on_time_delivery_rate}%` : '—', cls: '' },
-                { label: 'Qiymət Stabililiyi', value: detailSupplier.avg_price_stability !== null ? `${detailSupplier.avg_price_stability}%` : '—', cls: '' },
-                { label: 'Sifariş Sayı', value: String(detailSupplier.total_orders), cls: '' },
-              ].map(c => (
-                <div key={c.label} className="p-3 rounded-xl bg-[var(--theme-bg)] border border-[var(--theme-border)]">
-                  <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider font-semibold">{c.label}</p>
-                  <p className={`text-lg font-black mt-1 tabular-nums ${c.cls || 'text-[var(--theme-text)]'}`}>{c.value}</p>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-1.5 text-xs text-[var(--theme-text-muted)]">
-              {detailSupplier.contact_person && <div>{detailSupplier.contact_person}</div>}
-              {detailSupplier.phone && <div>{detailSupplier.phone}</div>}
-              {(detailSupplier as any).whatsapp_number && <div>WhatsApp: {(detailSupplier as any).whatsapp_number}</div>}
-              {detailSupplier.email && <div>{detailSupplier.email}</div>}
-              {detailSupplier.address && <div>{detailSupplier.address}</div>}
-              {detailSupplier.tax_id && <div>VÖEN: {detailSupplier.tax_id}</div>}
-              {(detailSupplier as any).auto_order_template && <div className="mt-2 p-2.5 rounded-lg bg-[var(--theme-bg)] border border-[var(--theme-border)] text-[var(--theme-text-muted)]">{(detailSupplier as any).auto_order_template}</div>}
-              {detailSupplier.notes && !(detailSupplier as any).auto_order_template && <div className="p-2.5 rounded-lg bg-[var(--theme-bg)] border border-[var(--theme-border)] text-[var(--theme-text-muted)]">{detailSupplier.notes}</div>}
-            </div>
-
-            {/* Məhsul kataloqu */}
-            <div className="mt-5 pt-4 border-t border-[var(--theme-border)]">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-[0.2em] font-bold">Məhsul Kataloqu</p>
-                <span className="text-[10px] text-[var(--theme-text-muted)] tabular-nums">{catalog.length} məhsul</span>
+          <Modal title="Tədarükçünü Sil" subtitle="Bu əməliyyat geri alına bilməz" onClose={() => setConfirmDelete(null)}>
+            <div className="space-y-5">
+              <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-rose-500/10 border border-rose-500/25">
+                <Trash2 size={20} className="text-rose-500" />
               </div>
-              {catLoading ? (
-                <p className="text-xs text-[var(--theme-text-muted)] py-2">Yüklənir...</p>
-              ) : (
-                <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
-                  {catalog.length === 0 && <p className="text-[11px] text-[var(--theme-text-muted)] py-1">Kataloq boşdur — aşağıdan məhsul əlavə edin.</p>}
-                  {catalog.map((it) => (
-                    <div key={it.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--theme-bg)] border border-[var(--theme-border)]">
-                      {catEditing === it.id ? (
-                        <>
-                          <input value={catEdit.name} onChange={e => setCatEdit(p => ({ ...p, name: e.target.value }))}
-                            className="flex-1 min-w-0 bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-md px-2 py-1 text-xs text-[var(--theme-text)] outline-none focus:border-[var(--theme-text)]/40" />
-                          <input value={catEdit.unit} onChange={e => setCatEdit(p => ({ ...p, unit: e.target.value }))}
-                            className="w-14 bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-md px-2 py-1 text-xs text-[var(--theme-text)] outline-none" />
-                          <input type="number" value={catEdit.unit_price} onChange={e => setCatEdit(p => ({ ...p, unit_price: e.target.value }))}
-                            className="w-16 bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-md px-2 py-1 text-xs text-[var(--theme-text)] outline-none" />
-                          <button onClick={() => saveCatalogItem(it)} className="p-1 text-emerald-500 hover:text-emerald-400"><CheckCircle size={13} /></button>
-                          <button onClick={() => setCatEditing(null)} className="p-1 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]"><X size={13} /></button>
-                        </>
-                      ) : (
-                        <>
-                          <span className={`flex-1 min-w-0 truncate text-xs ${it.active === false ? 'text-[var(--theme-text-muted)] line-through' : 'text-[var(--theme-text-secondary)]'}`}>{it.name}</span>
-                          <span className="text-[10px] text-[var(--theme-text-muted)] shrink-0">{it.unit || '—'}</span>
-                          <span className="text-xs font-semibold text-[var(--theme-text-secondary)] tabular-nums shrink-0">{it.unit_price != null ? `₼${Number(it.unit_price).toFixed(2)}` : '—'}</span>
-                          <button onClick={() => { setCatEditing(it.id); setCatEdit({ name: it.name, unit: it.unit || 'gram', unit_price: it.unit_price != null ? String(it.unit_price) : '' }); }}
-                            className="p-1 rounded text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"><Pencil size={12} /></button>
-                          <button onClick={() => removeCatalogItem(it.id)} className="p-1 rounded text-rose-500/40 hover:text-rose-500 transition-colors"><Trash2 size={12} /></button>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="flex items-center gap-1.5 mt-2">
-                <input value={catForm.name} onChange={e => setCatForm(p => ({ ...p, name: e.target.value }))} placeholder="Məhsul adı"
-                  className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-[var(--theme-bg)] border border-[var(--theme-border)] text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[var(--theme-text)]/40" />
-                <input value={catForm.unit} onChange={e => setCatForm(p => ({ ...p, unit: e.target.value }))} placeholder="Birim"
-                  className="w-14 px-2.5 py-1.5 rounded-lg bg-[var(--theme-bg)] border border-[var(--theme-border)] text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none" />
-                <input type="number" value={catForm.unit_price} onChange={e => setCatForm(p => ({ ...p, unit_price: e.target.value }))} placeholder="₼/birim"
-                  className="w-16 px-2.5 py-1.5 rounded-lg bg-[var(--theme-bg)] border border-[var(--theme-border)] text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none" />
-                <button onClick={() => saveCatalogItem()} disabled={!catForm.name.trim()} title="Kataloğa əlavə et"
-                  className={`p-1.5 rounded-lg transition-all active:scale-90 disabled:opacity-30 ${solidBtn}`}><Plus size={14} /></button>
+              <div className="flex gap-3">
+                <Btn variant="ghost" className="flex-1" onClick={() => setConfirmDelete(null)}>İmtina</Btn>
+                <Btn variant="danger" className="flex-1" onClick={remove}>Sil</Btn>
               </div>
             </div>
-
-            <div className="flex gap-2 mt-5 justify-end">
-              {(detailSupplier as any).whatsapp_number && (
-                <button
-                  onClick={() => {
-                    const template = (detailSupplier as any).auto_order_template || 'Salam, stok hazırlanması haqqında məlumat verərmi?';
-                    const text = encodeURIComponent(template);
-                    window.open(`https://wa.me/${(detailSupplier as any).whatsapp_number.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
-                  }}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-500 border border-emerald-500/30 transition-all active:scale-[0.97]"
-                >
-                  WhatsApp
-                </button>
-              )}
-              <button onClick={() => { setDetailSupplier(null); openEdit(detailSupplier); }} className="px-4 py-2.5 rounded-xl text-xs font-bold text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] border border-[var(--theme-border)] hover:bg-[var(--theme-surface-soft)] transition-all active:scale-[0.97]">Redaktə Et</button>
-              <button onClick={() => setDetailSupplier(null)} className="px-4 py-2.5 rounded-xl text-xs font-bold text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors">Bağla</button>
-            </div>
-          </ModalShell>
+          </Modal>
         )}
       </AnimatePresence>
-    </div>
-  );
-}
-
-function ModalShell({ title, subtitle, wide = true, onClose, children }: {
-  title: string; subtitle?: string; wide?: boolean; onClose: () => void; children: React.ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 16 }} transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-        className={`relative w-full ${wide ? 'max-w-lg' : 'max-w-sm'} bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-2xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto`}
-      >
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h3 className="text-base font-black text-[var(--theme-text)] tracking-tight">{title}</h3>
-            {subtitle && <p className="text-xs text-[var(--theme-text-muted)] mt-0.5">{subtitle}</p>}
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"><X size={16} /></button>
-        </div>
-        {children}
-      </motion.div>
     </div>
   );
 }

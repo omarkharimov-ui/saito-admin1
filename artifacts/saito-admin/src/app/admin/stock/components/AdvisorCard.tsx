@@ -81,8 +81,27 @@ export default function AdvisorCard() {
             );
           })}
           {data && data.cards.length === 0 && (
-            <div className="col-span-full text-[12px] text-[var(--theme-text-muted)] py-2">
-              AI kartı yoxdur — hamı normaldadır. Xam statistikalar Report tab-da.
+            <div className="col-span-full py-1 space-y-1.5">
+              {data.data_only ? (
+                // 13k: honest fallback — "hamı normaldır" was misleading while
+                // the LLM key was missing (5 negative stocks went unmentioned).
+                <>
+                  <p className="text-[12px] font-semibold text-[var(--theme-text-secondary)]">
+                    AI analizi aktiv deyil — GROQ_API_KEY konfiqurasiya olunmayıb. Ana statistikalar:
+                  </p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[var(--theme-text-muted)]">
+                    <span>tükənən: <b className="text-[var(--theme-text)] tabular-nums">{data.stats?.depleting?.length || 0}</b></span>
+                    <span>nəfs stok: <b className="text-rose-500 tabular-nums">{data.stats?.negative?.length || 0}</b></span>
+                    <span>tazəlik (≤3g): <b className="text-amber-500 light:text-amber-600 tabular-nums">{data.stats?.freshness?.length || 0}</b></span>
+                    <span>itki: <b className="text-[var(--theme-text)] tabular-nums">{data.stats?.shrinkage?.length || 0}</b></span>
+                    <span>qiymət sürüşməsi: <b className="text-[var(--theme-text)] tabular-nums">{data.stats?.price_drift?.length || 0}</b></span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-[12px] text-[var(--theme-text-muted)]">
+                  AI kartı yoxdur — hamı normaldadır. Xam statistikalar Report tab-da.
+                </p>
+              )}
             </div>
           )}
         </div>

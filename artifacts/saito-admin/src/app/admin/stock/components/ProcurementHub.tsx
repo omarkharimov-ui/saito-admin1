@@ -80,12 +80,12 @@ export default function ProcurementHub({ sub, onSubChange, isElevated, lightMode
       <div className="space-y-5">
         <TabHero tone={hero.tone} title={hero.title} sub={hero.sub} lightMode={lightMode} />
 
-        {/* sub-pills (max 1 level) */}
-        <div className="flex flex-wrap gap-1 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] p-1 w-fit">
+        {/* sub-pills (13k: pill shape, owner: "kvadratdır, pill formasına sal") */}
+        <div className="flex flex-wrap gap-1 rounded-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] p-1 w-fit">
           {pills.map(p => (
             <button key={p.id} onClick={() => onSubChange(p.id)}
-              className={`relative px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-colors ${sub === p.id ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}>
-              {sub === p.id && <motion.span layoutId="proc-sub-pill" className="absolute inset-0 rounded-xl bg-[var(--theme-text)]" transition={SPRING} />}
+              className={`relative px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition-colors ${sub === p.id ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}>
+              {sub === p.id && <motion.span layoutId="proc-sub-pill" className="absolute inset-0 rounded-full bg-[var(--theme-text)]" transition={SPRING} />}
               <span className="relative z-10">{p.label}</span>
             </button>
           ))}
@@ -93,96 +93,106 @@ export default function ProcurementHub({ sub, onSubChange, isElevated, lightMode
 
         <AnimatePresence mode="wait">
           {sub === 'buy' && (
-            <motion.div key="buy" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={SPRING} className="space-y-5">
-              {loading && (
+            <motion.div key="buy" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={SPRING}>
+              {loading ? (
                 <div className="flex items-center justify-center py-10 text-[var(--theme-text-muted)]">
                   <RefreshCw size={20} className="animate-spin" />
                 </div>
-              )}
-
-              {/* auto-order notifications (13a: type='stock' feed) */}
-              {!loading && notifs.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">Avto-sifariş Bildirişləri</p>
-                  {notifs.map((n: any) => (
-                    <div key={n.id} className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-emerald-500/[0.05] border border-emerald-500/20">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-[var(--theme-text)]">{n.title}</p>
-                        <p className="text-[11px] text-[var(--theme-text-muted)] mt-0.5">{n.body}</p>
-                        {n.data?.items?.length > 0 && (
-                          <div className="mt-2 space-y-0.5">
-                            {n.data.items.map((item: any, idx: number) => (
-                              <p key={idx} className="text-[11px] text-[var(--theme-text-muted)]">• {item.name}: {item.current_stock} {item.unit} (min: {item.min_stock_level || 0})</p>
-                            ))}
-                          </div>
-                        )}
+              ) : (
+                // 13k: two columns — owner: "ne alım her sey alt-alta anlamaq çətindir,
+                // iki sütuna bölək: soldan tekliflər, sağda lazım olanlar (sifariş draft)".
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] items-start">
+                  {/* ── LEFT: Təkliflər (suggestions + auto-order notifications) ── */}
+                  <div className="space-y-5 min-w-0">
+                    <div>
+                      <div className="flex items-center justify-between mb-2.5">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">Təkliflər</p>
+                        <button onClick={load} className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors">
+                          <RefreshCw size={12} /> Yenilə
+                        </button>
                       </div>
-                      {n.data?.whatsapp_url && (
-                        <a href={n.data.whatsapp_url} target="_blank" rel="noopener noreferrer"
-                          className="shrink-0 px-4 py-2 rounded-xl bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all active:scale-[0.97]">
-                          WhatsApp
-                        </a>
+                      {suggestions.length === 0 ? (
+                        <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] py-8 px-4 text-center">
+                          <div className="w-10 h-10 mx-auto rounded-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-text-muted)] mb-2.5">
+                            <ShoppingCart size={18} />
+                          </div>
+                          <p className="text-sm font-bold text-[var(--theme-text)]">Sifariş tələbi yoxdur</p>
+                          <p className="text-[11px] text-[var(--theme-text-muted)] mt-1">Bütün xammallar par səviyyəsində və ya yuxarısındadır.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {suggestions.map((s, i) => {
+                            const u = URG[s.urgency] || URG.low;
+                            return (
+                              <motion.div key={s.ingredient_id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                                className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface)] px-4 py-3 hover:border-[var(--theme-text)]/30 transition-colors">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <p className="text-[13px] font-bold text-[var(--theme-text)] truncate">{s.ingredient_name}</p>
+                                      <span className={`shrink-0 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${lightMode ? u.light : u.cls}`}>{u.label}</span>
+                                    </div>
+                                    <p className="text-[11px] text-[var(--theme-text-muted)] mt-0.5 truncate">
+                                      {s.current_stock} {s.unit} stokda{s.daily_consumption_rate ? ` · ${Number(s.daily_consumption_rate).toFixed(1)}/gün` : ''}{s.days_remaining != null ? ` · ${Math.max(0, Number(s.days_remaining)).toFixed(0)}g qalıb` : ''}
+                                    </p>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <p className="text-[13px] font-black tabular-nums text-[var(--theme-text)]">+{s.suggested_reorder_qty} {s.unit}</p>
+                                    <p className="text-[10px] text-[var(--theme-text-muted)] tabular-nums">₼{((s.suggested_reorder_qty * s.avg_cost_per_unit) || 0).toFixed(0)}</p>
+                                  </div>
+                                  <button
+                                    onClick={() => { setAutoSelect(s.ingredient_id); }}
+                                    title="Order Guide-da seç"
+                                    className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-emerald-500/10 border border-emerald-500/25 text-emerald-500 hover:bg-emerald-500/20 transition-all active:scale-90"
+                                  >
+                                    <ArrowDownCircle size={15} />
+                                  </button>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
-                  ))}
-                </div>
-              )}
 
-              {/* suggestions → one CTA each: preselect in the Order Guide below */}
-              {!loading && suggestions.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">Təklif Edilən Sifarişlər</p>
-                    <button onClick={load} className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors">
-                      <RefreshCw size={12} /> Yenilə
-                    </button>
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {suggestions.map((s, i) => {
-                      const u = URG[s.urgency] || URG.low;
-                      return (
-                        <motion.div key={s.ingredient_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3) }}
-                          className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-4 hover:border-[var(--theme-text)]/30 transition-colors">
-                          <div className="flex items-start justify-between gap-2 mb-2.5">
-                            <div className="min-w-0">
-                              <h3 className="text-sm font-bold text-[var(--theme-text)] truncate">{s.ingredient_name}</h3>
-                              <p className="text-[11px] text-[var(--theme-text-muted)] mt-0.5">
-                                {s.current_stock} {s.unit} stokda{s.daily_consumption_rate ? ` • ${Number(s.daily_consumption_rate).toFixed(1)}/gün` : ''}
-                              </p>
+                    {/* auto-order notifications (13a: type='stock' feed) */}
+                    {notifs.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2.5">Avto-sifariş Bildirişləri</p>
+                        <div className="space-y-2">
+                          {notifs.map((n: any) => (
+                            <div key={n.id} className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-emerald-500/[0.05] border border-emerald-500/20">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] font-bold text-[var(--theme-text)]">{n.title}</p>
+                                <p className="text-[11px] text-[var(--theme-text-muted)] mt-0.5">{n.body}</p>
+                                {n.data?.items?.length > 0 && (
+                                  <div className="mt-1.5 space-y-0.5">
+                                    {n.data.items.map((item: any, idx: number) => (
+                                      <p key={idx} className="text-[11px] text-[var(--theme-text-muted)]">• {item.name}: {item.current_stock} {item.unit} (min: {item.min_stock_level || 0})</p>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              {n.data?.whatsapp_url && (
+                                <a href={n.data.whatsapp_url} target="_blank" rel="noopener noreferrer"
+                                  className="shrink-0 px-3 py-1.5 rounded-full bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all active:scale-[0.97]">
+                                  WhatsApp
+                                </a>
+                              )}
                             </div>
-                            <span className={`shrink-0 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${lightMode ? u.light : u.cls}`}>{u.label}</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex gap-3 text-[11px] text-[var(--theme-text-muted)]">
-                              <span>Tövsiyə: <b className="text-[var(--theme-text)] tabular-nums">{s.suggested_reorder_qty} {s.unit}</b></span>
-                              {s.days_remaining != null && <span>Qalan: <b className="text-[var(--theme-text)] tabular-nums">{Math.max(0, Number(s.days_remaining)).toFixed(0)}g</b></span>}
-                              <span>₼<b className="text-[var(--theme-text)] tabular-nums">{((s.suggested_reorder_qty * s.avg_cost_per_unit) || 0).toFixed(0)}</b></span>
-                            </div>
-                            <button
-                              onClick={() => { setAutoSelect(s.ingredient_id); }}
-                              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all active:scale-[0.97]"
-                            >
-                              <ArrowDownCircle size={13} /> Order Guide
-                            </button>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── RIGHT: Lazım Olanlar (Order Guide = the actual order draft) ── */}
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2.5">Lazım Olanlar · Sifariş Taslağı</p>
+                    <OrderGuideSection autoSelectId={autoSelect} />
                   </div>
                 </div>
               )}
-
-              {!loading && suggestions.length === 0 && notifs.length === 0 && (
-                <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] py-12 text-center">
-                  <div className="w-12 h-12 mx-auto rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-text-muted)] mb-3">
-                    <ShoppingCart size={22} />
-                  </div>
-                  <p className="text-sm font-bold text-[var(--theme-text)]">Sifariş tələbi yoxdur</p>
-                  <p className="text-xs text-[var(--theme-text-muted)] mt-1">Order Guide par səviyyəsinə düşən maddələri avtomatik göstərəcək.</p>
-                </div>
-              )}
-
-              <OrderGuideSection autoSelectId={autoSelect} />
             </motion.div>
           )}
 

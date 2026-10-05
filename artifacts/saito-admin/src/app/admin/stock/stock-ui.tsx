@@ -29,7 +29,7 @@ const BTN: Record<BtnVariant, string> = {
 };
 
 export function Btn({
-  variant = 'ghost', icon: Icon, children, onClick, disabled, small, className = '', type = 'button',
+  variant = 'ghost', icon: Icon, children, onClick, disabled, small, className = '', type = 'button', title,
 }: {
   variant?: BtnVariant;
   icon?: React.ComponentType<{ size?: number | string; className?: string }>;
@@ -40,10 +40,13 @@ export function Btn({
   className?: string;
   /** Inside <form>: 'submit' triggers submit; default 'button' is safe. */
   type?: 'button' | 'submit';
+  /** tooltip / icon-only label */
+  title?: string;
 }) {
   return (
     <button
       type={type}
+      title={title}
       onClick={onClick}
       disabled={disabled}
       className={`inline-flex items-center justify-center gap-1.5 rounded-xl font-black uppercase tracking-wider transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed ${small ? 'px-3 py-1.5 text-[10px]' : 'px-4 py-2.5 text-[11px]'} ${BTN[variant]} ${className}`}
@@ -146,16 +149,16 @@ export function Seg<T extends string>({ options, value, onChange }: {
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="flex bg-[var(--theme-surface-soft)] p-1 rounded-xl border border-[var(--theme-border)] gap-0.5">
+    <div className="flex bg-[var(--theme-surface-soft)] p-1 rounded-full border border-[var(--theme-border)] gap-0.5">
       {options.map(o => {
         const active = value === o.id;
         return (
           <button
             key={o.id}
             onClick={() => onChange(o.id)}
-            className={`relative px-3.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${active ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}
+            className={`relative px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors ${active ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}
           >
-            {active && <motion.span layoutId="seg-pill" className="absolute inset-0 rounded-lg bg-[var(--theme-text)]" transition={SPRING} />}
+            {active && <motion.span layoutId="seg-pill" className="absolute inset-0 rounded-full bg-[var(--theme-text)]" transition={SPRING} />}
             <span className="relative z-10">{o.label}</span>
           </button>
         );
@@ -306,6 +309,63 @@ export function Modal({ title, subtitle, onClose, children, wide }: {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto pr-1 -mr-1">{children}</div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ── Drawer (13k) ───────────────────────────────────────────────────────── */
+// Owner: "xammal modalları ən axıra qədər açılan (hədiyyə kartları sidebar
+// kimi)" — full-height right panel, up to the app-sidebar edge (full-screen
+// on mobile). Theme-var based (both themes), spring slide-in.
+export function Drawer({
+  title, subtitle, onClose, children, footer, wide,
+}: {
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  onClose: () => void;
+  children: React.ReactNode;
+  /** sticky bottom action bar */
+  footer?: React.ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-[200]">
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        transition={{ duration: 0.22 }}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden
+      />
+      <motion.div
+        role="dialog" aria-modal="true"
+        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+        transition={{ type: 'spring', stiffness: 320, damping: 34 }}
+        className={`absolute inset-y-0 right-0 w-full ${wide ? 'sm:max-w-[560px]' : 'sm:max-w-[440px]'}
+          bg-[var(--theme-bg)] border-l border-[var(--theme-border)] shadow-[-24px_0_64px_rgba(0,0,0,0.35)] flex flex-col`}
+      >
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-[var(--theme-border)] shrink-0">
+          <div className="min-w-0">
+            <h2 className="text-base font-black text-[var(--theme-text)] tracking-tight truncate">{title}</h2>
+            {subtitle != null && subtitle !== '' && (
+              <p className="text-[10px] font-bold text-[var(--theme-text-muted)] uppercase tracking-wider mt-0.5 truncate">{subtitle}</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Bağla"
+            className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all active:scale-90 shrink-0"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-6">{children}</div>
+        {footer && (
+          <div className="shrink-0 border-t border-[var(--theme-border)] px-6 py-4 bg-[var(--theme-bg)]">
+            {footer}
+          </div>
+        )}
       </motion.div>
     </div>
   );

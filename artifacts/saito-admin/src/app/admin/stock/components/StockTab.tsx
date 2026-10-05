@@ -30,7 +30,7 @@ import TabHero, { HeroTone } from './TabHero';
 import { LiveNumber, ViewContent } from './ViewFrame';
 import { useAsyncView } from '../hooks/useAsyncView';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
-import { Btn, Stat, Chip, DataTable, SearchInput, Seg, IconBtn, SpinnerBlock, fmtAZN } from '../stock-ui';
+import { Btn, Chip, DataTable, SearchInput, Seg, IconBtn, SpinnerBlock, fmtAZN } from '../stock-ui';
 
 const UNIT_LABELS: Record<DisplayUnit, string> = {
   gram: 'qram', piece: 'ədəd', ml: 'ml',
@@ -229,29 +229,34 @@ export default function StockTab({ onNavigate }: StockTabProps) {
           <TabHero tone={hero.tone} title={hero.title} sub={hero.sub} cta={hero.cta} lightMode={lightMode} />
         )}
 
-        {/* Actions (13j: design-system buttons) */}
-        <div className="flex items-center gap-2">
-          <Btn variant="ghost" icon={Plus} onClick={() => setModalMode('new_ingredient')}>Yeni Xammal</Btn>
-          <Btn variant="solid" icon={Plus} onClick={() => setShowQuickStockIn(true)}>Xammal Girişi</Btn>
+        {/* 13k: ONE action row — owner: 2 ayrı button = maneə, 4 KPI kartı = sablon.
+            Inline metrics strip (no cards) + single primary CTA + icon ghost. */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          {data ? (
+            <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap text-[11px] font-bold text-[var(--theme-text-muted)]">
+              <span className="text-[var(--theme-text-secondary)]">{allItems.length} xammal</span>
+              <span className="flex items-center gap-1.5"><i className="w-1.5 h-1.5 rounded-full bg-blue-500" /><LiveNumber value={lowCount} /> aşağı</span>
+              <button onClick={() => setFilter('critical')} className="flex items-center gap-1.5 hover:text-[var(--theme-text)] transition-colors" title="Kritikləri filtrlə">
+                <i className="w-1.5 h-1.5 rounded-full bg-rose-500" /><LiveNumber value={criticalCount} /> kritik
+              </button>
+              <button onClick={() => onNavigate('operations', 'counts')} className="flex items-center gap-1.5 hover:text-[var(--theme-text)] transition-colors" title="Sayıma get">
+                <i className="w-1.5 h-1.5 rounded-full bg-red-500" /><LiveNumber value={negativeCount} /> mənfi
+              </button>
+              <span className="flex items-center gap-1.5" title={`${expiredCount} müddət keçib`}>
+                <i className="w-1.5 h-1.5 rounded-full bg-amber-500" /><LiveNumber value={expiredCount + expiringCount} /> ≤3g
+              </span>
+            </div>
+          ) : <span className="text-[11px] font-bold text-[var(--theme-text-muted)]">Yüklənir...</span>}
+          <div className="flex items-center gap-2">
+            <Btn variant="ghost" small icon={Plus} title="Yeni Xammal" onClick={() => setModalMode('new_ingredient')} className="px-3" />
+            <Btn variant="solid" icon={TrendingUp} onClick={() => setShowQuickStockIn(true)}>Xammal Girişi</Btn>
+          </div>
         </div>
 
         {phase === 'loading' && !data ? (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {[0, 1, 2, 3].map(i => <div key={i} className="h-20 rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] animate-pulse" />)}
-            </div>
-            <SpinnerBlock height={320} />
-          </div>
+          <SpinnerBlock height={320} />
         ) : data ? (
           <>
-            {/* KPI strip (13j: Stat primitive, value pulse on change) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Stat label="Aşağı Stok" value={<LiveNumber value={lowCount} />} sub="limitə yaxın" tone="blue" />
-              <Stat label="Kritik / Bitən" value={<LiveNumber value={criticalCount} />} sub="tədarük lazımdır" tone="rose" onClick={() => setFilter('critical')} />
-              <Stat label="Mənfi Qeyd" value={<LiveNumber value={negativeCount} />} sub="sayım tələb olunur" tone="red" />
-              <Stat label="Tazelik ≤3g" value={<LiveNumber value={expiredCount + expiringCount} />} sub={`${expiredCount} müddət keçib`} tone="amber" />
-            </div>
-
             {/* AI advisor — the single AI surface of the inventory module */}
             <AdvisorCard />
 
@@ -416,34 +421,37 @@ export default function StockTab({ onNavigate }: StockTabProps) {
    Modal primitives (spring entrance, theme-var based, light-mode safe)
    ═══════════════════════════════════════════════════════════════════════ */
 
+// 13k: xammal modalları full-height DRAWER (owner: "ən axıra qədər açılan —
+// hədiyyə kartları sidebar kimi; yoxdursa tam açılan"). Right panel, full
+// viewport height, theme-var based, spring slide-in/out.
 function ModalShell({ title, subtitle, onClose, children }: {
   title: string; subtitle?: string; onClose: () => void; children: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200]">
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        transition={{ duration: 0.25 }}
-        className="absolute inset-0 bg-black/40 backdrop-blur-xl"
+        transition={{ duration: 0.22 }}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
+        aria-hidden
       />
       <motion.div
-        initial={{ scale: 0.92, opacity: 0, y: 24 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.92, opacity: 0, y: 24 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 1 }}
-        className="relative w-full max-w-md bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-2xl p-6 sm:p-8 shadow-2xl max-h-[85vh] flex flex-col"
+        role="dialog" aria-modal="true"
+        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+        transition={{ type: 'spring', stiffness: 320, damping: 34 }}
+        className="absolute inset-y-0 right-0 w-full sm:max-w-[460px] bg-[var(--theme-bg)] border-l border-[var(--theme-border)] shadow-[-24px_0_64px_rgba(0,0,0,0.35)] flex flex-col"
       >
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-black text-[var(--theme-text)] tracking-tight">{title}</h2>
-            {subtitle && <p className="text-xs text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-1">{subtitle}</p>}
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-[var(--theme-border)] shrink-0">
+          <div className="min-w-0">
+            <h2 className="text-base font-black text-[var(--theme-text)] tracking-tight truncate">{title}</h2>
+            {subtitle && <p className="text-[10px] font-bold text-[var(--theme-text-muted)] uppercase tracking-wider mt-0.5 truncate">{subtitle}</p>}
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all active:scale-95">
-            <X size={18} />
+          <button onClick={onClose} aria-label="Bağla" className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all active:scale-90 shrink-0">
+            <X size={16} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto">{children}</div>
+        <div className="flex-1 overflow-y-auto px-6 py-6">{children}</div>
       </motion.div>
     </div>
   );

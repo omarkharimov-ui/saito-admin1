@@ -51,26 +51,34 @@ export default function InvoiceUploadSection() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const base64 = ev.target?.result as string;
-      setInvoiceImage(base64); setOcrLoading(true);
-      try {
-        const res = await fetch('/api/invoice-ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: base64, language: 'az' }) });
-        if (res.ok) {
-          const data = await res.json();
-          // 13e: OCR reads the supplier name too — attributes the invoice.
-          setSupplierName(data.supplierName || null);
-          const lines: LineItem[] = (data.lines || []).map((l: any) => ({
-            id: `inv-${Math.random().toString(36).slice(2)}`,
-            product_name: l.name || 'Unknown', quantity: l.quantity || 0, unit: l.unit || 'gram',
-            unit_cost: l.unit_cost || 0, total_cost: l.total_cost || 0,
-            status: 'matched',
-          }));
-          setLineItems(lines); setStep('review');
+      reader.onload = async (ev) => {
+        const base64 = ev.target?.result as string;
+        setInvoiceImage(base64); setOcrLoading(true);
+        try {
+          const res = await fetch('/api/invoice-ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: base64, language: 'az' }) });
+          if (res.ok) {
+            const data = await res.json();
+            // 13e: OCR reads the supplier name too — attributes the invoice.
+            setSupplierName(data.supplierName || null);
+            const lines: LineItem[] = (data.lines || []).map((l: any) => ({
+              id: `inv-${Math.random().toString(36).slice(2)}`,
+              product_name: l.name || 'Unknown', quantity: l.quantity || 0, unit: l.unit || 'gram',
+              unit_cost: l.unit_cost || 0, total_cost: l.total_cost || 0,
+              status: 'matched',
+            }));
+            setLineItems(lines); setStep('review');
+          } else {
+            // 13k: E2E r34 — the OCR 500 was SILENT (no toast, UI looked hung).
+            const d = await res.json().catch(() => ({}));
+            toast.error(d.error === 'GROQ_API_KEY not configured'
+              ? 'Faktura OCR işləmir: AI ərsaşi (GROQ_API_KEY) yoxdur — .env-ə əlavə edin'
+              : (d.error || 'Faktura oxuna bilmədi (OCR xətası)'));
+          }
+        } catch {
+          toast.error('Faktura oxuna bilmədi (əlaqə xətası)');
         }
-      } catch {}
-      setOcrLoading(false);
-    };
+        setOcrLoading(false);
+      };
     reader.readAsDataURL(file);
   };
 

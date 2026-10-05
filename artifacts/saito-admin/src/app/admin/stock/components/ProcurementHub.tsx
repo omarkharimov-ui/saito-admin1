@@ -9,18 +9,18 @@
 //   Nə Alım · Faktura · Sifarişlər · Tədarükçülər
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   RefreshCw, ShoppingCart, ArrowDownCircle,
 } from '@/components/ui/saito-icons';
-import { SPRING } from '@/lib/motion/system';
+import { SectionHead } from '../stock-ui';
 import type { StockSuggestion } from '@/types/inventory';
 import TabHero from './TabHero';
 import OrderGuideSection from './OrderGuideSection';
 import InvoiceUploadSection from './InvoiceUploadSection';
 import SuppliersSection from './SuppliersSection';
 import PurchaseOrdersPage from '../../purchase-orders/purchase-orders-content';
-import { ViewContent } from './ViewFrame';
+import { ViewContent, scrollToSection } from './ViewFrame';
 
 const URG: Record<string, { label: string; cls: string; light: string }> = {
   critical: { label: 'Kritik', cls: 'bg-rose-500/15 border-rose-500/30 text-rose-400', light: 'bg-rose-500/10 border-rose-500/30 text-rose-600' },
@@ -68,33 +68,21 @@ export default function ProcurementHub({ sub, onSubChange, isElevated, lightMode
       ? { tone: 'warning' as const, title: `${suggestions.length} xammal limitə yaxınlaşıb`, sub: 'Hələ kritik deyil — Order Guide-dən izləyin.' }
       : { tone: 'ok' as const, title: 'Hazırki sifariş tələbi yoxdur', sub: 'Bütün xammallar par səviyyəsində və ya yuxarısındadır.' };
 
-  const pills = [
-    { id: 'buy', label: 'Nə Alım' },
-    { id: 'invoice', label: 'Faktura' },
-    ...(isElevated ? [{ id: 'orders', label: 'Sifarişlər' }] : []),
-    { id: 'suppliers', label: 'Tədarükçülər' },
-  ];
+  // 13l: sub = scroll anchor (deep link / CTA), not a tab — owner:
+  // "tab çoxdur; tab yerində alt-alta məlumatlar header ilə".
+  useEffect(() => {
+    if (sub === 'buy') return; // default = top
+    scrollToSection(sub);
+  }, [sub]);
 
   return (
-    <ViewContent id={`proc-${sub}`}>
-      <div className="space-y-5">
+    <ViewContent id="proc">
+      <div className="space-y-10">
         <TabHero tone={hero.tone} title={hero.title} sub={hero.sub} lightMode={lightMode} />
 
-        {/* sub-pills (13k: pill shape, owner: "kvadratdır, pill formasına sal") */}
-        <div className="flex flex-wrap gap-1 rounded-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] p-1 w-fit">
-          {pills.map(p => (
-            <button key={p.id} onClick={() => onSubChange(p.id)}
-              className={`relative px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition-colors ${sub === p.id ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}>
-              {sub === p.id && <motion.span layoutId="proc-sub-pill" className="absolute inset-0 rounded-full bg-[var(--theme-text)]" transition={SPRING} />}
-              <span className="relative z-10">{p.label}</span>
-            </button>
-          ))}
-        </div>
-
-        <AnimatePresence mode="wait">
-          {sub === 'buy' && (
-            <motion.div key="buy" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={SPRING}>
-              {loading ? (
+        <section id="sec-buy" className="scroll-mt-6 space-y-4">
+          <SectionHead overline="Tədarük" title="Nə Alım — Təkliflər + Sifariş Taslağı" />
+          {loading ? (
                 <div className="flex items-center justify-center py-10 text-[var(--theme-text-muted)]">
                   <RefreshCw size={20} className="animate-spin" />
                 </div>
@@ -192,28 +180,25 @@ export default function ProcurementHub({ sub, onSubChange, isElevated, lightMode
                     <OrderGuideSection autoSelectId={autoSelect} />
                   </div>
                 </div>
-              )}
-            </motion.div>
           )}
+        </section>
 
-          {sub === 'invoice' && (
-            <motion.div key="invoice" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={SPRING}>
-              <InvoiceUploadSection />
-            </motion.div>
-          )}
+        <section id="sec-invoice" className="scroll-mt-6 space-y-4">
+          <SectionHead overline="Tədarük" title="Faktura (OCR)" />
+          <InvoiceUploadSection />
+        </section>
 
-          {sub === 'orders' && isElevated && (
-            <motion.div key="orders" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={SPRING}>
-              <PurchaseOrdersPage />
-            </motion.div>
-          )}
+        {isElevated && (
+          <section id="sec-orders" className="scroll-mt-6 space-y-4">
+            <SectionHead overline="Tədarük" title="Sifarişlər (PO)" />
+            <PurchaseOrdersPage />
+          </section>
+        )}
 
-          {sub === 'suppliers' && (
-            <motion.div key="suppliers" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={SPRING}>
-              <SuppliersSection />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <section id="sec-suppliers" className="scroll-mt-6 space-y-4">
+          <SectionHead overline="Tədarük" title="Tədarükçülər" />
+          <SuppliersSection />
+        </section>
       </div>
     </ViewContent>
   );

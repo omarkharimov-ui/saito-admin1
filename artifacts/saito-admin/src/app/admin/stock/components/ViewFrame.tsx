@@ -104,6 +104,15 @@ export function ViewContent({ children, id }: { children: React.ReactNode; id: s
   );
 }
 
+/** 13l: deep-link / CTA anchor scroll to a stacked section (`sec-{id}`).
+    Re-anchors a few times so async content (skeleton → table) expanding
+    ABOVE the section doesn't push the viewport off-target. */
+export function scrollToSection(id: string) {
+  const go = () => document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  go();
+  [400, 900, 1600].forEach(d => setTimeout(go, d));
+}
+
 /** Animated number — pulses once when the value changes (KPI micro-interaction). */
 export function LiveNumber({ value, className = '' }: { value: number | string; className?: string }) {
   return (

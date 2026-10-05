@@ -6,6 +6,7 @@ import type { InventoryStatusRow, InventoryLog, Supplier } from '@/types/invento
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { StockStatusBar } from '@/components/StockStatusBadge';
 import { toast } from '@/lib/toast';
+import { FullPanel } from '../stock-ui';
 
 interface InspectorPanelProps {
   row: InventoryStatusRow | null;
@@ -162,16 +163,9 @@ export function InspectorPanel({ row, onClose, UNIT_LABELS, onStockIn, onWaste, 
   return (
     <AnimatePresence>
       {row && (
-        <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-[100] backdrop-blur-sm" onClick={onClose} />
-
-          <motion.div
-            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-            transition={{ type: 'spring', stiffness: 340, damping: 35 }}
-            className="fixed inset-y-0 right-0 w-full max-w-md z-[101] bg-[var(--theme-bg)] border-l border-[var(--theme-border)] shadow-[-24px_0_64px_rgba(0,0,0,0.35)] flex flex-col"
-          >
-            {/* Header */}
-            <div className="px-6 py-4 flex items-center justify-between gap-3 border-b border-[var(--theme-border)] shrink-0">
+        <FullPanel onClose={onClose}>
+            {/* Header (13l: full main-area panel — gift-cards pattern) */}
+            <div className="px-6 sm:px-10 py-5 flex items-center justify-between gap-3 border-b border-[var(--theme-border)] shrink-0">
               <div className="min-w-0 flex-1">
                 {isEditing ? (
                   <input
@@ -194,7 +188,8 @@ export function InspectorPanel({ row, onClose, UNIT_LABELS, onStockIn, onWaste, 
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-7">
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-3xl mx-auto w-full px-6 sm:px-10 py-8 space-y-7">
               {/* Status Section */}
               <div className="flex items-center justify-between p-4 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                 <div className="space-y-1">
@@ -305,16 +300,16 @@ export function InspectorPanel({ row, onClose, UNIT_LABELS, onStockIn, onWaste, 
                   <QuickAction icon={<History size={15} />} label="Tarixçə" onClick={() => onHistory(row)} tone="text-[var(--theme-text-secondary)]" />
                 </div>
               </div>
+              </div>
             </div>
 
-            {/* Delete Area */}
-            <div className="px-6 py-4 border-t border-[var(--theme-border)] shrink-0">
+            {/* Delete Area (13l: full-panel footer) */}
+            <div className="px-6 sm:px-10 py-4 border-t border-[var(--theme-border)] shrink-0">
               <button onClick={() => onDelete(row)} className="w-full py-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-500 light:text-rose-600 text-[10px] font-black uppercase tracking-[0.25em] flex items-center justify-center gap-2 hover:bg-rose-500/20 transition-all active:scale-[0.99]">
                 <Trash size={13} /> Xammalı Tamamilə Sil
               </button>
             </div>
-          </motion.div>
-        </>
+          </FullPanel>
       )}
     </AnimatePresence>
   );

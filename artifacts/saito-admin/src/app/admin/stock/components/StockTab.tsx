@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, Plus, TrendingDown, TrendingUp,
-  X, Loader2, RefreshCw,
+  Loader2, RefreshCw,
   Search, Pencil, ClipboardCheck,
   Save,
 } from '@/components/ui/saito-icons';
@@ -30,7 +30,7 @@ import TabHero, { HeroTone } from './TabHero';
 import { LiveNumber, ViewContent } from './ViewFrame';
 import { useAsyncView } from '../hooks/useAsyncView';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
-import { Btn, Chip, DataTable, SearchInput, Seg, IconBtn, SpinnerBlock, fmtAZN } from '../stock-ui';
+import { Btn, Chip, DataTable, SearchInput, Seg, IconBtn, SpinnerBlock, fmtAZN, Drawer } from '../stock-ui';
 
 const UNIT_LABELS: Record<DisplayUnit, string> = {
   gram: 'qram', piece: 'ədəd', ml: 'ml',
@@ -418,44 +418,10 @@ export default function StockTab({ onNavigate }: StockTabProps) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   Modal primitives (spring entrance, theme-var based, light-mode safe)
+   Modals — 13l: the shared full main-area panel (gift-cards pattern) from
+   stock-ui Drawer. Forms are kept narrow (max-w-xl) inside the full panel
+   for readability; lists use the full width.
    ═══════════════════════════════════════════════════════════════════════ */
-
-// 13k: xammal modalları full-height DRAWER (owner: "ən axıra qədər açılan —
-// hədiyyə kartları sidebar kimi; yoxdursa tam açılan"). Right panel, full
-// viewport height, theme-var based, spring slide-in/out.
-function ModalShell({ title, subtitle, onClose, children }: {
-  title: string; subtitle?: string; onClose: () => void; children: React.ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-[200]">
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        transition={{ duration: 0.22 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
-      <motion.div
-        role="dialog" aria-modal="true"
-        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-        transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-        className="absolute inset-y-0 right-0 w-full sm:max-w-[460px] bg-[var(--theme-bg)] border-l border-[var(--theme-border)] shadow-[-24px_0_64px_rgba(0,0,0,0.35)] flex flex-col"
-      >
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-[var(--theme-border)] shrink-0">
-          <div className="min-w-0">
-            <h2 className="text-base font-black text-[var(--theme-text)] tracking-tight truncate">{title}</h2>
-            {subtitle && <p className="text-[10px] font-bold text-[var(--theme-text-muted)] uppercase tracking-wider mt-0.5 truncate">{subtitle}</p>}
-          </div>
-          <button onClick={onClose} aria-label="Bağla" className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all active:scale-90 shrink-0">
-            <X size={16} />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-6 py-6">{children}</div>
-      </motion.div>
-    </div>
-  );
-}
 
 const inputCls = 'w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-xl px-5 py-3.5 text-[var(--theme-text)] outline-none focus:border-[var(--theme-text)]/40 transition-colors';
 const labelCls = 'text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-1';
@@ -472,8 +438,8 @@ function StockActionModal({ mode, row, saving, qtyInput, setQtyInput, reasonInpu
   const diff = qtyInput ? parseFloat(qtyInput) - row.current_stock : 0;
   const hasDiff = qtyInput && Math.abs(diff) > 0.01;
   return (
-    <ModalShell title={titles[mode]} subtitle={row.name} onClose={onClose}>
-      <div className="space-y-5">
+    <Drawer title={titles[mode]} subtitle={row.name} onClose={onClose}>
+      <div className="max-w-xl mx-auto space-y-5">
         {mode === 'audit' ? (
           <>
             <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
@@ -519,7 +485,7 @@ function StockActionModal({ mode, row, saving, qtyInput, setQtyInput, reasonInpu
           </button>
         </div>
       </div>
-    </ModalShell>
+    </Drawer>
   );
 }
 
@@ -529,24 +495,8 @@ function StockHistoryModal({ loading, history, name, onClose }: {
   name: string; onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-xl" onClick={onClose} />
-      <motion.div
-        initial={{ scale: 0.92, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.92, opacity: 0, y: 24 }} transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 1 }}
-        className="relative w-full max-w-lg bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-2xl p-6 sm:p-8 shadow-2xl max-h-[80vh] flex flex-col"
-      >
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-lg font-black text-[var(--theme-text)] tracking-tight">Stok Tarixçəsi</h2>
-            <p className="text-xs text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-0.5">{name}</p>
-          </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all active:scale-95">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+    <Drawer title="Stok Tarixçəsi" subtitle={name} onClose={onClose}>
+      <div className="max-w-2xl mx-auto space-y-2">
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-12 text-[var(--theme-text-muted)]">
               <Loader2 size={18} className="animate-spin" /> Yüklənir...
@@ -572,9 +522,8 @@ function StockHistoryModal({ loading, history, name, onClose }: {
               </motion.div>
             ))
           )}
-        </div>
-      </motion.div>
-    </div>
+      </div>
+    </Drawer>
   );
 }
 
@@ -585,8 +534,8 @@ function QuickStockInModal({ items, onPick, onClose }: {
 }) {
   const [q, setQ] = useState('');
   return (
-    <ModalShell title="Təzə Xammal Girişi" subtitle="Stok artırmaq" onClose={onClose}>
-      <div className="space-y-4">
+    <Drawer title="Təzə Xammal Girişi" subtitle="Stok artırmaq" onClose={onClose}>
+      <div className="max-w-xl mx-auto space-y-4">
         <div className="relative">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Xammal axtar..." autoFocus className={`${inputCls} pl-10 py-2.5 text-sm`} />
@@ -615,7 +564,7 @@ function QuickStockInModal({ items, onPick, onClose }: {
           )}
         </div>
       </div>
-    </ModalShell>
+    </Drawer>
   );
 }
 
@@ -627,8 +576,8 @@ function NewIngredientModal({ form, setForm, saving, onSubmit, onClose }: {
   onClose: () => void;
 }) {
   return (
-    <ModalShell title="Yeni Xammal" subtitle="Yeni ingredient əlavə et" onClose={onClose}>
-      <form onSubmit={onSubmit} className="space-y-4">
+    <Drawer title="Yeni Xammal" subtitle="Yeni ingredient əlavə et" onClose={onClose}>
+      <form onSubmit={onSubmit} className="max-w-xl mx-auto space-y-4">
         <div className="space-y-1.5">
           <label className={labelCls}>Xammal Adı *</label>
           <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Məs: Domates" autoFocus required className={inputCls} />
@@ -671,7 +620,7 @@ function NewIngredientModal({ form, setForm, saving, onSubmit, onClose }: {
           </button>
         </div>
       </form>
-    </ModalShell>
+    </Drawer>
   );
 }
 

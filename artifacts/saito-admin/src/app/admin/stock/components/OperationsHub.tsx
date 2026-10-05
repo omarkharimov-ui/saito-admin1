@@ -9,19 +9,19 @@
 // a clear pointer, so the user is never in the wrong place for it.
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   RefreshCw, CheckCircle, AlertTriangle, DollarSign, TrendingDown,
   Info,
 } from '@/components/ui/saito-icons';
-import { SPRING } from '@/lib/motion/system';
+import { SectionHead } from '../stock-ui';
 import { TableActionBar } from '@/components/TableActionBar';
 import { EmptyState, LoadingState } from '@/components/ProcurementEmptyState';
 import { SummaryCards } from '@/components/ProcurementSummaryCards';
 import { toast } from '@/lib/toast';
 import type { DiscrepancyAlert } from '@/types/inventory';
 import TabHero from './TabHero';
-import { ViewContent } from './ViewFrame';
+import { ViewContent, scrollToSection } from './ViewFrame';
 import StockCountsPage from '../counts/counts-content';
 import SupplierReturnsPage from '../returns/returns-content';
 import WasteStandardsPage from '../../waste-standards/waste-standards-content';
@@ -76,61 +76,51 @@ export default function OperationsHub({ sub, onSubChange, isElevated, lightMode 
         ? { tone: 'warning' as const, title: `${openAlerts} açıq anomaliya var`, sub: 'Diqqət tələb edən uyğunsuzluqlar.', cta: { label: 'Bax →', onClick: () => onSubChange('anomalies') } }
         : { tone: 'ok' as const, title: 'Hamı uyğundur', sub: 'Açıq anomaliya yoxdur — son yoxlama təmiz keçib.' };
 
-  const pills = [
-    ...(isElevated ? [{ id: 'counts', label: 'Sayım' }] : []),
-    ...(isElevated ? [{ id: 'waste', label: 'İtki' }] : []),
-    ...(isElevated ? [{ id: 'returns', label: 'Qaytarış' }] : []),
-    { id: 'anomalies', label: 'Anomaliyalar' },
-  ];
+  // 13l: sub is now a scroll ANCHOR (deep link / hero CTA), not a tab —
+  // owner: "tab çoxdur; tab yerində alt-alta məlumatlar header ilə".
+  useEffect(() => {
+    if (sub === 'counts') return; // default = top; page already resets scroll on tab switch
+    scrollToSection(sub);
+  }, [sub]);
 
   return (
-    <ViewContent id={`ops-${sub}`}>
-      <div className="space-y-5">
+    <ViewContent id="ops">
+      <div className="space-y-10">
         <TabHero tone={hero.tone} title={hero.title} sub={hero.sub} cta={'cta' in hero ? hero.cta : undefined} lightMode={lightMode} />
 
-        <div className="flex flex-wrap gap-1 rounded-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] p-1 w-fit">
-          {pills.map(p => (
-            <button key={p.id} onClick={() => onSubChange(p.id)}
-              className={`relative px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition-colors ${sub === p.id ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}>
-              {sub === p.id && <motion.span layoutId="ops-sub-pill" className="absolute inset-0 rounded-full bg-[var(--theme-text)]" transition={SPRING} />}
-              <span className="relative z-10">{p.label}</span>
-            </button>
-          ))}
-        </div>
+        {isElevated && (
+          <section id="sec-counts" className="scroll-mt-6 space-y-4">
+            <SectionHead overline="Sayım & İtki" title="Sayım (İnventarizasiya)" />
+            <StockCountsPage />
+          </section>
+        )}
 
-        <AnimatePresence mode="wait">
-          {sub === 'counts' && isElevated && (
-            <motion.div key="counts" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={SPRING}>
-              <StockCountsPage />
-            </motion.div>
-          )}
+        {isElevated && (
+          <section id="sec-waste" className="scroll-mt-6 space-y-4">
+            <SectionHead overline="Sayım & İtki" title="İtki (Normalar)" />
+            {/* where the actual recording happens — the 3-second answer */}
+            <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-blue-500/[0.05] border border-blue-500/20">
+              <Info size={16} className={`mt-0.5 shrink-0 ${lightMode ? 'text-blue-600' : 'text-blue-400'}`} />
+              <p className="text-xs leading-relaxed text-[var(--theme-text-secondary)]">
+                <b className="text-[var(--theme-text)]">İtki qeydi</b> Stok tab-ında edilir: xammal sətrindəki İtki düyməsi.
+                Burada <b className="text-[var(--theme-text)]">normalar</b> idarə olunur — sistem faktiki itkini norma ilə müqayisə edib Anomaliyalar-da göstərir.
+              </p>
+            </div>
+            <WasteStandardsPage />
+          </section>
+        )}
 
-          {sub === 'waste' && isElevated && (
-            <motion.div key="waste" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={SPRING} className="space-y-4">
-              {/* where the actual recording happens — the 3-second answer */}
-              <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-blue-500/[0.05] border border-blue-500/20">
-                <Info size={16} className={`mt-0.5 shrink-0 ${lightMode ? 'text-blue-600' : 'text-blue-400'}`} />
-                <p className="text-xs leading-relaxed text-[var(--theme-text-secondary)]">
-                  <b className="text-[var(--theme-text)]">İtki qeydi</b> Stok tab-ında edilir: xammal sətrindəki İtki düyməsi.
-                  Burada <b className="text-[var(--theme-text)]">normalar</b> idarə olunur — sistem faktiki itkini norma ilə müqayisə edib Anomaliyalar-da göstərir.
-                </p>
-              </div>
-              <WasteStandardsPage />
-            </motion.div>
-          )}
+        {isElevated && (
+          <section id="sec-returns" className="scroll-mt-6 space-y-4">
+            <SectionHead overline="Sayım & İtki" title="Qaytarış (Tədarükçü)" />
+            <SupplierReturnsPage />
+          </section>
+        )}
 
-          {sub === 'returns' && isElevated && (
-            <motion.div key="returns" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={SPRING}>
-              <SupplierReturnsPage />
-            </motion.div>
-          )}
-
-          {sub === 'anomalies' && (
-            <motion.div key="anomalies" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={SPRING}>
-              <AnomaliesSection lightMode={lightMode} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <section id="sec-anomalies" className="scroll-mt-6 space-y-4">
+          <SectionHead overline="Sayım & İtki" title="Anomaliyalar" />
+          <AnomaliesSection lightMode={lightMode} />
+        </section>
       </div>
     </ViewContent>
   );

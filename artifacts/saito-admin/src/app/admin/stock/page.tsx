@@ -13,7 +13,7 @@
 // Legacy deep links (13f/13h's 10 ?view= values) are mapped below — old
 // bookmarks, old redirectors and old "Sifariş et" links keep working.
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Package, ShoppingCart, Scale, BarChart2 } from '@/components/ui/saito-icons';
@@ -71,6 +71,21 @@ function StockHubInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  // 13l: "taba keçirsən səhifə oynuyur" — the desktop shell scrolls in an
+  // overflow-y-auto container; switching tabs kept the old scrollTop and the
+  // different tab heights made the page JUMP. Find the real scroll root once
+  // and reset it to top on every tab switch.
+  const pageRootRef = useRef<HTMLDivElement>(null);
+  const scrollRootRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    let n = pageRootRef.current?.parentElement ?? null;
+    while (n && n !== document.body) {
+      const oy = getComputedStyle(n).overflowY;
+      if (oy === 'auto' || oy === 'scroll') { scrollRootRef.current = n; break; }
+      n = n.parentElement;
+    }
+  }, []);
+
   // ── initial resolution (legacy mapping + default sub; NO role gate here —
   //    role is null until /api/auth/me resolves, gating here would eat the
   //    URL sub for superadmins before auth even lands) ──────────────────────
@@ -87,6 +102,17 @@ function StockHubInner() {
     return searchParams.get('sub') || mapped?.sub || DEFAULT_SUB[t];
   });
   const deepIngredient = searchParams.get('ingredient');
+
+  // 13l: tab switch = scroll reset (the jump fix). First run skipped:
+  // a deep-link mount (e.g. ?view=po) must let the hub's section ANCHOR
+  // win — child effects fire before this parent one, so resetting here
+  // would kill the anchor scroll.
+  const tabSwitchedRef = useRef(false);
+  useEffect(() => {
+    if (!tabSwitchedRef.current) { tabSwitchedRef.current = true; return; }
+    scrollRootRef.current?.scrollTo({ top: 0 });
+    window.scrollTo(0, 0);
+  }, [tab]);
 
   // recipes deep link → its own sidebar page (13g owner decision).
   useEffect(() => {
@@ -127,7 +153,7 @@ function StockHubInner() {
 
   return (
     <PageTransition className="min-h-screen bg-[var(--theme-bg)] text-[var(--theme-text)] pb-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
+      <div ref={pageRootRef} className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
 
         {/* ── page head: overline + tab title (the title IS the context) ── */}
         <div className="flex items-center gap-3">

@@ -14,9 +14,13 @@
 //   • row hover = surface-soft/40 + action reveal
 //   • solid button = bg theme-text / text theme-bg (brand-neutral, both themes)
 
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Loader2 } from '@/components/ui/saito-icons';
 import { SPRING } from '@/lib/motion/system';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useLayout } from '../context/LayoutContext';
 
 /* ── Btn ────────────────────────────────────────────────────────────────── */
 type BtnVariant = 'solid' | 'ghost' | 'soft' | 'danger' | 'success';
@@ -314,10 +318,48 @@ export function Modal({ title, subtitle, onClose, children, wide }: {
   );
 }
 
-/* ── Drawer (13k) ───────────────────────────────────────────────────────── */
-// Owner: "xammal modalları ən axıra qədər açılan (hədiyyə kartları sidebar
-// kimi)" — full-height right panel, up to the app-sidebar edge (full-screen
-// on mobile). Theme-var based (both themes), spring slide-in.
+/* ── FullPanel (13l) ────────────────────────────────────────────────────── */
+// Owner: "xammal modal açılışı səhifəni 2/10 kimi açılmasın, tam şəkildə
+// açılsın — bax hədiyyə kartları səhifəsi necə açılır". Portaled to <body>;
+// geometry from LayoutContext (desktop shell: left = app-sidebar edge,
+// top = below AdminHeader) — the panel spans the ENTIRE main content area
+// (iOS-push at full size). Mobile / no provider → 0/0 → full viewport.
+// Mount inside <AnimatePresence> so the exit slide plays on unmount.
+export function FullPanel({ onClose, children }: {
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const { mainEdge, mainBottom } = useLayout();
+  const { lightMode } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return createPortal(
+    <div
+      className="pointer-events-none fixed right-0 bottom-0 z-[200]"
+      style={{ left: mainEdge, top: mainBottom }}
+    >
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        transition={{ duration: 0.22 }}
+        onClick={onClose}
+        aria-hidden
+        className={`absolute inset-0 z-30 pointer-events-auto ${lightMode ? 'bg-black/25' : 'bg-black/50'} backdrop-blur-[3px]`}
+      />
+      <motion.aside
+        role="dialog" aria-modal="true"
+        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+        transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+        className="absolute inset-0 z-40 pointer-events-auto flex flex-col bg-[var(--theme-bg)]"
+      >
+        {children}
+      </motion.aside>
+    </div>,
+    document.body
+  );
+}
+
+/* ── Drawer (13k → 13l full main-area panel) ────────────────────────────── */
 export function Drawer({
   title, subtitle, onClose, children, footer, wide,
 }: {
@@ -327,47 +369,33 @@ export function Drawer({
   children: React.ReactNode;
   /** sticky bottom action bar */
   footer?: React.ReactNode;
+  /** @deprecated 13l — the panel spans the full main area; kept for call-site compat */
   wide?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-[200]">
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        transition={{ duration: 0.22 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
-      <motion.div
-        role="dialog" aria-modal="true"
-        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-        transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-        className={`absolute inset-y-0 right-0 w-full ${wide ? 'sm:max-w-[560px]' : 'sm:max-w-[440px]'}
-          bg-[var(--theme-bg)] border-l border-[var(--theme-border)] shadow-[-24px_0_64px_rgba(0,0,0,0.35)] flex flex-col`}
-      >
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-[var(--theme-border)] shrink-0">
-          <div className="min-w-0">
-            <h2 className="text-base font-black text-[var(--theme-text)] tracking-tight truncate">{title}</h2>
-            {subtitle != null && subtitle !== '' && (
-              <p className="text-[10px] font-bold text-[var(--theme-text-muted)] uppercase tracking-wider mt-0.5 truncate">{subtitle}</p>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Bağla"
-            className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all active:scale-90 shrink-0"
-          >
-            <X size={16} />
-          </button>
+    <FullPanel onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-6 sm:px-10 py-5 border-b border-[var(--theme-border)] shrink-0">
+        <div className="min-w-0">
+          <h2 className="text-lg font-black text-[var(--theme-text)] tracking-tight truncate">{title}</h2>
+          {subtitle != null && subtitle !== '' && (
+            <p className="text-[10px] font-bold text-[var(--theme-text-muted)] uppercase tracking-wider mt-1 truncate">{subtitle}</p>
+          )}
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-6">{children}</div>
-        {footer && (
-          <div className="shrink-0 border-t border-[var(--theme-border)] px-6 py-4 bg-[var(--theme-bg)]">
-            {footer}
-          </div>
-        )}
-      </motion.div>
-    </div>
+        <button
+          onClick={onClose}
+          aria-label="Bağla"
+          className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all active:scale-90 shrink-0"
+        >
+          <X size={16} />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-8">{children}</div>
+      {footer && (
+        <div className="shrink-0 border-t border-[var(--theme-border)] px-6 sm:px-10 py-4 bg-[var(--theme-bg)]">
+          {footer}
+        </div>
+      )}
+    </FullPanel>
   );
 }
 

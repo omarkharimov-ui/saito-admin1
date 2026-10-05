@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Package, ShoppingCart, Scale, BarChart2 } from '@/components/ui/saito-icons';
 import { SPRING } from '@/lib/motion/system';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -166,13 +166,16 @@ function StockHubInner() {
           </div>
         </div>
 
-        {/* ── 4 intent tabs (13k: pill — owner: "kvadratdır, pill formasına sal") ── */}
+        {/* ── 4 intent tabs (13k: pill) — 13m: OUTSIDE the animated area.
+            The bar itself is now pixel-stable on tab switch (audit D1/D2: it
+            moved +12px because it lived inside the entry-animation wrapper). ── */}
         <div className="mt-5 mb-6 flex flex-wrap gap-1 rounded-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] p-1 w-fit">
           {TABS.map(t => (
             <button
               key={t.id}
               onClick={() => switchTab(t.id)}
-              className={`relative flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full text-xs font-black tracking-wide transition-colors ${tab === t.id ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}
+              aria-current={tab === t.id ? 'page' : undefined}
+              className={`relative flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full text-xs font-black tracking-wide transition-all active:scale-[0.97] ${tab === t.id ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-text)]/[0.05]'}`}
             >
               {tab === t.id && (
                 <motion.span layoutId="stock-tab-pill" className="absolute inset-0 rounded-full bg-[var(--theme-text)]" transition={SPRING} />
@@ -185,24 +188,18 @@ function StockHubInner() {
           ))}
         </div>
 
-        {/* ── tab content (state-machine content: each tab manages loading/error/ready) ── */}
-        <div className="min-h-[50vh]">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={tab}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-            >
-              {tab === 'stock' && (
-                <StockTab onNavigate={(v, s) => { const ns = s || DEFAULT_SUB[v]; setTab(v); setSub(ns); syncUrl(v, ns); }} />
-              )}
-              {tab === 'procurement' && <ProcurementHub sub={sub} onSubChange={switchSub} isElevated={elevatedVisible} lightMode={lightMode} deepIngredient={deepIngredient} />}
-              {tab === 'operations' && <OperationsHub sub={sub} onSubChange={switchSub} isElevated={elevatedVisible} lightMode={lightMode} />}
-              {tab === 'analytics' && <AnalyticsHub sub={sub} onSubChange={switchSub} lightMode={lightMode} />}
-            </motion.div>
-          </AnimatePresence>
+        {/* ── tab content — 13m: INSTANT swap (audit D1/D3: y:12 entry/exit slide
+            + AnimatePresence mode="wait" = 225-427ms dead frame per switch =
+            the perceived "səhifə oynuyur"). key={tab} remounts without motion;
+            the pill spring carries the feedback. Each tab manages its own
+            loading/error/ready state machine. ── */}
+        <div key={tab} className="min-h-[50vh]">
+          {tab === 'stock' && (
+            <StockTab onNavigate={(v, s) => { const ns = s || DEFAULT_SUB[v]; setTab(v); setSub(ns); syncUrl(v, ns); }} />
+          )}
+          {tab === 'procurement' && <ProcurementHub sub={sub} onSubChange={switchSub} isElevated={elevatedVisible} lightMode={lightMode} deepIngredient={deepIngredient} />}
+          {tab === 'operations' && <OperationsHub sub={sub} onSubChange={switchSub} isElevated={elevatedVisible} lightMode={lightMode} />}
+          {tab === 'analytics' && <AnalyticsHub sub={sub} onSubChange={switchSub} lightMode={lightMode} />}
         </div>
 
       </div>

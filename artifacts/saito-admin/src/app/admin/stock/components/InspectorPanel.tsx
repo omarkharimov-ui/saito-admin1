@@ -189,7 +189,8 @@ export function InspectorPanel({ row, onClose, UNIT_LABELS, onStockIn, onWaste, 
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <div className="max-w-3xl mx-auto w-full px-6 sm:px-10 py-8 space-y-7">
+              {/* 13m D12: wider content — the old max-w-3xl left a dead right half */}
+              <div className="max-w-4xl mx-auto w-full px-6 sm:px-10 py-8 space-y-7">
               {/* Status Section */}
               <div className="flex items-center justify-between p-4 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                 <div className="space-y-1">
@@ -300,14 +301,15 @@ export function InspectorPanel({ row, onClose, UNIT_LABELS, onStockIn, onWaste, 
                   <QuickAction icon={<History size={15} />} label="Tarixçə" onClick={() => onHistory(row)} tone="text-[var(--theme-text-secondary)]" />
                 </div>
               </div>
-              </div>
-            </div>
 
-            {/* Delete Area (13l: full-panel footer) */}
-            <div className="px-6 sm:px-10 py-4 border-t border-[var(--theme-border)] shrink-0">
-              <button onClick={() => onDelete(row)} className="w-full py-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-500 light:text-rose-600 text-[10px] font-black uppercase tracking-[0.25em] flex items-center justify-center gap-2 hover:bg-rose-500/20 transition-all active:scale-[0.99]">
-                <Trash size={13} /> Xammalı Tamamilə Sil
-              </button>
+              {/* 13m D13: delete at content end (subtle) — the old always-visible
+                  full-width bar was a misclick trap on every open */}
+              <div className="pt-2">
+                <button onClick={() => onDelete(row)} className="w-full py-2.5 rounded-xl border border-rose-500/25 text-rose-500 light:text-rose-600 text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-rose-500/[0.06] transition-all active:scale-[0.99]">
+                  <Trash size={13} /> Xammalı Tamamilə Sil
+                </button>
+              </div>
+              </div>
             </div>
           </FullPanel>
       )}

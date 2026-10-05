@@ -88,16 +88,17 @@ export function ViewEmpty({
   );
 }
 
-/** Ready-content transition — every sub-view's content enters with a soft
-    fade+rise so state changes (tab switch, sub switch, retry→ready) read
-    as one continuous motion, never a hard swap. */
+/** Ready-content transition — 13m: FADE ONLY (no y). The y:10 rise here +
+    PageTransition's y:12 in the embedded pages were the residual "səhifə
+    oynuyur" after the tab bar left the animated wrapper. Instant swap +
+    pill spring = the only motion on tab switch. */
 export function ViewContent({ children, id }: { children: React.ReactNode; id: string }) {
   return (
     <motion.div
       key={id}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ ...SPRING, duration: 0.35 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
     >
       {children}
     </motion.div>

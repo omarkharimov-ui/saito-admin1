@@ -10,9 +10,9 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type {
   SupplierReturn, SupplierReturnItem, Ingredient, Supplier,
 } from '@/types/inventory';
-import { PageTransition } from '@/components/PageTransition';
 // 13j: design system (one visual language across the inventory module)
-import { Btn, Chip, DataTable, SearchInput, IconBtn, SpinnerBlock, Modal, Field, fieldCls } from '../stock-ui';
+// 13m D9/D10: formatters from the single stock-ui source
+import { Btn, Chip, DataTable, SearchInput, IconBtn, SpinnerBlock, Modal, Field, fieldCls, fmtDate, fmtAZN } from '../stock-ui';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -27,19 +27,6 @@ const RET_CHIP_TONE: Record<string, 'ok' | 'warn' | 'crit' | 'info' | 'neutral'>
 };
 
 const STATUS_OPTIONS = ['draft', 'sent', 'completed', 'cancelled'] as const;
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function fmtDate(iso: string | null) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('az-AZ', {
-    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-}
-
-function fmtCurrency(n: number) {
-  return Number(n).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -249,7 +236,7 @@ export default function SupplierReturnsPage() {
   // ── Render ───────────────────────────────────────────────────────────────
   // 13h: hub frame provides page chrome — slim toolbar only.
   return (
-    <PageTransition className="">
+    <div className="">
       <div className="space-y-5">
 
         {/* ── Toolbar (13j: design system) ── */}
@@ -287,7 +274,7 @@ export default function SupplierReturnsPage() {
               { key: 'num', label: 'Qaytarma №', width: '1.4fr', render: r => <span className="text-[13px] font-bold text-[var(--theme-text)] truncate">{r.return_number}</span> },
               { key: 'supplier', label: 'Təchizatçı', width: '1.2fr', render: r => <span className="text-[13px] text-[var(--theme-text-secondary)] truncate">{r.supplier_name}</span> },
               { key: 'status', label: 'Status', width: '120px', render: r => <Chip tone={RET_CHIP_TONE[r.status] || 'neutral'}>{STATUS_META[r.status]?.label || r.status}</Chip> },
-              { key: 'amount', label: 'Məbləğ', width: '90px', align: 'right', render: r => <span className="text-[13px] font-black tabular-nums text-[var(--theme-text)]">₼{fmtCurrency(r.total_amount)}</span> },
+              { key: 'amount', label: 'Məbləğ', width: '90px', align: 'right', render: r => <span className="text-[13px] font-black tabular-nums text-[var(--theme-text)]">{fmtAZN((r.total_amount))}</span> },
               { key: 'date', label: 'Tarix', width: '150px', hide: 'md', align: 'right', render: r => <span className="text-xs text-[var(--theme-text-secondary)] tabular-nums">{fmtDate(r.created_at)}</span> },
             ]}
             empty={
@@ -328,7 +315,7 @@ export default function SupplierReturnsPage() {
                   </div>
                   <div className="p-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                     <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--theme-text-muted)]">Ümumi Məbləğ</p>
-                    <p className="text-sm font-black tabular-nums text-[var(--theme-text)] mt-1">₼{fmtCurrency(detailData.return.total_amount)}</p>
+                    <p className="text-sm font-black tabular-nums text-[var(--theme-text)] mt-1">{fmtAZN((detailData.return.total_amount))}</p>
                   </div>
                 </div>
 
@@ -352,10 +339,10 @@ export default function SupplierReturnsPage() {
                           <div className="flex-1 min-w-0">
                             <p className="text-[13px] font-semibold text-[var(--theme-text)] truncate">{ingName}</p>
                             <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5">
-                              Miqdar: {item.quantity} {ingUnit} × ₼{fmtCurrency(item.unit_cost)}
+                              Miqdar: {item.quantity} {ingUnit} × {fmtAZN((item.unit_cost))}
                             </p>
                           </div>
-                          <p className="shrink-0 text-[13px] font-black tabular-nums text-[var(--theme-text)]">₼{fmtCurrency(item.total_cost)}</p>
+                          <p className="shrink-0 text-[13px] font-black tabular-nums text-[var(--theme-text)]">{fmtAZN((item.total_cost))}</p>
                         </div>
                       );
                     })}
@@ -434,7 +421,7 @@ export default function SupplierReturnsPage() {
                       </div>
                       {parseFloat(item.quantity) > 0 && parseFloat(item.unit_cost) > 0 && (
                         <p className="text-[10px] text-[var(--theme-text-muted)] text-right">
-                          Cəmi: <span className="font-bold text-[var(--theme-text-secondary)]">₼{fmtCurrency(parseFloat(item.quantity) * parseFloat(item.unit_cost))}</span>
+                          Cəmi: <span className="font-bold text-[var(--theme-text-secondary)]">{fmtAZN((parseFloat(item.quantity) * parseFloat(item.unit_cost)))}</span>
                         </p>
                       )}
                     </motion.div>
@@ -444,7 +431,7 @@ export default function SupplierReturnsPage() {
 
               <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                 <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--theme-text-muted)]">Ümumi Məbləğ</span>
-                <span className="text-lg font-black tabular-nums text-[var(--theme-text)]">₼{fmtCurrency(formTotal)}</span>
+                <span className="text-lg font-black tabular-nums text-[var(--theme-text)]">{fmtAZN((formTotal))}</span>
               </div>
 
               <Field label="Səbəb — istəyə görə">
@@ -477,6 +464,6 @@ export default function SupplierReturnsPage() {
           </Modal>
         )}
       </AnimatePresence>
-    </PageTransition>
+    </div>
   );
 }

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, RefreshCw, TrendingDown, TrendingUp, Clock, AlertTriangle } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
+import { fmtNum, fmtDate } from '../stock-ui';
 
 interface Report {
   days: number;
@@ -69,7 +70,10 @@ export default function ReportsTab() {
     return <div className="flex items-center justify-center py-20 text-[var(--theme-text-muted)]"><Loader2 size={22} className="animate-spin" /></div>;
   }
 
-  const maxDay = Math.max(1, ...report.cogs.by_day.map(d => d.cogs + d.waste));
+  // 13m D8: separate scales per series. The old shared max(cogs+waste) let one
+  // outlier waste day dominate and render a giant pink block (all other days ≈ 0).
+  const maxCogs = Math.max(1, ...report.cogs.by_day.map(d => d.cogs));
+  const maxWaste = Math.max(1, ...report.cogs.by_day.map(d => d.waste));
 
   return (
     <div className="space-y-4">
@@ -85,17 +89,17 @@ export default function ReportsTab() {
         <div className="px-5 py-4">
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500 light:text-emerald-600">Cari Stok Dəyəri</p>
           <p className="text-2xl font-black text-[var(--theme-text)] tabular-nums mt-1.5">
-            {report.valuation.total_value.toLocaleString('az')} <span className="text-sm text-[var(--theme-text-muted)]">₼</span>
+            {fmtNum(report.valuation.total_value)} <span className="text-sm text-[var(--theme-text-muted)]">₼</span>
           </p>
           <p className="text-[11px] text-[var(--theme-text-muted)] mt-1 font-medium">{report.valuation.ingredient_count} maddə × orta qiymət</p>
         </div>
         <div className="px-5 py-4">
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">COGS (satış sərfiyyatı)</p>
           <p className="text-2xl font-black text-[var(--theme-text)] tabular-nums mt-1.5">
-            {report.cogs.total_cogs.toLocaleString('az')} <span className="text-sm text-[var(--theme-text-muted)]">₼</span>
+            {fmtNum(report.cogs.total_cogs)} <span className="text-sm text-[var(--theme-text-muted)]">₼</span>
           </p>
           <p className="text-[11px] text-[var(--theme-text-muted)] mt-1 font-medium flex items-center gap-1">
-            <TrendingDown size={12} className="text-rose-500" /> itki: {report.cogs.total_waste.toLocaleString('az')} ₼
+            <TrendingDown size={12} className="text-rose-500" /> itki: {fmtNum(report.cogs.total_waste)} ₼
           </p>
         </div>
         <div className="px-5 py-4">
@@ -103,11 +107,12 @@ export default function ReportsTab() {
           {report.valuation.negatives.length > 0 ? (
             <>
               <p className="text-2xl font-black text-rose-500 tabular-nums mt-1.5">{report.valuation.negatives.length}</p>
-              <div className="mt-1 space-y-0.5 max-h-12 overflow-y-auto">
-                {report.valuation.negatives.slice(0, 3).map(n => (
-                  <p key={n.id} className="text-[11px] font-bold text-rose-500/90 truncate">• {n.name}: {n.stock} {n.unit}</p>
+              {/* 13m D7: no clip — the max-h-12 scroll was hiding the last rows */}
+              <div className="mt-1 space-y-0.5">
+                {report.valuation.negatives.map(n => (
+                  <p key={n.id} className="text-[11px] font-bold text-rose-500/90 truncate">• {n.name}: {fmtNum(n.stock, 1)} {n.unit}</p>
                 ))}
-                {report.valuation.negatives.length > 3 && <p className="text-[10px] text-rose-500/60">+{report.valuation.negatives.length - 3} daha → sayım lazımdır</p>}
+                {report.valuation.negatives.length > 0 && <p className="text-[10px] text-rose-500/60">→ sayım lazımdır</p>}
               </div>
             </>
           ) : (
@@ -121,18 +126,19 @@ export default function ReportsTab() {
         {report.cogs.by_day.length === 0 ? (
           <p className="text-xs text-[var(--theme-text-muted)] py-6 text-center">Bu dövrdə sərfiyyat qeydi yoxdur.</p>
         ) : (
-          <div className="flex items-end gap-1 h-28">
+          <div className="flex items-end gap-[3px] h-28">
             {report.cogs.by_day.map(d => (
-              <div key={d.date} className="flex-1 flex flex-col justify-end gap-px group relative h-full" title={`${d.date} — COGS ${d.cogs} ₼, itki ${d.waste} ₼`}>
-                <div className="rounded-t-sm bg-emerald-500/70" style={{ height: `${(d.cogs / maxDay) * 100}%`, minHeight: d.cogs > 0 ? 3 : 0 }} />
-                <div className="bg-rose-500/70" style={{ height: `${(d.waste / maxDay) * 100}%`, minHeight: d.waste > 0 ? 2 : 0 }} />
+              <div key={d.date} className="flex-1 flex items-end gap-px h-full group relative" title={`${fmtDate(d.date + 'T12:00:00', false)} — COGS ${fmtNum(d.cogs)} ₼ · itki ${fmtNum(d.waste)} ₼`}>
+                <div className="flex-1 rounded-t-sm bg-emerald-500/70 group-hover:bg-emerald-400 transition-colors" style={{ height: `${(d.cogs / maxCogs) * 100}%`, minHeight: d.cogs > 0 ? 3 : 0 }} />
+                <div className="flex-1 rounded-t-sm bg-rose-500/70 group-hover:bg-rose-400 transition-colors" style={{ height: `${(d.waste / maxWaste) * 100}%`, minHeight: d.waste > 0 ? 3 : 0 }} />
               </div>
             ))}
           </div>
         )}
         <div className="flex items-center gap-4 mt-3">
-          <span className="flex items-center gap-1.5 text-[10px] text-[var(--theme-text)]/45 font-bold"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/70" /> COGS</span>
-          <span className="flex items-center gap-1.5 text-[10px] text-[var(--theme-text)]/45 font-bold"><span className="w-2.5 h-2.5 rounded-sm bg-rose-500/70" /> İtki</span>
+            <span className="flex items-center gap-1.5 text-[10px] text-[var(--theme-text)]/45 font-bold"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/70" /> COGS</span>
+            <span className="flex items-center gap-1.5 text-[10px] text-[var(--theme-text)]/45 font-bold"><span className="w-2.5 h-2.5 rounded-sm bg-rose-500/70" /> İtki</span>
+            <span className="text-[9px] text-[var(--theme-text-muted)]">hər seri öz ölçəsidə</span>
         </div>
       </Card>
 
@@ -145,13 +151,13 @@ export default function ReportsTab() {
               <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[var(--theme-text-muted)]">Həftələr</p>
               {report.shrinkage_pattern.weeks.map((w, i) => (
                 <div key={w.start} className="flex items-center justify-between gap-2 text-[11px]">
-                  <span className="text-[var(--theme-text-muted)] font-bold">H{i + 1} · {new Date(w.start).toLocaleDateString('az', { day: 'numeric', month: 'short' })}</span>
-                  <span className={`tabular-nums font-black ${i === 3 ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text)]/55'}`}>{w.cost.toLocaleString('az')} ₼</span>
+                  <span className="text-[var(--theme-text-muted)] font-bold">H{i + 1} · {fmtDate(w.start, false)}</span>
+                  <span className={`tabular-nums font-black ${i === 3 ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text)]/55'}`}>{fmtNum(w.cost)} ₼</span>
                 </div>
               ))}
               <div className="pt-1.5 border-t border-[var(--theme-border)] flex items-center justify-between text-[11px]">
                 <span className="text-[var(--theme-text-muted)] font-bold">Toplam</span>
-                <span className="tabular-nums font-black text-rose-400">{report.shrinkage_pattern.total_cost.toLocaleString('az')} ₼</span>
+                <span className="tabular-nums font-black text-rose-400">{fmtNum(report.shrinkage_pattern.total_cost)} ₼</span>
               </div>
               {report.shrinkage_pattern.week_over_week_pct != null && (
                 <p className={`flex items-center gap-1.5 text-[11px] font-black ${report.shrinkage_pattern.week_over_week_pct > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
@@ -191,7 +197,7 @@ export default function ReportsTab() {
                             {s.trend_pct > 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}{s.trend_pct > 0 ? '+' : ''}{s.trend_pct}%
                           </span>
                         ) : <span className="text-[var(--theme-text-muted)]">—</span>}
-                        <b className="text-rose-400">{s.cost.toLocaleString('az')} ₼</b>
+                        <b className="text-rose-400">{fmtNum(s.cost)} ₼</b>
                       </span>
                     </div>
                   ))}
@@ -237,7 +243,7 @@ export default function ReportsTab() {
                 {report.shrinkage.map(s => (
                   <div key={s.id} className="flex items-center justify-between text-[12px]">
                     <span className="font-bold text-[var(--theme-text)]/75">{s.name}</span>
-                    <span className="tabular-nums text-[var(--theme-text)]/45">{s.qty} {s.unit} · <b className="text-rose-400">{s.cost.toLocaleString('az')} ₼</b></span>
+                    <span className="tabular-nums text-[var(--theme-text)]/45">{s.qty} {s.unit} · <b className="text-rose-400">{fmtNum(s.cost)} ₼</b></span>
                   </div>
                 ))}
               </div>

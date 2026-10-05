@@ -3,9 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Loader2, ShoppingBag, Download } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
-import { PageTransition } from '@/components/PageTransition';
 // 13j: design system (one visual language across the inventory module)
-import { Btn, Chip, DataTable, SearchInput, SectionHead, Seg, Stat } from '../stock/stock-ui';
+import { Btn, Chip, DataTable, SearchInput, SectionHead, Seg, Stat, fmtDate, fmtClock } from '../stock/stock-ui';
 
 interface AuditEntry {
   id: string;
@@ -159,7 +158,7 @@ export default function AuditPage() {
 
   // 13j: design system — Stat + Seg + DataTable (one visual language).
   return (
-    <PageTransition className="space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <SectionHead overline="Audit" title="Stok dəyişikliklərinin tam tarixçəsi" />
         <Btn variant="ghost" icon={Download} onClick={exportToCSV} disabled={filtered.length === 0}>Export</Btn>
@@ -196,11 +195,10 @@ export default function AuditPage() {
           {
             key: 'date', label: 'Tarix', width: '110px',
             render: r => {
-              const dt = new Date(r.created_at);
               return (
                 <div className="text-[11px] text-[var(--theme-text-muted)] tabular-nums leading-tight">
-                  <p className="font-semibold text-[var(--theme-text-secondary)]">{dt.toLocaleDateString('az-AZ', { day: '2-digit', month: 'short' })}</p>
-                  <p>{dt.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="font-semibold text-[var(--theme-text-secondary)]">{fmtDate(r.created_at, false)}</p>
+                  <p>{fmtClock(r.created_at)}</p>
                 </div>
               );
             },
@@ -252,6 +250,6 @@ export default function AuditPage() {
           </div>
         }
       />
-    </PageTransition>
+    </div>
   );
 }

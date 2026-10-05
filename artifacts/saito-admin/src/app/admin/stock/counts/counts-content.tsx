@@ -8,10 +8,10 @@ import {
 } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import type { StockCount, StockCountItem } from '@/types/inventory';
-import { PageTransition } from '@/components/PageTransition';
 import { useCountOfflineQueue } from './useCountOfflineQueue';
 // 13j: design system (one visual language across the inventory module)
-import { Btn, Chip, DataTable, SearchInput, SpinnerBlock, Card, SectionHead, Field, fieldCls, Modal } from '../stock-ui';
+// 13m D9/D10: formatters from the single stock-ui source
+import { Btn, Chip, DataTable, SearchInput, SpinnerBlock, Card, SectionHead, Field, fieldCls, Modal, fmtDate, fmtAZN, fmtNum } from '../stock-ui';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -23,19 +23,6 @@ const COUNT_LABELS: Record<StockCountStatus, string> = {
 const COUNT_CHIP_TONE: Record<StockCountStatus, 'neutral' | 'info' | 'ok' | 'crit' | 'warn'> = {
   draft: 'neutral', in_progress: 'info', completed: 'ok', cancelled: 'crit',
 };
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function fmtDate(iso: string | null) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('az-AZ', {
-    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-}
-
-function fmtCurrency(n: number) {
-  return Number(n).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -257,9 +244,9 @@ export default function StockCountsPage() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   // 13h: hub frame provides page chrome — slim toolbar only.
+  // 13m: no PageTransition — embedded section pages must not y-slide (y:12, 0.5s)
   return (
-    <PageTransition className="">
-      <div className="space-y-5">
+    <div className="space-y-5">
 
         {/* ── Toolbar (13j: design system) ── */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -302,7 +289,8 @@ export default function StockCountsPage() {
                     <div className="min-w-0 flex items-center gap-2.5 flex-wrap">
                       <ChevronDown size={13} className={`shrink-0 text-[var(--theme-text-muted)] transition-transform duration-200 ${expandedId === r.id ? 'rotate-180' : ''}`} />
                       <span className="text-[13px] font-bold text-[var(--theme-text)] truncate">{r.count_number}</span>
-                      {r.assigned_to && <Chip tone="info" dot={false}>Təyin: {r.assigned_to}</Chip>}
+                      {/* 13m D11: legacy rows stored a raw user UUID — show a dash instead of wrapping it */}
+                      {r.assigned_to && <Chip tone="info" dot={false}>Təyin: {/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.assigned_to) ? '—' : r.assigned_to}</Chip>}
                     </div>
                   ),
                 },
@@ -314,7 +302,7 @@ export default function StockCountsPage() {
                   key: 'variance', label: 'Fərq', width: '110px', align: 'right',
                   render: r => r.total_variance !== 0 ? (
                     <span className={`text-[13px] font-black tabular-nums ${r.total_variance > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {r.total_variance > 0 ? '+' : ''}₼{fmtCurrency(r.total_variance)}
+                      {r.total_variance > 0 ? '+' : ''}{fmtAZN((r.total_variance))}
                     </span>
                   ) : (
                     <span className="text-xs text-[var(--theme-text-muted)] tabular-nums">₼0.00</span>
@@ -406,7 +394,7 @@ export default function StockCountsPage() {
                             },
                             {
                               key: 'vart', label: 'Fərq (₼)', width: '100px', align: 'right',
-                              render: r => <span className={`text-xs font-bold tabular-nums ${r.variance_cost > 0 ? 'text-emerald-500' : r.variance_cost < 0 ? 'text-red-500' : 'text-[var(--theme-text-muted)]'}`}>{r.variance_cost > 0 ? '+' : ''}{fmtCurrency(r.variance_cost)}</span>,
+                              render: r => <span className={`text-xs font-bold tabular-nums ${r.variance_cost > 0 ? 'text-emerald-500' : r.variance_cost < 0 ? 'text-red-500' : 'text-[var(--theme-text-muted)]'}`}>{r.variance_cost > 0 ? '+' : ''}{fmtNum(r.variance_cost)}</span>,
                             },
                           ]}
                         />
@@ -438,7 +426,6 @@ export default function StockCountsPage() {
             </AnimatePresence>
           </>
         )}
-      </div>
 
       {/* ═══════════════════════════════════════════════════════
           CREATE MODAL (13j: design-system Modal)
@@ -463,6 +450,6 @@ export default function StockCountsPage() {
           </Modal>
         )}
       </AnimatePresence>
-    </PageTransition>
+    </div>
   );
 }

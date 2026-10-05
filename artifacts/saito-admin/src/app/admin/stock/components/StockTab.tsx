@@ -30,7 +30,7 @@ import TabHero, { HeroTone } from './TabHero';
 import { LiveNumber, ViewContent } from './ViewFrame';
 import { useAsyncView } from '../hooks/useAsyncView';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
-import { Btn, Chip, DataTable, SearchInput, Seg, IconBtn, SpinnerBlock, fmtAZN, Drawer } from '../stock-ui';
+import { Btn, Chip, DataTable, SearchInput, Seg, IconBtn, SpinnerBlock, SectionHead, fmtAZN, fmtQty, fmtTime, Drawer } from '../stock-ui';
 
 const UNIT_LABELS: Record<DisplayUnit, string> = {
   gram: 'qram', piece: 'ədəd', ml: 'ml',
@@ -119,7 +119,16 @@ export default function StockTab({ onNavigate }: StockTabProps) {
   const expiredCount = fresh.filter(f => f.expired).length;
 
   const hero: { tone: HeroTone; title: string; sub: string; cta?: { label: string; onClick: () => void } } =
-    criticalCount > 0
+    !data
+      ? {
+          // 13m D5: honest loading state — the old green "Hamı normaldır"
+          // (zero-counts fall-through) claimed success before data arrived,
+          // then flipped to red. Muted = no claim.
+          tone: 'muted',
+          title: 'Yüklənir…',
+          sub: 'Stok məlumatları gətirilir',
+        }
+      : criticalCount > 0
       ? {
           tone: 'critical',
           title: `${criticalCount} xammal tədarük tələb edir`,
@@ -257,10 +266,13 @@ export default function StockTab({ onNavigate }: StockTabProps) {
           <SpinnerBlock height={320} />
         ) : data ? (
           <>
-            {/* AI advisor — the single AI surface of the inventory module */}
+            {/* AI advisor — the single AI surface of the inventory module
+                (13m D4: reserves its own skeleton height while loading,
+                so the table below never gets pushed 154px) */}
             <AdvisorCard />
 
-            {/* Anbar (13j: DataTable + SearchInput + Seg) */}
+            {/* Anbar (13j: DataTable + SearchInput + Seg; 13m D6: section head) */}
+            <SectionHead overline="Stok" title="Anbar" />
             <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
               <SearchInput value={search} onChange={setSearch} placeholder="Xammal axtar..." className="flex-1" />
               <Seg
@@ -313,7 +325,7 @@ export default function StockTab({ onNavigate }: StockTabProps) {
                   render: r => (
                     <div className="w-full flex flex-col items-end gap-1.5">
                       <span className={`text-sm font-black tabular-nums leading-none ${r.current_stock < 0 ? 'text-red-500' : 'text-[var(--theme-text)]'}`}>
-                        {r.current_stock.toLocaleString('az', { maximumFractionDigits: 1 })}
+                        {fmtQty(r.current_stock)}
                       </span>
                       <div className="w-20 h-1 rounded-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]/50 overflow-hidden">
                         <div
@@ -516,7 +528,7 @@ function StockHistoryModal({ loading, history, name, onClose }: {
                     {log.type === 'stock_in' ? '+' : ''}{Number(log.quantity).toFixed(1)}
                   </p>
                   <p className="text-[10px] text-[var(--theme-text-muted)]">
-                    {new Date(log.created_at).toLocaleString('az-AZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {fmtTime(log.created_at)}
                   </p>
                 </div>
               </motion.div>

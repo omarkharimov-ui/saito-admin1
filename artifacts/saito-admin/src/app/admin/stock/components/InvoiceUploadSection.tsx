@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import { FileText, CheckCircle, RefreshCw, Image } from '@/components/ui/saito-icons';
 import { EmptyState, LoadingState } from '@/components/ProcurementEmptyState';
 import { toast } from '@/lib/toast';
+import { fmtAZN, fmtDate } from '../stock-ui';
 
 type Step = 'upload' | 'review' | 'confirm';
 
@@ -187,7 +188,7 @@ export default function InvoiceUploadSection() {
                         {po.status === 'sent' ? 'Göndərilib' : 'Qismən'}
                       </span>
                     </div>
-                    <div className="text-xs text-[var(--theme-text-muted)]">{po.total_amount?.toFixed(2)} ₼ • {new Date(po.ordered_at).toLocaleDateString('az')}</div>
+                    <div className="text-xs text-[var(--theme-text-muted)]">{fmtAZN(po.total_amount)} • {fmtDate(po.ordered_at, false)}</div>
                   </div>
                 );
               })}

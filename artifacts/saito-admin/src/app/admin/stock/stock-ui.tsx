@@ -160,7 +160,7 @@ export function Seg<T extends string>({ options, value, onChange }: {
           <button
             key={o.id}
             onClick={() => onChange(o.id)}
-            className={`relative px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors ${active ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}
+            className={`relative px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.97] ${active ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-text)]/[0.05]'}`}
           >
             {active && <motion.span layoutId="seg-pill" className="absolute inset-0 rounded-full bg-[var(--theme-text)]" transition={SPRING} />}
             <span className="relative z-10">{o.label}</span>
@@ -408,15 +408,30 @@ export function SpinnerBlock({ height = 240 }: { height?: number }) {
   );
 }
 
-/* ── format helpers ─────────────────────────────────────────────────────── */
-export const fmtAZN = (n: number | null | undefined, digits = 2) =>
-  `₼${(n ?? 0).toLocaleString('az', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+/* ── format helpers (13m D9/D10: THE ONE source for numbers & dates) ─────── */
+// toLocaleDateString('az-AZ', {month:'short'}) renders "M10" in this ICU —
+// explicit month names instead (audit D10: "2026 M10 05 00:14").
+const AZ_MONTHS = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avq', 'sen', 'okt', 'noy', 'dek'];
+const p2 = (x: number) => String(x).padStart(2, '0');
+// Explicit grouping (no ICU/locale variance — audit D9: "192,000" vs "192000.0"
+// vs "4029.0" across screens). Style: comma thousands, dot decimal (matches PO).
+const groupSep = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+export const fmtNum = (n: number | null | undefined, digits = 0) => {
+  const fixed = Number(n ?? 0).toFixed(digits);
+  const [i, f] = fixed.split('.');
+  return groupSep(i) + (f ? `.${f}` : '');
+};
+/** quantity with 1 decimal (192,000.0 / 4,029.0) */
+export const fmtQty = (n: number | null | undefined) => fmtNum(n, 1);
+export const fmtAZN = (n: number | null | undefined, digits = 2) => `₼${fmtNum(n, digits)}`;
 export const fmtDate = (iso: string | null | undefined, withTime = true) => {
   if (!iso) return '—';
   const d = new Date(iso);
-  return d.toLocaleDateString('az-AZ', { day: '2-digit', month: 'short' }) + (withTime ? ' · ' + d.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '');
+  const day = `${p2(d.getDate())} ${AZ_MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+  return withTime ? `${day}, ${p2(d.getHours())}:${p2(d.getMinutes())}` : day;
 };
-export const fmtTime = (iso: string | null | undefined) =>
-  iso ? new Date(iso).toLocaleString('az-AZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+export const fmtTime = (iso: string | null | undefined) => fmtDate(iso, true);
+export const fmtClock = (iso: string | null | undefined) =>
+  iso ? `${p2(new Date(iso).getHours())}:${p2(new Date(iso).getMinutes())}` : '—';
 
 export { AnimatePresence, motion };

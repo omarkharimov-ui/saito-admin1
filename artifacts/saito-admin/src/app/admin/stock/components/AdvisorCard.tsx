@@ -38,7 +38,25 @@ export default function AdvisorCard() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (!data && !loading) return null;
+  // 13m D4: reserved-height skeleton while loading — without this the card
+  // pops in AFTER the table rendered and pushes it 154px (layout shift).
+  if (loading && !data) {
+    return (
+      <div className="rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-7 h-7 rounded-xl bg-[var(--theme-surface-soft)] animate-pulse" />
+          <div className="h-3 w-40 rounded bg-[var(--theme-surface-soft)] animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="h-[88px] rounded-2xl bg-[var(--theme-surface-soft)] animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   return (
     <div className="rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5">

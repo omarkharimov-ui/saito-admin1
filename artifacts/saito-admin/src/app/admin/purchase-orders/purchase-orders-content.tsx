@@ -11,9 +11,9 @@ import type {
   PurchaseOrder, PurchaseOrderStatus, CreatePurchaseOrderPayload,
   PurchaseOrderItem, Supplier,
 } from '@/types/inventory';
-import { PageTransition } from '@/components/PageTransition';
 // 13j: design system (one visual language across the inventory module)
-import { Btn, Chip, DataTable, SearchInput, IconBtn, SpinnerBlock, Modal, Field, fieldCls } from '../stock/stock-ui';
+// 13m D9/D10: formatters from the single stock-ui source (kills local "M10" + mixed grouping)
+import { Btn, Chip, DataTable, SearchInput, IconBtn, SpinnerBlock, Modal, Field, fieldCls, fmtDate, fmtAZN } from '../stock/stock-ui';
 
 const PO_CHIP_TONE: Record<string, 'ok' | 'warn' | 'crit' | 'info' | 'neutral'> = {
   draft: 'warn', sent: 'info', partial: 'neutral', received: 'ok', cancelled: 'crit',
@@ -32,19 +32,6 @@ const STATUS_META: Record<PurchaseOrderStatus, { label: string; cls: string }> =
 };
 
 const STATUS_OPTIONS: PurchaseOrderStatus[] = ['draft', 'sent', 'partial', 'received', 'cancelled'];
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function fmtDate(iso: string | null) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('az-AZ', {
-    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-}
-
-function fmtCurrency(n: number) {
-  return Number(n).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -245,7 +232,7 @@ export default function PurchaseOrdersPage() {
   // 13h (Apple minimalizm): the Stok hub frame provides the page chrome —
   // no full-screen wrapper, no ambient glow, no own hero. Slim toolbar only.
   return (
-    <PageTransition className="">
+    <div className="">
       <div className="space-y-5">
 
         {/* ── Toolbar (13j: design system) ── */}
@@ -299,12 +286,12 @@ export default function PurchaseOrdersPage() {
               },
               { key: 'supplier', label: 'Təchizatçı', width: '1.2fr', render: r => <span className="text-[13px] text-[var(--theme-text-secondary)] truncate">{r.supplier_name}</span> },
               {
-                key: 'status', label: 'Status', width: '110px',
+                key: 'status', label: 'Status', width: '124px',
                 render: r => <Chip tone={PO_CHIP_TONE[r.status] || 'neutral'}>{STATUS_META[r.status]?.label || r.status}</Chip>,
               },
               {
                 key: 'amount', label: 'Məbləğ', width: '90px', align: 'right',
-                render: r => <span className="text-[13px] font-black tabular-nums text-[var(--theme-text)]">₼{fmtCurrency(r.total_amount)}</span>,
+                render: r => <span className="text-[13px] font-black tabular-nums text-[var(--theme-text)]">{fmtAZN(r.total_amount)}</span>,
               },
               {
                 key: 'dates', label: 'Tarixlər', width: '150px', hide: 'md',
@@ -380,7 +367,7 @@ export default function PurchaseOrdersPage() {
                       </div>
                       {parseFloat(item.quantity) > 0 && parseFloat(item.unit_cost) > 0 && (
                         <p className="text-[10px] text-[var(--theme-text-muted)] text-right">
-                          Cəmi: <span className="font-bold text-[var(--theme-text-secondary)]">₼{fmtCurrency(parseFloat(item.quantity) * parseFloat(item.unit_cost))}</span>
+                          Cəmi: <span className="font-bold text-[var(--theme-text-secondary)]">{fmtAZN(parseFloat(item.quantity) * parseFloat(item.unit_cost))}</span>
                         </p>
                       )}
                     </motion.div>
@@ -390,7 +377,7 @@ export default function PurchaseOrdersPage() {
 
               <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                 <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--theme-text-muted)]">Ümumi Məbləğ</span>
-                <span className="text-lg font-black tabular-nums text-[var(--theme-text)]">₼{fmtCurrency(formTotal)}</span>
+                <span className="text-lg font-black tabular-nums text-[var(--theme-text)]">{fmtAZN(formTotal)}</span>
               </div>
 
               <Field label="Qeyd — istəyə görə">
@@ -458,6 +445,6 @@ export default function PurchaseOrdersPage() {
           </Modal>
         )}
       </AnimatePresence>
-    </PageTransition>
+    </div>
   );
 }

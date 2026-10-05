@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, RefreshCw, FileText, AlertTriangle } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { fmtNum, fmtQty, fmtAZN } from '../stock-ui';
 
 interface GuideLine {
   ingredient_id: string; name: string; unit: string;
@@ -143,7 +144,8 @@ export default function OrderGuideSection({ autoSelectId }: { autoSelectId?: str
             type="button"
             onClick={createPo}
             disabled={creating || selectedLines.length === 0}
-            className="relative z-10 flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.97]"
+            // 13m D17: emerald-500 + white looks "disabled" on white (light mode) — deeper 600.
+            className="relative z-10 flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-500 light:bg-emerald-600 hover:bg-emerald-600 light:hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 light:shadow-emerald-600/20 transition-all active:scale-[0.97]"
           >
             {creating ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
             Draft PO Yarat {selectedLines.length > 0 && `(${selectedLines.length})`}
@@ -154,7 +156,20 @@ export default function OrderGuideSection({ autoSelectId }: { autoSelectId?: str
       {/* table */}
       <div ref={tableRef} className="rounded-2xl overflow-hidden border border-[var(--theme-border)] bg-[var(--theme-surface)] scroll-mt-24">
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-[var(--theme-text-muted)]"><Loader2 size={22} className="animate-spin" /></div>
+          // 13m D20: reserved skeleton (was empty + lone spinner — the 2-column
+          // "Nə Alım" right side looked broken while loading)
+          <div className="divide-y divide-[var(--theme-border)]">
+            {[0, 1, 2, 3, 4].map(i => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+                <div className="w-5 h-5 rounded-md bg-[var(--theme-surface-soft)] animate-pulse" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 rounded bg-[var(--theme-surface-soft)] animate-pulse" style={{ width: `${55 - i * 7}%` }} />
+                  <div className="h-2.5 w-1/3 rounded bg-[var(--theme-surface-soft)]/70 animate-pulse" />
+                </div>
+                <div className="w-16 h-3 rounded bg-[var(--theme-surface-soft)] animate-pulse" />
+              </div>
+            ))}
+          </div>
         ) : visible.length === 0 ? (
           <div className="py-14 text-center">
             <p className="text-sm font-bold text-[var(--theme-text-secondary)]">Order guide boşdur</p>
@@ -201,15 +216,16 @@ export default function OrderGuideSection({ autoSelectId }: { autoSelectId?: str
                           )}
                         </div>
                       </td>
-                      <td className={`px-4 py-3 text-right text-[12px] font-bold tabular-nums ${l.negative ? (light ? 'text-red-600' : 'text-rose-400') : 'text-[var(--theme-text-secondary)]'}`}>{l.current_stock} {l.unit}</td>
-                      <td className="px-4 py-3 text-right text-[12px] tabular-nums text-[var(--theme-text-muted)]">{l.par > 0 ? `${l.par} ${l.unit}` : '—'}</td>
-                      <td className="px-4 py-3 text-right text-[12px] tabular-nums text-[var(--theme-text-muted)]">{l.daily_rate || 0} {l.unit}</td>
+                      {/* 13m D9: one formatter source (grouping + decimals) */}
+                      <td className={`px-4 py-3 text-right text-[12px] font-bold tabular-nums ${l.negative ? (light ? 'text-red-600' : 'text-rose-400') : 'text-[var(--theme-text-secondary)]'}`}>{fmtQty(l.current_stock)} {l.unit}</td>
+                      <td className="px-4 py-3 text-right text-[12px] tabular-nums text-[var(--theme-text-muted)]">{l.par > 0 ? `${fmtNum(l.par, 1)} ${l.unit}` : '—'}</td>
+                      <td className="px-4 py-3 text-right text-[12px] tabular-nums text-[var(--theme-text-muted)]">{fmtNum(l.daily_rate, 1)} {l.unit}</td>
                       <td className="px-4 py-3 text-right">
-                        <span className="inline-block px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-500 text-[12px] font-black tabular-nums">{l.suggested_qty} {l.unit}</span>
+                        <span className="inline-block px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-500 light:text-emerald-700 text-[12px] font-black tabular-nums">{fmtNum(l.suggested_qty, 1)} {l.unit}</span>
                       </td>
                       <td className="px-4 py-3 text-[12px] text-[var(--theme-text-secondary)] font-medium">{l.supplier_name || <span className="text-[var(--theme-text-muted)]/50">—</span>}</td>
-                      <td className="px-4 py-3 text-right text-[12px] tabular-nums text-[var(--theme-text-secondary)]">{l.unit_price != null ? `${l.unit_price} ₼` : '—'}</td>
-                      <td className="px-4 py-3 text-right text-[12px] tabular-nums font-bold text-[var(--theme-text)]">{l.estimated_cost != null ? `${l.estimated_cost.toLocaleString('az')} ₼` : '—'}</td>
+                      <td className="px-4 py-3 text-right text-[12px] tabular-nums text-[var(--theme-text-secondary)]">{l.unit_price != null ? fmtAZN(l.unit_price) : '—'}</td>
+                      <td className="px-4 py-3 text-right text-[12px] tabular-nums font-bold text-[var(--theme-text)]">{l.estimated_cost != null ? fmtAZN(l.estimated_cost) : '—'}</td>
                     </motion.tr>
                   ))}
                 </AnimatePresence>

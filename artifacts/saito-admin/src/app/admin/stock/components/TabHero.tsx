@@ -11,11 +11,11 @@
 // (rose, pulsing dot). All theme-var based (light-mode safe).
 
 import { motion } from 'framer-motion';
-import { SPRING } from '@/lib/motion/system';
 
-export type HeroTone = 'ok' | 'info' | 'warning' | 'critical';
+export type HeroTone = 'ok' | 'info' | 'warning' | 'critical' | 'muted';
 
 const TONE: Record<HeroTone, { dot: string; text: string; bg: string; border: string; pulse: boolean }> = {
+  muted:    { dot: 'bg-[var(--theme-text-muted)]/40', text: 'text-[var(--theme-text)]', bg: 'bg-[var(--theme-surface-soft)]', border: 'border-[var(--theme-border)]', pulse: false },
   ok:       { dot: 'bg-emerald-400', text: 'text-emerald-400', bg: 'bg-emerald-500/[0.05]', border: 'border-emerald-500/20', pulse: false },
   info:     { dot: 'bg-blue-400',    text: 'text-blue-400',    bg: 'bg-blue-500/[0.05]',    border: 'border-blue-500/20',    pulse: false },
   warning:  { dot: 'bg-amber-400',   text: 'text-amber-400',   bg: 'bg-amber-500/[0.05]',   border: 'border-amber-500/25',   pulse: false },
@@ -24,6 +24,7 @@ const TONE: Record<HeroTone, { dot: string; text: string; bg: string; border: st
 
 // light-mode: 400-level accents are pale on white — step down one shade.
 const TONE_LIGHT: Record<HeroTone, { dot: string; text: string; bg: string; border: string }> = {
+  muted:    { dot: 'bg-[var(--theme-text-muted)]/50', text: 'text-[var(--theme-text-secondary)]', bg: 'bg-[var(--theme-surface-soft)]', border: 'border-[var(--theme-border)]' },
   ok:       { dot: 'bg-emerald-500', text: 'text-emerald-600', bg: 'bg-emerald-500/[0.06]', border: 'border-emerald-500/25' },
   info:     { dot: 'bg-blue-500',    text: 'text-blue-600',    bg: 'bg-blue-500/[0.06]',    border: 'border-blue-500/25' },
   warning:  { dot: 'bg-amber-500',   text: 'text-amber-600',   bg: 'bg-amber-500/[0.06]',   border: 'border-amber-500/30' },
@@ -43,10 +44,9 @@ export interface TabHeroProps {
 export default function TabHero({ tone, title, sub, cta, cta2, lightMode }: TabHeroProps) {
   const t = lightMode ? { ...TONE[tone], ...TONE_LIGHT[tone] } : TONE[tone];
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={SPRING}
+    // 13m: static entry — the tab swap is instant now; a y:10 slide here would
+    // re-introduce the "səhifə oynuyur" feel (audit D1). Only the dot pulses.
+    <div
       className={`rounded-2xl border ${t.border} ${t.bg} px-5 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5`}
     >
       <div className="flex items-start gap-3.5 min-w-0 flex-1">
@@ -89,6 +89,6 @@ export default function TabHero({ tone, title, sub, cta, cta2, lightMode }: TabH
           )}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

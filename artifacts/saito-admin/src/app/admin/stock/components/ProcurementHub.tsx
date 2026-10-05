@@ -13,7 +13,7 @@ import { motion } from 'framer-motion';
 import {
   RefreshCw, ShoppingCart, ArrowDownCircle,
 } from '@/components/ui/saito-icons';
-import { SectionHead } from '../stock-ui';
+import { SectionHead, fmtNum } from '../stock-ui';
 import type { StockSuggestion } from '@/types/inventory';
 import TabHero from './TabHero';
 import OrderGuideSection from './OrderGuideSection';
@@ -63,7 +63,7 @@ export default function ProcurementHub({ sub, onSubChange, isElevated, lightMode
   const estCost = suggestions.reduce((a, s) => a + (s.suggested_reorder_qty * s.avg_cost_per_unit || 0), 0);
 
   const hero = criticalCount > 0
-    ? { tone: 'critical' as const, title: `${suggestions.length} xammal sifariş olunmalı`, sub: `Təxmini xərc ₼${estCost.toLocaleString('az', { maximumFractionDigits: 0 })} — Order Guide-da sətir seçib DRAFT PO yarat (auto-send YOX).` }
+    ? { tone: 'critical' as const, title: `${suggestions.length} xammal sifariş olunmalı`, sub: `Təxmini xərc ₼${fmtNum(estCost)} — Order Guide-da sətir seçib DRAFT PO yarat (auto-send YOX).` }
     : suggestions.length > 0
       ? { tone: 'warning' as const, title: `${suggestions.length} xammal limitə yaxınlaşıb`, sub: 'Hələ kritik deyil — Order Guide-dən izləyin.' }
       : { tone: 'ok' as const, title: 'Hazırki sifariş tələbi yoxdur', sub: 'Bütün xammallar par səviyyəsində və ya yuxarısındadır.' };

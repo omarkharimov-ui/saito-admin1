@@ -25,10 +25,23 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createAuthClient();
 
-    const { order_id, payment_method, cash_amount, card_amount, paid_amount, tip_amount, campaign_id, discount_amount, discount_type, per_item_allocations, cash_received, idempotency_key, card_reference } = await request.json();
+    const { order_id, payment_method, cash_amount, card_amount, paid_amount, tip_amount, campaign_id, discount_amount, discount_type, per_item_allocations, cash_received, idempotency_key, card_reference, payment_group_id } = await request.json();
     if (!order_id) {
       return NextResponse.json({ error: 'order_id is required' }, { status: 400 });
     }
+
+    // 13f (owner: "merged odeniş merged olaraq DB-də saxlanılsın"): the POS
+    // generates ONE UUID per payment ACTION and sends it with every per-order
+    // pay call of a merged group. It lands on each order_payments ledger row
+    // as split_group_id — the frozen RPC already forwards
+    // (v_payment->>'split_group_id')::UUID, so nothing else is touched.
+    // History then collapses all orders sharing a split_group_id into ONE
+    // merged-group entry. Strict UUID validation: anything else is dropped
+    // (the field is a UUID column — garbage would 22P02 the whole payment).
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const groupSplitId = (typeof payment_group_id === 'string' && UUID_RE.test(payment_group_id.trim()))
+      ? payment_group_id.trim().toLowerCase()
+      : null;
 
     // P-4 C-1 (ratified D-1): the payment boundary REFUSES keyless financial
     // mutations. The key is a client retry token; the DB enforces scope
@@ -163,16 +176,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'CASH_DRAWER_REQUIRED', cash_drawer_required: true }, { status: 403 });
     }
 
+    // 13f: the payment-ACTION id (groupSplitId) wins over the old
+    // drawer-session value. Nothing in the app or DB reads split_group_id
+    // semantically as "drawer session" (verified: only the RPC writes it;
+    // p_cash_drawer_session_id is accepted by the RPC but unused in the body),
+    // so this is a safe semantic upgrade: split_group_id = "one payment action".
+    const actionSplitId = groupSplitId ?? cashDrawerSessionId;
     const paymentsPayload = (per_item_allocations && Array.isArray(per_item_allocations) && per_item_allocations.length > 0)
       ? per_item_allocations.map((alloc: any) => ({
           method: alloc.payment_method || 'card',
           amount: Number(alloc.amount) || 0,
           is_partial: true,
-          split_group_id: cashDrawerSessionId,
+          split_group_id: actionSplitId,
         }))
       : [
-          { method: 'cash', amount: cashPortion },
-          { method: payment_method === 'split' ? 'split' : payment_method, amount: cardPortion },
+          { method: 'cash', amount: cashPortion, ...(groupSplitId ? { split_group_id: groupSplitId } : {}) },
+          { method: payment_method === 'split' ? 'split' : payment_method, amount: cardPortion, ...(groupSplitId ? { split_group_id: groupSplitId } : {}) },
         ].filter(p => p.amount > 0);
 
     const { data, error } = await supabase.rpc('complete_payment_atomic_v2', {

@@ -7,10 +7,8 @@ import {
   Calendar,
   PackagePlus,
   Warehouse,
-  ScrollText,
   Monitor,
   ShieldAlert,
-  ShoppingCart,
   UserRound,
   Users,
   Shield,
@@ -21,9 +19,6 @@ import {
   Coffee,
   Wallet,
   Smartphone,
-  Scale,
-  RotateCcw,
-  Trash,
   type LucideIcon,
 } from '@/components/ui/saito-icons';
 
@@ -121,18 +116,13 @@ export function getAdminNavItems(
     },
     { id: 'checklists', name: 'CHECKLIST', href: '/admin/checklists', icon: ClipboardCheck, roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier', 'host'] },
 
+    // 13f (owner: "inventory-a aid olan seyler sidebarda ayri tab olmasinda,
+    // eyni sehifede olsunlar"): ALL inventory surfaces live on ONE page —
+    // /admin/stock is now the hub with 11 internal views (Anbar, Ağıllı
+    // Analiz, Tədarük, Alış Sifarişləri, Report, Tədarükçülər, Reseptlər,
+    // Sayım, Qaytarış, İtki St., Audit). One sidebar entry, deep links and
+    // bookmarks keep working via ?view= + thin redirects on the old routes.
     { id: 'stock', name: 'Stok', href: '/admin/stock', icon: Warehouse, roles: ['superadmin', 'owner', 'admin'] },
-    { id: 'purchase-orders', name: 'Alış Sifarişləri', href: '/admin/purchase-orders', icon: ShoppingCart, roles: ['superadmin', 'owner'] },
-    { id: 'recipes', name: 'Reseptlər', href: '/admin/recipes', icon: ScrollText, roles: ['superadmin', 'owner'] },
-    { id: 'audit', name: 'Audit', href: '/admin/audit', icon: ShieldAlert, roles: ['superadmin', 'owner', 'admin'] },
-    // 13a (owner: inventory deep pass): the stocktake / supplier-returns /
-    // waste-standards pages EXISTED but were orphaned (reachable only by
-    // typing the URL — 0 usage in DB: stock_counts=0, supplier_returns=0,
-    // waste_standards=0). Stocktake is THE tool to fix the 5 negative-stock
-    // ingredients, so it gets first-class nav.
-    { id: 'stock-counts', name: 'Stok Sayımı', href: '/admin/stock/counts', icon: Scale, roles: ['superadmin', 'owner'] },
-    { id: 'stock-returns', name: 'Tədarük Returns', href: '/admin/stock/returns', icon: RotateCcw, roles: ['superadmin', 'owner'] },
-    { id: 'waste-standards', name: 'İtki Standartları', href: '/admin/waste-standards', icon: Trash, roles: ['superadmin', 'owner'] },
     { id: 'loss-prevention', name: 'Loss Prevention', href: '/admin/loss-prevention', icon: ShieldAlert, roles: ['admin', 'manager', 'superadmin', 'owner'] },
     { id: 'stats', name: t('statistics'), href: '/admin/stats', icon: BarChart3, roles: ['admin', 'manager', 'superadmin', 'owner'] },
     { id: 'settings', name: t('settings'), href: '/admin/settings', icon: Settings, roles: ['admin', 'superadmin', 'owner'] }

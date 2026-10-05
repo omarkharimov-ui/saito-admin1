@@ -242,13 +242,26 @@ export default function POSPage() {
   const [discountReason, setDiscountReason] = useState('');
   // Sprint-1: manager PIN override for >20% discounts.
   const [discountPinOpen, setDiscountPinOpen] = useState(false);
-  const [payOutcome, setPayOutcome] = useState<{ okCount: number; failed: any[]; method: string } | null>(null);
+  const [payOutcome, setPayOutcome] = useState<{ okCount: number; failed: any[]; method: string; groupId?: string } | null>(null);
   const payKeyRef = useRef<Record<string, string>>({});
   const payKeyFor = useCallback((orderId: string) => {
     if (!payKeyRef.current[orderId]) {
       payKeyRef.current[orderId] = `pos:${orderId}:${crypto.randomUUID()}`;
     }
     return payKeyRef.current[orderId];
+  }, []);
+  // 13f (owner: merged payment stored MERGED in DB): one stable UUID per
+  // payment ACTION (keyed by the sorted table set) → sent as payment_group_id
+  // with every per-order pay call → all order_payments rows of the merged
+  // group share split_group_id → history renders ONE merged-group entry.
+  // Stable across the cash-gate auto-retry (re-run pays the remainder under
+  // the SAME group id, so a partial-then-retry group stays one group).
+  const payGroupIdRef = useRef<Record<string, string>>({});
+  const payGroupIdFor = useCallback((tables: number[] | string[]) => {
+    const key = String([...tables].map(String).sort((a, b) => Number(a) - Number(b)).join(','));
+    if (!key) return crypto.randomUUID();
+    if (!payGroupIdRef.current[key]) payGroupIdRef.current[key] = crypto.randomUUID();
+    return payGroupIdRef.current[key];
   }, []);
   const [courierPickerOpen, setCourierPickerOpen] = useState(false);
   const [couriers, setCouriers] = useState<any[]>([]);
@@ -1243,6 +1256,7 @@ export default function POSPage() {
             order_id: specificOrder.id,
             payment_method: method,
             paid_amount: total,
+            payment_group_id: payGroupIdFor([specificOrder.id]),
             // P1 fix: tip was hardcoded 0 — now carried from the payment sheet.
             tip_amount: specificTip,
             // P2 fix: real cash tendered is recorded for cash-drawer reconciliation.
@@ -1352,20 +1366,23 @@ export default function POSPage() {
       // replay is dropped server-side. The operator sees a pending receipt.
       let queuedCount = 0;
       const manualTip = Math.max(0, Number(tipAmount) || 0);
-      // P1: a manually entered tip belongs to the primary order (the one the
-      // operator is paying at), not spread across all group orders.
-      const tipOrderIds = new Set([activeOrders[0]?.id]);
-      for (const activeOrder of activeOrders) {
-        const total = activeOrder.total_amount || 0;
-        const paidAmount = total;
+       // P1: a manually entered tip belongs to the primary order (the one the
+       // operator is paying at), not spread across all group orders.
+       const tipOrderIds = new Set([activeOrders[0]?.id]);
+       // 13f: ONE payment-action id for the whole group → merged in history.
+       const groupPaymentId = payGroupIdFor(activeOrders.map((o: any) => o.id));
+       for (const activeOrder of activeOrders) {
+         const total = activeOrder.total_amount || 0;
+         const paidAmount = total;
 
-        const res = await apiFetch('/api/orders/pay', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            order_id: activeOrder.id,
-            payment_method: method,
-            paid_amount: paidAmount,
+         const res = await apiFetch('/api/orders/pay', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({
+             order_id: activeOrder.id,
+             payment_method: method,
+             paid_amount: paidAmount,
+             payment_group_id: groupPaymentId,
             tip_amount: tipOrderIds.has(activeOrder.id) ? manualTip : 0,
             // P2: real cash tendered recorded for cash-drawer reconciliation.
             ...(method === 'cash' && tenderedAmount ? { cash_received: Number(tenderedAmount) || 0 } : {}),
@@ -1399,7 +1416,7 @@ export default function POSPage() {
 
       if (failedOrders.length > 0) {
         const failedOrdersRaw = activeOrders.filter((o: any) => failedOrders.includes(o.id));
-        setPayOutcome({ okCount: activeOrders.length - failedOrders.length, failed: failedOrdersRaw, method });
+        setPayOutcome({ okCount: activeOrders.length - failedOrders.length, failed: failedOrdersRaw, method, groupId: groupPaymentId });
         pos.fetchData();
         if (pos.selectedTable && tableNumbers.includes(pos.selectedTable.table_number)) pos.resetCart();
         return;
@@ -1529,6 +1546,8 @@ export default function POSPage() {
         toast.error(t('order_to_pay_not_found'), { id: 'action-toast' });
         return;
       }
+      // 13f: ONE payment-action id for the whole group → merged history entry.
+      const groupPaymentId = payGroupIdFor(activeOrders.map((o: any) => o.id));
 
       // Per-item split: allocate payments to specific items
       if (split.items && Object.keys(split.items).length > 0) {
@@ -1558,6 +1577,7 @@ export default function POSPage() {
             body: JSON.stringify({
               order_id: activeOrder.id,
               payment_method: 'split',
+              payment_group_id: groupPaymentId,
               cash_amount: Math.round(orderCash * 100) / 100,
               card_amount: Math.round(orderCard * 100) / 100,
               tip_amount: activeOrders[0]?.id === activeOrder.id ? manualTip : 0,
@@ -1604,6 +1624,7 @@ export default function POSPage() {
             body: JSON.stringify({
               order_id: activeOrder.id,
               payment_method: 'split',
+              payment_group_id: groupPaymentId,
               cash_amount: orderCash,
               card_amount: orderCard,
               tip_amount: i === 0 ? manualTip : 0,
@@ -1637,7 +1658,7 @@ export default function POSPage() {
 
        if (failedOrders.length > 0) {
          const failedOrdersRaw = activeOrders.filter((o: any) => failedOrders.includes(o.id));
-         setPayOutcome({ okCount: activeOrders.length - failedOrders.length, failed: failedOrdersRaw, method: 'split' });
+         setPayOutcome({ okCount: activeOrders.length - failedOrders.length, failed: failedOrdersRaw, method: 'split', groupId: groupPaymentId });
         pos.fetchData();
         if (pos.selectedTable && tableNumbers.includes(pos.selectedTable.table_number)) pos.resetCart();
         return;
@@ -2374,20 +2395,23 @@ export default function POSPage() {
     let retried = 0;
     for (const order of failed) {
       const total = Number(order.total_amount) || 0;
-      const res = await apiFetch('/api/orders/pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          order_id: order.id,
-          payment_method: method,
-          paid_amount: total,
-          tip_amount: 0,
-          campaign_id: order.campaign_id || undefined,
-          discount_amount: order.discount_amount || 0,
-          discount_type: order.discount_type || 'fixed',
-          idempotency_key: payKeyFor(order.id),
-        }),
-      });
+       const res = await apiFetch('/api/orders/pay', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           order_id: order.id,
+           payment_method: method,
+           paid_amount: total,
+           // 13f: keep the ORIGINAL payment-action id so a retried remainder
+           // joins the same merged-group ledger rows (not a new group).
+           payment_group_id: payOutcome.groupId || crypto.randomUUID(),
+           tip_amount: 0,
+           campaign_id: order.campaign_id || undefined,
+           discount_amount: order.discount_amount || 0,
+           discount_type: order.discount_type || 'fixed',
+           idempotency_key: payKeyFor(order.id),
+         }),
+       });
        if (!res.ok) {
          const err = await res.json().catch(() => ({ error: t('payment_failed') }));
          stillFailed.push({ ...order, error: (err.error === 'ORDER_ALREADY_PAID' || err.already_paid) ? t('order_already_paid') : err.error });
@@ -2407,7 +2431,7 @@ export default function POSPage() {
       pos.fetchData();
       if (pos.selectedTable) pos.resetCart();
     } else {
-      setPayOutcome({ okCount: payOutcome.okCount + retried, failed: stillFailed, method });
+      setPayOutcome({ okCount: payOutcome.okCount + retried, failed: stillFailed, method, groupId: payOutcome.groupId });
     }
   };
 

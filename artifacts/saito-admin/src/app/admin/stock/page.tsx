@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { useAdminAuth } from '../hooks/useAdminAuth';
 import {
   InventoryStatusRow, InventoryDashboardData,
   IngredientUnit, LowStockAlert,
@@ -27,6 +28,18 @@ import AdvisorCard from './components/AdvisorCard';
 import IntelligenceTabComponent from './components/IntelligenceTab';
 import { CalibrationSuggestionsPanel, CalibrationSuggestion } from './components/CalibrationSuggestionsPanel';
 import { InventoryHealthCard } from './components/InventoryHealthCard';
+// 13f (owner: "inventory-a aid olan seyler sidebarda ayri tab olmasinda,
+// eyni sehifede olsunlar"): the six inventory routes that used to be SEPARATE
+// sidebar tabs now compose INSIDE this hub as internal views. Their bodies
+// live in sibling *-content.tsx files (self-contained 'use client'
+// components, no route params); the old routes remain as thin redirects
+// (bookmarks keep working — they land on the same internal view).
+import PurchaseOrdersPage from '../purchase-orders/purchase-orders-content';
+import RecipesPage from '../recipes/recipes-content';
+import StockCountsPage from './counts/counts-content';
+import SupplierReturnsPage from './returns/returns-content';
+import WasteStandardsPage from '../waste-standards/waste-standards-content';
+import AuditPage from '../audit/audit-content';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
@@ -63,8 +76,46 @@ export default function StockPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'critical' | 'out_of_stock'>(searchParams.get('filter') === 'critical' || searchParams.get('filter') === 'out_of_stock' ? searchParams.get('filter') as any : 'all');
-  // 13c: + 'report' (COGS/AvT/shrinkage/freshness — Toast parity).
-  const [viewMode, setViewMode] = useState<'stock' | 'intelligence' | 'suppliers' | 'procurement' | 'report'>('stock');
+  // 13f: the hub composes ALL inventory views (13c's 5 + the 6 former
+  // sidebar routes). `?view=` keeps deep links / old-route redirects working.
+  const router = useRouter();
+
+  // Hub chip row — one flex-wrap row instead of 6 separate sidebar tabs.
+  // `elevated` = superadmin/owner only (same classes as the old nav entries;
+  // the API routes enforce permissions server-side regardless).
+  const HUB_CHIPS: { id: StockView; label: string; elevated?: boolean }[] = [
+    { id: 'stock', label: 'Anbar' },
+    { id: 'intelligence', label: 'Ağıllı Analiz' },
+    { id: 'procurement', label: 'Tədarük' },
+    { id: 'po', label: 'Alış Sifarişləri', elevated: true },
+    { id: 'report', label: 'Report' },
+    { id: 'suppliers', label: 'Tədarükçülər' },
+    { id: 'recipes', label: 'Reseptlər', elevated: true },
+    { id: 'counts', label: 'Sayım', elevated: true },
+    { id: 'returns', label: 'Qaytarış', elevated: true },
+    { id: 'waste', label: 'İtki St.', elevated: true },
+    { id: 'audit', label: 'Audit' },
+  ];
+  type StockView = 'stock' | 'intelligence' | 'suppliers' | 'procurement' | 'po' | 'recipes' | 'counts' | 'returns' | 'waste' | 'audit' | 'report';
+  const STOCK_VIEWS: StockView[] = ['stock', 'intelligence', 'suppliers', 'procurement', 'po', 'recipes', 'counts', 'returns', 'waste', 'audit', 'report'];
+  const [viewMode, setViewModeRaw] = useState<StockView>(() => {
+    const v = searchParams.get('view');
+    return (v && (STOCK_VIEWS as string[]).includes(v)) ? v as StockView : 'stock';
+  });
+  const setViewMode = (v: StockView) => {
+    setViewModeRaw(v);
+    const p = new URLSearchParams(searchParams.toString());
+    if (v === 'stock') p.delete('view'); else p.set('view', v);
+    const qs = p.toString();
+    router.replace(qs ? `/admin/stock?${qs}` : '/admin/stock', { scroll: false });
+  };
+  // View-level role gating (same classes as the old sidebar entries; the API
+  // routes enforce the permissions server-side regardless). E2E r30 catch:
+  // the `saito_role` COOKIE does not exist (it is only ever CLEARED on logout,
+  // never set) — the canonical role source is the live /api/auth/me session,
+  // exactly like the sidebar. Hidden until auth resolves (conservative).
+  const { role: hubAuthRole } = useAdminAuth();
+  const isElevated = hubAuthRole === 'superadmin' || hubAuthRole === 'owner';
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [history, setHistory] = useState<Array<Pick<InventoryLog, 'id' | 'type' | 'quantity' | 'cost_per_unit' | 'reason' | 'created_at'>> | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -268,28 +319,33 @@ export default function StockPage() {
                   <Sparkles size={12} /> PRO INVENTORY
                 </div>
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-[var(--theme-text)]">Stok Paneli</h1>
+                {/* 13f: ALL inventory views in ONE page — one flex-wrap chip
+                    row (the six ex-sidebar routes joined the 13c views).
+                    Unified active state (theme-text pill) in both themes. */}
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => setViewMode('stock')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'stock' ? 'bg-[var(--theme-text)] text-[var(--theme-bg)]' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Anbar</button>
-                  <button onClick={() => setViewMode('intelligence')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'intelligence' ? 'bg-gold text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Ağıllı Analiz</button>
-                  <button onClick={() => setViewMode('suppliers')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'suppliers' ? 'bg-blue-500 text-white' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Tədarükçülər</button>
-                  <button onClick={() => setViewMode('procurement')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'procurement' ? 'bg-gold text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Tədarük</button>
-                  <button onClick={() => setViewMode('report')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'report' ? 'bg-blue-500 text-white' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Report</button>
+                  {HUB_CHIPS.filter(c => !c.elevated || isElevated).map(c => (
+                    <button key={c.id} onClick={() => setViewMode(c.id)} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === c.id ? 'bg-[var(--theme-text)] text-[var(--theme-bg)]' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>{c.label}</button>
+                  ))}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => setShowNewIngredient(true)}
-                  className="flex items-center gap-2 px-5 py-3 bg-[var(--theme-surface)] text-[var(--theme-text)] border border-[var(--theme-border)] rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-white transition-all"
-                >
-                  <Plus size={16} /> Yeni Xammal
-                </button>
-                <button 
-                  onClick={() => setShowQuickStockIn(true)}
-                  className="flex items-center gap-2 px-5 py-3 bg-gold text-black rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-white transition-all shadow-lg"
-                >
-                  <Plus size={16} /> Xammal Girişi
-                </button>
-              </div>
+              {/* Stock-only quick actions — the other views are self-contained
+                  (each brings its own header + actions). */}
+              {viewMode === 'stock' && (
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setShowNewIngredient(true)}
+                    className="flex items-center gap-2 px-5 py-3 bg-[var(--theme-surface)] text-[var(--theme-text)] border border-[var(--theme-border)] rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-white transition-all"
+                  >
+                    <Plus size={16} /> Yeni Xammal
+                  </button>
+                  <button 
+                    onClick={() => setShowQuickStockIn(true)}
+                    className="flex items-center gap-2 px-5 py-3 bg-gold text-black rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-white transition-all shadow-lg"
+                  >
+                    <Plus size={16} /> Xammal Girişi
+                  </button>
+                </div>
+              )}
             </div>
           </section>
 
@@ -409,6 +465,14 @@ export default function StockPage() {
             </div>
           )}
 
+          {/* 13f: the "Ağıllı Analiz" chip had NO render block (dead view —
+              the component was imported but never mounted). Wired up now. */}
+          {viewMode === 'intelligence' && (
+            <div className="grid grid-cols-1 gap-6 items-start">
+              <IntelligenceTabComponent />
+            </div>
+          )}
+
           {viewMode === 'procurement' && (
             <ProcurementTab />
           )}
@@ -416,6 +480,15 @@ export default function StockPage() {
           {viewMode === 'report' && (
             <ReportsTab />
           )}
+
+          {/* 13f: the six former sidebar routes — now internal hub views.
+              Each component is self-contained (own header, actions, state). */}
+          {viewMode === 'po' && <PurchaseOrdersPage />}
+          {viewMode === 'recipes' && <RecipesPage />}
+          {viewMode === 'counts' && <StockCountsPage />}
+          {viewMode === 'returns' && <SupplierReturnsPage />}
+          {viewMode === 'waste' && <WasteStandardsPage />}
+          {viewMode === 'audit' && <AuditPage />}
 
         </div>
       </div>

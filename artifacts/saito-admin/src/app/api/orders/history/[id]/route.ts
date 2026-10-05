@@ -31,11 +31,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const order = orders[0];
 
-    const paymentsRes = await fetch(
-      `${s.url}/rest/v1/payments?order_id=eq.${id}&order=created_at.asc`,
+    // 13f (latent bug found while wiring merged-group detail): the LIVE
+    // ledger is order_payments (frozen RPC complete_payment_atomic_v2 writes
+    // there); the legacy `payments` table has not received a row since
+    // 2026-09-27, so every recent order's ÖDƏNİŞLƏR section rendered EMPTY.
+    // Read order_payments first; fall back to legacy for pre-09-27 orders.
+    const opRes = await fetch(
+      `${s.url}/rest/v1/order_payments?order_id=eq.${id}&order=created_at.asc`,
       { headers: s.headers }
     );
-    const payments = paymentsRes.ok ? await paymentsRes.json() : [];
+    let payments: any[] = opRes.ok ? await opRes.json() : [];
+    if (!Array.isArray(payments) || payments.length === 0) {
+      const paymentsRes = await fetch(
+        `${s.url}/rest/v1/payments?order_id=eq.${id}&order=created_at.asc`,
+        { headers: s.headers }
+      );
+      payments = paymentsRes.ok ? await paymentsRes.json() : [];
+    }
 
     // AUDIT 2026-09-23 (root cause of the "weak timeline"): order-scoped
     // audit rows are written with the order id in `record_id` (table_name
@@ -79,7 +91,71 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
     } catch { /* keep raw logs */ }
 
-    return NextResponse.json({ order, payments, auditLogs });
+    // 13f: merged payment group — if this order's ledger rows carry a
+    // split_group_id shared with other orders, expand the whole group so
+    // Tarixçə can show ONE merged detail (every member's items/payments/audit).
+    let group: any = null;
+    const groupIds = Array.from(new Set(payments.map((p: any) => p.split_group_id).filter(Boolean)));
+    if (groupIds.length > 0) {
+      try {
+        const sibRes = await fetch(
+          `${s.url}/rest/v1/order_payments?split_group_id=in.(${groupIds.join(',')})&order_id=neq.${id}&is_refund=eq.false&select=order_id`,
+          { headers: s.headers }
+        );
+        if (sibRes.ok) {
+          const sibRows: any[] = await sibRes.json();
+          const sibIds = Array.from(new Set(sibRows.map((r: any) => r.order_id))).slice(0, 10);
+          if (sibIds.length > 0) {
+            const gid = groupIds[0];
+            const inCsv = [id, ...sibIds].join(',');
+            const [membersRes, membersPayRes, membersAuditRes] = await Promise.all([
+              fetch(`${s.url}/rest/v1/orders?id=in.(${inCsv})&select=*,campaigns(name),order_items(id,order_id,product_id,product_name,quantity,unit_price,total_price,variant_id,variant_name,modifiers,special_notes,combo_group_id,kitchen_status,served_quantity,prepared_quantity,products(name_az,name_en))`, { headers: s.headers }),
+              fetch(`${s.url}/rest/v1/order_payments?order_id=in.(${inCsv})&order=created_at.asc`, { headers: s.headers }),
+              fetch(`${s.url}/rest/v1/audit_logs?record_id=in.(${inCsv})&order=created_at.asc&limit=300`, { headers: s.headers }),
+            ]);
+            const memberOrders: any[] = membersRes.ok ? await membersRes.json() : [];
+            const memberPays: any[] = membersPayRes.ok ? await membersPayRes.json() : [];
+            const memberAudits: any[] = membersAuditRes.ok ? await membersAuditRes.json() : [];
+            // Same staff-name resolution as the primary timeline.
+            let resolvedMemberAudits = memberAudits;
+            try {
+              const memberStaffIds = Array.from(new Set(
+                memberAudits.map((l: any) => l.performed_by).filter((x: any) => x && String(x).length > 8)
+              )) as string[];
+              if (memberStaffIds.length > 0) {
+                const staffRes = await fetch(
+                  `${s.url}/rest/v1/staff?select=id,name&id=in.(${memberStaffIds.map(x => `eq.${x}`).join(',')})`,
+                  { headers: s.headers }
+                );
+                if (staffRes.ok) {
+                  const staff = await staffRes.json();
+                  const nameById: Record<string, string> = {};
+                  for (const st of staff as any[]) nameById[st.id] = st.name;
+                  resolvedMemberAudits = memberAudits.map((l: any) => ({
+                    ...l,
+                    staff_name: l.staff_name || nameById[l.performed_by] || null,
+                  }));
+                }
+              }
+            } catch { /* keep raw */ }
+            const members = memberOrders
+              .sort((a: any, b: any) => String(a.paid_at || a.created_at).localeCompare(String(b.paid_at || b.created_at)))
+              .map((mo: any) => ({
+                order: mo,
+                payments: memberPays.filter((p: any) => p.order_id === mo.id),
+                auditLogs: resolvedMemberAudits.filter((l: any) => l.record_id === mo.id),
+              }));
+            if (members.length > 1) {
+              group = { split_group_id: gid, members };
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[history detail] group expand failed (single-order fallback):', e);
+      }
+    }
+
+    return NextResponse.json({ order, payments, auditLogs, group });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

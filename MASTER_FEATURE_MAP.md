@@ -854,6 +854,39 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-05 (ROUND 13f: MERGED ÖDƏNİŞ = 1 MERGED DB QEYDİ + CART OFFLINE DELTA + STOK HUB (11 view, 1 sidebar girişi))
+
+Owner: *"merged odeniş merged olaraq dbda saxlanilsin qisaca. 2 cinide duzeldersen ozun
+sonra ise derhall ui yeniden uje... recipes+ inventory lakin inventory-a aid olan seyler
+bax sidebarda ayri tab olmasinda eyni sehifede olsunlar sonra bruazerden gri e2e test et verify et."*
+
+**13f-A (merged payment, frozen RPC 0 dəyişiklik):** POS hər ödəniş action-ı üçün 1 stable
+UUID (`payGroupIdFor`, cash-gate retry-safe) → `payment_group_id` → pay route strict-UUID
+validate → hər `order_payments` sətirinə `split_group_id` (RPC artıq forward edir). 5 call-site.
+`useOrders.handlePay` rewrite (2 latent bug: yalnız parent ödənilirdi; idempotency_key/paid_amount
+yox idi → 400 + ₼0). History route = server-side group collapse (earliest-paid = primary,
+`payment_group`, `nextOffset`); detail route = **legacy `payments` bug** (09-27-dən bəri boş
+oxunurdu → `order_payments` live ledger + fallback) + full group expand. UI: merged kart
+("Masa 90 + 401" + "2 MASA" chip), group detail banner + member sections. **E2E catch:**
+merge-də child order `table_number` = parent-a rewrite → `merged_from_table ?? table_number`
+(route+UI). DB kanıt: 2 order, 1 shared split_group_id (997292b5…).
+
+**13f-B (cart offline delta):** sent order-a unsent delta tab close-da itirdi →
+`pos_unsent_delta_${order_id}` @ localStorage (24h TTL) + safe merge (selectTable +
+loadOrderIntoCart): server row → max-qty; id-siz → dedupe-draft. **Double-send yolu YOX**
+(delta yalnız explicit send-də çıxır). E2E: reload → qty 2/1 sent qayıtdı ✓.
+
+**13f-C (Stok hub):** 6 sidebar route (purchase-orders/recipes/counts/returns/waste/audit) →
+`/admin/stock`-in **11 baxışlı** HUB-u (`*-content.tsx` + incə redirectorlar, `?view=` deep-link,
+role-gate = `useAdminAuth()` — **E2E catch: `saito_role` cookie heç set edilmir**). Sidebar 7→1.
+**Dead view fix:** "Ağıllı Analiz" render bloku yox idi. **Light-mode sweep:** 6 sayfada
+~300 hardcoded white → theme vars (recipes light-da white-on-white idi).
+
+**E2E r30 (dark+light, console 0):** Run A (merged payment ✓), Run B (labels+delta+cleanup ✓,
+hub role bug tapıldı), Run C (hub 10/10 ✓: 11 chip, redirect, light readable). Şəkillər
+`e2e-shots/r30-*`. Test state: Masa 90 re-archived (net-zero), ORD-2971/2972 (₼14) = demo qeydi,
+MASANI BOŞALT PIN = **1871** (4321 banned — A07 regression).
+
 ### Jurnal sətiri — 2026-10-05 (ROUND 13e: BACKEND FULLY HAZIR — from-invoice supplier resolution + unit NOT NULL + compensation)
 
 Owner: *"backend fully hazir etdeee davay baslaa"*. Focused sweep of the invoice→stock

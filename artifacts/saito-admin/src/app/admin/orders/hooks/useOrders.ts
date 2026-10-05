@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { apiFetch } from '@/lib/api-fetch';
 import { cachedFetch } from '@/lib/data-cache';
@@ -188,28 +187,56 @@ export function useOrders() {
 
   const handlePay = useCallback(async (order: Order, paymentMethod?: string, tipAmount?: number) => {
     try {
-      const { data: children } = await supabase
-        .from('orders').select('id').eq('merged_into', order.id);
-      const childIds = (children || []).map((c: any) => c.id);
-      const allIds = [order.id, ...childIds];
+      // 13f (owner: "merged odeniş merged olaraq DB-də saxlanılsın"): pay the
+      // WHOLE merged group — the parent + every unpaid child order
+      // (merge_orders_atomic keeps child items on the child row). ONE
+      // payment-action id is sent with every member call → all ledger rows
+      // share split_group_id → Tarixçə renders ONE merged-group entry.
+      // Members come from the bridge-fetched state (NOT a direct browser
+      // supabase read — 13d doctrine: the anon browser client cannot rely on
+      // table RLS for financial decisions).
+      const FINAL = new Set(['paid', 'refunded', 'partially_refunded', 'cancelled', 'voided', 'closed']);
+      const members = [order, ...orders.filter(o => o.merged_into === order.id && !FINAL.has(o.status))]
+        .filter(o => o && o.id);
+      const allIds = members.map(o => o.id);
       // Optimistic remove from UI
       setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => !allIds.includes(x.id))));
 
-      // Route through API — RPC handles lock, validation, stock, table release
-      const res = await apiFetch('/api/orders/pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          order_id: order.id,
-          payment_method: paymentMethod || 'card',
-          cash_amount: order.total_amount || 0,
-          card_amount: 0,
-          tip_amount: tipAmount || 0,
-        }),
-      });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Payment failed');
+      // Route through API — RPC handles lock, validation, stock, table release.
+      // The pay route REQUIRES idempotency_key (400 IDEMPOTENCY_KEY_REQUIRED
+      // without it — the old body never sent one, so this path always 400'd)
+      // and paid_amount (the old cash_amount/card_amount pair was ignored for
+      // method=card → ₼0 "payment").
+      const actionUuid = crypto.randomUUID();
+      const groupId = crypto.randomUUID();
+      const method = paymentMethod || 'card';
+      const failed: string[] = [];
+      for (const m of members) {
+        const total = Number(m.total_amount) || 0;
+        const res = await apiFetch('/api/orders/pay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            order_id: m.id,
+            payment_method: method,
+            paid_amount: total,
+            payment_group_id: groupId,
+            tip_amount: m.id === order.id ? (tipAmount || 0) : 0,
+            idempotency_key: `orders-page:${m.id}:${actionUuid}`,
+          }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          if (res.status === 403 && (errData.cash_drawer_required || errData.error === 'CASH_DRAWER_REQUIRED')) {
+            throw new Error(errData.error || 'Payment failed');
+          }
+          failed.push(m.table_number != null ? `Masa ${m.table_number}` : m.id.slice(0, 8));
+        }
+      }
+      if (failed.length > 0) {
+        toast.error(`${t('error')}: ${failed.join(', ')} — ${t('payment_failed')}`, { id: 'action-toast' });
+        setTimeout(() => fetchOrders(false), 200);
+        return;
       }
 
       toast.success(t('order_paid'), { id: 'action-toast' });
@@ -218,7 +245,7 @@ export function useOrders() {
       toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
       fetchOrders(false);
     }
-  }, [fetchOrders, t, setOrders]);
+  }, [fetchOrders, orders, t, setOrders]);
 
   const handleStartPreparing = useCallback(async (id: string) => {
     try {

@@ -602,6 +602,116 @@ export function usePos() {
     }
   }, [posMode, cart]);
 
+  /* ─── 13f-B: UNSENT-DELTA PERSISTENCE (POS terminal restart safe) ───
+     A cart with order_id + unsent rows (quantity > sentQuantity) is EXCLUDED
+     from the sessionStorage draft above (the `cart.order_id` branch removes
+     it), so the +1 added AFTER "MƏTBƏXƏ GÖNDƏR" lived in memory only: tab
+     close / terminal restart = silent loss. This is the 12u KDS offline-
+     buffer doctrine applied to the cart: persist the pending state to
+     localStorage per order and MERGE it back on re-hydration.
+     SAFE = nothing is auto-resent. A restored delta re-enters the cart as
+     a PENDING line; it goes out only on the operator's next explicit send
+     (fresh idempotency key), so there is no double-send path. The offline
+     WRITE QUEUE (lib/offline/queue.ts, also localStorage) already covers
+     sends that were captured mid-outage — deltas consumed there had their
+     sentQuantity advanced, so they are not re-persisted here. 24h TTL. */
+  const UNSENT_DELTA_TTL_MS = 24 * 3600 * 1000;
+  const unsentDeltaKey = (orderId: string) => `pos_unsent_delta_${orderId}`;
+  const readPersistedDelta = useCallback((orderId: string): any[] | null => {
+    try {
+      const raw = localStorage.getItem(unsentDeltaKey(orderId));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed?.version !== 1 || !Array.isArray(parsed.items)) {
+        localStorage.removeItem(unsentDeltaKey(orderId));
+        return null;
+      }
+      if (Date.now() - (parsed.saved_at || 0) > UNSENT_DELTA_TTL_MS) {
+        localStorage.removeItem(unsentDeltaKey(orderId));
+        return null;
+      }
+      return parsed.items.filter((u: any) => (u.quantity || 0) > (u.sentQuantity || 0));
+    } catch {
+      try { localStorage.removeItem(unsentDeltaKey(orderId)); } catch {}
+      return null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const clearPersistedDelta = useCallback((orderId: string | null | undefined) => {
+    if (!orderId) return;
+    try { localStorage.removeItem(unsentDeltaKey(orderId)); } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Idempotent (StrictMode double-invoke safe): server-row raises use
+  // Math.max; id-less drafts are deduped by content key against what memory
+  // already contributed to the merged list.
+  const mergePersistedDelta = useCallback((orderId: string, merged: any[], inMemoryDrafts: any[]) => {
+    const rows = readPersistedDelta(orderId);
+    if (!rows || rows.length === 0) return merged;
+    const lineKey = (u: any) =>
+      `${u.product_id || ''}|${JSON.stringify(u.modifiers || [])}|${u.special_notes || ''}|${u.variant_id || ''}|${u.course || ''}`;
+    const existingKeys = new Set([...merged, ...inMemoryDrafts].filter((m: any) => !m.id).map((m: any) => lineKey(m)));
+    for (const u of rows) {
+      const delta = Math.max(0, (u.quantity || 0) - (u.sentQuantity || 0));
+      if (delta <= 0) continue;
+      if (u.id) {
+        const found = merged.find((m: any) => m.id === u.id);
+        if (found) {
+          const target = Math.max(Number(found.quantity) || 0, Number(u.quantity) || 0);
+          found.quantity = target;
+          found.total_price = (Number(found.unit_price) || 0) * target;
+          continue;
+        }
+        // Sent row no longer exists server-side (voided/cancelled): the
+        // PENDING portion comes back as a fresh draft — safe, it never went out.
+      } else if (existingKeys.has(lineKey(u))) {
+        continue; // already in memory — do not double the line
+      }
+      merged.push({ ...u, quantity: delta, sentQuantity: 0, total_price: (Number(u.unit_price) || 0) * delta });
+    }
+    return merged;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readPersistedDelta]);
+
+  // Persist on every cart mutation that leaves a pending delta on a sent order.
+  useEffect(() => {
+    try {
+      if (!cart?.order_id) return;
+      const hasUnsent = (cart.items || []).some(i => (i.quantity || 0) > (i.sentQuantity ?? 0));
+      if (!hasUnsent) {
+        clearPersistedDelta(cart.order_id);
+        return;
+      }
+      localStorage.setItem(unsentDeltaKey(cart.order_id), JSON.stringify({
+        version: 1,
+        order_id: cart.order_id,
+        saved_at: Date.now(),
+        items: (cart.items || []).map((i: any) => ({
+          id: i.id || null,
+          instance_id: i.instance_id || null,
+          product_id: i.product_id,
+          product_name: i.product_name,
+          unit_price: i.unit_price,
+          quantity: i.quantity,
+          sentQuantity: i.sentQuantity ?? 0,
+          total_price: i.total_price,
+          modifiers: i.modifiers || [],
+          special_notes: i.special_notes || '',
+          allergens: i.allergens || [],
+          variant_id: i.variant_id || null,
+          course: i.course || null,
+          combo_id: i.combo_id || null,
+          is_combo: !!i.is_combo,
+          hold_until: i.hold_until || null,
+          kitchen_status: i.kitchen_status || 'pending',
+        })),
+      }));
+    } catch {
+      // storage blocked/full — the in-memory draft still works for this session
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart, clearPersistedDelta]);
+
   const selectTable = async (table: PosTable, opts?: { allowReserved?: boolean; force?: boolean }) => {
     const sameTable =
       selectedTable?.table_number === table.table_number &&
@@ -758,20 +868,25 @@ export function usePos() {
             if (carryDrafts) {
               for (const u of [...draftItems, ...prev.items.filter(i => (i.sentQuantity ?? 0) === 0)]) draftSet.add(u);
             }
-            for (const u of draftSet) {
-              if (u.id) {
-                const found = merged.find((m: any) => m.id === u.id);
-                if (found) {
-                  found.quantity = Math.max(found.quantity, u.quantity);
-                  found.total_price = found.unit_price * found.quantity;
-                  continue;
+              for (const u of draftSet) {
+                if (u.id) {
+                  const found = merged.find((m: any) => m.id === u.id);
+                  if (found) {
+                    found.quantity = Math.max(found.quantity, u.quantity);
+                    found.total_price = found.unit_price * found.quantity;
+                    continue;
+                  }
                 }
+                merged.push(u);
               }
-              merged.push(u);
-            }
-            return {
-              table_number: table.table_number,
-              guest_count: primary.guest_count || table.guest_count || 1,
+              // 13f-B: unsent delta that survived a tab close / terminal
+              // restart (persisted per order in localStorage). Merged ALWAYS
+              // (not gated on carryDrafts) — it is this order's own saved
+              // work, keyed by order_id, not a table-switch draft.
+              mergePersistedDelta(primary.id, merged, Array.from(draftSet));
+              return {
+                table_number: table.table_number,
+                guest_count: primary.guest_count || table.guest_count || 1,
               items: merged,
               notes: primary.customer_note || '',
               order_type: primary.order_type || 'dine_in',
@@ -804,6 +919,15 @@ export function usePos() {
             && isFinalOrderStatus(o.status)
             && (o.status === 'voided' || o.status === 'cancelled')
           );
+          if (orderIsDead) {
+            // 13f-B: a dead order's persisted delta can never be sent again —
+            // drop it now instead of waiting the 24h TTL.
+            for (const o of orders) {
+              if (o.table_number === table.table_number && isFinalOrderStatus(o.status)) {
+                clearPersistedDelta(o.id);
+              }
+            }
+          }
           setCart(prev => {
             if (!prev) return null;
             if (draftsAreThisTables) {
@@ -2177,10 +2301,7 @@ export function usePos() {
   const loadOrderIntoCart = (order: any) => {
     setSelectedTable(null);
     const orderItems = order.items || order.order_items || [];
-    setCart({
-      table_number: null,
-      guest_count: order.guest_count || 1,
-      items: orderItems.map((item: any) => ({
+    const rehydratedItems: any[] = orderItems.map((item: any) => ({
         id: item.id,
         product_id: item.product_id,
         product_name: item.product_name || item.products?.name_az || item.products?.name_en || t('product'),
@@ -2197,7 +2318,14 @@ export function usePos() {
         is_hold: !!item.hold_until,
         sentQuantity: item.quantity,
         kitchen_status: item.kitchen_status || 'pending',
-      })),
+      }));
+    // 13f-B: the takeaway/delivery re-hydration had the same unsent-delta gap
+    // as the dine-in selectTable path — merge the persisted pending state.
+    mergePersistedDelta(order.id, rehydratedItems, []);
+    setCart({
+      table_number: null,
+      guest_count: order.guest_count || 1,
+      items: rehydratedItems,
       notes: order.special_notes || order.customer_note || '',
       order_type: order.order_type || order.order_source || 'takeaway',
       customer_id: order.customer_id || null,

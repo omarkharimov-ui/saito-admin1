@@ -39,6 +39,9 @@ interface OrderItem {
 interface PaidOrder {
   id: string;
   table_number: number | null;
+  // 13f (E2E r30): after a table merge the order's table_number is rewritten
+  // to the PARENT table; the order's original table is here.
+  merged_from_table?: number | null;
   order_number: string | null;
   order_source: string | null;
   order_type: string | null;
@@ -64,6 +67,17 @@ interface PaidOrder {
   assigned_to_name: string | null;
   created_by: string | null;
   order_items: OrderItem[];
+  // 13f (owner: merged odeniş merged DB-də): present ONLY on the primary order
+  // of a merged payment group — the server collapsed all member orders into
+  // this one history entry (their ledger rows share one split_group_id).
+  payment_group?: {
+    id: string;
+    member_count: number;
+    member_order_ids: string[];
+    member_tables: (number | null)[];
+    member_totals: number[];
+    member_search: string;
+  };
 }
 
 interface PaymentRecord {
@@ -96,6 +110,12 @@ interface OrderDetailData {
   order: PaidOrder;
   payments: PaymentRecord[];
   auditLogs: AuditLog[];
+  // 13f: merged payment group (server-expanded) — every member order with its
+  // own payments + audit timeline. Absent for single-order details.
+  group?: {
+    split_group_id: string;
+    members: { order: PaidOrder; payments: PaymentRecord[]; auditLogs: AuditLog[] }[];
+  };
 }
 
 interface OrderHistoryProps {
@@ -131,6 +151,11 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const [loadedCount, setLoadedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
+  // 13f: server RAW offset for the next page. With merged-group collapsing the
+  // VISIBLE row count differs from the raw DB page, so the client can no
+  // longer derive the next offset from its own loaded count (would re-fetch
+  // and duplicate the hidden rows). The route returns nextOffset explicitly.
+  const [nextOffset, setNextOffset] = useState(0);
   const [exceptions, setExceptions] = useState<{ id: string; action: string; order_ref: string | null; reason: string | null; staff_name: string | null; created_at: string }[]>([]);
   const [exceptionsLoading, setExceptionsLoading] = useState(false);
   const [pinGuardOpen, setPinGuardOpen] = useState(false);
@@ -168,25 +193,29 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
         setOrders(data.orders || []);
         setLoadedCount(data.orders?.length || 0);
         setTotalCount(data.totalCount || 0);
+        setNextOffset(typeof data.nextOffset === 'number' ? data.nextOffset : (data.orders?.length || 0));
       }
     } catch { /* silent */ }
     setLoading(false);
   }, [buildParams]);
 
   // 2026-09-23: "load more" — the old list was hard-capped at 100 orders.
+  // 13f: page with the server's nextOffset (raw rows), not the visible count —
+  // merged-group members hidden server-side would otherwise re-fetch/duplicate.
   const loadMore = useCallback(async () => {
     setLoadingMore(true);
     try {
-      const res = await apiFetch(`/api/orders/history?${buildParams(loadedCount)}`);
+      const res = await apiFetch(`/api/orders/history?${buildParams(nextOffset)}`);
       if (res.ok) {
         const data = await res.json();
         setOrders(prev => [...prev, ...(data.orders || [])]);
         setLoadedCount(prev => prev + (data.orders?.length || 0));
         setTotalCount(data.totalCount || 0);
+        setNextOffset(typeof data.nextOffset === 'number' ? data.nextOffset : nextOffset + (data.orders?.length || 0));
       }
     } catch { /* silent */ }
     setLoadingMore(false);
-  }, [buildParams, loadedCount]);
+  }, [buildParams, nextOffset]);
 
   const fetchExceptions = useCallback(async () => {
     setExceptionsLoading(true);
@@ -256,26 +285,36 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   // 2026-09-27 (owner pick, variant 1 of the 3-way review) — "Clean list"
   // order card: no card fills, hairline separators, round source glyph,
   // title + meta left, amount + ghost reprint right. Tap → detail.
+  // 13f: a merged payment group renders as ONE card (Users glyph, table list,
+  // summed total) — the member orders are collapsed server-side.
   const renderOrderCard = (order: PaidOrder) => {
     const isDine = !!order.table_number;
     const src = order.order_source || 'dine_in';
     const srcLabel = src === 'takeaway' ? t('takeaway') : src === 'delivery' ? t('delivery') : t('dine_in');
-    const title = isDine
+    const group = order.payment_group && order.payment_group.member_count > 1 ? order.payment_group : null;
+    const groupTables = group ? (group.member_tables.filter((n): n is number => n != null).sort((a, b) => a - b)) : [];
+    const title = group
+      ? `${t('table_label')} ${groupTables.length > 0 ? groupTables.join(' + ') : `×${group.member_count}`}`
+      : isDine
       ? `${t('table_label')} ${order.table_number}`
       : src === 'takeaway' ? `${t('takeaway_short')} ${order.order_number || ''}`
       : src === 'delivery' ? `${t('delivery_short')} ${order.order_number || ''}`
       : `#${order.order_number || order.id.slice(0, 8)}`;
     const time = new Date(order.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' });
     const date = new Date(order.created_at).toLocaleDateString('az');
-    const total = `₼${(Number(order.paid_amount || order.total_amount) || 0).toFixed(2)}`;
+    const groupTotal = group ? group.member_totals.reduce((s, n) => s + (Number(n) || 0), 0) : null;
+    const total = `₼${(groupTotal != null ? groupTotal : (Number(order.paid_amount || order.total_amount) || 0)).toFixed(2)}`;
     const guests = order.guest_count ? ` · ${order.guest_count} nəfər` : '';
     // 2026-09-29 (owner, round 7 #6): takeaway icon = Handbag — the person
     // PICKING UP the order carries a bag. ShoppingBag reads as a box at small
     // sizes; Handbag (trapezoid + handle) is unambiguously a bag. Same icon
     // language as the POS header tab switcher (Utensils/Handbag/Bike).
-    const Icon = src === 'takeaway' ? Handbag : src === 'delivery' ? Car : Utensils;
+    // 13f: merged group = Users (the people sharing the bill).
+    const Icon = group ? Users : src === 'takeaway' ? Handbag : src === 'delivery' ? Car : Utensils;
     // 2026-09-28 (owner: light mode — yalnız mavi/qara): takeaway = qara
-    const iconWrap = src === 'takeaway'
+    const iconWrap = group
+      ? (lightMode ? 'bg-zinc-900/10 text-zinc-900' : 'bg-amber-500/15 text-amber-400')
+      : src === 'takeaway'
       ? (lightMode ? 'bg-zinc-900/10 text-zinc-900' : 'bg-amber-500/15 text-amber-400')
       : src === 'delivery'
         ? (lightMode ? 'bg-blue-500/10 text-blue-600' : 'bg-blue-500/15 text-blue-400')
@@ -308,8 +347,15 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
           <Icon size={15} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-bold truncate leading-tight">{title}</p>
-          <p className={`text-[11px] font-bold tabular-nums truncate mt-0.5 ${meta}`}>{date} · {time}{guests}</p>
+          <p className="text-[13px] font-bold truncate leading-tight">
+            {title}
+            {group && (
+              <span className={`ml-1.5 inline-block align-middle text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${lightMode ? 'bg-zinc-900 text-white' : 'bg-amber-500/15 text-amber-400'}`}>
+                {group.member_count} masa
+              </span>
+            )}
+          </p>
+          <p className={`text-[11px] font-bold tabular-nums truncate mt-0.5 ${meta}`}>{date} · {time}{group ? '' : guests}</p>
         </div>
         <span className="text-[13px] font-black tabular-nums flex-shrink-0">{total}</span>
         {reprintBtn}
@@ -323,7 +369,13 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
     const orderLabel = order.table_number ? `${t('table_label')} ${order.table_number}` : order.order_source === 'takeaway' ? `${t('takeaway_short')} ${order.order_number || ''}` : order.order_source === 'delivery' ? `${t('delivery_short')} ${order.order_number || ''}` : `#${order.order_number || order.id.slice(0, 8)}`;
     const itemNames = (order.order_items || []).map(i => i.product_name || i.products?.name_az || '').join(' ').toLowerCase();
     const customerName = (order.customer_name || '').toLowerCase();
-    return orderLabel.includes(q) || itemNames.includes(q) || customerName.includes(q);
+    // 13f: a merged-group card must also match its MEMBERS' tables + items
+    // (the server pre-computes member_search; the member item list is not
+    // part of the primary order's own rows).
+    const groupSearch = order.payment_group
+      ? `${order.payment_group.member_search} ${order.payment_group.member_tables.map(n => n != null ? `masa ${n}` : '').join(' ')}`.toLowerCase()
+      : '';
+    return orderLabel.includes(q) || itemNames.includes(q) || customerName.includes(q) || groupSearch.includes(q);
   });
 
   const guardAction = (fn: () => void, action: string) => {
@@ -457,6 +509,122 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const detailOrder = detail?.order || selectedOrder;
   const payments = detail?.payments || [];
   const auditLogs = detail?.auditLogs || [];
+  // 13f (E2E r30): a merged child order's table_number is rewritten to the
+  // parent table — display its ORIGINAL table (merged_from_table).
+  const memberTableNo = (o: PaidOrder) => o.merged_from_table ?? o.table_number;
+  // 13f: merged payment group detail (server-expanded member orders).
+  const groupDetail = detail?.group && detail.group.members.length > 1 ? detail.group : null;
+  const groupExtraMembers = groupDetail
+    ? groupDetail.members.filter(m => m.order.id !== (detail?.order?.id ?? ''))
+    : [];
+
+  // 13f: one member section inside a merged-group detail — compact
+  // (badges → items → payments → first audit entries). The PRIMARY member
+  // keeps the full, untouched single-order detail above it.
+  const renderMemberSection = (m: { order: PaidOrder; payments: PaymentRecord[]; auditLogs: AuditLog[] }, idx: number) => {
+    const o = m.order;
+    const memberPayments = m.payments.filter(p => !p.is_refund);
+    const memberRefunds = m.payments.filter(p => p.is_refund);
+    return (
+      <div key={`${o.id}-member`} id={`oh-group-member-${idx}`} className={`rounded-2xl border ${lightMode ? 'border-zinc-200 bg-white' : 'border-white/10 bg-white/[0.02]'}`}>
+        <div className={`flex items-center justify-between px-4 py-3 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-zinc-900/10 text-zinc-900' : 'bg-amber-500/15 text-amber-400'}`}>
+              <Users size={13} />
+            </span>
+            <span className="text-xs font-black truncate">
+              {memberTableNo(o) ? `${t('table_label')} ${memberTableNo(o)}` : (o.order_number || o.id.slice(0, 8))}
+            </span>
+            <span className={`text-[9px] font-bold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+              ₼{(Number(o.total_amount) || 0).toFixed(2)}
+            </span>
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); guardAction(() => doReprint(o), 'reprint'); }}
+            disabled={reprinting === o.id}
+            className={`p-1.5 rounded-full flex-shrink-0 transition-all active:scale-90 disabled:opacity-30 ${lightMode ? 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600' : 'text-white/35 hover:bg-white/10 hover:text-white/70'}`}
+            title={t('reprint')}
+          >
+            {reprinting === o.id
+              ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              : <Printer size={12} />}
+          </button>
+        </div>
+        <div className="px-4 py-3 space-y-2">
+          <div className="space-y-1.5">
+            {(o.order_items || []).map(item => {
+              const mods = (() => {
+                if (!item.modifiers) return [];
+                if (Array.isArray(item.modifiers)) return item.modifiers;
+                try { return JSON.parse(item.modifiers); } catch { return []; }
+              })();
+              return (
+                <div key={item.id} className={`flex items-start justify-between py-1 border-b last:border-b-0 ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
+                  <div className="flex-1 min-w-0">
+                    <span className={`text-xs font-bold ${lightMode ? 'text-black' : 'text-white'}`}>
+                      {item.quantity}x {item.product_name}
+                    </span>
+                    {mods.length > 0 && (
+                      <p className={`text-[10px] mt-0.5 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                        + {mods.map((mm: any) => mm.name || mm).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                  <span className={`text-xs font-black tabular-nums flex-shrink-0 ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
+                    ₼{(Number(item.total_price || item.unit_price * item.quantity) || 0).toFixed(2)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {(memberPayments.length > 0 || memberRefunds.length > 0) && (
+            <div className="space-y-1 pt-1">
+              {memberPayments.map(p => (
+                <div key={p.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {(p.method || p.payment_method) === 'cash' ? (
+                      <Wallet size={11} className="text-emerald-500" />
+                    ) : (p.method || p.payment_method) === 'card' ? (
+                      <CreditCard size={11} className="text-blue-500" />
+                    ) : (
+                      <Receipt size={11} className="text-zinc-400" />
+                    )}
+                    <span className={`text-[11px] font-bold capitalize ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
+                      {p.method || p.payment_method || '—'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-black tabular-nums">₼{Number(p.amount).toFixed(2)}</span>
+                </div>
+              ))}
+              {memberRefunds.map(p => (
+                <div key={p.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw size={11} className="text-red-500" />
+                    <span className="text-[11px] font-bold text-red-500">{t('refund') || 'Geri ödəniş'}</span>
+                  </div>
+                  <span className="text-[11px] font-black tabular-nums text-red-500">−₼{Number(p.amount).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {m.auditLogs.length > 0 && (
+            <div className={`pt-1.5 border-t space-y-1 ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
+              {m.auditLogs.slice(0, 5).map(log => (
+                <div key={log.id} className="flex items-center gap-2">
+                  <span className={`w-1 h-1 rounded-full flex-shrink-0 ${lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
+                  <span className={`text-[10px] font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-white/50'}`}>{log.action}</span>
+                  {log.staff_name && <span className={`text-[9px] truncate ${lightMode ? 'text-zinc-400' : 'text-white/25'}`}>— {log.staff_name}</span>}
+                  <span className={`text-[9px] tabular-nums flex-shrink-0 ${lightMode ? 'text-zinc-300' : 'text-white/15'}`}>
+                    {new Date(log.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // 2026-09-27 (iOS-27-trash doctrine): the `open` condition lives INSIDE
   // AnimatePresence (keyed child) instead of an early `return null` — the
@@ -514,12 +682,14 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                 </div>
               )}
               <div className="min-w-0">
-                <h2 className="text-base font-black tracking-tight leading-tight truncate">
-                  {selectedOrder
-                    ? (selectedOrder.table_number ? `${t('table_label')} ${selectedOrder.table_number}` : selectedOrder.order_source === 'takeaway' ? `${t('takeaway')}` : selectedOrder.order_source === 'delivery' ? `${t('delivery')}` : t('order_history'))
-                    : t('order_history')
-                  }
-                </h2>
+                 <h2 className="text-base font-black tracking-tight leading-tight truncate">
+                   {selectedOrder
+                     ? ((selectedOrder.payment_group && selectedOrder.payment_group.member_count > 1)
+                         ? `${t('table_label')} ${(selectedOrder.payment_group.member_tables.filter((n): n is number => n != null).sort((a, b) => a - b)).join(' + ')} · GRUP`
+                         : (memberTableNo(selectedOrder) ? `${t('table_label')} ${memberTableNo(selectedOrder)}` : selectedOrder.order_source === 'takeaway' ? `${t('takeaway')}` : selectedOrder.order_source === 'delivery' ? `${t('delivery')}` : t('order_history')))
+                     : t('order_history')
+                   }
+                 </h2>
                 <p className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-400' : 'text-white/35'}`}>
                   {selectedOrder
                     ? `${new Date(selectedOrder.created_at).toLocaleDateString('az')} · ${new Date(selectedOrder.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}`
@@ -839,10 +1009,33 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                      artıq aşağı sürüşdürmə") — the actions are a STICKY FOOTER:
                      they live OUTSIDE the scroller and stay visible no matter
                      how long the order's audit log is. Space trimmed 4→3. */}
-                 <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
 
-                  {/* Order info badges */}
-                  <div className="flex flex-wrap gap-2">
+                   {/* 13f (owner: "merged odeniş merged olaraq DB-də saxlanılsın"):
+                       merged payment group banner — the single grouped record:
+                       one payment action, N member orders, summed total. */}
+                   {groupDetail && (
+                     <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-amber-500/[0.06] border-amber-500/20'}`}>
+                       <div className="flex items-center justify-between mb-2">
+                         <p className={`text-[9px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-500' : 'text-amber-400/80'}`}>
+                           Birləşik qrup ödənişi
+                         </p>
+                         <span className={`text-xs font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-amber-400'}`}>
+                           ₼{(groupDetail.members.reduce((s, m) => s + (Number(m.order.total_amount) || 0), 0)).toFixed(2)}
+                         </span>
+                       </div>
+                       <div className="flex flex-wrap gap-1.5">
+                         {groupDetail.members.map(m => (
+                           <span key={m.order.id} className={`text-[10px] font-bold px-2 py-1 rounded-lg ${lightMode ? 'bg-white border border-zinc-200 text-zinc-700' : 'bg-white/5 border border-white/10 text-white/60'}`}>
+                             {memberTableNo(m.order) ? `${t('table_label')} ${memberTableNo(m.order)}` : (m.order.order_number || m.order.id.slice(0, 8))} · ₼{(Number(m.order.total_amount) || 0).toFixed(2)}
+                           </span>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Order info badges */}
+                   <div className="flex flex-wrap gap-2">
                      <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded-lg ${
                        detailOrder.order_source === 'takeaway' ? (lightMode ? 'bg-zinc-900/10 text-zinc-900' : 'bg-amber-500/10 text-amber-500') :
                        detailOrder.order_source === 'delivery' ? 'bg-blue-500/10 text-blue-500' :
@@ -1089,17 +1282,25 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     </div>
                   )}
 
-                  {/* Customer note */}
-                  {detailOrder.customer_note && (
-                    <div className={`p-3 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'}`}>
-                      <p className={`text-[9px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                        {t('note') || 'Qeyd'}
-                      </p>
-                      <p className={`text-xs ${lightMode ? 'text-zinc-600' : 'text-white/50'}`}>{detailOrder.customer_note}</p>
-                    </div>
-                  )}
+                   {/* Customer note */}
+                   {detailOrder.customer_note && (
+                     <div className={`p-3 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'}`}>
+                       <p className={`text-[9px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                         {t('note') || 'Qeyd'}
+                       </p>
+                       <p className={`text-xs ${lightMode ? 'text-zinc-600' : 'text-white/50'}`}>{detailOrder.customer_note}</p>
+                     </div>
+                   )}
 
-                 </div>
+                   {/* 13f: merged-group member orders (all non-primary members
+                       of the same split_group_id — the full merged record). */}
+                   {groupExtraMembers.length > 0 && (
+                     <div className="space-y-3">
+                       {groupExtraMembers.map((m, i) => renderMemberSection(m, i))}
+                     </div>
+                   )}
+
+                  </div>
 
                  {/* Detail actions — STICKY FOOTER (always visible, outside
                      the scroller): reprint + the refund button the owner said

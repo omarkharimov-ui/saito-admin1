@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, ShoppingBag, AlertTriangle, TrendingDown, ArrowRight, Download } from '@/components/ui/saito-icons';
-import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
+import { Loader2, ShoppingBag, Download } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
-import { PageTransition, PageHeader } from '@/components/PageTransition';
-import { GlassCard } from '@/components/GlassCard';
+import { PageTransition } from '@/components/PageTransition';
+// 13j: design system (one visual language across the inventory module)
+import { Btn, Chip, DataTable, SearchInput, SectionHead, Seg, Stat } from '../stock/stock-ui';
 
 interface AuditEntry {
   id: string;
@@ -23,10 +22,13 @@ interface AuditEntry {
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  order_consumption: { label: 'Sifariş Sərfiyyatı', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+  order_consumption: { label: 'Sifariş', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
   stock_in: { label: 'Stoka Giriş', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
   waste: { label: 'İtki', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
   adjustment: { label: 'Tənzimləmə', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+};
+const TYPE_TONE: Record<string, 'ok' | 'warn' | 'crit' | 'info' | 'neutral'> = {
+  order_consumption: 'info', stock_in: 'ok', waste: 'crit', adjustment: 'warn',
 };
 
 const FILTER_TABS = [
@@ -155,169 +157,101 @@ export default function AuditPage() {
     );
   }
 
-  // 13h: hub frame provides page chrome — slim overline + Export toolbar.
+  // 13j: design system — Stat + Seg + DataTable (one visual language).
   return (
-    <PageTransition className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">
-          Stok dəyişikliklərinin tam tarixçəsi
-        </p>
-        <button
-          onClick={exportToCSV}
-          disabled={filtered.length === 0}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)] hover:text-[var(--theme-text)] transition-all disabled:opacity-30 text-xs font-bold uppercase tracking-widest"
-        >
-          <Download size={14} /> Export
-        </button>
+    <PageTransition className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <SectionHead overline="Audit" title="Stok dəyişikliklərinin tam tarixçəsi" />
+        <Btn variant="ghost" icon={Download} onClick={exportToCSV} disabled={filtered.length === 0}>Export</Btn>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <GlassCard intensity="light" padding="md" className="border-blue-500/15">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400/60 light:text-blue-700">Sifariş Sərfiyyatı</p>
-          <p className="text-lg font-black text-blue-400 light:text-blue-600 tabular-nums mt-1">{summary.totalDeductions.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
-        </GlassCard>
-        <GlassCard intensity="light" padding="md" className="border-red-500/15">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-red-400/60 light:text-red-700">İtki</p>
-          <p className="text-lg font-black text-red-400 light:text-red-600 tabular-nums mt-1">{summary.totalWaste.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
-        </GlassCard>
-        <GlassCard intensity="light" padding="md" className="border-amber-500/15">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400/60 light:text-amber-700">Tənzimləmə</p>
-          <p className="text-lg font-black text-amber-400 light:text-amber-600 tabular-nums mt-1">{summary.totalAdjustments.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
-        </GlassCard>
-        <GlassCard intensity="light" padding="md" className="border-emerald-500/15">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/60 light:text-emerald-700">Stoka Giriş</p>
-          <p className="text-lg font-black text-emerald-400 light:text-emerald-600 tabular-nums mt-1">{summary.totalStockIn.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
-        </GlassCard>
+        <Stat label="Sifariş Sərfiyyatı" value={summary.totalDeductions.toFixed(1)} sub="vahid" tone="blue" />
+        <Stat label="İtki" value={summary.totalWaste.toFixed(1)} sub="vahid" tone="red" />
+        <Stat label="Tənzimləmə" value={summary.totalAdjustments.toFixed(1)} sub="vahid" tone="amber" />
+        <Stat label="Stoka Giriş" value={summary.totalStockIn.toFixed(1)} sub="vahid" tone="emerald" />
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="relative flex-1 w-full sm:w-auto">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Xammal, səbəb və ya məhsul axtar..."
-            className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl pl-9 pr-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[var(--theme-border)] transition-all"
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 flex-wrap">
+        <SearchInput value={search} onChange={setSearch} placeholder="Xammal, səbəb və ya məhsul axtar..." className="flex-1 min-w-56" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Seg
+            options={FILTER_TABS.map(t => ({ id: t.key as string, label: t.label }))}
+            value={typeFilter}
+            onChange={setTypeFilter}
           />
-        </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          {FILTER_TABS.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setTypeFilter(tab.key)}
-              className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wide transition-all ${
-                typeFilter === tab.key
-                  ? 'bg-rose-500/15 border border-rose-500/25 text-rose-300'
-                  : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text-muted)] border border-transparent'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5">
-          {(['today', 'week', 'month', 'all'] as const).map(d => (
-            <button
-              key={d}
-              onClick={() => setDateRange(d)}
-              className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wide transition-all ${
-                dateRange === d
-                  ? 'bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text)]'
-                  : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)] border border-transparent'
-              }`}
-            >
-              {d === 'today' ? 'Bugün' : d === 'week' ? 'Həftə' : d === 'month' ? 'Ay' : 'Hamısı'}
-            </button>
-          ))}
+          <Seg
+            options={[{ id: 'today', label: 'Bugün' }, { id: 'week', label: 'Həftə' }, { id: 'month', label: 'Ay' }, { id: 'all', label: 'Hamısı' }]}
+            value={dateRange}
+            onChange={v => setDateRange(v as typeof dateRange)}
+          />
         </div>
       </div>
 
-      {/* Content */}
-      <div className="space-y-1.5">
-        {filtered.length === 0 ? (
-          <EmptyState
-            icon={<ShoppingBag size={20} />}
-            title="Heç bir əməliyyat tapılmadı"
-            description={search || typeFilter !== 'all' ? 'Cari filtrlərə uyğun nəticə yoxdur.' : 'Hələ ki, heç bir stok hərəkəti qeydə alınmayıb.'}
-          />
-        ) : (
-          filtered.map((entry, idx) => {
-            const meta = TYPE_LABELS[entry.type] || TYPE_LABELS.order_consumption;
-            const sign = entry.type === 'stock_in' || (entry.type === 'adjustment' && entry.quantity > 0) ? '+' : '\u2212';
-            const dt = new Date(entry.created_at);
-            return (
-              <motion.div
-                key={entry.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.15 }}
-                className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] p-4 hover:bg-[var(--theme-surface-soft)] transition-all"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className={`w-8 h-8 rounded-lg ${meta.bg} border ${meta.border} flex items-center justify-center shrink-0 mt-0.5`}>
-                      {entry.type === 'order_consumption' ? (
-                        <ShoppingBag size={14} className={meta.color} />
-                      ) : entry.type === 'waste' ? (
-                        <TrendingDown size={14} className={meta.color} />
-                      ) : (
-                        <ArrowRight size={14} className={meta.color} />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${meta.color} ${meta.bg}`}>
-                          {meta.label}
-                        </span>
-                        <span className="text-sm font-semibold text-[var(--theme-text-secondary)]">
-                          {entry.ingredient_name}
-                        </span>
-                        <span className={`text-sm font-bold tabular-nums ${meta.color}`}>
-                          {sign}{Math.abs(entry.quantity).toFixed(2)} {entry.ingredient_unit}
-                        </span>
-                      </div>
-                      {/* Order context */}
-                      {entry.type === 'order_consumption' && entry.order_id && (
-                        <div className="mt-1.5 flex items-center gap-2 text-xs">
-                          <span className="text-[var(--theme-text-muted)]">Sifariş:</span>
-                          <span className="font-mono text-[10px] text-[var(--theme-text-muted)] bg-[var(--theme-surface-soft)] px-1.5 py-0.5 rounded">
-                            #{entry.order_id.slice(0, 8)}
-                          </span>
-                          {entry.table_number && (
-                            <>
-                              <span className="text-[var(--theme-text-muted)]">·</span>
-                              <span className="text-[var(--theme-text-muted)]">Masa {entry.table_number}</span>
-                            </>
-                          )}
-                          {entry.product_name && (
-                            <>
-                              <span className="text-[var(--theme-text-muted)]">·</span>
-                              <span className="text-[var(--theme-text-muted)] truncate max-w-[200px]">{entry.product_name}</span>
-                            </>
-                          )}
-                        </div>
-                      )}
-                      {/* Waste/adjustment reason */}
-                      {entry.reason && (
-                        <p className="mt-1 text-xs text-[var(--theme-text-muted)] italic">{entry.reason}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[11px] text-[var(--theme-text-muted)] tabular-nums">
-                      {dt.toLocaleDateString('az-AZ', { day: '2-digit', month: 'short' })}
-                    </p>
-                    <p className="text-[10px] text-[var(--theme-text-muted)] tabular-nums">
-                      {dt.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
+      <DataTable
+        rows={filtered.map(e => ({ ...e, __actions: null as unknown as React.ReactNode }))}
+        rowKey={r => r.id}
+        actionsWidth={0}
+        cols={[
+          {
+            key: 'date', label: 'Tarix', width: '110px',
+            render: r => {
+              const dt = new Date(r.created_at);
+              return (
+                <div className="text-[11px] text-[var(--theme-text-muted)] tabular-nums leading-tight">
+                  <p className="font-semibold text-[var(--theme-text-secondary)]">{dt.toLocaleDateString('az-AZ', { day: '2-digit', month: 'short' })}</p>
+                  <p>{dt.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
-              </motion.div>
-            );
-          })
-        )}
-      </div>
+              );
+            },
+          },
+          {
+            key: 'type', label: 'Növ', width: '150px',
+            render: r => <Chip tone={TYPE_TONE[r.type] || 'neutral'} dot={false}>{TYPE_LABELS[r.type]?.label || r.type}</Chip>,
+          },
+          {
+            key: 'item', label: 'Maddə', width: '1.6fr',
+            render: r => (
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-[var(--theme-text)] truncate">{r.ingredient_name}</p>
+                {r.type === 'order_consumption' && r.order_id && (
+                  <p className="text-[10px] text-[var(--theme-text-muted)] truncate">
+                    Sifariş #{r.order_id.slice(0, 8)}{r.table_number ? ` · Masa ${r.table_number}` : ''}{r.product_name ? ` · ${r.product_name}` : ''}
+                  </p>
+                )}
+                {r.reason && r.type !== 'order_consumption' && (
+                  <p className="text-[10px] text-[var(--theme-text-muted)] truncate">{r.reason}</p>
+                )}
+              </div>
+            ),
+          },
+          {
+            key: 'qty', label: 'Miqdar', width: '130px', align: 'right',
+            render: r => {
+              const sign = r.type === 'stock_in' || (r.type === 'adjustment' && r.quantity > 0) ? '+' : '−';
+              const tone = r.type === 'stock_in' ? 'text-emerald-500'
+                : r.type === 'waste' ? 'text-red-500'
+                : r.type === 'order_consumption' ? 'text-[var(--theme-text)]'
+                : r.quantity > 0 ? 'text-emerald-500' : 'text-red-500';
+              return (
+                <span className={`text-[13px] font-black tabular-nums ${tone}`}>
+                  {sign}{Math.abs(r.quantity).toFixed(2)}{' '}
+                  <span className="text-[9px] font-bold text-[var(--theme-text-muted)]">{r.ingredient_unit}</span>
+                </span>
+              );
+            },
+          },
+        ]}
+        empty={
+          <div className="py-12 text-center">
+            <ShoppingBag size={32} className="mx-auto mb-3 opacity-25 text-[var(--theme-text-muted)]" />
+            <p className="text-sm font-medium text-[var(--theme-text-secondary)]">Heç bir əməliyyat tapılmadı</p>
+            <p className="text-xs text-[var(--theme-text-muted)] mt-1">
+              {search || typeFilter !== 'all' ? 'Cari filtrlərə uyğun nəticə yoxdur.' : 'Hələ ki, heç bir stok hərəkəti qeydə alınmayıb.'}
+            </p>
+          </div>
+        }
+      />
     </PageTransition>
   );
 }

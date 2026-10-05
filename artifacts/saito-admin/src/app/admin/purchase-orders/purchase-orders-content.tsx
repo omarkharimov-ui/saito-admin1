@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Plus, Trash2, ChevronDown, Loader2, Search, ShoppingCart, PackageCheck,
+  Plus, Trash2, Loader2, ShoppingCart, PackageCheck,
 } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -12,7 +12,12 @@ import type {
   PurchaseOrderItem, Supplier,
 } from '@/types/inventory';
 import { PageTransition } from '@/components/PageTransition';
-import { GlassCard } from '@/components/GlassCard';
+// 13j: design system (one visual language across the inventory module)
+import { Btn, Chip, DataTable, SearchInput, IconBtn, SpinnerBlock, Modal, Field, fieldCls } from '../stock/stock-ui';
+
+const PO_CHIP_TONE: Record<string, 'ok' | 'warn' | 'crit' | 'info' | 'neutral'> = {
+  draft: 'warn', sent: 'info', partial: 'neutral', received: 'ok', cancelled: 'crit',
+};
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -39,26 +44,6 @@ function fmtDate(iso: string | null) {
 
 function fmtCurrency(n: number) {
   return Number(n).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-// ─── Modal variants ──────────────────────────────────────────────────────────
-
-const modalV = {
-  hidden: { opacity: 0, scale: 0.96, y: 14 },
-  show:   { opacity: 1, scale: 1, y: 0, transition: { type: 'spring' as const, stiffness: 400, damping: 32 } },
-  exit:   { opacity: 0, scale: 0.95, y: 8, transition: { duration: 0.14 } },
-};
-
-// ─── Status Badge ────────────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: PurchaseOrderStatus }) {
-  const m = STATUS_META[status];
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border ${m.cls}`}>
-      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
-      {m.label}
-    </span>
-  );
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────────
@@ -263,495 +248,214 @@ export default function PurchaseOrdersPage() {
     <PageTransition className="">
       <div className="space-y-5">
 
-        {/* ── Toolbar ── */}
-        <motion.div
-          initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-end"
-        >
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
-            style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}
-          >
-            <Plus size={15} /> Yeni Sifariş
-          </button>
-        </motion.div>
-
-        {/* ── Search ── */}
-        <div className="relative max-w-xs">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)] pointer-events-none" />
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Sifariş axtar..."
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[#D4AF37]/30 transition-colors"
-          />
+        {/* ── Toolbar (13j: design system) ── */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <SearchInput value={search} onChange={setSearch} placeholder="Sifariş axtar..." className="flex-1 max-w-sm" />
+          <div className="sm:ml-auto flex items-center justify-end">
+            <Btn variant="solid" icon={Plus} onClick={() => setShowCreate(true)}>Yeni Sifariş</Btn>
+          </div>
         </div>
 
-        {/* ── Table ── */}
+        {/* ── Table (13j: DataTable — one design language) ── */}
         {loading ? (
-          <div className="flex items-center justify-center h-48">
-            <Loader2 size={28} className="animate-spin text-[var(--theme-text-muted)]" />
-          </div>
-        ) : filteredOrders.length === 0 ? (
-          <GlassCard intensity="light" padding="xl" className="text-center">
-            <ShoppingCart size={44} className="mx-auto mb-4 opacity-20 text-[var(--theme-text-muted)]" />
-            <p className="text-sm font-medium text-[var(--theme-text-secondary)]">
-              {search ? 'Axtarış nəticəsi tapılmadı' : 'Hələ sifariş yaradılmayıb'}
-            </p>
-            {!search && (
-              <div className="mt-4 space-y-2 text-xs text-[var(--theme-text-muted)]">
-                 <p>&ldquo;Yeni Sifariş&rdquo; düyməsi ilə ilk satınalma sifarişini yaradın</p>
-              </div>
-            )}
-          </GlassCard>
+          <SpinnerBlock height={240} />
         ) : (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="rounded-2xl overflow-hidden"
-            style={{ border: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            {/* Table head */}
-            <div
-              className="hidden lg:grid gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-[var(--theme-text-muted)]"
-              style={{
-                gridTemplateColumns: '1fr 1fr 100px 110px 140px 140px 100px',
-                background: 'rgba(255,255,255,0.018)',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-              }}
-            >
-              <span>Sifariş №</span>
-              <span>Təchizatçı</span>
-              <span>Status</span>
-              <span className="text-right">Məbləğ</span>
-              <span className="text-right">Sifariş Tarixi</span>
-              <span className="text-right">Qəbul Tarixi</span>
-              <span className="text-right">Əməliyyat</span>
-            </div>
-
-            {filteredOrders.map((order, i) => {
-              const supplierName = supplierMap.get(order.supplier_id) || 'Naməlum';
-              return (
-                <motion.div
-                  key={order.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="group px-4 lg:px-6 py-4 transition-colors hover:bg-[var(--theme-surface-soft)]"
-                  style={{ borderBottom: i < filteredOrders.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
-                >
-                  {/* Desktop row */}
-                  <div
-                    className="hidden lg:grid gap-4 items-center"
-                    style={{ gridTemplateColumns: '1fr 1fr 100px 110px 140px 140px 100px' }}
+          <DataTable
+            rows={filteredOrders.map(order => ({
+              ...order,
+              supplier_name: supplierMap.get(order.supplier_id) || 'Naməlum',
+              __actions: (
+                <>
+                  {(order.status === 'sent' || order.status === 'partial') && (
+                    <IconBtn icon={PackageCheck} title="Qəbul et" tone="emerald" onClick={() => openReceive(order.id)} />
+                  )}
+                  <select
+                    value={order.status}
+                    onClick={e => e.stopPropagation()}
+                    onChange={e => handleStatusUpdate(order.id, e.target.value as PurchaseOrderStatus)}
+                    className="h-8 px-1.5 rounded-lg text-[10px] font-bold bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] outline-none hover:text-[var(--theme-text)] transition-colors cursor-pointer"
+                    title="Status dəyiş"
                   >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate flex items-center gap-2">
-                        {order.order_number}
-                        {/* 13c: recurring weekly flag (Monday 09:00 cron drafts a copy). */}
-                        {order.recurring_weekly && (
-                          <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-400 text-[9px] font-black uppercase tracking-wider">Həftəlik</span>
-                        )}
-                        {order.order_number?.startsWith('RECUR-') && (
-                          <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] text-[9px] font-black uppercase tracking-wider">cron</span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm text-[var(--theme-text-secondary)] truncate">{supplierName}</p>
-                    </div>
-                    <div>
-                      <StatusBadge status={order.status} />
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm font-bold tabular-nums">₼{fmtCurrency(order.total_amount)}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs text-[var(--theme-text-secondary)]">{fmtDate(order.ordered_at)}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs text-[var(--theme-text-secondary)]">{fmtDate(order.received_at)}</span>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-end gap-1">
-                      {(order.status === 'sent' || order.status === 'partial') && (
-                        <button
-                          onClick={() => openReceive(order.id)}
-                          className="w-7 h-7 rounded-lg hover:bg-emerald-500/10 transition-all flex items-center justify-center text-[var(--theme-text-muted)] hover:text-emerald-400"
-                          title="Qəbul et"
-                        >
-                          <PackageCheck size={13} />
-                        </button>
-                      )}
-                      <div className="relative group/drop">
-                        <button className="w-7 h-7 rounded-lg hover:bg-[var(--theme-surface-soft)] transition-all flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]">
-                          <ChevronDown size={13} />
-                        </button>
-                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[150px] rounded-xl overflow-hidden opacity-0 invisible group-hover/drop:opacity-100 group-hover/drop:visible transition-all duration-150"
-                          style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}
-                        >
-                          {STATUS_OPTIONS.map(s => (
-                            <button
-                              key={s}
-                              onClick={() => handleStatusUpdate(order.id, s)}
-                              className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-left transition-colors hover:bg-[var(--theme-surface-soft)] ${s === order.status ? STATUS_META[s].cls : 'text-[var(--theme-text-muted)]'}`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full bg-current opacity-60`} />
-                              {STATUS_META[s].label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => setDeleteConfirm(order.id)}
-                        className="w-7 h-7 rounded-lg hover:bg-red-500/10 transition-all flex items-center justify-center text-[var(--theme-text-muted)] hover:text-red-400"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+                    {STATUS_OPTIONS.map(s => (
+                      <option key={s} value={s}>{STATUS_META[s].label}</option>
+                    ))}
+                  </select>
+                  <IconBtn icon={Trash2} title="Sil" tone="rose" onClick={() => setDeleteConfirm(order.id)} />
+                </>
+              ),
+            }))}
+            rowKey={r => r.id}
+            actionsWidth={120}
+            cols={[
+              {
+                key: 'num', label: 'Sifariş №', width: '1.5fr',
+                render: r => (
+                  <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                    <span className="text-[13px] font-bold text-[var(--theme-text)] truncate tabular-nums">{r.order_number}</span>
+                    {r.recurring_weekly && <Chip tone="info" dot={false}>Həftəlik</Chip>}
+                    {r.order_number?.startsWith('RECUR-') && <Chip tone="neutral" dot={false}>cron</Chip>}
                   </div>
-
-                  {/* Mobile card */}
-                  <div className="lg:hidden space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold">{order.order_number}</p>
-                        <p className="text-xs text-[var(--theme-text-secondary)] mt-0.5">{supplierName}</p>
-                      </div>
-                      <StatusBadge status={order.status} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-[var(--theme-text-muted)]">
-                        <p>Sifariş: {fmtDate(order.ordered_at)}</p>
-                        {order.received_at && <p>Qəbul: {fmtDate(order.received_at)}</p>}
-                      </div>
-                      <span className="text-sm font-bold tabular-nums">₼{fmtCurrency(order.total_amount)}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      {(order.status === 'sent' || order.status === 'partial') && (
-                        <button
-                          onClick={() => openReceive(order.id)}
-                          className="px-3 py-2 rounded-xl text-xs font-bold transition-all bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20"
-                        >
-                          <PackageCheck size={13} />
-                        </button>
-                      )}
-                      {/* Status dropdown (mobile: inline select) */}{' '}
-                      <select
-                        value={order.status}
-                        onChange={e => handleStatusUpdate(order.id, e.target.value as PurchaseOrderStatus)}
-                        className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text)] outline-none"
-                      >
-                        {STATUS_OPTIONS.map(s => (
-                          <option key={s} value={s}>{STATUS_META[s].label}</option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => setDeleteConfirm(order.id)}
-                        className="px-3 py-2 rounded-xl text-xs font-bold transition-all bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+                ),
+              },
+              { key: 'supplier', label: 'Təchizatçı', width: '1.2fr', render: r => <span className="text-[13px] text-[var(--theme-text-secondary)] truncate">{r.supplier_name}</span> },
+              {
+                key: 'status', label: 'Status', width: '110px',
+                render: r => <Chip tone={PO_CHIP_TONE[r.status] || 'neutral'}>{STATUS_META[r.status]?.label || r.status}</Chip>,
+              },
+              {
+                key: 'amount', label: 'Məbləğ', width: '90px', align: 'right',
+                render: r => <span className="text-[13px] font-black tabular-nums text-[var(--theme-text)]">₼{fmtCurrency(r.total_amount)}</span>,
+              },
+              {
+                key: 'dates', label: 'Tarixlər', width: '150px', hide: 'md',
+                render: r => (
+                  <div className="text-[11px] text-[var(--theme-text-muted)] tabular-nums leading-relaxed">
+                    <p>Sif: {fmtDate(r.ordered_at)}</p>
+                    <p>Qəb: {fmtDate(r.received_at)}</p>
                   </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
+                ),
+              },
+            ]}
+            empty={
+              <div className="py-12 text-center">
+                <ShoppingCart size={36} className="mx-auto mb-3 opacity-25 text-[var(--theme-text-muted)]" />
+                <p className="text-sm font-medium text-[var(--theme-text-secondary)]">
+                  {search ? 'Axtarış nəticəsi tapılmadı' : 'Hələ sifariş yaradılmayıb'}
+                </p>
+                {!search && <p className="text-xs text-[var(--theme-text-muted)] mt-2">&ldquo;Yeni Sifariş&rdquo; düyməsi ilə ilk satınalma sifarişini yaradın</p>}
+              </div>
+            }
+          />
         )}
       </div>
 
       {/* ═══════════════════════════════════════════════════════
-          CREATE MODAL
+          CREATE MODAL (13j: design-system Modal)
       ════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showCreate && (
-          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <motion.div
-              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowCreate(false)}
-            />
-            <motion.div
-              variants={modalV} initial="hidden" animate="show" exit="exit"
-              className="relative z-10 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl flex flex-col gap-0"
-              style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="sm:hidden flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-[var(--theme-surface-soft)]" />
-              </div>
+          <Modal title="Satınalma sifarişi yarat" subtitle="Yeni sifariş" onClose={() => setShowCreate(false)}>
+            <div className="space-y-4">
+              <Field label="Təchizatçı *">
+                <select value={formSupplier} onChange={e => setFormSupplier(e.target.value)} className={fieldCls}>
+                  <option value="">Təchizatçı seçin</option>
+                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </Field>
 
-              <div className="p-6 space-y-5">
-                {/* Modal header */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5"
-                      style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
-                      <Plus size={10} /> Yeni Sifariş
-                    </span>
-                    <h2 className="text-xl font-bold">Satınalma sifarişi yarat</h2>
-                  </div>
-                  <button onClick={() => setShowCreate(false)} className="text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors mt-1">
-                    <X size={18} />
-                  </button>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-[var(--theme-text-muted)] ml-1">Məhsullar *</span>
+                  <Btn variant="ghost" small icon={Plus} onClick={addItem}>Əlavə et</Btn>
                 </div>
-
-                {/* Supplier */}
-                <div>
-                  <label className="text-[11px] text-[var(--theme-text)]/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                    Təchizatçı <span className="text-red-400">*</span>
-                  </label>
-                  <select
-                    value={formSupplier}
-                    onChange={e => setFormSupplier(e.target.value)}
-                    className="w-full px-4 py-3.5 rounded-xl text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
-                  >
-                    <option value="" style={{ background: '#111' }}>Təchizatçı seçin</option>
-                    {suppliers.map(s => (
-                      <option key={s.id} value={s.id} style={{ background: '#111' }}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Items */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-[11px] text-[var(--theme-text)]/35 font-semibold uppercase tracking-wider">
-                      Məhsullar <span className="text-red-400">*</span>
-                    </label>
-                    <button
-                      onClick={addItem}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all active:scale-95"
-                      style={{ background: 'rgba(212,175,55,0.1)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.2)' }}
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {formItems.map((item, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="p-3 rounded-xl space-y-2 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
                     >
-                      <Plus size={11} /> Əlavə et
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                    {formItems.map((item, idx) => (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="p-3 rounded-xl space-y-2"
-                        style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <input
-                              value={item.product_name}
-                              onChange={e => updateItem(idx, 'product_name', e.target.value)}
-                              placeholder="Məhsul adı"
-                              className="w-full px-3 py-2 rounded-lg text-sm text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-[#D4AF37]/30 transition-colors"
-                            />
-                          </div>
-                          <button
-                            onClick={() => removeItem(idx)}
-                            disabled={formItems.length === 1}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-20"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <input
-                              type="number" min="0" step="0.001"
-                              value={item.quantity}
-                              onChange={e => updateItem(idx, 'quantity', e.target.value)}
-                              placeholder="Miqdar"
-                              className="w-full px-3 py-2 rounded-lg text-sm text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-[#D4AF37]/30 transition-colors"
-                            />
-                          </div>
-                          <div>
-                            <select
-                              value={item.unit}
-                              onChange={e => updateItem(idx, 'unit', e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg text-sm text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-[#D4AF37]/30 transition-colors"
-                            >
-                              {UNITS.map(u => (
-                                <option key={u} value={u} style={{ background: '#111' }}>{u}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <input
-                              type="number" min="0" step="0.01"
-                              value={item.unit_cost}
-                              onChange={e => updateItem(idx, 'unit_cost', e.target.value)}
-                              placeholder="Vahid qiymət"
-                              className="w-full px-3 py-2 rounded-lg text-sm text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-[#D4AF37]/30 transition-colors"
-                            />
-                          </div>
-                        </div>
-                        {parseFloat(item.quantity) > 0 && parseFloat(item.unit_cost) > 0 && (
-                          <p className="text-[10px] text-[var(--theme-text-muted)] text-right">
-                            Cəmi: <span className="text-[var(--theme-text-muted)] font-bold">₼{fmtCurrency(parseFloat(item.quantity) * parseFloat(item.unit_cost))}</span>
-                          </p>
-                        )}
-                      </motion.div>
-                    ))}
-                  </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={item.product_name}
+                          onChange={e => updateItem(idx, 'product_name', e.target.value)}
+                          placeholder="Məhsul adı"
+                          className={`${fieldCls} flex-1 min-w-0`}
+                        />
+                        <button
+                          onClick={() => removeItem(idx)}
+                          disabled={formItems.length === 1}
+                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-all active:scale-90 disabled:opacity-20"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <input type="number" min="0" step="0.001" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} placeholder="Miqdar" className={fieldCls} />
+                        <select value={item.unit} onChange={e => updateItem(idx, 'unit', e.target.value)} className={fieldCls}>
+                          {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                        <input type="number" min="0" step="0.01" value={item.unit_cost} onChange={e => updateItem(idx, 'unit_cost', e.target.value)} placeholder="Vahid qiymət" className={fieldCls} />
+                      </div>
+                      {parseFloat(item.quantity) > 0 && parseFloat(item.unit_cost) > 0 && (
+                        <p className="text-[10px] text-[var(--theme-text-muted)] text-right">
+                          Cəmi: <span className="font-bold text-[var(--theme-text-secondary)]">₼{fmtCurrency(parseFloat(item.quantity) * parseFloat(item.unit_cost))}</span>
+                        </p>
+                      )}
+                    </motion.div>
+                  ))}
                 </div>
-
-                {/* Total */}
-                <div
-                  className="flex items-center justify-between px-4 py-3 rounded-xl"
-                  style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.15)' }}
-                >
-                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-muted)]">Ümumi Məbləğ</span>
-                  <span className="text-lg font-black text-[#D4AF37] tabular-nums">₼{fmtCurrency(formTotal)}</span>
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="text-[11px] text-[var(--theme-text)]/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                    Qeyd <span className="text-[var(--theme-text-muted)]">— istəyə görə</span>
-                  </label>
-                  <textarea
-                    value={formNotes}
-                    onChange={e => setFormNotes(e.target.value)}
-                    placeholder="Məs: Çatdırılma qeydləri..."
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl text-sm text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-[#D4AF37]/40 transition-colors resize-none"
-                  />
-                </div>
-
-                <button
-                  onClick={handleCreate}
-                  disabled={saving}
-                  className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
-                  style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}
-                >
-                  {saving ? <Loader2 size={16} className="animate-spin" /> : <><ShoppingCart size={15} /> Sifarişi Yarat</>}
-                </button>
               </div>
-            </motion.div>
-          </div>
+
+              <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--theme-text-muted)]">Ümumi Məbləğ</span>
+                <span className="text-lg font-black tabular-nums text-[var(--theme-text)]">₼{fmtCurrency(formTotal)}</span>
+              </div>
+
+              <Field label="Qeyd — istəyə görə">
+                <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Məs: Çatdırılma qeydləri..." rows={3} className={`${fieldCls} resize-none`} />
+              </Field>
+
+              <Btn variant="solid" icon={saving ? Loader2 : ShoppingCart} onClick={handleCreate} disabled={saving} className="w-full">
+                Sifarişi Yarat
+              </Btn>
+            </div>
+          </Modal>
         )}
       </AnimatePresence>
 
-      {/* ═══════════════════════════════════════════════════════
-          DELETE CONFIRM
-      ════════════════════════════════════════════════════════ */}
+      {/* 13j: design-system confirm */}
       <AnimatePresence>
         {deleteConfirm && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-            <motion.div
-              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setDeleteConfirm(null)}
-            />
-            <motion.div
-              variants={modalV} initial="hidden" animate="show" exit="exit"
-              className="relative z-10 w-full max-w-sm rounded-2xl p-6 text-center space-y-4"
-              style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-red-500/10 border border-red-500/20">
-                <Trash2 size={20} className="text-red-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold">Sifariş silinsin?</h3>
-                <p className="text-sm text-[var(--theme-text-secondary)] mt-1">Bu əməliyyat geri alına bilməz.</p>
+          <Modal title="Sifariş silinsin?" subtitle="Bu əməliyyat geri alına bilməz" onClose={() => setDeleteConfirm(null)}>
+            <div className="space-y-5">
+              <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-rose-500/10 border border-rose-500/25">
+                <Trash2 size={20} className="text-rose-500" />
               </div>
               <div className="flex gap-3">
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)] transition-all"
-                >
-                  Ləğv et
-                </button>
-                <button
-                  onClick={() => handleDelete(deleteConfirm)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all"
-                >
-                  Sil
-                </button>
+                <Btn variant="ghost" className="flex-1" onClick={() => setDeleteConfirm(null)}>Ləğv et</Btn>
+                <Btn variant="danger" className="flex-1" onClick={() => handleDelete(deleteConfirm)}>Sil</Btn>
               </div>
-            </motion.div>
-          </div>
+            </div>
+          </Modal>
         )}
       </AnimatePresence>
 
       {/* ═══════════════════════════════════════════════════════
-          RECEIVE MODAL (Goods Receipt Note)
+          RECEIVE MODAL (13j: design-system Modal)
       ════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showReceive && (
-          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <motion.div
-              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowReceive(null)}
-            />
-            <motion.div
-              variants={modalV} initial="hidden" animate="show" exit="exit"
-              className="relative z-10 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl flex flex-col gap-0"
-              style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="sm:hidden flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-[var(--theme-surface-soft)]" />
-              </div>
-              <div className="p-6 space-y-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5"
-                      style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981' }}>
-                      <PackageCheck size={10} /> Mal Qəbulu
-                    </span>
-                    <h2 className="text-xl font-bold">Tədarükün qəbulu</h2>
-                    <p className="text-sm text-[var(--theme-text-muted)] mt-1">Qəbul edilən miqdarları daxil edin</p>
-                  </div>
-                  <button onClick={() => setShowReceive(null)} className="text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors mt-1">
-                    <X size={18} />
-                  </button>
-                </div>
-
-                {/* Items */}
-                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                  {receiveItems.map((item) => (
-                    <div key={item.id}
-                      className="p-3 rounded-xl flex items-center gap-3"
-                      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{item.product_name}</p>
-                        <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5">
-                          Sifariş: {item.quantity} {item.unit}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-[var(--theme-text-muted)] whitespace-nowrap">Qəbul:</span>
-                        <input
-                          type="number" min="0" step="0.001"
-                          value={item.received}
-                          onChange={e => setReceiveItems(prev =>
-                            prev.map(i => i.id === item.id ? { ...i, received: e.target.value } : i)
-                          )}
-                          className="w-20 px-3 py-2 rounded-lg text-sm text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-emerald-500/40 transition-colors text-right tabular-nums"
-                        />
-                        <span className="text-[10px] text-[var(--theme-text-muted)]">{item.unit}</span>
-                      </div>
+          <Modal title="Tədarükün qəbulu" subtitle="Qəbul edilən miqdarları daxil edin" onClose={() => setShowReceive(null)}>
+            <div className="space-y-4">
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {receiveItems.map((item) => (
+                  <div key={item.id} className="p-3 rounded-xl flex items-center gap-3 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-[var(--theme-text)] truncate">{item.product_name}</p>
+                      <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5">Sifariş: {item.quantity} {item.unit}</p>
                     </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={handleReceive}
-                  disabled={receiving}
-                  className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
-                  style={{ background: '#065f46', color: '#ffffff' }}
-                >
-                  {receiving ? <Loader2 size={16} className="animate-spin" /> : <><PackageCheck size={15} /> Qəbulu Təsdiq Et</>}
-                </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-bold text-[var(--theme-text-muted)]">Qəbul:</span>
+                      <input
+                        type="number" min="0" step="0.001"
+                        value={item.received}
+                        onChange={e => setReceiveItems(prev =>
+                          prev.map(i => i.id === item.id ? { ...i, received: e.target.value } : i)
+                        )}
+                        className="w-20 px-2.5 py-2 rounded-lg text-sm text-[var(--theme-text)] bg-[var(--theme-bg)] border border-[var(--theme-border)] outline-none focus:border-emerald-500/50 transition-colors text-right tabular-nums"
+                      />
+                      <span className="text-[10px] text-[var(--theme-text-muted)]">{item.unit}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </motion.div>
-          </div>
+              <Btn variant="success" icon={receiving ? Loader2 : PackageCheck} onClick={handleReceive} disabled={receiving} className="w-full">
+                Qəbulu Təsdiq Et
+              </Btn>
+            </div>
+          </Modal>
         )}
       </AnimatePresence>
     </PageTransition>

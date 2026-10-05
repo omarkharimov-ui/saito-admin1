@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, Trash2, Edit3, X, Loader2, Percent } from '@/components/ui/saito-icons';
-import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
+import { AnimatePresence } from 'framer-motion';
+import { Plus, Trash2, Edit3, Loader2, Percent } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
-import { useTheme } from '@/lib/theme/ThemeContext';
 import MobileModal from '@/components/ui/MobileModal';
+// 13j: design system (one visual language across the inventory module)
+import { Btn, DataTable, SearchInput, IconBtn, SpinnerBlock, Modal, Field, fieldCls } from '../stock/stock-ui';
 
 interface WasteStandard {
   id: string;
@@ -24,16 +24,7 @@ interface ModalState {
   data: WasteStandard | null;
 }
 
-const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
-
-const modalV = {
-  hidden: { opacity: 0, scale: 0.96, y: 14 },
-  show:   { opacity: 1, scale: 1, y: 0, transition: { type: 'spring' as const, stiffness: 400, damping: 32 } },
-  exit:   { opacity: 0, scale: 0.95, y: 8, transition: { duration: 0.14 } },
-};
-
 export default function WasteStandardsPage() {
-  const { lightMode } = useTheme();
   const [data, setData] = useState<WasteStandard[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -54,7 +45,7 @@ export default function WasteStandardsPage() {
       const json = await res.json();
       if (Array.isArray(json)) setData(json);
     } catch {
-      toast.error('Məlumat yüklənə bilmədi', { style: toastStyle });
+      toast.error('Məlumat yüklənə bilmədi');
     } finally {
       setLoading(false);
     }
@@ -82,11 +73,11 @@ export default function WasteStandardsPage() {
         const err = await res.json();
         throw new Error(err.error || 'Xəta');
       }
-      toast.success('Standart əlavə edildi', { style: toastStyle });
+      toast.success('Standart əlavə edildi');
       setModal({ mode: null, data: null });
       fetchData();
     } catch (e: any) {
-      toast.error(e.message, { style: toastStyle });
+      toast.error(e.message);
     } finally {
       setSaving(false);
     }
@@ -114,11 +105,11 @@ export default function WasteStandardsPage() {
         const err = await res.json();
         throw new Error(err.error || 'Xəta');
       }
-      toast.success('Standart yeniləndi', { style: toastStyle });
+      toast.success('Standart yeniləndi');
       setModal({ mode: null, data: null });
       fetchData();
     } catch (e: any) {
-      toast.error(e.message, { style: toastStyle });
+      toast.error(e.message);
     } finally {
       setSaving(false);
     }
@@ -139,7 +130,7 @@ export default function WasteStandardsPage() {
   const saveInlineEdit = async (s: WasteStandard) => {
     const val = parseFloat(editValue);
     if (isNaN(val) || val < 0 || val >= 100) {
-      toast.error('0-99 arası dəyər daxil edin', { style: toastStyle });
+      toast.error('0-99 arası dəyər daxil edin');
       return;
     }
     try {
@@ -152,261 +143,112 @@ export default function WasteStandardsPage() {
       setEditingId(null);
       fetchData();
     } catch {
-      toast.error('Yenilənmə xətası', { style: toastStyle });
+      toast.error('Yenilənmə xətası');
     }
   };
 
-  // 13h: hub frame provides page chrome — no hardcoded dark bg, no glow,
-  // no own hero. Slim toolbar only.
+  // 13j: design system — DataTable + inline edit preserved.
   return (
     <div className="text-[var(--theme-text)]">
-      <div className="space-y-5">
+      <div className="space-y-4">
         {/* ── Toolbar ── */}
         <div className="flex items-center justify-end">
-          <button onClick={() => setModal({ mode: 'add', data: null })}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
-            style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}>
-            <Plus size={13} /> Yeni Standart
-          </button>
+          <Btn variant="solid" icon={Plus} onClick={() => setModal({ mode: 'add', data: null })}>Yeni Standart</Btn>
         </div>
 
-        {/* ── Search ── */}
-        <div className="relative max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Axtar..."
-            className="w-full pl-9 pr-3 py-2 rounded-xl text-sm bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-emerald-400/40 transition-colors"
-          />
-        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Axtar..." className="max-w-sm" />
 
         {/* ── Table ── */}
         {loading ? (
-          <div className="flex items-center justify-center h-48">
-            <Loader2 size={28} className="animate-spin text-[var(--theme-text-muted)]" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={<Percent size={20} />}
-            title="Standart tapılmadı"
-            description={search ? 'Axtarışınıza uyğun nəticə yoxdur.' : 'Hələ heç bir itki standartı əlavə edilməyib.'}
-          />
+          <SpinnerBlock height={240} />
         ) : (
-          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-            {/* Table head */}
-            <div
-              className="hidden lg:grid gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-[var(--theme-text-muted)]"
-              style={{
-                gridTemplateColumns: '1fr 1fr 100px 1fr 120px 80px',
-                background: 'rgba(255,255,255,0.018)',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-              }}
-            >
-              <span>Keyword (AZ)</span>
-              <span>Keyword (EN)</span>
-              <span className="text-right">İtki %</span>
-              <span>Qeyd</span>
-              <span>Kateqoriya</span>
-              <span className="text-right"></span>
-            </div>
-
-            {filtered.map((s, i) => (
-              <motion.div
-                key={s.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, delay: i * 0.02 }}
-                className="hidden lg:grid gap-4 px-6 py-3 items-center text-sm hover:bg-[var(--theme-surface-soft)] transition-colors"
-                style={{
-                  gridTemplateColumns: '1fr 1fr 100px 1fr 120px 80px',
-                  borderBottom: '1px solid rgba(255,255,255,0.03)',
-                }}
-              >
-                <span className="text-[var(--theme-text-secondary)] truncate">{s.keyword}</span>
-                <span className="text-[var(--theme-text-muted)] truncate">{s.keyword_en || '—'}</span>
-                <div className="text-right">
-                  {editingId === s.id ? (
-                    <input
-                      type="number" min="0" max="99" step="0.1"
-                      value={editValue}
-                      onChange={e => setEditValue(e.target.value)}
-                      onBlur={() => saveInlineEdit(s)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') saveInlineEdit(s);
-                        if (e.key === 'Escape') setEditingId(null);
-                      }}
-                      className="w-20 text-right bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-lg px-2 py-1 text-sm text-[var(--theme-text)] outline-none focus:border-emerald-400/40 tabular-nums"
-                      autoFocus
-                    />
-                  ) : (
-                    <span
-                      className="tabular-nums font-semibold cursor-pointer hover:text-gold transition-colors"
-                      style={{ color: s.waste_percentage > 20 ? '#F59E0B' : s.waste_percentage > 0 ? '#D4AF37' : '#fff' }}
-                      onClick={() => startInlineEdit(s)}
-                    >
-                      {s.waste_percentage}%
-                    </span>
-                  )}
-                </div>
-                <span className="text-[var(--theme-text-muted)] truncate">{s.note || '—'}</span>
-                <span className="text-[var(--theme-text-muted)] truncate text-xs">{s.category || '—'}</span>
-                <div className="flex items-center justify-end gap-1">
-                  <button onClick={() => setModal({ mode: 'edit', data: s })}
-                    className="w-7 h-7 rounded-lg hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)] transition-all flex items-center justify-center">
-                    <Edit3 size={12} />
-                  </button>
-                  <button onClick={() => handleDelete(s.id)}
-                    className="w-7 h-7 rounded-lg hover:bg-red-500/10 text-[var(--theme-text-muted)] hover:text-red-400 transition-all flex items-center justify-center">
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-
-            {/* ── Mobile cards ── */}
-            <div className="lg:hidden space-y-2 p-3">
-              {filtered.map((s) => (
-                <div key={s.id}
-                  className="rounded-xl p-3 space-y-2"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">{s.keyword}</span>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => setModal({ mode: 'edit', data: s })}
-                        className="w-7 h-7 rounded-lg hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)] transition-all flex items-center justify-center">
-                        <Edit3 size={12} />
-                      </button>
-                      <button onClick={() => handleDelete(s.id)}
-                        className="w-7 h-7 rounded-lg hover:bg-red-500/10 text-[var(--theme-text-muted)] hover:text-red-400 transition-all flex items-center justify-center">
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
+          <DataTable
+            rows={filtered.map(s => ({ ...s, __actions: (
+              <>
+                <IconBtn icon={Edit3} title="Redaktə" tone="blue" onClick={() => setModal({ mode: 'edit', data: s })} />
+                <IconBtn icon={Trash2} title="Sil" tone="rose" onClick={() => handleDelete(s.id)} />
+              </>
+            ) }))}
+            rowKey={r => r.id}
+            actionsWidth={72}
+            cols={[
+              { key: 'kw', label: 'Keyword (AZ)', width: '1.3fr', render: r => <span className="text-[13px] font-semibold text-[var(--theme-text)] truncate">{r.keyword}</span> },
+              { key: 'kwEn', label: 'Keyword (EN)', width: '1fr', hide: 'sm', render: r => <span className="text-xs text-[var(--theme-text-muted)] truncate">{r.keyword_en || '—'}</span> },
+              {
+                key: 'pct', label: 'İtki %', width: '110px', align: 'right',
+                render: r => (
+                  <div className="flex justify-end">
+                    {editingId === r.id ? (
+                      <input
+                        type="number" min="0" max="99" step="0.1"
+                        value={editValue}
+                        onChange={e => setEditValue(e.target.value)}
+                        onBlur={() => saveInlineEdit(r)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') saveInlineEdit(r);
+                          if (e.key === 'Escape') setEditingId(null);
+                        }}
+                        className="w-20 text-right bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-lg px-2 py-1 text-sm text-[var(--theme-text)] outline-none focus:border-[var(--theme-text)]/40 tabular-nums"
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className="tabular-nums text-[13px] font-black cursor-pointer hover:opacity-70 transition-opacity"
+                        style={{ color: r.waste_percentage > 20 ? 'var(--theme-text)' : 'var(--theme-text-secondary)' }}
+                        onClick={() => startInlineEdit(r)}
+                        title="Dəyişdirmək üçün kliklə"
+                      >
+                        {r.waste_percentage}%
+                      </span>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-[var(--theme-text-muted)]">
-                    <div>
-                      <span className="block text-[9px] uppercase tracking-wider text-[var(--theme-text-muted)]">İtki</span>
-                      <strong className="tabular-nums text-[var(--theme-text-secondary)]">{s.waste_percentage}%</strong>
-                    </div>
-                    <div>
-                      <span className="block text-[9px] uppercase tracking-wider text-[var(--theme-text-muted)]">EN</span>
-                      <span>{s.keyword_en || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[9px] uppercase tracking-wider text-[var(--theme-text-muted)]">Qeyd</span>
-                      <span>{s.note || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[9px] uppercase tracking-wider text-[var(--theme-text-muted)]">Kateqoriya</span>
-                      <span>{s.category || '—'}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                ),
+              },
+              { key: 'note', label: 'Qeyd', width: '1.4fr', hide: 'lg', render: r => <span className="text-xs text-[var(--theme-text-muted)] truncate">{r.note || '—'}</span> },
+              { key: 'cat', label: 'Kateqoriya', width: '120px', hide: 'md', render: r => <span className="text-xs text-[var(--theme-text-muted)] truncate">{r.category || '—'}</span> },
+            ]}
+            empty={
+              <div className="py-12 text-center">
+                <Percent size={32} className="mx-auto mb-3 opacity-25 text-[var(--theme-text-muted)]" />
+                <p className="text-sm font-medium text-[var(--theme-text-secondary)]">Standart tapılmadı</p>
+                <p className="text-xs text-[var(--theme-text-muted)] mt-1">
+                  {search ? 'Axtarışınıza uyğun nəticə yoxdur.' : 'Hələ heç bir itki standartı əlavə edilməyib.'}
+                </p>
+              </div>
+            }
+          />
         )}
 
-        {/* ════════════════════════════════════════════════
-            ADD / EDIT MODAL
-        ════════════════════════════════════════════════ */}
+        {/* ═══════════════════════════════════════════════════════════
+            ADD / EDIT MODAL (13j: design-system Modal)
+        ═══════════════════════════════════════════════════════════ */}
         <AnimatePresence>
           {modal.mode && (
-            <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <motion.div
-                className="absolute inset-0 bg-black/75 backdrop-blur-sm"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                onClick={() => setModal({ mode: null, data: null })}
-              />
-              <motion.div
-                variants={modalV} initial="hidden" animate="show" exit="exit"
-                className="relative z-10 w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl flex flex-col gap-0 overflow-hidden"
-                style={{ background: lightMode ? '#ffffff' : '#0e0e0e', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 32px 80px rgba(0,0,0,0.12)' : '0 32px 80px rgba(0,0,0,0.7)' }}
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="sm:hidden flex justify-center pt-3 pb-1">
-                  <div className="w-10 h-1 rounded-full bg-[var(--theme-surface-soft)]" />
+            <Modal title={modal.mode === 'add' ? 'Yeni Standart' : 'Standartı Redaktə Et'} subtitle="İtki standartları" onClose={() => setModal({ mode: null, data: null })}>
+              <form onSubmit={modal.mode === 'add' ? handleCreate : handleUpdate} className="space-y-4">
+                <Field label="Keyword (AZ) *">
+                  <input name="keyword" required defaultValue={modal.data?.keyword || ''} className={fieldCls} />
+                </Field>
+                <Field label="Keyword (EN)">
+                  <input name="keyword_en" defaultValue={modal.data?.keyword_en || ''} className={fieldCls} />
+                </Field>
+                <Field label="İtki Faizi (%) *">
+                  <input name="waste_percentage" type="number" min="0" max="99" step="0.1" required defaultValue={modal.data?.waste_percentage ?? ''} className={fieldCls} />
+                </Field>
+                <Field label="Qeyd">
+                  <input name="note" defaultValue={modal.data?.note || ''} className={fieldCls} />
+                </Field>
+                <Field label="Kateqoriya">
+                  <input name="category" defaultValue={modal.data?.category || ''} placeholder="məs: tərəvəz, meyvə, ət..." className={fieldCls} />
+                </Field>
+                <div className="flex gap-3 pt-1">
+                  <Btn variant="ghost" className="flex-1" onClick={() => setModal({ mode: null, data: null })}>Ləğv et</Btn>
+                  <Btn variant="solid" type="submit" className="flex-1" disabled={saving} icon={saving ? Loader2 : Plus}>
+                    {modal.mode === 'add' ? 'Əlavə et' : 'Yadda saxla'}
+                  </Btn>
                 </div>
-
-                <form onSubmit={modal.mode === 'add' ? handleCreate : handleUpdate}>
-                  <div className="overflow-y-auto p-6 space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h2 className="text-lg font-bold">{modal.mode === 'add' ? 'Yeni Standart' : 'Standartı Redaktə Et'}</h2>
-                      </div>
-                      <button type="button" onClick={() => setModal({ mode: null, data: null })}
-                        className="text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors mt-1">
-                        <X size={18} />
-                      </button>
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] text-[var(--theme-text)]/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        Keyword (AZ) <span className="text-red-400">*</span>
-                      </label>
-                      <input name="keyword" required
-                        defaultValue={modal.data?.keyword || ''}
-                        className="w-full px-4 py-3 rounded-xl text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-emerald-400/50 transition-colors text-sm"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] text-[var(--theme-text)]/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        Keyword (EN)
-                      </label>
-                      <input name="keyword_en"
-                        defaultValue={modal.data?.keyword_en || ''}
-                        className="w-full px-4 py-3 rounded-xl text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-emerald-400/50 transition-colors text-sm"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] text-[var(--theme-text)]/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        İtki Faizi (%) <span className="text-red-400">*</span>
-                      </label>
-                      <input name="waste_percentage" type="number" min="0" max="99" step="0.1" required
-                        defaultValue={modal.data?.waste_percentage ?? ''}
-                        className="w-full px-4 py-3 rounded-xl text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-emerald-400/50 transition-colors text-sm"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] text-[var(--theme-text)]/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        Qeyd
-                      </label>
-                      <input name="note"
-                        defaultValue={modal.data?.note || ''}
-                        className="w-full px-4 py-3 rounded-xl text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-emerald-400/50 transition-colors text-sm"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] text-[var(--theme-text)]/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        Kateqoriya
-                      </label>
-                      <input name="category"
-                        defaultValue={modal.data?.category || ''}
-                        placeholder="məs: tərəvəz, meyvə, ət..."
-                        className="w-full px-4 py-3 rounded-xl text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-emerald-400/50 transition-colors text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex-shrink-0 p-4 border-t border-[var(--theme-border)] flex items-center gap-3">
-                    <button type="button" onClick={() => setModal({ mode: null, data: null })}
-                      className="flex-1 py-3 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.98] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)] border border-[var(--theme-border)]">
-                      Ləğv et
-                    </button>
-                    <button type="submit" disabled={saving}
-                      className="flex-1 py-3 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
-                      style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}>
-                      {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={15} />}
-                      {modal.mode === 'add' ? 'Əlavə et' : 'Yadda saxla'}
-                    </button>
-                  </div>
-                </form>
-              </motion.div>
-            </div>
+              </form>
+            </Modal>
           )}
         </AnimatePresence>
       </div>
@@ -430,10 +272,10 @@ export default function WasteStandardsPage() {
                 try {
                   const res = await fetch(`/api/inventory/waste-standards?id=${id}`, { method: 'DELETE' });
                   if (!res.ok) throw new Error('Xəta');
-                  toast.success('Standart silindi', { style: toastStyle });
+                  toast.success('Standart silindi');
                   fetchData();
                 } catch {
-                  toast.error('Silinmə xətası', { style: toastStyle });
+                  toast.error('Silinmə xətası');
                 }
               }}
               className="px-4 py-2 rounded-xl bg-[var(--theme-accent)] text-black font-semibold"

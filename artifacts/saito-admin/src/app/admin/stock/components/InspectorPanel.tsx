@@ -316,8 +316,7 @@ function QuickAction({ icon, label, onClick, color }: { icon: React.ReactNode; l
     <motion.button
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-3 p-5 rounded-[24px] border border-white/[0.05] transition-all hover:border-white/10 ${color}`}
-      style={{ background: 'rgba(255,255,255,0.02)' }}
+      className={`flex flex-col items-center justify-center gap-3 p-5 rounded-[24px] border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] transition-all hover:border-[var(--theme-text)]/20 ${color}`}
     >
       {icon}
       <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>

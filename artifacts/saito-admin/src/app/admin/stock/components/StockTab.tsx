@@ -23,13 +23,14 @@ import {
   InventoryLog, DisplayUnit,
   Supplier,
 } from '@/types/inventory';
-import { getStatusMeta, StockStatusBar } from '@/components/StockStatusBadge';
+import { getStatusMeta } from '@/components/StockStatusBadge';
 import AdvisorCard from './AdvisorCard';
 import { InspectorPanel } from './InspectorPanel';
 import TabHero, { HeroTone } from './TabHero';
 import { LiveNumber, ViewContent } from './ViewFrame';
 import { useAsyncView } from '../hooks/useAsyncView';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
+import { Btn, Stat, Chip, DataTable, SearchInput, Seg, IconBtn, SpinnerBlock, fmtAZN } from '../stock-ui';
 
 const UNIT_LABELS: Record<DisplayUnit, string> = {
   gram: 'qram', piece: 'ədəd', ml: 'ml',
@@ -228,143 +229,111 @@ export default function StockTab({ onNavigate }: StockTabProps) {
           <TabHero tone={hero.tone} title={hero.title} sub={hero.sub} cta={hero.cta} lightMode={lightMode} />
         )}
 
-        {/* Actions (only on the default tab, top-right context) */}
+        {/* Actions (13j: design-system buttons) */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setModalMode('new_ingredient')}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] text-[11px] font-black uppercase tracking-wider hover:text-[var(--theme-text)] transition-all active:scale-[0.97]"
-          >
-            <Plus size={14} /> Yeni Xammal
-          </button>
-          <button
-            onClick={() => setShowQuickStockIn(true)}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--theme-text)] text-[var(--theme-bg)] text-[11px] font-black uppercase tracking-wider hover:opacity-90 transition-all active:scale-[0.97]"
-          >
-            <Plus size={14} /> Xammal Girişi
-          </button>
+          <Btn variant="ghost" icon={Plus} onClick={() => setModalMode('new_ingredient')}>Yeni Xammal</Btn>
+          <Btn variant="solid" icon={Plus} onClick={() => setShowQuickStockIn(true)}>Xammal Girişi</Btn>
         </div>
 
         {phase === 'loading' && !data ? (
           <div className="space-y-3">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {[0, 1, 2, 3].map(i => <div key={i} className="h-20 rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)]" />)}
+              {[0, 1, 2, 3].map(i => <div key={i} className="h-20 rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] animate-pulse" />)}
             </div>
-            <div className="h-64 rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)]" />
+            <SpinnerBlock height={320} />
           </div>
         ) : data ? (
           <>
-            {/* KPI strip — real numbers, value pulse on change */}
+            {/* KPI strip (13j: Stat primitive, value pulse on change) */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {[
-                { label: 'Aşağı Stok', value: lowCount, sub: 'limitə yaxın', cls: lightMode ? 'text-blue-600' : 'text-blue-400' },
-                { label: 'Kritik / Bitən', value: criticalCount, sub: 'tədarük lazımdır', cls: lightMode ? 'text-rose-600' : 'text-rose-400' },
-                { label: 'Mənfi Qeyd', value: negativeCount, sub: 'sayım tələb olunur', cls: lightMode ? 'text-red-600' : 'text-red-400' },
-                { label: 'Tazelik ≤3g', value: expiredCount + expiringCount, sub: `${expiredCount} müddət keçib`, cls: lightMode ? 'text-amber-600' : 'text-amber-400' },
-              ].map(k => (
-                <div key={k.label} className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] px-4 py-3.5 transition-colors hover:border-[var(--theme-text-muted)]/40">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--theme-text-muted)]">{k.label}</p>
-                  <p className={`text-2xl font-black mt-1 ${k.cls}`}><LiveNumber value={k.value} /></p>
-                  <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5">{k.sub}</p>
-                </div>
-              ))}
+              <Stat label="Aşağı Stok" value={<LiveNumber value={lowCount} />} sub="limitə yaxın" tone="blue" />
+              <Stat label="Kritik / Bitən" value={<LiveNumber value={criticalCount} />} sub="tədarük lazımdır" tone="rose" onClick={() => setFilter('critical')} />
+              <Stat label="Mənfi Qeyd" value={<LiveNumber value={negativeCount} />} sub="sayım tələb olunur" tone="red" />
+              <Stat label="Tazelik ≤3g" value={<LiveNumber value={expiredCount + expiringCount} />} sub={`${expiredCount} müddət keçib`} tone="amber" />
             </div>
 
             {/* AI advisor — the single AI surface of the inventory module */}
             <AdvisorCard />
 
-            {/* Anbar table */}
-            <div className="bg-[var(--theme-surface)] rounded-2xl border border-[var(--theme-border)] overflow-hidden">
-              <div className="p-4 sm:p-5 border-b border-[var(--theme-border)] flex flex-col md:flex-row items-stretch md:items-center gap-3 bg-[var(--theme-surface-soft)]/30">
-                <div className="relative flex-1 w-full">
-                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
-                  <input
-                    value={search} onChange={e => setSearch(e.target.value)}
-                    placeholder="Xammal axtar..."
-                    className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl pl-11 pr-4 py-2.5 text-sm outline-none focus:border-[var(--theme-text)]/40 text-[var(--theme-text)] transition-colors"
-                  />
-                </div>
-                <div className="flex bg-[var(--theme-bg)] p-1 rounded-xl border border-[var(--theme-border)]">
-                  {([['all', 'Hamısı'], ['critical', 'Kritik'], ['out_of_stock', 'Bitənlər']] as const).map(([v, l]) => (
-                    <button key={v} onClick={() => setFilter(v)}
-                      className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filter === v ? 'bg-[var(--theme-text)] text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="hidden md:grid grid-cols-12 px-5 sm:px-6 py-3 bg-[var(--theme-bg)] border-b border-[var(--theme-border)] text-[10px] font-bold text-[var(--theme-text-muted)] uppercase tracking-[0.15em]">
-                <div className="col-span-4">Xammal Adı</div>
-                <div className="col-span-2 text-center">Birim Qiymət</div>
-                <div className="col-span-2 text-center">Mövcud Stok</div>
-                <div className="col-span-2 text-center">Status</div>
-                <div className="col-span-2 text-right">Əməliyyat</div>
-              </div>
-
-              <div className="divide-y divide-[var(--theme-border)]">
-                {rows.map(row => {
-                  const meta = getStatusMeta(row.status);
-                  const isCritical = row.status === 'critical' || row.status === 'out_of_stock';
-                  return (
-                    <motion.div
-                      key={row.id}
-                      layout
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className={`group px-5 sm:px-6 py-3.5 grid grid-cols-2 md:grid-cols-12 items-center transition-colors hover:bg-[var(--theme-surface-soft)]/50 ${selectedRow?.id === row.id ? 'bg-[var(--theme-surface-soft)]' : ''}`}
-                    >
-                      <div className="col-span-2 md:col-span-4 flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${meta.bg}`}>
-                          <Package size={18} className={meta.text} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-[var(--theme-text)] truncate">{row.name}</p>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="text-[10px] text-[var(--theme-text-muted)] font-medium uppercase tracking-wider">{UNIT_LABELS[row.unit]}</p>
-                            {(() => {
-                              const f = freshnessByIngredient[row.id];
-                              if (!f) return null;
-                              if (f.expired) return <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border ${lightMode ? 'bg-red-500/10 border-red-500/30 text-red-600' : 'bg-red-500/15 border-red-500/30 text-red-400'}`}>Müddət keçib</span>;
-                              if (f.days <= 3) return <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border ${lightMode ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' : 'bg-amber-500/15 border-amber-500/30 text-amber-400'}`}>Bitir: {f.days}g</span>;
-                              return null;
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-span-1 hidden md:block text-center">
-                        <p className="text-sm font-medium text-[var(--theme-text-secondary)] tabular-nums">₼{row.average_cost_per_unit.toFixed(2)}</p>
-                      </div>
-                      <div className="col-span-1 text-center">
-                        <p className={`text-base md:text-lg font-bold tabular-nums ${row.current_stock < 0 ? (lightMode ? 'text-red-600' : 'text-red-400') : 'text-[var(--theme-text)]'}`}>{row.current_stock.toFixed(1)}</p>
-                      </div>
-                      <div className="col-span-2 hidden md:flex justify-center">
-                        <div className="w-28"><StockStatusBar status={row.status} pct={Math.round(row.stock_ratio)} /></div>
-                      </div>
-                      {/* row micro-interaction: actions reveal on hover (desktop) */}
-                      <div className="col-span-2 flex justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity duration-200">
-                        <button onClick={() => setSelectedRow(row)} className={`p-2 rounded-lg text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-all ${isCritical ? '' : ''}`} title="Redaktə / Tarixçə">
-                          <Pencil size={14} />
-                        </button>
-                        <button onClick={() => { setSelectedRow(row); setModalMode('stock_in'); }} className={`p-2 rounded-lg hover:bg-emerald-500/10 transition-all ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`} title="Stok Girişi">
-                          <TrendingUp size={14} />
-                        </button>
-                        <button onClick={() => { setSelectedRow(row); setModalMode('waste'); }} className={`p-2 rounded-lg hover:bg-rose-500/10 transition-all ${lightMode ? 'text-rose-600' : 'text-rose-500'}`} title="İtki">
-                          <TrendingDown size={14} />
-                        </button>
-                        <button onClick={() => { setSelectedRow(row); setModalMode('audit'); }} className={`p-2 rounded-lg hover:bg-amber-500/10 transition-all ${lightMode ? 'text-amber-600' : 'text-amber-500'}`} title="İnventarizasiya">
-                          <ClipboardCheck size={14} />
-                        </button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-                {rows.length === 0 && (
-                  <p className="text-center py-12 text-sm text-[var(--theme-text-muted)]">
-                    {search || filter !== 'all' ? 'Axtarış nəticəsi tapılmadı' : 'Hələ xammal əlavə edilməyib'}
-                  </p>
-                )}
-              </div>
+            {/* Anbar (13j: DataTable + SearchInput + Seg) */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+              <SearchInput value={search} onChange={setSearch} placeholder="Xammal axtar..." className="flex-1" />
+              <Seg
+                options={[{ id: 'all', label: 'Hamısı' }, { id: 'critical', label: 'Kritik' }, { id: 'out_of_stock', label: 'Bitənlər' }]}
+                value={filter}
+                onChange={setFilter}
+              />
             </div>
+
+            <DataTable
+              rows={rows.map(r => ({
+                ...r,
+                __actions: (
+                  <>
+                    <IconBtn icon={Pencil} title="Məlumat / Tarixçə" tone="blue" onClick={() => setSelectedRow(r)} />
+                    <IconBtn icon={TrendingUp} title="Stok Girişi" tone="emerald" onClick={() => { setSelectedRow(r); setModalMode('stock_in'); }} />
+                    <IconBtn icon={TrendingDown} title="İtki" tone="rose" onClick={() => { setSelectedRow(r); setModalMode('waste'); }} />
+                    <IconBtn icon={ClipboardCheck} title="İnventarizasiya" tone="amber" onClick={() => { setSelectedRow(r); setModalMode('audit'); }} />
+                  </>
+                ),
+              }))}
+              rowKey={r => r.id}
+              onRow={r => setSelectedRow(r)}
+              rowClass={r => (selectedRow?.id === r.id ? 'bg-[var(--theme-surface-soft)]/60' : '')}
+              cols={[
+                {
+                  key: 'name', label: 'Xammal', width: '1.7fr',
+                  render: r => (
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-bold text-[var(--theme-text)] truncate leading-tight">{r.name}</p>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--theme-text-muted)]">{UNIT_LABELS[r.unit]}</span>
+                        {(() => {
+                          const f = freshnessByIngredient[r.id];
+                          if (!f) return null;
+                          if (f.expired) return <Chip tone="crit" dot={false}>Müddət keçib</Chip>;
+                          if (f.days <= 3) return <Chip tone="warn" dot={false}>{f.days}g qalıb</Chip>;
+                          return null;
+                        })()}
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'price', label: 'Qiymət', width: '80px', align: 'right', hide: 'sm',
+                  render: r => <span className="text-xs font-semibold text-[var(--theme-text-secondary)] tabular-nums">{fmtAZN(r.average_cost_per_unit)}</span>,
+                },
+                {
+                  key: 'stock', label: 'Stok', width: '140px', align: 'right',
+                  render: r => (
+                    <div className="w-full flex flex-col items-end gap-1.5">
+                      <span className={`text-sm font-black tabular-nums leading-none ${r.current_stock < 0 ? 'text-red-500' : 'text-[var(--theme-text)]'}`}>
+                        {r.current_stock.toLocaleString('az', { maximumFractionDigits: 1 })}
+                      </span>
+                      <div className="w-20 h-1 rounded-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]/50 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${r.status === 'normal' ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                          style={{ width: `${Math.min(100, Math.max(4, Math.round(r.stock_ratio || 0)))}%` }}
+                        />
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'status', label: 'Status', width: '104px', hide: 'md',
+                  render: r => (
+                    <Chip tone={r.status === 'normal' ? 'ok' : 'crit'}>
+                      {r.status === 'normal' ? 'Normal' : r.status === 'critical' ? 'Kritik' : 'Bitib'}
+                    </Chip>
+                  ),
+                },
+              ]}
+              empty={
+                <p className="text-center py-12 text-sm text-[var(--theme-text-muted)]">
+                  {search || filter !== 'all' ? 'Axtarış nəticəsi tapılmadı' : 'Hələ xammal əlavə edilməyib'}
+                </p>
+              }
+            />
           </>
         ) : null}
       </div>

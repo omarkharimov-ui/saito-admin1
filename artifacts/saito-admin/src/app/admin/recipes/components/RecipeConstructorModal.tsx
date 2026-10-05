@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
-import { useTheme } from '@/lib/theme/ThemeContext';
 import type { Ingredient, ProductCatalogItem } from '@/types/inventory';
 
 interface RecipeLine {
@@ -31,7 +30,6 @@ interface RecipeConstructorModalProps {
 }
 
 export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId }: RecipeConstructorModalProps) {
-  const { lightMode } = useTheme();
   const [products, setProducts] = useState<ProductCatalogItem[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [selectedProductId, setSelectedProductId] = useState(editProductId || '');
@@ -267,70 +265,67 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
           <motion.div
             variants={modalV} initial="hidden" animate="show" exit="exit"
             className="relative z-10 w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl flex flex-col gap-0 overflow-hidden max-h-[90vh]"
-            style={{ background: lightMode ? '#ffffff' : '#0e0e0e', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 32px 80px rgba(0,0,0,0.12)' : '0 32px 80px rgba(0,0,0,0.7)' }}
+            style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', boxShadow: '0 32px 80px rgba(0,0,0,0.5)' }}
             onClick={e => e.stopPropagation()}
           >
             <div className="sm:hidden flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-white/15" />
+              <div className="w-10 h-1 rounded-full bg-[var(--theme-surface-soft)]" />
             </div>
 
             <div className="overflow-y-auto p-6 space-y-5">
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5"
-                    style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)]">
                     <CookingPot size={10} /> Resept Konstruktoru
                   </span>
                   <h2 className="text-xl font-bold">{selectedProduct ? selectedProduct.name_az || selectedProduct.name : 'Yeni Resept'}</h2>
                 </div>
-                <button onClick={() => { reset(); onClose(); }} className="text-white/25 hover:text-white transition-colors mt-1">
+                <button onClick={() => { reset(); onClose(); }} className="text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors mt-1">
                   <X size={18} />
                 </button>
               </div>
 
               {loading ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 size={24} className="animate-spin text-white/20" />
+                  <Loader2 size={24} className="animate-spin text-[var(--theme-text-muted)]" />
                 </div>
               ) : (
                 <>
                   <div>
-                    <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                    <label className="text-[11px] text-[var(--theme-text-muted)] font-semibold uppercase tracking-wider mb-1.5 block">
                       Məhsul <span className="text-red-400">*</span>
                     </label>
                     <select
                       value={selectedProductId}
                       onChange={e => handleProductChange(e.target.value)}
-                      className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-400/50 transition-colors text-sm"
+                      className="w-full px-4 py-3.5 rounded-xl text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] outline-none focus:border-emerald-400/50 transition-colors text-sm"
                     >
-                      <option value="" className="bg-[#111]">Menyudan məhsul seç...</option>
+                      <option value="">Menyudan məhsul seç...</option>
                       {products.map(p => (
-                        <option key={p.id} value={p.id} className="bg-[#111]">{p.name_az || p.name} — ₼{p.price}</option>
+                        <option key={p.id} value={p.id}>{p.name_az || p.name} — ₼{p.price}</option>
                       ))}
                     </select>
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider">
-                        Tərkibi <span className="text-white/20">({rows.length} inqrediyent)</span>
+                      <label className="text-[11px] text-[var(--theme-text-muted)] font-semibold uppercase tracking-wider">
+                        Tərkibi <span className="text-[var(--theme-text-muted)]">({rows.length} inqrediyent)</span>
                       </label>
                       <div className="flex items-center gap-2">
                         <button onClick={aiSuggest} disabled={aiSuggesting || !selectedProduct}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all active:scale-95 disabled:opacity-40"
-                          style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)', color: '#A78BFA' }}>
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all active:scale-95 disabled:opacity-40 bg-violet-500/10 border border-violet-500/25 text-violet-400 light:text-violet-700">
                           {aiSuggesting ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />} AI Təklif et
                         </button>
                         <button onClick={addRow}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all active:scale-95"
-                        style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all active:scale-95 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
                         <Plus size={11} /> İnqrediyent Əlavə Et
                       </button>
                     </div>
                   </div>
 
                     {rows.length === 0 && (
-                      <div className="text-center py-8 text-white/20 text-xs">
+                      <div className="text-center py-8 text-[var(--theme-text-muted)] text-xs">
                         <FlaskConical size={24} className="mx-auto mb-2 opacity-40" />
                         Hələ inqrediyent əlavə edilməyib
                       </div>
@@ -348,19 +343,18 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                             animate={{ opacity: 1, y: 0, height: 'auto' }}
                             exit={{ opacity: 0, x: 20, height: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="flex items-start gap-2 px-3 py-2 rounded-xl"
-                            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                            className="flex items-start gap-2 px-3 py-2 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
                           >
-                            <span className="text-[10px] text-white/20 font-mono w-5 mt-3">{idx + 1}.</span>
+                            <span className="text-[10px] text-[var(--theme-text-muted)] font-mono w-5 mt-3">{idx + 1}.</span>
                             <div className="flex-1 space-y-1.5">
                               <select
                                 value={row.ingredient_id}
                                 onChange={e => updateRowIngredient(idx, e.target.value)}
-                                className="w-full bg-white/[0.04] border border-white/[0.07] rounded-lg px-2.5 py-2 text-sm text-white outline-none focus:border-emerald-400/40"
+                                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-lg px-2.5 py-2 text-sm text-[var(--theme-text)] outline-none focus:border-emerald-400/40"
                               >
-                                <option value="" className="bg-[#111]">Xammal seç...</option>
+                                <option value="">Xammal seç...</option>
                                 {ingredients.map(ing => (
-                                  <option key={ing.id} value={ing.id} className="bg-[#111]">
+                                  <option key={ing.id} value={ing.id}>
                                     {ing.name} ({ing.unit}) — ₼{ing.average_cost_per_unit}/{ing.unit}
                                     {ing.cold_waste_percentage > 0 && ` · soyuq itki: ${ing.cold_waste_percentage}%`}
                                     · stok: {ing.current_stock}
@@ -373,21 +367,21 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                                   value={row.quantity || ''}
                                   onChange={e => updateRowQuantity(idx, parseFloat(e.target.value) || 0)}
                                   placeholder="Miqdar (netto)"
-                                  className="w-28 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-emerald-400/40 text-right tabular-nums"
+                                  className="w-28 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-lg px-2 py-1.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-emerald-400/40 text-right tabular-nums"
                                 />
-                                <span className="text-[9px] text-white/25">{row.unit || 'vahid'}</span>
+                                <span className="text-[9px] text-[var(--theme-text-muted)]">{row.unit || 'vahid'}</span>
                                 {row.ingredient_id && coldPct > 0 && row.quantity_brutto > 0 && (
-                                  <span className="text-[9px] text-amber-400/40 tabular-nums">
+                                  <span className="text-[9px] text-amber-500/80 light:text-amber-700 tabular-nums">
                                     → brutto {row.quantity_brutto}
                                   </span>
                                 )}
                                 {row.ingredient_id && row.quantity > 0 && (
-                                  <span className="text-[10px] text-white/35 tabular-nums ml-auto font-semibold">
+                                  <span className="text-[10px] text-[var(--theme-text-secondary)] tabular-nums ml-auto font-semibold">
                                     ₼{row.cost.toFixed(2)}
                                   </span>
                                 )}
                                 <button onClick={() => removeRow(idx)}
-                                  className="w-7 h-7 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all flex items-center justify-center flex-shrink-0">
+                                  className="w-7 h-7 rounded-lg hover:bg-rose-500/10 text-[var(--theme-text-muted)] hover:text-rose-500 transition-all flex items-center justify-center flex-shrink-0">
                                   <Trash2 size={12} />
                                 </button>
                               </div>
@@ -399,22 +393,21 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                   </div>
 
                    {rows.some(r => r.ingredient_id) && (
-                     <div className="rounded-xl p-4 space-y-2"
-                       style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)' }}
+                     <div className="rounded-xl p-4 space-y-2 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
                      >
                        <div className="flex items-center justify-between">
-                         <span className="text-[10px] font-bold uppercase tracking-wider text-gold/60">Maya Dəyəri</span>
-                         <span className="text-lg font-black text-white tabular-nums">₼{totalCost.toFixed(2)}</span>
+                         <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--theme-text-muted)]">Məhsul Dəyəri</span>
+                         <span className="text-lg font-black text-[var(--theme-text)] tabular-nums">₼{totalCost.toFixed(2)}</span>
                        </div>
                        {selectedProduct && salePrice > 0 && (
                          <div className="flex items-center justify-between text-xs">
-                           <span className="text-white/40">Satış: ₼{salePrice.toFixed(2)}</span>
+                           <span className="text-[var(--theme-text-muted)]">Satış: ₼{salePrice.toFixed(2)}</span>
                            <span className={`font-bold ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                              Qazanc: ₼{profit.toFixed(2)} ({marginPct.toFixed(1)}%)
                            </span>
                          </div>
                        )}
-                       <div className="text-[9px] text-white/25 space-y-0.5">
+                       <div className="text-[9px] text-[var(--theme-text-muted)] space-y-0.5">
                          {rows.filter(r => r.ingredient_id && r.cost > 0).map((r, idx) => (
                            <div key={idx} className="flex items-center justify-between">
                              <span className="truncate">{r.ingredient_name}</span>
@@ -428,14 +421,13 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                 )}
               </div>
 
-            <div className="flex-shrink-0 p-4 border-t border-white/[0.06] flex items-center gap-3">
+            <div className="flex-shrink-0 p-4 border-t border-[var(--theme-border)] flex items-center gap-3">
               <button onClick={() => { reset(); onClose(); }}
                 className="flex-1 py-3 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.98] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] border border-[var(--theme-border)]">
                 Ləğv et
               </button>
               <button onClick={handleSave} disabled={saving || !selectedProductId || rows.filter(r => r.ingredient_id && r.quantity > 0).length === 0}
-                className="flex-1 py-3 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
-                style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}>
+                className="flex-1 py-3 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98] bg-[var(--theme-text)] text-[var(--theme-bg)]">
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={15} />}
                 {editProductId ? 'Yadda saxla' : 'Resept yarat'}
               </button>

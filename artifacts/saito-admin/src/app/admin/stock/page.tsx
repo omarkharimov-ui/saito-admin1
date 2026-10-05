@@ -35,7 +35,8 @@ import { InventoryHealthCard } from './components/InventoryHealthCard';
 // components, no route params); the old routes remain as thin redirects
 // (bookmarks keep working — they land on the same internal view).
 import PurchaseOrdersPage from '../purchase-orders/purchase-orders-content';
-import RecipesPage from '../recipes/recipes-content';
+// 13g (owner: "reseptler ayri sehife edek, evvelki kimi"): recipes is back to
+// its OWN sidebar page (/admin/recipes) — removed from this hub.
 import StockCountsPage from './counts/counts-content';
 import SupplierReturnsPage from './returns/returns-content';
 import WasteStandardsPage from '../waste-standards/waste-standards-content';
@@ -79,6 +80,9 @@ export default function StockPage() {
   // 13f: the hub composes ALL inventory views (13c's 5 + the 6 former
   // sidebar routes). `?view=` keeps deep links / old-route redirects working.
   const router = useRouter();
+  // 13g: 'recipes' removed from the hub (own page now). The old
+  // /admin/stock?view=recipes deep link redirects below.
+  type StockView = 'stock' | 'intelligence' | 'suppliers' | 'procurement' | 'po' | 'counts' | 'returns' | 'waste' | 'audit' | 'report';
 
   // Hub chip row — one flex-wrap row instead of 6 separate sidebar tabs.
   // `elevated` = superadmin/owner only (same classes as the old nav entries;
@@ -90,18 +94,23 @@ export default function StockPage() {
     { id: 'po', label: 'Alış Sifarişləri', elevated: true },
     { id: 'report', label: 'Report' },
     { id: 'suppliers', label: 'Tədarükçülər' },
-    { id: 'recipes', label: 'Reseptlər', elevated: true },
+    // 13g: recipes = own sidebar page (/admin/recipes).
     { id: 'counts', label: 'Sayım', elevated: true },
     { id: 'returns', label: 'Qaytarış', elevated: true },
     { id: 'waste', label: 'İtki St.', elevated: true },
     { id: 'audit', label: 'Audit' },
   ];
-  type StockView = 'stock' | 'intelligence' | 'suppliers' | 'procurement' | 'po' | 'recipes' | 'counts' | 'returns' | 'waste' | 'audit' | 'report';
-  const STOCK_VIEWS: StockView[] = ['stock', 'intelligence', 'suppliers', 'procurement', 'po', 'recipes', 'counts', 'returns', 'waste', 'audit', 'report'];
+  const STOCK_VIEWS: StockView[] = ['stock', 'intelligence', 'suppliers', 'procurement', 'po', 'counts', 'returns', 'waste', 'audit', 'report'];
   const [viewMode, setViewModeRaw] = useState<StockView>(() => {
     const v = searchParams.get('view');
     return (v && (STOCK_VIEWS as string[]).includes(v)) ? v as StockView : 'stock';
   });
+  // 13g: graceful deep-link redirect for the removed recipes view.
+  useEffect(() => {
+    if (searchParams.get('view') === 'recipes') {
+      router.replace('/admin/recipes', { scroll: false });
+    }
+  }, [searchParams, router]);
   const setViewMode = (v: StockView) => {
     setViewModeRaw(v);
     const p = new URLSearchParams(searchParams.toString());
@@ -484,7 +493,7 @@ export default function StockPage() {
           {/* 13f: the six former sidebar routes — now internal hub views.
               Each component is self-contained (own header, actions, state). */}
           {viewMode === 'po' && <PurchaseOrdersPage />}
-          {viewMode === 'recipes' && <RecipesPage />}
+          {/* 13g: recipes removed (own page /admin/recipes) */}
           {viewMode === 'counts' && <StockCountsPage />}
           {viewMode === 'returns' && <SupplierReturnsPage />}
           {viewMode === 'waste' && <WasteStandardsPage />}

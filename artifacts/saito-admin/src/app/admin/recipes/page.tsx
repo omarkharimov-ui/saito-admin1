@@ -1,14 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+// 13g (owner: "reseptler ayri sehife edek, evvelki kimi"): recipes is a
+// STANDALONE sidebar page again (menu-engine / BOM — conceptually distinct
+// from stock & procurement operations). The body lives in
+// ./recipes-content.tsx (shared so it can also be unit-tested / reused);
+// 13f moved it out of the Stok hub permanently.
+import RecipesPage from './recipes-content';
 
-// 13f (owner: "inventory-a aid olan seyler eyni sehifede olsunlar"):
-// consolidated into the Stok hub. Content: ./recipes-content.tsx.
-export default function RecipesRedirect() {
-  const router = useRouter();
-  useEffect(() => {
-    router.replace('/admin/stock?view=recipes');
-  }, [router]);
-  return null;
+export default function RecipesRoute() {
+  return <RecipesPage />;
 }

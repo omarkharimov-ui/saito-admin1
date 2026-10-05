@@ -7,6 +7,7 @@ import {
   Calendar,
   PackagePlus,
   Warehouse,
+  ScrollText,
   Monitor,
   ShieldAlert,
   UserRound,
@@ -116,13 +117,16 @@ export function getAdminNavItems(
     },
     { id: 'checklists', name: 'CHECKLIST', href: '/admin/checklists', icon: ClipboardCheck, roles: ['admin', 'manager', 'superadmin', 'owner', 'cashier', 'host'] },
 
-    // 13f (owner: "inventory-a aid olan seyler sidebarda ayri tab olmasinda,
-    // eyni sehifede olsunlar"): ALL inventory surfaces live on ONE page —
-    // /admin/stock is now the hub with 11 internal views (Anbar, Ağıllı
-    // Analiz, Tədarük, Alış Sifarişləri, Report, Tədarükçülər, Reseptlər,
-    // Sayım, Qaytarış, İtki St., Audit). One sidebar entry, deep links and
+    // 13f (owner: "inventory-a aid olan seyler eyni sehifede olsunlar"): the
+    // inventory surfaces live on ONE page — /admin/stock hub with 10 internal
+    // views (Anbar, Ağıllı Analiz, Tədarük, Alış Sifarişləri, Report,
+    // Tədarükçülər, Sayım, Qaytarış, İtki St., Audit). Deep links and
     // bookmarks keep working via ?view= + thin redirects on the old routes.
+    // 13g (owner: "reseptler ayri sehife edek, evvelki kimi"): RECIPES moves
+    // back out to its own sidebar page — it is the menu-engine (BOM per
+    // product), conceptually distinct from stock/procurement operations.
     { id: 'stock', name: 'Stok', href: '/admin/stock', icon: Warehouse, roles: ['superadmin', 'owner', 'admin'] },
+    { id: 'recipes', name: 'Reseptlər', href: '/admin/recipes', icon: ScrollText, roles: ['superadmin', 'owner'] },
     { id: 'loss-prevention', name: 'Loss Prevention', href: '/admin/loss-prevention', icon: ShieldAlert, roles: ['admin', 'manager', 'superadmin', 'owner'] },
     { id: 'stats', name: t('statistics'), href: '/admin/stats', icon: BarChart3, roles: ['admin', 'manager', 'superadmin', 'owner'] },
     { id: 'settings', name: t('settings'), href: '/admin/settings', icon: Settings, roles: ['admin', 'superadmin', 'owner'] }

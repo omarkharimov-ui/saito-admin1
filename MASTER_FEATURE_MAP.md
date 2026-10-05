@@ -854,6 +854,25 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-05 (ROUND 13g: RESEPTLƏR = AYRI SƏHİFƏ YENİDƏ + pending clarity chip/counter)
+
+Owner: *"reseptler ayri sehife edek bu sehife ayri sidebarda olacaq evvelki kimi. amma
+inventory tamm sekilde hazirdir backend olaraq... ui yeniden yazaq hazirda apple felsefesi
+deyil yenikii... ui-de minimalliq istifade etmliyikde amma hazirda deyil... userin
+anlaycaigi qeder rahat olsun... apple felsefeimizi ona uygun edirik."*
+
+**13g (scope: yalnız recipes ayrılması — inventory UI rewrite GƏLƏN tur, backend hazır qalır):**
+- `adminNavLinks`: Reseptlər girişi yenidən sidebar-a (ScrollText, superadmin/owner).
+- `recipes/page.tsx` = standalone page (`recipes-content.tsx`-i render edir — 13f-də
+  redirector idi). Hub-dan: chip, import, render silindi; `?view=recipes` deep link →
+  `/admin/recipes` redirect. Hub = 10 view.
+- **13f.1 (owner sualı: restored delta "2 dəfə sifariş kimi görünməsin"):** mixed-state
+  satırda `⏳ N gözləyir` amber chip (yalnız göndərilmiş+gözləyən halda) + send CTA `+N`
+  counter. E2E r30-D catch: chip ilk yerində (truncate name row) clip edilirdi → flex-wrap
+  chip row-a köçürüldü. Double-send riski YOX (delta yalnız explicit send-də çıxır).
+- E2E r31 run F: 6/6 PASS, console 0 (sidebar 2 giriş, hub 10 chip, standalone recipes
+  dark+light readable, redirect OK).
+
 ### Jurnal sətiri — 2026-10-05 (ROUND 13f: MERGED ÖDƏNİŞ = 1 MERGED DB QEYDİ + CART OFFLINE DELTA + STOK HUB (11 view, 1 sidebar girişi))
 
 Owner: *"merged odeniş merged olaraq dbda saxlanilsin qisaca. 2 cinide duzeldersen ozun

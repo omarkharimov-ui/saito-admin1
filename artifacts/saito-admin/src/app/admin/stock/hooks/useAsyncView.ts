@@ -53,5 +53,11 @@ export function useAsyncView<T>(loader: () => Promise<T>, deps: unknown[] = []):
 
   useEffect(() => { void load(); }, [load]);
 
-  return { phase, data, error, hasData: hasDataRef.current, reload: () => void load() };
+  // 13n-2: STABLE reload identity. The old inline arrow was a new function on
+  // every render → any effect keyed on [reload] (realtime subscriptions) tore
+  // down and re-subscribed on every re-render — a source of duplicate channel
+  // pairs and a refetch storm (E2E r38b: ~170 req/90s, unstable page height).
+  const reloadFn = useCallback(() => { void load(); }, [load]);
+
+  return { phase, data, error, hasData: hasDataRef.current, reload: reloadFn };
 }

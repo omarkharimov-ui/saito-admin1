@@ -333,6 +333,14 @@ export function FullPanel({ onClose, children }: {
   const { lightMode } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  // 13n-1: the panel covers the ENTIRE main area, so the backdrop has no
+  // clickable strip left — ESC is the keyboard way out.
+  useEffect(() => {
+    if (!mounted) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mounted, onClose]);
   if (!mounted) return null;
   return createPortal(
     <div

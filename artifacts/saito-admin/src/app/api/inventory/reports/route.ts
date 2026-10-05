@@ -6,7 +6,9 @@ import { requireAuth } from '@/lib/api-auth';
 // report packs — the "Report" sub-tab renders all of them:
 //  · valuation — current stock value (Σ stock × avg cost), negative flags
 //  · cogs      — daily consumption cost (inventory_logs.order_consumption ×
-//                cost_per_unit) + closing stock value trend
+//                cost_per_unit; 13n-2: frozen RPC doesn't snapshot cost —
+//                609/661 rows have cost_per_unit NULL — fallback = ingredient
+//                current average_cost_per_unit)
 //  · avt       — actual-vs-theoretical per ingredient (theoretical =
 //                recipes × sold quantity; actual = real consumption logs)
 //  · shrinkage — weekly waste + unexplained variance per ingredient
@@ -56,11 +58,17 @@ export async function GET(request: NextRequest) {
     }
 
     // ── COGS (daily) ──────────────────────────────────────────────────────
+    // 13n-2: the frozen consumption path does not snapshot unit cost, so
+    // most order_consumption rows have cost_per_unit = NULL (DB-verified:
+    // 0/67 in the 30d window). Fall back to the ingredient's current average
+    // cost — deterministic, service-role, no frozen-code changes.
+    const ingCost = new Map(ings.map(i => [i.id, Number(i.average_cost_per_unit) || 0]));
     const byDay: Record<string, { cost: number; waste: number }> = {};
     let totalCogs = 0, totalWaste = 0;
     for (const l of logs) {
       const day = (l.created_at || '').slice(0, 10);
-      const cost = Math.abs(Number(l.quantity) || 0) * (Number(l.cost_per_unit) || 0);
+      const unitCost = Number(l.cost_per_unit) || ingCost.get(l.ingredient_id) || 0;
+      const cost = Math.abs(Number(l.quantity) || 0) * unitCost;
       if (l.type === 'order_consumption') { totalCogs += cost; (byDay[day] ||= { cost: 0, waste: 0 }).cost += cost; }
       else if (l.type === 'waste') { totalWaste += cost; (byDay[day] ||= { cost: 0, waste: 0 }).waste += cost; }
     }
@@ -98,7 +106,7 @@ export async function GET(request: NextRequest) {
       if (l.type !== 'waste') continue;
       const v = (shrinkByIng[l.ingredient_id] ||= { qty: 0, cost: 0 });
       v.qty += Math.abs(Number(l.quantity) || 0);
-      v.cost += Math.abs(Number(l.quantity) || 0) * (Number(l.cost_per_unit) || 0);
+      v.cost += Math.abs(Number(l.quantity) || 0) * (Number(l.cost_per_unit) || ingCost.get(l.ingredient_id) || 0);
     }
     const shrinkage = Object.entries(shrinkByIng)
       .map(([id, v]) => ({
@@ -133,7 +141,7 @@ export async function GET(request: NextRequest) {
     const patByIng: Record<string, { cost: number; qty: number; prev: number; last: number }> = {};
     for (const l of wasteLogs) {
       const qtyAbs = Math.abs(Number(l.quantity) || 0);
-      const cost = qtyAbs * (Number(l.cost_per_unit) || 0);
+      const cost = qtyAbs * (Number(l.cost_per_unit) || ingCost.get(l.ingredient_id) || 0);
       const dt = new Date(l.created_at);
       const ws = mondayOf(dt).toISOString().slice(0, 10);
       const idx = weeks.findIndex(x => x.start === ws);

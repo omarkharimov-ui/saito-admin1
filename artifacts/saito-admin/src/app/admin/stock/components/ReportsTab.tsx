@@ -5,7 +5,7 @@
 // shrinkage leaders + freshness (batches nearing expiry). One fetch
 // (/api/inventory/reports), deterministic numbers — the AI advisor
 // (separate card) narrates them.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, RefreshCw, TrendingDown, TrendingUp, Clock, AlertTriangle } from '@/components/ui/saito-icons';
 import { toast } from '@/lib/toast';
@@ -29,7 +29,9 @@ interface Report {
   freshness: { expiring: { id: string; name: string; unit: string; qty: number; expiry_date: string; expired: boolean }[]; batches_total: number };
 }
 
-const WEEKDAY_AZ = ['B.e', 'Çax', 'Ç', 'Cax', 'C', 'Ş', 'B'];
+// 13n-2: unambiguous 3-letter labels — the old 'Ç' (Çərşənbə) vs 'C' (Cümə
+// axşamı) pair read as the same letter in the chart.
+const WEEKDAY_AZ = ['B.e', 'Ç.ax', 'Çər', 'C.ax', 'Cüm', 'Şən', 'Baz'];
 
 function Card({ title, icon, children, sub }: { title: string; icon?: React.ReactNode; children: React.ReactNode; sub?: string }) {
   return (
@@ -66,14 +68,31 @@ export default function ReportsTab() {
 
   useEffect(() => { load(); }, [load]);
 
+  // 13n-2: the API returns ONLY days that have data (sparse) → the bar chart
+  // axis jumps every time a new day appears (E2E r38b: 4 bars today). Zero-pad
+  // to the full report.days window (UTC keys, same as the route) so the chart
+  // is a stable 30-day timeline.
+  // MUST stay BEFORE the early return below — unconditional hook (r38c caught
+  // the conditional placement crashing the whole route).
+  const cogsDays = useMemo(() => {
+    if (!report) return [];
+    const have = new Map(report.cogs.by_day.map(d => [d.date, d]));
+    const out: { date: string; cogs: number; waste: number }[] = [];
+    for (let i = report.days - 1; i >= 0; i--) {
+      const key = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      out.push(have.get(key) || { date: key, cogs: 0, waste: 0 });
+    }
+    return out;
+  }, [report]);
+
   if (loading || !report) {
     return <div className="flex items-center justify-center py-20 text-[var(--theme-text-muted)]"><Loader2 size={22} className="animate-spin" /></div>;
   }
 
   // 13m D8: separate scales per series. The old shared max(cogs+waste) let one
   // outlier waste day dominate and render a giant pink block (all other days ≈ 0).
-  const maxCogs = Math.max(1, ...report.cogs.by_day.map(d => d.cogs));
-  const maxWaste = Math.max(1, ...report.cogs.by_day.map(d => d.waste));
+  const maxCogs = Math.max(1, ...cogsDays.map(d => d.cogs));
+  const maxWaste = Math.max(1, ...cogsDays.map(d => d.waste));
 
   return (
     <div className="space-y-4">
@@ -127,7 +146,7 @@ export default function ReportsTab() {
           <p className="text-xs text-[var(--theme-text-muted)] py-6 text-center">Bu dövrdə sərfiyyat qeydi yoxdur.</p>
         ) : (
           <div className="flex items-end gap-[3px] h-28">
-            {report.cogs.by_day.map(d => (
+            {cogsDays.map(d => (
               <div key={d.date} className="flex-1 flex items-end gap-px h-full group relative" title={`${fmtDate(d.date + 'T12:00:00', false)} — COGS ${fmtNum(d.cogs)} ₼ · itki ${fmtNum(d.waste)} ₼`}>
                 <div className="flex-1 rounded-t-sm bg-emerald-500/70 group-hover:bg-emerald-400 transition-colors" style={{ height: `${(d.cogs / maxCogs) * 100}%`, minHeight: d.cogs > 0 ? 3 : 0 }} />
                 <div className="flex-1 rounded-t-sm bg-rose-500/70 group-hover:bg-rose-400 transition-colors" style={{ height: `${(d.waste / maxWaste) * 100}%`, minHeight: d.waste > 0 ? 3 : 0 }} />
@@ -259,9 +278,10 @@ export default function ReportsTab() {
                     <span className="font-bold flex items-center gap-1.5 text-[var(--theme-text-secondary)]">
                       {b.expired && <AlertTriangle size={12} className="text-rose-400" />}{b.name}
                     </span>
-                    <span className={`tabular-nums font-bold ${b.expired ? 'text-rose-400' : 'text-amber-400'}`}>
-                      {b.expired ? 'MÜDDƏTİ KEÇİB' : new Date(b.expiry_date).toLocaleDateString('az', { day: 'numeric', month: 'short' })} · {b.qty} {b.unit}
-                    </span>
+                      <span className={`tabular-nums font-bold ${b.expired ? 'text-rose-400' : 'text-amber-400'}`}>
+                        {/* 13n-2: toLocaleDateString('az') renders "M10" (ICU) — canonical fmtDate */}
+                        {b.expired ? 'MÜDDƏTİ KEÇİB' : fmtDate(b.expiry_date, false)} · {b.qty} {b.unit}
+                      </span>
                   </div>
                 ))}
               </div>

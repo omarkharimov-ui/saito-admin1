@@ -309,7 +309,7 @@ export default function StockCountsPage() {
                   ),
                 },
                 { key: 'date', label: 'Tarix', width: '150px', hide: 'md', align: 'right', render: r => <span className="text-xs text-[var(--theme-text-secondary)] tabular-nums">{fmtDate(r.counted_at)}</span> },
-                { key: 'by', label: 'Sayyan', width: '110px', hide: 'lg', align: 'right', render: r => <span className="text-xs text-[var(--theme-text-secondary)]">{r.counted_by || '—'}</span> },
+                { key: 'by', label: 'Sayyan', width: '110px', hide: 'lg', align: 'right', render: r => <span className="text-xs text-[var(--theme-text-secondary)]">{(r.counted_by && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.counted_by)) ? r.counted_by : '—'}</span> },
               ]}
               empty={
                 <div className="py-12 text-center">

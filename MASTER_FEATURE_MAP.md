@@ -854,6 +854,93 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-05 (ROUND 13n: INVENTORY UI 0-DAN — ONE PAGE, 4 ZONE, SCROLL-SPY; NO TABS, `637ef2d`)
+
+Owner: *"basla 0 dan"* — 13i→13m incremental pass-lər rədd edilmişdi; tam rebuild mandatı.
+
+**1. MİTARXİTURƏ (jump-bug klassı konstruktiv olaraq yoxdur):** `stock/page.tsx` REWRITE
+(112 sətir) + yeni `stock/next/` (Shell.tsx 156, StockZone.tsx 620, useScrollSpy.ts 75) —
+**TAB YOXDUR.** Bir fasiləsiz scroll səhifə: 4 zone (Stok / Tədarük / Sayım&İtki / Analiz)
+`<section id="sec-*" class="scroll-mt-20">` stack; sticky scroll-spy pill nav
+(`layoutId="stock-zone-pill"` SPRING, active zone label nav-də). Nav click = smooth scroll
+YALNIZ — heç nə unmount/remount olunmur. 3 köhnə hub (ProcurementHub/OperationsHub/
+AnalyticsHub, 13l stacked sections) = zone MƏZMUNU kimi qoşuldu (0 feature loss).
+StockZone = 0-dan yazıldı (köhnə StockTab API contract-ı: endpoints/payloads/optimistic/
+realtime eyni; köhnə StockTab file = DEAD, delete candidate).
+
+**2. URL CONTRACT (bütün köhnə linklər yaşayır):** `VIEW_TO_SECTION` = 13f/13h 10 legacy
+`?view=` value (anbar/intelligence/buy/invoice/orders/suppliers/counts/waste/returns/
+anomalies/report/trends/audit + 4 zone) → `sec-*` id; `?view=recipes` → `/admin/recipes`
+redirect (13g); `?ingredient=<id>` → inspector push; **scroll-spy `?view=<zone>` back
+writes** (router.replace, scroll:false, `sub` delete) = paylaşılabilir position.
+Elevated sections (sec-orders/counts/returns/waste) = auth-drop + `ELEVATED_FALLBACK`
+(optimistik `!authChecked || isElevated`, 13i kök qorunur).
+
+**3. SETTLE-LOCK DEEP LINKS (13n-3, r38c T4):** fixed [120..2400]ms re-anchor async
+content-ə (skeleton→table shrink) uduzdu: po → −2194px overshoot, counts → +255. Fix =
+settle-lock: 300ms tick, target >8px uzaqdırsa instant nudge, max 8s; user takeover =
+yalnız explicit INPUT events (wheel/touchmove/keydown) — "unexplained scroll" heuristic-i
+programmatic scrolls (route-level resets) ilə öldürürdü. ⚠ **T4 = OPEN VERIFY** — E2E
+run-ın ortasında owner browser sessiyası EXPIRE oldu (/staff/login redirect; 13n-3
+build untested); 13n-4 = sessiya qayıtdıqda 3 deep-link re-test.
+
+**4. r38c STABILITY FIXES (kök tapıntılar, DB-verified):**
+(a) **Refetch loop:** realtime `postgres_changes` (canlı KDS consumption ticks, 1-2s) →
+UNDEBOUNCED `reload()` + `useAsyncView`-in inline `reload` arrow = **hər render-da yeni
+identity → effect hər render-da resubscribe** (dev StrictMode = duplicate pairs) →
+~170 req/90s + scrollHeight 5246↔18938 jumps. Fix: trailing 1.5s coalesce timer
+(StockZone) + STABLE `reloadFn` (useAsyncView). E2E: **Δ5 req/30s, drift 0.57%**.
+(b) **COGS = 0 DATA DEFECT:** 661 `order_consumption` satırın **609-u `cost_per_unit=NULL`**
+(frozen RPC cost snapshot-etmir; 30g pəncərə: 67 satır, hamısı NULL) → `total_cogs` həmişə
+0 idi. Fix = `/api/inventory/reports` fallback: log NULL-da ingredient `average_cost_per_unit`
+(3 hesablama nöqtəsi: cogs/waste, shrinkage, shrinkage_pattern). E2E: **COGS ₼53 > 0**.
+FROZEN RPC toxunulmayıb; cost snapshot = owner qərarı candidate.
+(c) COGS chart sparse (API yalnız data-d olan günlər) → client **zero-pad 30d** (UTC keys).
+(d) İtki Pattern weekday labels: `Ç`/`C` qarışığı → `B.e, Ç.ax, Çər, C.ax, Cüm, Şən, Baz`.
+(e) Freshness date `toLocaleDateString('az')` = **M10** (ICU) → `fmtDate`.
+
+**5. Kiçik:** FullPanel ESC-close (panel TAM main area — backdrop click strip-siz) ·
+counts Sayyan/Təyin UUID mask (13m D11) · r38c-da E2E özü **conditional-hook crash** tapdı
+(useMemo early-return-dən sonra → tam route crash) → fix (hook əvvələ, null-guard).
+
+E2E r38c: **T1/T2/T3/T5/T6 PASS** (console 0, dark+light; spy matrix monotonic; COGS 30
+bars + ₼53; light bg `rgb(247,247,248)` readable), **T4 OPEN** (bax #3). 19 shot
+`e2e-shots/r38c-*`. tsc clean. 9 files, +989/−193.
+
+### Jurnal sətiri — 2026-10-05 (ROUND 13m: r36 AUDIT DEFECT SWEEP — FORMATTERS, COGS SCALES, SKELETONS, `2f0674a`)
+
+Owner: *"BUG hələ də var… birinci brauzerdən bax, audit et, sonra təkliflərini bildir"* →
+r36 browser UX audit (**20 defect D1–D20**, `e2e-shots/r36-FINDINGS.md`) → *"təsdiq edərəm
+bütün"* → hamısı bağlandı.
+
+**1. "Oynayır" KÖK-Ü (r36):** 13l scrollTop reset-i yalnız simptomu gizlətmişdi — REAL
+kök = tab bar Y:12 animated wrapper İÇƏRİSİNDƏ idi (switch-də 225-427ms dead frame +
+y-slide). Fix: tab bar animated wrapper-dan ÇIXARILDI + tab content = instant `key={tab}`
+div (heç bir y-transition).
+
+**2. CANONICAL FORMATTERS (`stock-ui.tsx`):** `fmtNum` (explicit `groupSep` regex —
+ICU/locale variance YOX: "192,000" vs "192000.0" vs "4029.0" bir adda) · `fmtQty` (1dp) ·
+`fmtAZN` (₼+2dp) · `fmtDate(iso, withTime)` explicit `AZ_MONTHS` (**ICU `az` short-month =
+"M10" render etdi — audit D10**) · `fmtClock`/`fmtTime`. 16 fayl sweep (PO/counts/
+returns/audit/OrderGuide/Reports/StockTab).
+
+**3. COGS CHART (D8):** shared `max(cogs+waste)` scale → 1 outlier waste günü "giant pink
+block" çəkdirdi → **hər seri öz scale-i** + "hər seri öz ölçəsidə" legend.
+
+**4. State machine / skeleton:** AdvisorCard = **skeleton reserve** (154px shift ✂) ·
+loading hero = HONEST (muted "Yüklənir…" — data-dan hesablanan status cümləsi YALNIZ
+data gəndə) · OrderGuide skeleton · ViewFrame `ViewContent` = FADE ONLY 0.18s (y:10 ✂) ·
+embedded page-lərdən PageTransition ✂ (counts/returns/PO/audit).
+
+**5. Sweep:** TableActionBar = themed (dark-only idi) + pill filters · DRAFT chip light
+fix (`light:bg-emerald-600`) · inspector `max-w-4xl` + delete content END-də ·
+`color-scheme: light/dark` (native select/date tema izləyir).
+
+E2E r34 (13k) + r36 audit + r37 verify: console 0, dark+light, 21 shot. tsc clean.
+16 files. **13k note:** GROQ_API_KEY YOXDU idi → faktura OCR HTTP 500 sükutla keçirdi →
+UI: OCR error toast + Advisor `data_only` fallback ("AI analizi aktiv deyil") — **KEY =
+OWNER action**.
+
 ### Jurnal sətiri — 2026-10-05 (ROUND 13l: SCROLL-JUMP BUG FIX + FULL PANEL + STACKED SECTIONS, `b23f42f`)
 
 Owner: *"coş berbat bir bug — taba keçirsən səhifə oynuyur · xammal modal açılışı səhifəni 2/10

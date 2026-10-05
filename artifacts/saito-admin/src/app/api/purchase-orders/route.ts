@@ -36,6 +36,13 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as CreatePurchaseOrderPayload;
     const supabase = svc();
 
+    // 13e: supplier_id is NOT NULL — fail with a clean 400, not a 500
+    // constraint-violation (defense-in-depth; order-guide UI already skips
+    // supplier-less lines, but the endpoint must not trust the client).
+    if (!body.supplier_id) {
+      return NextResponse.json({ error: 'supplier_id tələb olunur' }, { status: 400 });
+    }
+
     const orderNumber = `PO-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const totalAmount = body.items.reduce((s, i) => s + i.quantity * i.unit_cost, 0);
 

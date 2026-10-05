@@ -136,6 +136,7 @@ function InvoiceUploadSection() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [selectedPoId, setSelectedPoId] = useState<string | null>(null);
+  const [supplierName, setSupplierName] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchPos(); fetchReviews(); }, []);
@@ -155,9 +156,12 @@ function InvoiceUploadSection() {
       const base64 = ev.target?.result as string;
       setInvoiceImage(base64); setOcrLoading(true);
       try {
-        const res = await fetch('/api/invoice-ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: base64, language: 'az' }) });
+          const res = await fetch('/api/invoice-ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: base64, language: 'az' }) });
         if (res.ok) {
           const data = await res.json();
+          // 13e: OCR also reads the supplier name (header/footer) — passed to
+          // from-invoice so a bare invoice is attributed to the right supplier.
+          setSupplierName(data.supplierName || null);
           const lines: LineItem[] = (data.lines || []).map((l: any) => ({
             id: `inv-${Math.random().toString(36).slice(2)}`,
             product_name: l.name || 'Unknown', quantity: l.quantity || 0, unit: l.unit || 'gram',
@@ -203,6 +207,25 @@ function InvoiceUploadSection() {
         return;
       }
       setResult(data); setStep('confirm'); setSelectedPoId(null); fetchPos(); fetchReviews();
+    } catch {
+      toast.error('Əlaqə xətası');
+    }
+    setConfirming(false);
+  };
+
+  // 13e: bare-invoice → DRAFT PO (Toast invoice-automation flagship). Only
+  // offered when there is NO open PO to tie the invoice to. Creates a DRAFT
+  // the owner reviews/sends — does NOT stock, does NOT auto-send (human gate).
+  const createDraftPo = async () => {
+    if (lineItems.length === 0) return;
+    setConfirming(true);
+    try {
+      const items = lineItems.map(l => ({ product_name: l.product_name, quantity: l.quantity, unit: l.unit, unit_cost: l.unit_cost }));
+      const r = await fetch('/api/procurement/from-invoice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ supplier_name: supplierName, items, source: 'faktura OCR' }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) { toast.error(data.error || 'DRAFT PO yaradılmadı'); return; }
+      toast.success('DRAFT PO yaradıldı — Tədarük siyahısında review et');
+      setSelectedPoId(null); setSupplierName(null); setStep('upload'); setLineItems([]);
     } catch {
       toast.error('Əlaqə xətası');
     }
@@ -350,6 +373,13 @@ function InvoiceUploadSection() {
             style={{ background: '#D4AF37', color: '#000' }}>
             {confirming ? 'Stok yenilənir...' : <><CheckCircle size={16} /> Təsdiq Et və Stoku Artır</>}
           </button>
+          {pos.length === 0 && (
+            <button onClick={createDraftPo} disabled={confirming}
+              className="w-full mt-2 py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-40 flex items-center justify-center gap-2 border"
+              style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.08))', color: 'rgba(255,255,255,0.6)' }}>
+              <FileText size={14} /> DRAFT PO yarat (stok daxil etmir · auto-send YOX)
+            </button>
+          )}
         </>
       )}
 

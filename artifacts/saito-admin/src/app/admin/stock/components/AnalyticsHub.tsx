@@ -1,6 +1,7 @@
 'use client';
 
-// 13i — "Analiz" tab. Everything about "understanding what happened":
+// 13i → 13o — "Analiz" zone. INTERNAL PILL TABS (owner 13o:
+// "bəzilərini tab-da olsun, hamısı alt-alta düzgün olar").
 //   Hesabat (COGS/AvT/Tazelik/İtki Pattern) · Trend (30 günlük sərfiyyat) · Audit (tam tarixçə + export)
 // The old "Ağıllı Analiz" tab is gone — its pieces were re-homed:
 //   Təkliflər → Tədarük/Nə Alım · Kalibrasiya → Reseptlər səhifəsi · İnsaytlar → Stok/Advisor.
@@ -8,13 +9,19 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart2 } from '@/components/ui/saito-icons';
-import { SectionHead } from '../stock-ui';
+import { Seg } from '../stock-ui';
 import { EmptyState, LoadingState } from '@/components/ProcurementEmptyState';
 import type { ConsumptionTrend } from '@/types/inventory';
 import TabHero from './TabHero';
-import { ViewContent, scrollToSection } from './ViewFrame';
+import { ViewContent } from './ViewFrame';
 import ReportsTab from './ReportsTab';
 import AuditPage from '../../audit/audit-content';
+
+const TABS: { id: string; label: string }[] = [
+  { id: 'report', label: 'Hesabat' },
+  { id: 'trends', label: 'Trend' },
+  { id: 'audit', label: 'Audit' },
+];
 
 interface Props {
   sub: string;
@@ -29,31 +36,35 @@ export default function AnalyticsHub({ sub, onSubChange, lightMode }: Props) {
     sub: 'Stokun maliyyə şəklində nəzərdən keçirilməsi — COGS, AvT, təzəlik və hərəkət tarixçəsi.',
   };
 
-  // 13l: sub = scroll anchor (deep link / CTA), not a tab.
+  // 13o: sub = active TAB; unknown values (stale URL) fall back to the first.
+  const active = TABS.some(t => t.id === sub) ? sub : TABS[0].id;
   useEffect(() => {
-    if (sub === 'report') return; // default = top
-    scrollToSection(sub);
-  }, [sub]);
+    if (active !== sub) onSubChange(active);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
 
   return (
     <ViewContent id="ana">
-      <div className="space-y-10">
+      <div className="space-y-5">
         <TabHero tone={hero.tone} title={hero.title} sub={hero.sub} lightMode={lightMode} />
 
-        <section id="sec-report" className="scroll-mt-6 space-y-4">
-          <SectionHead overline="Analiz" title="Hesabat (30 gün)" />
-          <ReportsTab />
-        </section>
+        <Seg
+          layoutId="seg-pill-ana"
+          options={TABS.map(t => ({ id: t.id, label: t.label }))}
+          value={active}
+          onChange={onSubChange}
+        />
 
-        <section id="sec-trends" className="scroll-mt-6 space-y-4">
-          <SectionHead overline="Analiz" title="Trend (14 günlük sərfiyyat)" />
-          <TrendsSection />
-        </section>
-
-        <section id="sec-audit" className="scroll-mt-6 space-y-4">
-          <SectionHead overline="Analiz" title="Audit (tam tarixçə)" />
-          <AuditPage />
-        </section>
+        <motion.div
+          key={active}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.18 }}
+        >
+          {active === 'report' && <ReportsTab />}
+          {active === 'trends' && <TrendsSection />}
+          {active === 'audit' && <AuditPage />}
+        </motion.div>
       </div>
     </ViewContent>
   );

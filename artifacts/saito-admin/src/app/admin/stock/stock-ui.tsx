@@ -147,10 +147,13 @@ export function SearchInput({ value, onChange, placeholder = 'Axtar...', classNa
 }
 
 /* ── Seg (segmented control) ────────────────────────────────────────────── */
-export function Seg<T extends string>({ options, value, onChange }: {
+export function Seg<T extends string>({ options, value, onChange, layoutId = 'seg-pill' }: {
   options: { id: T; label: string }[];
   value: T | null;
   onChange: (v: T) => void;
+  /** 13o: multiple zone-level Seg bars share one page — each needs its own
+      layoutId or framer-motion syncs their sliding pills across zones. */
+  layoutId?: string;
 }) {
   return (
     <div className="flex bg-[var(--theme-surface-soft)] p-1 rounded-full border border-[var(--theme-border)] gap-0.5">
@@ -162,7 +165,7 @@ export function Seg<T extends string>({ options, value, onChange }: {
             onClick={() => onChange(o.id)}
             className={`relative px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.97] ${active ? 'text-[var(--theme-bg)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-text)]/[0.05]'}`}
           >
-            {active && <motion.span layoutId="seg-pill" className="absolute inset-0 rounded-full bg-[var(--theme-text)]" transition={SPRING} />}
+            {active && <motion.span layoutId={layoutId} className="absolute inset-0 rounded-full bg-[var(--theme-text)]" transition={SPRING} />}
             <span className="relative z-10">{o.label}</span>
           </button>
         );

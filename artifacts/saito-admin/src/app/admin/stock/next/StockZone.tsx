@@ -45,11 +45,11 @@ type ActionMode = 'stock_in' | 'waste' | 'audit' | null;
 
 interface StockZoneProps {
   deepIngredient?: string | null;
-  /** smooth-scroll to another zone section (3-second CTAs) */
-  gotoSection: (sectionId: string) => void;
+  /** navigate to another zone/sub-tab (3-second CTAs) — a tab switch, not a scroll */
+  onNavigate: (zone: 'procurement' | 'operations' | 'analytics', sub?: string) => void;
 }
 
-export default function StockZone({ deepIngredient, gotoSection }: StockZoneProps) {
+export default function StockZone({ deepIngredient, onNavigate }: StockZoneProps) {
   const [selectedRow, setSelectedRow] = useState<InventoryStatusRow | null>(null);
   const [actionMode, setActionMode] = useState<ActionMode>(null);
   const [showQuickPick, setShowQuickPick] = useState(false);
@@ -146,11 +146,11 @@ export default function StockZone({ deepIngredient, gotoSection }: StockZoneProp
     !data
       ? { tone: 'muted', title: 'Yüklənir…', sub: 'Stok məlumatları gətirilir' }
       : negativeCount > 0
-        ? { tone: 'critical', title: `${negativeCount} maddə mənfi stoddadır`, sub: 'Real fiziki sayım lazımdır — nömrələr düzəlməyənə qədər hesabat etibarlı deyil.', cta: { label: 'Sayım et', onClick: () => gotoSection('sec-counts') } }
+        ? { tone: 'critical', title: `${negativeCount} maddə mənfi stoddadır`, sub: 'Real fiziki sayım lazımdır — nömrələr düzəlməyənə qədər hesabat etibarlı deyil.', cta: { label: 'Sayım et', onClick: () => onNavigate('operations', 'counts') } }
         : criticalCount > 0
-          ? { tone: 'critical', title: `${criticalCount} xammal kritik səviyyədə`, sub: 'Order Guide-da DRAFT PO yarat — tədarük yolunu aç.', cta: { label: 'Nə Alım', onClick: () => gotoSection('sec-buy') } }
+          ? { tone: 'critical', title: `${criticalCount} xammal kritik səviyyədə`, sub: 'Order Guide-da DRAFT PO yarat — tədarük yolunu aç.', cta: { label: 'Nə Alım', onClick: () => onNavigate('procurement', 'buy') } }
           : expiredCount > 0
-            ? { tone: 'warning', title: `${expiredCount} partiya müddətini keçib`, sub: 'FEFO: bitən partiyalar ilk gedənlərdir — itki qeyd edin və ya silin.', cta: { label: 'İtki', onClick: () => gotoSection('sec-waste') } }
+            ? { tone: 'warning', title: `${expiredCount} partiya müddətini keçib`, sub: 'FEFO: bitən partiyalar ilk gedənlərdir — itki qeyd edin və ya silin.', cta: { label: 'İtki', onClick: () => onNavigate('operations', 'waste') } }
             : expiringCount > 0
               ? { tone: 'warning', title: `${expiringCount} partiya 3 günə qədər bitəcək`, sub: 'Tazelik chip-lərinə diqqət edin — FEFO: əvvəl bitən, əvvəl gedən.' }
               : { tone: 'ok', title: 'Hamı normaldır', sub: 'Stok səviyyələri təhlükəsiz zonadadır.' };
@@ -263,7 +263,7 @@ export default function StockZone({ deepIngredient, gotoSection }: StockZoneProp
             <button onClick={() => setFilter(filter === 'critical' ? 'all' : 'critical')} className="flex items-center gap-1.5 hover:text-[var(--theme-text)] transition-colors active:scale-95" title="Kritikləri filtrlə">
               <i className="w-1.5 h-1.5 rounded-full bg-rose-500" /><LiveNumber value={criticalCount} /> kritik
             </button>
-            <button onClick={() => gotoSection('sec-counts')} className="flex items-center gap-1.5 hover:text-[var(--theme-text)] transition-colors active:scale-95" title="Sayıma get">
+            <button onClick={() => onNavigate('operations', 'counts')} className="flex items-center gap-1.5 hover:text-[var(--theme-text)] transition-colors active:scale-95" title="Sayıma get">
               <i className="w-1.5 h-1.5 rounded-full bg-red-500" /><LiveNumber value={negativeCount} /> mənfi
             </button>
             <span className="flex items-center gap-1.5" title={`${expiredCount} müddət keçib`}>

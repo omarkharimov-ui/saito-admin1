@@ -854,6 +854,20 @@ aparılır. Növbəti backend P-fazası (P-10) Q7 terminal provider qərarından
 - Hər Wave tapşırığı bitəndə: bu fayldakı status sütunu (✅/🟡/⚪/❌) yenilənir + HANDOVER §6.3 jurnal sətiri + Notion tick.
 - **Yeni feature təklifi gələndə** əvvəl §0.2 backbone sualı verilir: "bu operation hansı state-i dəyişir, hansı downstream təsirlənir?" → cavab burada (müvafiq modulda) yazılır.
 
+### Jurnal sətiri — 2026-10-08 (ROUND 13p: STOK UI TAM 0-DAN — SCROLL-SPY SİLİNDİ, FOCUSED-VIEW SHELL; ⚠ PRE-E2E (Supabase egress-suspended))
+
+Owner: *"basla 0 dan tam yeni… mövcud UI sil, tam yenisini yaz, digər səhifələrdən ilham al"* → 13n/13o scroll-spy maşını (r38/r39 jump/oscillation sinfini yaradan) TAM silindi.
+
+**1. Shell (0-dan):** `stock/page.tsx` REWRITE — `PageHeaderCard` (serif STOK + subtitle) + **4 ZONE pill** (accent-soft, `layoutId` morph) = primary nav + **tək sabit scroll body**. **Deep link = ONE-WAY** (URL→state, **write-back YOX**) → reflow-la savaş/oscillation konstruktiv yoxdur. SİLİNDİ: `next/Shell.tsx` + `next/useScrollSpy.ts` + `components/StockTab.tsx`. `StockZone`: `gotoSection`→`onNavigate` (CTA scroll→tab-switch); data engine toxunulmayıb. **Data contract tam saxlanıldı** (api/**, stock-ui, useAsyncView, 4 zone + bütün API-bound leaf); 3 hub-un 13o sub-tab chrome bu shell-də commit olundu.
+
+**2. ⛔ E2E blokludur — Supabase egress:** FREE project `jbxmlnsicbfkbsatnoej` **suspended** — hər REST/RPC **HTTP 402 "exceed_egress_quota"**. **Egress 15.49/5 GB (310%)**, Log Ingestion 8.39/1 GB (839%), cycle reset **16 Oktyabr**. Dashboard-dan non-upgrade fix YOX (spend-cap Pro-only; "Restore" düyməsi yox). **SUPPORT TICKET göndərildi** (01:07, omarkharimov@gmail.com). tsc clean.
+
+**3. Biznes qərarları (owner):** Pro + 13r (multi-tenant) = **ilk ödəyən müştəri** gələndə. **Tenant = fərqli SAHİBKAR = fərqli `organization_id`** (filial = eyni org, fərqli `location_id`). Data modeli artıq `organization_id`+`location_id`-ə malik → default = 1 project/çox restoran/org_id isolasiya. **"Ayrı bir project" fikri** = PENDING müzakirə.
+
+**4. 13q egress-hardening (DB back, ÖLÇƏRƏK):** P0 (track delivered/hidden/lifetime dayandır + route-once; bütün poll-a `document.hidden` guard) · P1 (`event:'*'` CDC yüngülləşdirmə + redundant subscriber birləşdirmə) · P2 (idle interval 10–15s, payload slim). Free 5 GB-da survival. `.env` `.gitignore`-ə əlavə olundu (öncə untracked+unignored idi — commit riski).
+
+**OPEN:** DB back (support/16 Oct) → 13p E2E (dark+light console 0 + deep links) + 13q ölç + commit → 13r+Pro ilk müştəri. Bax `HANDOFF_13P.md`.
+
 ### Jurnal sətiri — 2026-10-05 (ROUND 13n: INVENTORY UI 0-DAN — ONE PAGE, 4 ZONE, SCROLL-SPY; NO TABS, `637ef2d`)
 
 Owner: *"basla 0 dan"* — 13i→13m incremental pass-lər rədd edilmişdi; tam rebuild mandatı.

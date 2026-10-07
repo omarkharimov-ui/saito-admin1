@@ -1,8 +1,9 @@
 'use client';
 
-// 13i — "Sayım & İtki" tab (owner: 10 tab → 4 niyyət tab).
-// Everything about "accounting for what physically happened":
-//   Sayım · İtki (qeydiyyat + normalar bir yerdə) · Qaytarış · Anomaliyalar
+// 13i → 13o — "Sayım & İtki" zone. INTERNAL PILL TABS (owner 13o:
+// "bəzilərini tab-da olsun, hamısı alt-alta düzgün olar"). The ZONE stays
+// on the single scroll page; only the tab content swaps (fade-only, 13m).
+//   Sayım (elev) · İtki (elev) · Qaytarış (elev) · Anomaliyalar
 //
 // Note on İtki: the actual waste RECORDING stays on the Stok tab (row → İtki
 // button — the ingredient is right there); this sub = standards (normas) +
@@ -14,14 +15,14 @@ import {
   RefreshCw, CheckCircle, AlertTriangle, DollarSign, TrendingDown,
   Info,
 } from '@/components/ui/saito-icons';
-import { SectionHead } from '../stock-ui';
+import { Seg } from '../stock-ui';
 import { TableActionBar } from '@/components/TableActionBar';
 import { EmptyState, LoadingState } from '@/components/ProcurementEmptyState';
 import { SummaryCards } from '@/components/ProcurementSummaryCards';
 import { toast } from '@/lib/toast';
 import type { DiscrepancyAlert } from '@/types/inventory';
 import TabHero from './TabHero';
-import { ViewContent, scrollToSection } from './ViewFrame';
+import { ViewContent } from './ViewFrame';
 import StockCountsPage from '../counts/counts-content';
 import SupplierReturnsPage from '../returns/returns-content';
 import WasteStandardsPage from '../../waste-standards/waste-standards-content';
@@ -44,6 +45,13 @@ const alertTypeLabels: Record<string, string> = {
   supplier_price: 'Tədarükçü Qiyməti', waste_vs_norm: 'Tullantı Norması',
   margin_drop: 'Marja Düşməsi',
 };
+
+const TABS: { id: string; label: string; elevated?: boolean }[] = [
+  { id: 'counts', label: 'Sayım', elevated: true },
+  { id: 'waste', label: 'İtki', elevated: true },
+  { id: 'returns', label: 'Qaytarış', elevated: true },
+  { id: 'anomalies', label: 'Anomaliyalar' },
+];
 
 interface Props {
   sub: string;
@@ -76,51 +84,52 @@ export default function OperationsHub({ sub, onSubChange, isElevated, lightMode 
         ? { tone: 'warning' as const, title: `${openAlerts} açıq anomaliya var`, sub: 'Diqqət tələb edən uyğunsuzluqlar.', cta: { label: 'Bax →', onClick: () => onSubChange('anomalies') } }
         : { tone: 'ok' as const, title: 'Hamı uyğundur', sub: 'Açıq anomaliya yoxdur — son yoxlama təmiz keçib.' };
 
-  // 13l: sub is now a scroll ANCHOR (deep link / hero CTA), not a tab —
-  // owner: "tab çoxdur; tab yerində alt-alta məlumatlar header ilə".
+  // 13o: sub = active TAB. Gated tabs drop post-auth for lower roles →
+  // first visible tab (URL rewrites via onSubChange).
+  const visible = TABS.filter(t => !t.elevated || isElevated);
+  const active = visible.some(t => t.id === sub) ? sub : visible[0].id;
   useEffect(() => {
-    if (sub === 'counts') return; // default = top; page already resets scroll on tab switch
-    scrollToSection(sub);
-  }, [sub]);
+    if (active !== sub) onSubChange(active);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
 
   return (
     <ViewContent id="ops">
-      <div className="space-y-10">
+      <div className="space-y-5">
         <TabHero tone={hero.tone} title={hero.title} sub={hero.sub} cta={'cta' in hero ? hero.cta : undefined} lightMode={lightMode} />
 
-        {isElevated && (
-          <section id="sec-counts" className="scroll-mt-6 space-y-4">
-            <SectionHead overline="Sayım & İtki" title="Sayım (İnventarizasiya)" />
-            <StockCountsPage />
-          </section>
-        )}
+        <Seg
+          layoutId="seg-pill-ops"
+          options={visible.map(t => ({ id: t.id, label: t.label }))}
+          value={active}
+          onChange={onSubChange}
+        />
 
-        {isElevated && (
-          <section id="sec-waste" className="scroll-mt-6 space-y-4">
-            <SectionHead overline="Sayım & İtki" title="İtki (Normalar)" />
-            {/* where the actual recording happens — the 3-second answer */}
-            <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-blue-500/[0.05] border border-blue-500/20">
-              <Info size={16} className={`mt-0.5 shrink-0 ${lightMode ? 'text-blue-600' : 'text-blue-400'}`} />
-              <p className="text-xs leading-relaxed text-[var(--theme-text-secondary)]">
-                <b className="text-[var(--theme-text)]">İtki qeydi</b> Stok tab-ında edilir: xammal sətrindəki İtki düyməsi.
-                Burada <b className="text-[var(--theme-text)]">normalar</b> idarə olunur — sistem faktiki itkini norma ilə müqayisə edib Anomaliyalar-da göstərir.
-              </p>
-            </div>
-            <WasteStandardsPage />
-          </section>
-        )}
+        <motion.div
+          key={active}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.18 }}
+        >
+          {active === 'counts' && isElevated && <StockCountsPage />}
 
-        {isElevated && (
-          <section id="sec-returns" className="scroll-mt-6 space-y-4">
-            <SectionHead overline="Sayım & İtki" title="Qaytarış (Tədarükçü)" />
-            <SupplierReturnsPage />
-          </section>
-        )}
+          {active === 'waste' && isElevated && (
+            <>
+              {/* where the actual recording happens — the 3-second answer */}
+              <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-blue-500/[0.05] border border-blue-500/20 mb-4">
+                <Info size={16} className={`mt-0.5 shrink-0 ${lightMode ? 'text-blue-600' : 'text-blue-400'}`} />
+                <p className="text-xs leading-relaxed text-[var(--theme-text-secondary)]">
+                  <b className="text-[var(--theme-text)]">İtki qeydi</b> Stok zone-da edilir: xammal sətrindəki İtki düyməsi.
+                  Burada <b className="text-[var(--theme-text)]">normalar</b> idarə olunur — sistem faktiki itkini norma ilə müqayisə edib Anomaliyalar-da göstərir.
+                </p>
+              </div>
+              <WasteStandardsPage />
+            </>
+          )}
 
-        <section id="sec-anomalies" className="scroll-mt-6 space-y-4">
-          <SectionHead overline="Sayım & İtki" title="Anomaliyalar" />
-          <AnomaliesSection lightMode={lightMode} />
-        </section>
+          {active === 'returns' && isElevated && <SupplierReturnsPage />}
+          {active === 'anomalies' && <AnomaliesSection lightMode={lightMode} />}
+        </motion.div>
       </div>
     </ViewContent>
   );
